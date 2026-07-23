@@ -56,7 +56,9 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			{ value: "birthday", label: "Birthday" },
 			{ value: "daysUntilBirthday", label: "Days until birthday" },
 			{ value: "relationship", label: "Relationship" },
-			{ value: "lastInteraction", label: "Last interaction" },
+			{ value: "lastInteraction", label: "Last event" },
+			{ value: "met", label: "Met" },
+			{ value: "openIdeas", label: "Open ideas" },
 		];
 
 		new Setting(containerEl)
@@ -70,6 +72,20 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.contactsFolder =
 							normalizePath(value);
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Diary folder")
+			.setDesc("Folder where diary entries will be stored")
+			.addText((text) => {
+				new FolderSuggest(this.app, text.inputEl);
+				return text
+					.setPlaceholder("Enter folder name")
+					.setValue(this.plugin.settings.diaryFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.diaryFolder = normalizePath(value);
 						await this.plugin.saveSettings();
 					});
 			});
@@ -98,6 +114,105 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 						this.plugin.settings.defaultSortDirection = value as
 							| "asc"
 							| "desc";
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Belated birthday window")
+			.setDesc(
+				"For this many days after a birthday, show \"birthday was X days ago\" so you can still send a belated message"
+			)
+			.addText((text) => {
+				text.inputEl.type = "number";
+				text.inputEl.min = "0";
+				text.inputEl.max = "60";
+				text.setValue(
+					String(this.plugin.settings.belatedBirthdayDays)
+				).onChange(async (value) => {
+					const parsed = Number(value);
+					if (Number.isFinite(parsed)) {
+						this.plugin.settings.belatedBirthdayDays = Math.min(
+							60,
+							Math.max(0, Math.round(parsed))
+						);
+						await this.plugin.saveSettings();
+					}
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Open friends in Callander view")
+			.setDesc(
+				"Clicking a friend's note anywhere (file explorer, quick switcher, links, graph) opens their Callander page instead of raw markdown. The Markdown tab still gets you to the underlying note."
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.openContactsInCallanderView)
+					.onChange(async (value) => {
+						this.plugin.settings.openContactsInCallanderView =
+							value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Birthday reminders on startup")
+			.setDesc(
+				"Show a notice with today's and upcoming birthdays when Obsidian opens (once per day)"
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.showBirthdayReminders)
+					.onChange(async (value) => {
+						this.plugin.settings.showBirthdayReminders = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Reminder window")
+			.setDesc("Include birthdays up to this many days away")
+			.addText((text) => {
+				text.inputEl.type = "number";
+				text.inputEl.min = "1";
+				text.inputEl.max = "60";
+				text.setValue(
+					String(this.plugin.settings.birthdayReminderDays)
+				).onChange(async (value) => {
+					const parsed = Number(value);
+					if (Number.isFinite(parsed)) {
+						this.plugin.settings.birthdayReminderDays = Math.min(
+							60,
+							Math.max(1, Math.round(parsed))
+						);
+						await this.plugin.saveSettings();
+					}
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Show \"Met\" column")
+			.setDesc("Show when you met each friend in the overview table")
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.showMetColumn)
+					.onChange(async (value) => {
+						this.plugin.settings.showMetColumn = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Show \"Ideas\" column")
+			.setDesc(
+				"Show how many open ideas you have per friend in the overview table"
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.showIdeasColumn)
+					.onChange(async (value) => {
+						this.plugin.settings.showIdeasColumn = value;
 						await this.plugin.saveSettings();
 					});
 			});
@@ -237,23 +352,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				});
 		});
 
-		new Setting(containerEl)
-			.setName("Default tab")
-			.setDesc("Choose which tab opens by default")
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("notes", "Notes")
-					.addOption("interactions", "Interactions")
-					.addOption("markdown", "Markdown")
-					.setValue(this.plugin.settings.defaultActiveTab)
-					.onChange(
-						async (
-							value: "notes" | "interactions" | "markdown"
-						) => {
-							this.plugin.settings.defaultActiveTab = value;
-							await this.plugin.saveSettings();
-						}
-					);
-			});
+		// ("Default tab" setting retired 2026-07-22 — the contact page now
+		// stacks Ideas / Timeline / Notes / Markdown instead of tabs.)
 	}
 }

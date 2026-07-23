@@ -4,6 +4,8 @@ import { stringifyYaml } from "obsidian";
 import { VIEW_TYPE_FRIEND_TRACKER } from "@/views/FriendTrackerView";
 import { FriendTrackerView } from "@/views/FriendTrackerView";
 import { createRelationshipInput } from "@/components/ContactFields";
+import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
+import { createFlexDateInput } from "@/components/FlexDateInput";
 
 export class AddContactModal extends Modal {
 	constructor(app: App, private plugin: FriendTracker) {
@@ -13,7 +15,7 @@ export class AddContactModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl("h2", { text: "Add new contact" });
+		contentEl.createEl("h2", { text: "Add a friend" });
 
 		const form = contentEl.createEl("form", {
 			cls: "friend-tracker-add-contact-form",
@@ -27,54 +29,55 @@ export class AddContactModal extends Modal {
 				type: "text",
 				name: "name",
 				required: true,
-				placeholder: "Contact name",
+				placeholder: "A first name is enough",
 			},
 			cls: "friend-tracker-modal-input",
 		});
 		nameInput.focus();
 
-		// Birthday field
+		// Display name (optional) — used everywhere instead of name when set
+		const displayField = form.createDiv({
+			cls: "friend-tracker-modal-field",
+		});
+		displayField.createEl("label", { text: "Display name (optional)" });
+		const displayInput = displayField.createEl("input", {
+			attr: {
+				type: "text",
+				name: "displayName",
+				placeholder: "What you call them, e.g. Mum",
+			},
+			cls: "friend-tracker-modal-input",
+		});
+
+		// Birthday field (honest imprecision: exact / month+year / month+day)
 		const birthdayField = form.createDiv({
 			cls: "friend-tracker-modal-field",
 		});
 		birthdayField.createEl("label", { text: "Birthday" });
-		const birthdayInput = birthdayField.createEl("input", {
-			attr: {
-				type: "date",
-				name: "birthday",
-				placeholder: "YYYY-MM-DD",
-				pattern: "\\d{4}-\\d{2}-\\d{2}",
+		let birthdayValue = "";
+		createBirthdayPrecisionInput(
+			birthdayField,
+			"",
+			(value) => {
+				birthdayValue = value;
 			},
-			cls: "friend-tracker-modal-input",
-		});
+			{ inputClass: "friend-tracker-modal-input" }
+		);
 
-		// Email field
-		const emailField = form.createDiv({
+		// When you met (as precisely as you remember)
+		const metField = form.createDiv({
 			cls: "friend-tracker-modal-field",
 		});
-		emailField.createEl("label", { text: "Email" });
-		const emailInput = emailField.createEl("input", {
-			attr: {
-				type: "email",
-				name: "email",
-				placeholder: "email@example.com",
+		metField.createEl("label", { text: "When you met" });
+		let metValue = "";
+		createFlexDateInput(
+			metField,
+			"",
+			(value) => {
+				metValue = value;
 			},
-			cls: "friend-tracker-modal-input",
-		});
-
-		// Phone field
-		const phoneField = form.createDiv({
-			cls: "friend-tracker-modal-field",
-		});
-		phoneField.createEl("label", { text: "Phone" });
-		const phoneInput = phoneField.createEl("input", {
-			attr: {
-				type: "tel",
-				name: "phone",
-				placeholder: "000-000-0000",
-			},
-			cls: "friend-tracker-modal-input",
-		});
+			{ inputClass: "friend-tracker-modal-input" }
+		);
 
 		// Relationship field
 		const relationshipField = form.createDiv({
@@ -86,22 +89,84 @@ export class AddContactModal extends Modal {
 			this.plugin
 		);
 
+		// Groups: toggle chips of known groups + a quick new-group input
+		const groupsField = form.createDiv({
+			cls: "friend-tracker-modal-field",
+		});
+		groupsField.createEl("label", { text: "Groups" });
+		const ops = this.plugin.contactOperations;
+		const member = new Set<string>();
+		const groupsWrap = groupsField.createDiv({
+			cls: "contact-groups-edit",
+		});
+		const chipsRow = groupsWrap.createDiv({ cls: "contact-group-chips" });
+		const infos = ops.getGroupInfos();
+		const colorOf = new Map(infos.map((i) => [i.name, i.color]));
+
+		const addChip = (name: string) => {
+			// type=button so chips don't submit the form
+			const chip = chipsRow.createEl("button", {
+				cls: "contact-group-chip",
+				attr: { type: "button" },
+			});
+			const dot = chip.createEl("span", { cls: "group-dot" });
+			dot.style.backgroundColor =
+				colorOf.get(name) ?? "var(--background-modifier-border)";
+			chip.createSpan({ text: ops.prettyGroupName(name) });
+			chip.addEventListener("click", () => {
+				member.has(name) ? member.delete(name) : member.add(name);
+				chip.toggleClass("selected", member.has(name));
+			});
+			return chip;
+		};
+		infos.forEach((i) => addChip(i.name));
+
+		const newGroupRow = groupsWrap.createDiv({
+			cls: "contact-groups-add-row",
+		});
+		const newGroupInput = newGroupRow.createEl("input", {
+			cls: "friend-tracker-modal-input",
+			attr: { type: "text", placeholder: "New group…" },
+		});
+		const newGroupButton = newGroupRow.createEl("button", {
+			cls: "friend-tracker-button",
+			text: "Add",
+			attr: { type: "button" },
+		});
+		const addNewGroup = () => {
+			const name = newGroupInput.value.trim().toLowerCase();
+			if (!name || member.has(name)) return;
+			member.add(name);
+			addChip(name).addClass("selected");
+			newGroupInput.value = "";
+		};
+		newGroupButton.addEventListener("click", addNewGroup);
+		newGroupInput.addEventListener("keydown", (e) => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				addNewGroup();
+			}
+		});
+
 		// Submit button
 		form.createEl("button", {
-			text: "Create contact",
+			text: "Add friend",
 			attr: { type: "submit" },
 			cls: "friend-tracker-button button-primary",
 		});
 
 		form.addEventListener("submit", (e) => {
 			e.preventDefault();
-			const data: Record<string, string> = {
+			const data: Record<string, any> = {
 				name: nameInput.value,
 			};
 
-			if (birthdayInput.value) data.birthday = birthdayInput.value;
-			if (emailInput.value) data.email = emailInput.value;
-			if (phoneInput.value) data.phone = phoneInput.value;
+			if (displayInput.value.trim()) {
+				data.displayName = displayInput.value.trim();
+			}
+			if (birthdayValue) data.birthday = birthdayValue;
+			if (metValue) data.met = metValue;
+			if (member.size > 0) data.groups = [...member].sort();
 			if (relationshipInput.value) {
 				const relationship = relationshipInput.value.toLowerCase();
 				data.relationship = relationshipInput.value.toLowerCase();
@@ -131,7 +196,7 @@ export class AddContactModal extends Modal {
 		});
 	}
 
-	private async onSubmit(data: Record<string, string>) {
+	private async onSubmit(data: Record<string, any>) {
 		const fileName = `${data.name}.md`;
 		const filePath = `${this.plugin.settings.contactsFolder}/${fileName}`;
 
@@ -164,9 +229,9 @@ export class AddContactModal extends Modal {
 				}
 			}
 
-			new Notice(`Created contact: ${data.name}`);
+			new Notice(`Added ${data.name}`);
 		} catch (error) {
-			new Notice(`Error creating contact: ${error}`);
+			new Notice(`Error adding friend: ${error}`);
 		}
 	}
 

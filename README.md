@@ -1,81 +1,65 @@
-# Friend Tracker for Obsidian
+# Callander
 
-A plugin for Obsidian that helps you keep track of friends, family, and your interactions with them. Never forget a birthday or important detail about someone you care about.
+**A private secondary memory for your friendships — as an Obsidian plugin.**
 
-## Inspiration
+We all want to be better friends than our memory allows. You forget a birthday. You lose track of a great conversation that got interrupted. You see the perfect gift in a shop window, think "Sarah would love this," and by December you've completely forgotten it.
 
-This plugin was inspired by [Scott Stockdale's article on maintaining meaningful friendships](https://web.archive.org/web/20250409205126/https://entrepreneurscanparty.com/posts/how-to-be-a-more-awesome-friend). The core idea is that maintaining strong relationships requires a system for:
+Callander is a quiet, personal space where you jot down the little things that help you show up well for the people you care about — and it resurfaces them when they matter.
 
--   Tracking important dates and milestones
--   Recording meaningful interactions
--   Remembering personal details
--   Making regular meaningful touchpoints
-
-Friend Tracker helps implement these relationship-building practices in a simple, organized way within Obsidian.
-
-![image](https://github.com/user-attachments/assets/0f8ef3de-6c18-4813-a87a-1a7d5d1a680f)
+It is emphatically **not a CRM for your social life**, and not a dossier-builder. It doesn't store opinions about people, ratings, or intimate details. It stores your *intentions toward them* — things you want to do, say, give, or remember.
 
 ## Features
 
--   **Contact Management**: Easily create and manage contact profiles with essential information
--   **Birthday Tracking**: Keep track of birthdays and see upcoming celebrations
--   **Interaction Logging**: Record and date your interactions with people
--   **Custom Fields**: Add custom fields to track any information that matters to you
--   **Notes Section**: Keep detailed notes about family members, relationships, or any other important details
--   **Smart Organization**: Sort contacts by name, age, or upcoming birthdays
+### 🧑‍🤝‍🧑 A simple list of friends
+Each friend gets their own page (a plain markdown note with frontmatter). A first name is all you need. Optionally add a birthday, a relationship type, and when you met.
 
-## Usage
+### 💡 Ideas — the heart of it
+On any friend's page, jot quick thoughts under five fixed categories:
 
-### Creating Contacts
+- 🎁 **Gifts** — "saw a ceramic mug she'd love at that market stall"
+- 💬 **Conversations** — "we got cut off talking about his career change"
+- 🥾 **Activities** — "wants to try bouldering, invite him sometime"
+- 📍 **Places** — "that ramen place would be perfect for catching up"
+- ✨ **Other** — anything else
 
-1. Click the "Add Contact" button to create a new contact
-2. Fill in their basic information (name, birthday, email, phone)
-3. Add any custom fields you want to track
-4. Use the notes section for additional details
+Ideas display grouped by category, so a ten-second glance before you see someone hands you gift ideas, conversation threads, and things to suggest doing. Check one off when it's done — and optionally log it on the timeline with one click.
 
-### Tracking Interactions
+**Quick capture from anywhere**: the "Add idea for a friend" command (assign it a hotkey!) fuzzy-picks a friend, takes a category and a thought, and files it — without ever leaving the note you were in.
 
-1. Open a contact's profile
-2. Click "Add Interaction" to log a new interaction
-3. Enter the date and details of the interaction
-4. View interaction history in chronological order
+### 🪧 Timeline
+Log events — meetups, their life events, memorable outings — and see them newest-first under year headers, with the day you met as the timeline's origin point.
 
-### Managing Birthdays
+### 📅 Honest imprecision
+You rarely remember the exact day you met someone. Callander lets you record dates as precisely as you actually know them:
 
--   The main view shows upcoming birthdays
--   Sort by "Days Until Birthday" to see who's celebrating soon
--   Birthdays are automatically calculated and displayed in a friendly format
+- **Met**: "2019", "March 2021", or "March 14, 2021"
+- **Birthdays**: exact date, month + year ("day unknown"), or month + day ("year unknown")
+- **Events**: "May 2026" is a perfectly good answer to *when*
 
-### Custom Fields
+Everything displays at recorded precision — the app never pretends to know more than you do.
 
--   Add custom fields to track specific information
--   Fields are saved in the contact's YAML frontmatter
--   Easily edit or update field values
+### 🎂 Birthdays that work like friendship works
+Countdown ("birthday in 23 days"), a once-a-day startup digest of upcoming birthdays, and a **belated window**: for two weeks after a birthday it shows "birthday was 5 days ago" — so you can still send a belated message instead of feeling like you missed the window entirely.
 
-## Installation
+### 📖 Diary
+A simple private journal, separate from friends. Each entry has a title and — importantly — a **date the entry is about**, independent of when you wrote it. Backfill Tuesday's entry on Friday and it files itself under Tuesday. Entries are plain notes, edited in Obsidian's native editor.
 
-1. Open Obsidian Settings
-2. Go to Community Plugins and disable Safe Mode
-3. Click Browse and search for "Friend Tracker"
-4. Install the plugin and enable it
+## Principles
 
-## Storage
+1. **Never creepy.** No fields for opinions, assessments, or sensitive personal details. If a feature would feel wrong if the friend saw it, it doesn't belong.
+2. **Honest imprecision.** Record vague truths, not false precision.
+3. **Ten-second capture.** The core loop is jotting a thought before it evaporates.
+4. **Completely private.** Everything lives in your own vault as plain markdown. No sync, no network, no accounts.
 
-All contact information is stored in markdown files with YAML frontmatter, making it:
+## Development
 
--   Portable
--   Future-proof
--   Easy to backup
--   Compatible with other markdown tools
+```bash
+npm install
+npm run dev   # esbuild watch mode
+```
 
-## Support
+Put the absolute path of a vault plugin folder (e.g. `<vault>/.obsidian/plugins/friend-tracker`) in a `.vault-plugin-path` file at the repo root (gitignored) — dev builds then output `main.js` there and copy `manifest.json`/`styles.css` along, which works with iCloud-synced vaults where symlinks won't sync. Pair with the [Hot Reload](https://github.com/pjeby/hot-reload) plugin for instant reload on rebuild (a `.hotreload` marker is written automatically). Without `.vault-plugin-path`, dev builds land in the repo root like the standard template. See `PLAN.md` for the roadmap.
 
-If you encounter any issues or have feature requests, please visit the [GitHub repository](https://github.com/buzzguy/friend-tracker/issues).
+## Credits
 
-## Author
-
-Created by [Dan Au](https://dausign.com)
-
-## License
-
-MIT License - see LICENSE for details
+Callander is built on [Friend Tracker](https://github.com/dausign/obsidian-friend-tracker) by Dan Au, which was inspired by Scott Stockdale's writing on maintaining meaningful friendships. The rebuild follows the Callander product brief. MIT licensed, like the original.

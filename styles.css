@@ -180,7 +180,7 @@ If your plugin does not need CSS, delete this file.
 .contact-page-header,
 .contact-info-section,
 .contact-notes-section,
-.contact-interactions,
+.contact-events-section,
 .contact-extras-section {
 	padding: 12px 16px;
 }
@@ -230,13 +230,13 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-faint);
 }
 
-/* Interactions Section */
-.contact-interactions {
+/* Events / Timeline Section */
+.contact-events-section {
 	padding: 12px 16px;
 	border-top: 1px solid var(--background-modifier-border);
 }
 
-.contact-interactions-header {
+.contact-events-header {
 	display: grid;
 	grid-template-columns: 1fr auto;
 	align-items: center;
@@ -244,58 +244,96 @@ If your plugin does not need CSS, delete this file.
 	margin: 12px 0 8px;
 }
 
-.contact-add-interaction-button {
-	padding: 6px 12px;
-	background: none;
-	color: var(--text-muted);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 4px;
-	cursor: pointer;
-	font-size: 0.9em;
-	transition: all 0.2s ease;
-}
-
-.contact-add-interaction-button:hover {
-	color: var(--text-normal);
-	border-color: var(--text-muted);
-	background: none;
-}
-
-.contact-interaction-item {
-	display: flex;
-	flex-direction: column;
-	padding: 8px 0;
-	margin: 0;
-	border-bottom: 1px solid var(--background-modifier-border);
+.contact-timeline {
 	position: relative;
+	margin: 8px 0 8px 6px;
+	padding-left: 20px;
+	border-left: 2px solid var(--background-modifier-border);
 }
 
-.contact-interaction-item:last-child {
-	border-bottom: none;
-}
-
-.contact-interaction-date {
+.contact-timeline-year {
 	color: var(--text-muted);
 	font-size: 0.85em;
-	margin-bottom: 4px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin: 16px 0 4px;
 }
 
-.contact-interaction-text {
+.contact-timeline-year:first-child {
+	margin-top: 0;
+}
+
+.contact-timeline-item {
+	position: relative;
+	padding: 6px 0;
+}
+
+.contact-timeline-dot {
+	position: absolute;
+	left: -25px;
+	top: 12px;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--background-modifier-border);
+	border: 2px solid var(--background-primary);
+}
+
+.contact-timeline-item:hover .contact-timeline-dot {
+	background: var(--interactive-accent);
+}
+
+.contact-timeline-date {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+.contact-timeline-text {
 	line-height: 1.4;
 }
 
-.contact-interaction-actions {
+.contact-timeline-actions {
 	display: flex;
 	gap: 8px;
 	opacity: 0;
 	transition: opacity 0.2s ease;
 	position: absolute;
-	top: 8px;
-	right: 8px;
+	top: 6px;
+	right: 0;
 }
 
-.contact-interaction-item:hover .contact-interaction-actions {
+.contact-timeline-item:hover .contact-timeline-actions {
 	opacity: 1;
+}
+
+.contact-timeline-origin {
+	margin-top: 12px;
+}
+
+.contact-timeline-origin .contact-timeline-dot {
+	background: var(--interactive-accent);
+	width: 10px;
+	height: 10px;
+	left: -26px;
+}
+
+.contact-timeline-origin .contact-timeline-date {
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.contact-event-text-input {
+	width: 100%;
+	min-height: 90px;
+	margin-top: 8px;
+	padding: 8px;
+	resize: vertical;
+	font-family: var(--font-text);
+}
+
+.contact-log-event-button {
+	margin-left: 6px;
 }
 
 /* Extras Section */
@@ -361,7 +399,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .contact-interaction-edit,
-.contact-interaction-delete {
+.contact-interaction-delete { /* legacy */
 	background: none;
 	border: none;
 	padding: 4px;
@@ -789,8 +827,8 @@ If your plugin does not need CSS, delete this file.
 	text-transform: capitalize;
 }
 
-.contact-interaction-date,
-.contact-interaction-text,
+.contact-timeline-date,
+.contact-timeline-text,
 .contact-age-display,
 .contact-extras-content {
 	-webkit-user-select: text;
@@ -975,7 +1013,7 @@ If your plugin does not need CSS, delete this file.
 
 /* Remove border-top from sections */
 .contact-notes-section,
-.contact-interactions,
+.contact-events-section,
 .contact-extras-section {
 	padding: 12px 16px;
 	border-top: none;
@@ -988,7 +1026,7 @@ If your plugin does not need CSS, delete this file.
 		padding: 16px 16px 0;
 	}
 
-	.contact-interactions-header,
+	.contact-events-header,
 	.contact-extras-header {
 		grid-template-columns: 1fr;
 		gap: 8px;
@@ -999,7 +1037,7 @@ If your plugin does not need CSS, delete this file.
 		text-align: center;
 	}
 
-	.contact-interactions-header .friend-tracker-button,
+	.contact-events-header .friend-tracker-button,
 	.contact-extras-header .friend-tracker-button {
 		width: 100%;
 		justify-content: center;
@@ -1009,7 +1047,7 @@ If your plugin does not need CSS, delete this file.
 	.contact-page-header,
 	.contact-info-section,
 	.contact-notes-section,
-	.contact-interactions,
+	.contact-events-section,
 	.contact-extras-section,
 	.contact-content {
 		padding: 12px 16px;
@@ -1132,4 +1170,695 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 	font-size: 0.9em;
 	line-height: 1.4;
+}
+
+/* Ideas Section */
+.contact-ideas-section {
+	padding: 12px 16px;
+}
+
+.contact-ideas-add-row {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.contact-ideas-add-row .contact-field-input {
+	flex: 1;
+}
+
+.contact-idea-category-select {
+	flex-shrink: 0;
+}
+
+.contact-idea-group {
+	margin-bottom: 16px;
+}
+
+.contact-idea-group-header {
+	font-weight: 600;
+	font-size: 0.9em;
+	color: var(--text-muted);
+	margin-bottom: 2px;
+}
+
+.contact-idea-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 7px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.contact-idea-item:last-child {
+	border-bottom: none;
+}
+
+.contact-idea-item input[type="checkbox"] {
+	margin: 0;
+	flex-shrink: 0;
+}
+
+.contact-idea-text {
+	flex: 1;
+	line-height: 1.4;
+}
+
+.contact-idea-item.done .contact-idea-text {
+	text-decoration: line-through;
+	color: var(--text-muted);
+}
+
+.contact-idea-item .button-icon {
+	opacity: 0;
+	transition: opacity 0.2s ease;
+}
+
+.contact-idea-item:hover .button-icon {
+	opacity: 1;
+}
+
+/* Diary View */
+.diary-view-container {
+	padding: 16px 24px;
+	max-width: 720px;
+	margin: 0 auto;
+}
+
+.diary-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 16px;
+}
+
+.diary-header h2 {
+	margin: 0;
+}
+
+.diary-empty-state {
+	padding: 24px 0;
+}
+
+.diary-month-header {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin: 20px 0 8px;
+}
+
+.diary-entry-card {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	margin-bottom: 8px;
+	background: var(--background-primary);
+	transition: border-color 0.15s ease;
+}
+
+.diary-entry-card:hover {
+	border-color: var(--text-muted);
+}
+
+.diary-entry-card.expanded {
+	border-color: var(--interactive-accent);
+}
+
+.diary-entry-header {
+	padding: 10px 14px;
+	cursor: pointer;
+}
+
+.diary-entry-date {
+	color: var(--text-muted);
+	font-size: 0.8em;
+}
+
+.diary-entry-title {
+	font-weight: 600;
+	margin: 2px 0;
+}
+
+.diary-entry-snippet {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.diary-entry-body {
+	padding: 0 14px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.diary-entry-rendered {
+	padding: 8px 0;
+}
+
+.diary-entry-toolbar {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	padding: 10px 14px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.diary-toolbar-spacer {
+	flex: 1;
+}
+
+.diary-modal-title-input {
+	min-width: 240px;
+}
+
+/* Quick Idea Capture Modal */
+.quick-idea-categories {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+
+.quick-idea-category-button {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	cursor: pointer;
+	font-size: 0.85em;
+}
+
+.quick-idea-category-button:hover {
+	border-color: var(--text-muted);
+}
+
+.quick-idea-category-button.selected {
+	border-color: var(--interactive-accent);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.quick-idea-input {
+	width: 100%;
+	padding: 8px 10px;
+	font-size: 1em;
+}
+
+/* Honest dates: met field + belated birthdays */
+.contact-met-controls {
+	display: flex;
+	gap: 8px;
+}
+
+.contact-met-precision {
+	flex-shrink: 0;
+}
+
+.contact-met-input {
+	flex: 1;
+}
+
+.contact-birthday-belated,
+.friend-tracker-belated-cell {
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.contact-bday-inputs {
+	display: flex;
+	gap: 8px;
+	flex: 1;
+}
+
+.contact-bday-inputs .contact-field-input {
+	flex: 1;
+}
+
+.contact-bday-day-input {
+	max-width: 80px;
+}
+
+/* Dashboard */
+.dashboard-container {
+	padding: 16px 24px;
+	max-width: 760px;
+	margin: 0 auto;
+	overflow-y: auto;
+}
+
+.dashboard-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.dashboard-header h2 {
+	margin: 0;
+}
+
+.dashboard-actions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.dashboard-actions .friend-tracker-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+
+.dashboard-search {
+	margin-bottom: 8px;
+}
+
+.dashboard-search .contact-field-input {
+	width: 100%;
+}
+
+.dashboard-friend-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 8px;
+}
+
+.dashboard-friend-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 999px;
+	background: var(--background-primary);
+	cursor: pointer;
+	font-size: 0.9em;
+}
+
+.dashboard-friend-chip:hover {
+	border-color: var(--interactive-accent);
+}
+
+.dashboard-chip-badge {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+.dashboard-section {
+	margin-top: 20px;
+}
+
+.dashboard-section h3 {
+	margin: 0 0 6px;
+	font-size: 1em;
+}
+
+.dashboard-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 7px 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+}
+
+.dashboard-row:last-child {
+	border-bottom: none;
+}
+
+.dashboard-row-clickable {
+	cursor: pointer;
+}
+
+.dashboard-row-clickable:hover {
+	background: var(--background-modifier-hover);
+}
+
+.dashboard-row-meta {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	flex-shrink: 0;
+}
+
+.dashboard-row-action {
+	flex-shrink: 0;
+}
+
+/* Group filter + shared event modal */
+.friend-tracker-group-filter {
+	margin-left: auto;
+	margin-right: 8px;
+}
+
+.group-event-friend-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	max-height: 220px;
+	overflow-y: auto;
+	margin: 8px 0 12px;
+	padding: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+}
+
+.group-event-friend-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+
+/* Glance modal */
+.glance-modal .glance-met {
+	color: var(--text-muted);
+	margin-bottom: 8px;
+}
+
+.glance-section-header {
+	font-weight: 600;
+	font-size: 0.9em;
+	color: var(--text-muted);
+	margin: 12px 0 2px;
+}
+
+.glance-list {
+	margin: 4px 0;
+	padding-left: 20px;
+}
+
+/* Resurface badge + diary mentions */
+.contact-idea-resurface-badge {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+.contact-diary-mentions {
+	margin-top: 16px;
+}
+
+.contact-diary-mention-row {
+	display: block;
+	padding: 4px 0;
+	cursor: pointer;
+}
+
+.dashboard-row-clickable-label {
+	cursor: pointer;
+	flex: 1;
+}
+
+.dashboard-row-clickable-label:hover {
+	color: var(--text-accent);
+}
+
+.dashboard-row-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.dashboard-row-date {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* Groups: dots, chips, swatches */
+.group-dot {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+.group-dot-table {
+	width: 8px;
+	height: 8px;
+	margin-left: 5px;
+	vertical-align: middle;
+}
+
+.contact-group-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+}
+
+.contact-group-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 3px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 999px;
+	background: var(--background-primary);
+	font-size: 0.85em;
+	cursor: pointer;
+}
+
+.contact-group-chip.selected {
+	border-color: var(--interactive-accent);
+	background: var(--background-modifier-hover);
+}
+
+.contact-group-chip.readonly {
+	cursor: default;
+}
+
+.contact-member-chip .contact-member-remove {
+	color: var(--text-muted);
+	cursor: pointer;
+	padding-left: 2px;
+}
+
+.contact-member-chip .contact-member-remove:hover {
+	color: var(--text-error);
+}
+
+.contact-member-chip span:first-of-type {
+	cursor: pointer;
+}
+
+.contact-groups-edit {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	flex: 1;
+}
+
+.contact-groups-add-row {
+	display: flex;
+	gap: 8px;
+}
+
+.contact-groups-add-row .contact-field-input {
+	flex: 1;
+	max-width: 220px;
+}
+
+.contact-field-groups {
+	align-items: flex-start;
+}
+
+.group-color-swatches {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin-top: 6px;
+}
+
+.group-color-swatch {
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	border: 2px solid transparent;
+	cursor: pointer;
+	padding: 0;
+}
+
+.group-color-swatch.selected {
+	border-color: var(--text-normal);
+	box-shadow: 0 0 0 2px var(--background-primary) inset;
+}
+
+.dashboard-section-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.dashboard-section-header h3 {
+	margin: 0 0 6px;
+}
+
+.dashboard-group-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* Stacked contact sections (Ideas / Timeline / Notes / Markdown) */
+.contact-content-stacked {
+	padding-bottom: 24px;
+}
+
+.contact-stack-section {
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 8px;
+}
+
+.contact-stack-section:first-child {
+	border-top: none;
+	margin-top: 0;
+}
+
+.contact-stack-header {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 14px 16px 0;
+	font-weight: 600;
+	font-size: 0.95em;
+}
+
+.contact-stack-header-icon {
+	display: inline-flex;
+	color: var(--text-muted);
+}
+
+/* Sections carried their own top borders when tabbed — the stack
+   headers own the separation now */
+.contact-content-stacked .contact-events-section,
+.contact-content-stacked .contact-extras-section {
+	border-top: none;
+}
+
+/* Group member rows */
+.group-member-list {
+	margin: 4px 0 12px;
+}
+
+.group-member-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 9px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.group-member-row:last-child {
+	border-bottom: none;
+}
+
+.group-member-info {
+	flex: 1;
+	cursor: pointer;
+}
+
+.group-member-info:hover .group-member-name {
+	color: var(--text-accent);
+}
+
+.group-member-name {
+	font-weight: 600;
+}
+
+.group-member-met {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+.group-member-row .button-icon {
+	opacity: 0;
+	transition: opacity 0.2s ease;
+}
+
+.group-member-row:hover .button-icon {
+	opacity: 1;
+}
+
+.contact-last-updated {
+	font-size: 0.8em;
+	opacity: 0.75;
+}
+
+/* ---- Mobile pass ---- */
+
+/* Phones: stack the cramped capture/input rows */
+.is-phone .contact-ideas-add-row {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.is-phone .contact-idea-category-select {
+	width: 100%;
+}
+
+.is-phone .contact-met-controls {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.is-phone .contact-bday-inputs {
+	flex-direction: column;
+}
+
+.is-phone .contact-bday-day-input {
+	max-width: none;
+}
+
+.is-phone .contact-groups-add-row {
+	flex-direction: column;
+}
+
+.is-phone .contact-groups-add-row .contact-field-input {
+	max-width: none;
+}
+
+/* Touch devices have no hover — reveal the hover-gated action buttons */
+.is-mobile .contact-idea-item .button-icon,
+.is-mobile .group-member-row .button-icon,
+.is-mobile .contact-gift-item .button-icon {
+	opacity: 1;
+}
+
+.is-mobile .contact-timeline-actions {
+	opacity: 1;
+	position: static;
+	margin-top: 4px;
+	justify-content: flex-end;
+}
+
+/* A little more breathing room between rows on phones */
+.is-phone .contact-idea-item,
+.is-phone .group-member-row {
+	padding-top: 10px;
+	padding-bottom: 10px;
+}
+
+.contact-timeline-source {
+	cursor: pointer;
+	opacity: 0.75;
+}
+
+.contact-timeline-source:hover {
+	opacity: 1;
+}
+
+.dashboard-section-buttons {
+	display: flex;
+	gap: 6px;
 }

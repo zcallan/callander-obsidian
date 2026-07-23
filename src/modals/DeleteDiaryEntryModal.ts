@@ -1,9 +1,9 @@
-import { App, Modal, TFile } from "obsidian";
+import { App, Modal } from "obsidian";
 
-export class DeleteContactModal extends Modal {
+export class DeleteDiaryEntryModal extends Modal {
 	constructor(
 		app: App,
-		private file: TFile,
+		private entryTitle: string,
 		private onDelete: () => Promise<void>
 	) {
 		super(app);
@@ -12,23 +12,21 @@ export class DeleteContactModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl("h2", { text: "Remove friend" });
+		contentEl.createEl("h2", { text: "Delete diary entry" });
 		contentEl.createEl("p", {
-			text: `Are you sure you want to remove ${this.file.basename}? Their note will be moved to your trash.`,
+			text: `Are you sure you want to delete "${this.entryTitle}"? It will be moved to your trash.`,
 		});
 
 		const buttonContainer = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-buttons",
 		});
 
-		// Cancel button
 		const cancelButton = buttonContainer.createEl("button", {
 			text: "Cancel",
 			cls: "friend-tracker-modal-button",
 		});
 		cancelButton.addEventListener("click", () => this.close());
 
-		// Delete button
 		const deleteButton = buttonContainer.createEl("button", {
 			text: "Delete",
 			cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
@@ -40,7 +38,6 @@ export class DeleteContactModal extends Modal {
 	}
 
 	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
+		this.contentEl.empty();
 	}
 }
