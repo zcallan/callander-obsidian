@@ -1,8 +1,16 @@
 import { setIcon } from "obsidian";
 import type { FriendTrackerView } from "./index";
 import type { ContactWithCountdown, SortConfig } from "@/types";
+import {
+	parseFlexDate,
+	monthName,
+	formatFlexDate,
+	flexSortKey,
+} from "@/utils/flexdate";
 
 export class TableView {
+	private groupColors = new Map<string, string | null>();
+
 	constructor(private view: FriendTrackerView) {}
 
 	async render(
@@ -14,10 +22,32 @@ export class TableView {
 		const headerContainer = container.createEl("div", {
 			cls: "friend-tracker-header",
 		});
-		headerContainer.createEl("h2", { text: "Friend tracker" });
+		headerContainer.createEl("h2", { text: "Callander" });
+
+		// Group filter
+		const groupNames = [
+			...new Set(contacts.flatMap((c) => c.groups)),
+		].sort();
+		if (groupNames.length > 0 || this.view.groupFilter) {
+			const filter = headerContainer.createEl("select", {
+				cls: "dropdown friend-tracker-group-filter",
+			});
+			filter.createEl("option", { value: "", text: "All groups" });
+			groupNames.forEach((g) =>
+				filter.createEl("option", {
+					value: g,
+					text: g.charAt(0).toUpperCase() + g.slice(1),
+				})
+			);
+			filter.value = this.view.groupFilter;
+			filter.addEventListener("change", () => {
+				this.view.groupFilter = filter.value;
+				this.view.refresh();
+			});
+		}
 
 		const addButton = headerContainer.createEl("button", {
-			text: "Add contact",
+			text: "Add friend",
 			cls: "friend-tracker-button button-outlined",
 		});
 		addButton.addEventListener("click", () =>
@@ -33,7 +63,7 @@ export class TableView {
 				cls: "friend-tracker-empty-state",
 			});
 			emptyState.createEl("p", {
-				text: "No contacts found. Get started by creating your first contact!",
+				text: "No friends yet. Add your first — a first name is all you need.",
 			});
 			return;
 		}
@@ -64,9 +94,21 @@ export class TableView {
 			{ key: "birthday", label: "Birthday", sortable: true },
 			{ key: "daysUntilBirthday", label: "Days left", sortable: true },
 			{ key: "relationship", label: "Type", sortable: true },
+			...(this.view.settings.showMetColumn
+				? [{ key: "met" as const, label: "Met", sortable: true }]
+				: []),
+			...(this.view.settings.showIdeasColumn
+				? [
+						{
+							key: "openIdeas" as const,
+							label: "Ideas",
+							sortable: true,
+						},
+				  ]
+				: []),
 			{
 				key: "lastInteraction",
-				label: "Last interaction",
+				label: "Last event",
 				sortable: true,
 			},
 			{ key: "actions", label: "", sortable: false },
@@ -111,9 +153,21 @@ export class TableView {
 		table: HTMLTableElement,
 		contacts: ContactWithCountdown[]
 	) {
-		// Sort contacts based on current sort configuration
+		// Colors for the per-friend group dots
+		this.groupColors = new Map(
+			this.view.contactOperations
+				.getGroupInfos(contacts)
+				.map((i) => [i.name, i.color])
+		);
+
+		// Apply group filter, then sort
+		const filtered = this.view.groupFilter
+			? contacts.filter((c) =>
+					c.groups.includes(this.view.groupFilter)
+			  )
+			: contacts;
 		const sortedContacts = this.sortContacts(
-			contacts,
+			filtered,
 			this.view.currentSort
 		);
 
@@ -133,16 +187,22 @@ export class TableView {
 			row.createEl("td", {
 				text: contact.formattedBirthday || "N/A",
 			});
-			row.createEl("td", {
-				text:
-					contact.daysUntilBirthday !== null
-						? `${contact.daysUntilBirthday} days`
-						: "N/A",
-			});
+			row.createEl("td", this.birthdayCountdownCell(contact));
 			row.createEl("td", {
 				text: contact.relationship || "N/A",
 				cls: "friend-tracker-relationship-cell",
 			});
+			if (this.view.settings.showMetColumn) {
+				const metFlex = parseFlexDate(contact.met);
+				row.createEl("td", {
+					text: metFlex ? formatFlexDate(metFlex) : "",
+				});
+			}
+			if (this.view.settings.showIdeasColumn) {
+				row.createEl("td", {
+					text: contact.openIdeas > 0 ? `💡 ${contact.openIdeas}` : "",
+				});
+			}
 			row.createEl("td", { text: contact.lastInteraction || "" });
 
 			// Actions cell
@@ -162,6 +222,45 @@ export class TableView {
 				this.view.openDeleteModal(contact.file);
 			});
 		});
+	}
+
+	private birthdayCountdownCell(contact: ContactWithCountdown): {
+		text: string;
+		cls?: string;
+	} {
+		if (contact.daysUntilBirthday === null) {
+			// Day-less birthday ("1990-03"): month-level countdown
+			const parsed = parseFlexDate(contact.birthday);
+			if (parsed?.month != null && parsed.day === null) {
+				const nowMonth = new Date().getMonth() + 1;
+				return parsed.month === nowMonth
+					? { text: "this month" }
+					: { text: `in ${monthName(parsed.month)}` };
+			}
+			return { text: "N/A" };
+		}
+
+		if (contact.daysUntilBirthday === 0) {
+			return { text: "Today!" };
+		}
+
+		// Belated window: recently passed birthdays show as "X days ago"
+		const belatedWindow = this.view.settings.belatedBirthdayDays;
+		if (
+			contact.daysSinceBirthday !== null &&
+			contact.daysSinceBirthday > 0 &&
+			contact.daysSinceBirthday <= belatedWindow
+		) {
+			return {
+				text:
+					contact.daysSinceBirthday === 1
+						? "yesterday"
+						: `${contact.daysSinceBirthday} days ago`,
+				cls: "friend-tracker-belated-cell",
+			};
+		}
+
+		return { text: `${contact.daysUntilBirthday} days` };
 	}
 
 	private renderNameCell(contact: ContactWithCountdown): HTMLElement {
@@ -186,7 +285,18 @@ export class TableView {
 			}
 		}
 
-		cell.createSpan({ text: contact.name });
+		cell.createSpan({ text: contact.displayName });
+
+		// Color-coded circles for the friend's groups
+		for (const g of contact.groups) {
+			const dot = cell.createEl("span", {
+				cls: "group-dot group-dot-table",
+				attr: { "aria-label": g, title: g },
+			});
+			dot.style.backgroundColor =
+				this.groupColors.get(g) ??
+				"var(--background-modifier-border)";
+		}
 
 		return cell;
 	}
@@ -194,12 +304,15 @@ export class TableView {
 	private sortContacts(contacts: ContactWithCountdown[], sort: SortConfig) {
 		return [...contacts].sort((a, b) => {
 			if (sort.column === "birthday") {
-				// Extract month and day from birthday strings
-				const dateA = new Date(a.birthday);
-				const dateB = new Date(b.birthday);
-
-				const aValue = (dateA.getMonth() + 1) * 100 + dateA.getDate();
-				const bValue = (dateB.getMonth() + 1) * 100 + dateB.getDate();
+				// Sort by month + day; handles year-less birthdays ("03-14")
+				const flexA = parseFlexDate(a.birthday);
+				const flexB = parseFlexDate(b.birthday);
+				const aValue = flexA
+					? (flexA.month ?? 0) * 100 + (flexA.day ?? 0)
+					: Number.MAX_SAFE_INTEGER;
+				const bValue = flexB
+					? (flexB.month ?? 0) * 100 + (flexB.day ?? 0)
+					: Number.MAX_SAFE_INTEGER;
 
 				return sort.direction === "asc"
 					? aValue - bValue
@@ -208,18 +321,46 @@ export class TableView {
 
 			// Add special handling for daysUntilBirthday
 			if (sort.column === "daysUntilBirthday") {
+				// Day-less birthdays get an approximate slot (mid-month);
+				// contacts with no usable birthday stay pinned to the end
+				const approxDays = (
+					c: ContactWithCountdown
+				): number | null => {
+					if (c.daysUntilBirthday !== null)
+						return c.daysUntilBirthday;
+					const parsed = parseFlexDate(c.birthday);
+					if (parsed?.month != null && parsed.day === null) {
+						const nowMonth = new Date().getMonth() + 1;
+						return (
+							((parsed.month - nowMonth + 12) % 12) * 30 + 15
+						);
+					}
+					return null;
+				};
+
+				const aDays = approxDays(a);
+				const bDays = approxDays(b);
+
 				// Handle null values
-				if (
-					a.daysUntilBirthday === null &&
-					b.daysUntilBirthday === null
-				)
-					return 0;
-				if (a.daysUntilBirthday === null) return 1;
-				if (b.daysUntilBirthday === null) return -1;
+				if (aDays === null && bDays === null) return 0;
+				if (aDays === null) return 1;
+				if (bDays === null) return -1;
 
 				// Normal numeric comparison that respects sort direction
 				return (
-					(a.daysUntilBirthday - b.daysUntilBirthday) *
+					(aDays - bDays) * (sort.direction === "asc" ? 1 : -1)
+				);
+			}
+
+			// "Met" sorts chronologically at flexible precision
+			if (sort.column === "met") {
+				const flexA = parseFlexDate(a.met);
+				const flexB = parseFlexDate(b.met);
+				if (!flexA && !flexB) return 0;
+				if (!flexA) return 1;
+				if (!flexB) return -1;
+				return (
+					(flexSortKey(flexA) - flexSortKey(flexB)) *
 					(sort.direction === "asc" ? 1 : -1)
 				);
 			}
@@ -237,9 +378,13 @@ export class TableView {
 
 			// Handle different types of values
 			if (sort.column === "relationship" || sort.column === "name") {
-				// Case-insensitive string comparison for text columns
-				const aStr = String(aValue).toLowerCase();
-				const bStr = String(bValue).toLowerCase();
+				// Case-insensitive string comparison; name sorts by what's shown
+				const aStr = String(
+					sort.column === "name" ? a.displayName : aValue
+				).toLowerCase();
+				const bStr = String(
+					sort.column === "name" ? b.displayName : bValue
+				).toLowerCase();
 				return aStr < bStr ? -direction : aStr > bStr ? direction : 0;
 			} else if (
 				typeof aValue === "number" &&

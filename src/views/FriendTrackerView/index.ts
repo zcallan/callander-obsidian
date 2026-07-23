@@ -2,7 +2,6 @@ import { ItemView, WorkspaceLeaf, EventRef, TFile, Platform } from "obsidian";
 import type FriendTracker from "@/main";
 import { TableView } from "./TableView";
 import { ContactOperations } from "@/services/ContactOperations";
-import { VIEW_TYPE_CONTACT_PAGE } from "@/views/ContactPageView";
 import type { SortConfig, ContactWithCountdown } from "@/types";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { DeleteContactModal } from "@/modals/DeleteContactModal";
@@ -11,6 +10,7 @@ export const VIEW_TYPE_FRIEND_TRACKER = "friend-tracker-view";
 
 export class FriendTrackerView extends ItemView {
 	currentSort: SortConfig;
+	public groupFilter = "";
 	private tableView: TableView;
 	private contactOps: ContactOperations;
 	private fileChangeHandler: EventRef | null = null;
@@ -25,6 +25,14 @@ export class FriendTrackerView extends ItemView {
 		};
 		this.tableView = new TableView(this);
 		this.contactOps = new ContactOperations(this.plugin);
+	}
+
+	get settings() {
+		return this.plugin.settings;
+	}
+
+	get contactOperations() {
+		return this.contactOps;
 	}
 
 	// ... rest of the implementation from earlier
@@ -45,19 +53,7 @@ export class FriendTrackerView extends ItemView {
 	}
 
 	public async openContact(file: TFile) {
-		// Try to find existing contact page view
-		const leaves = this.app.workspace.getLeavesOfType(
-			VIEW_TYPE_CONTACT_PAGE
-		);
-		const leaf =
-			leaves.length > 0 ? leaves[0] : this.app.workspace.getLeaf("tab");
-
-		await leaf.setViewState({
-			type: VIEW_TYPE_CONTACT_PAGE,
-			state: { filePath: file.path },
-		});
-		this.app.workspace.setActiveLeaf(leaf, { focus: true });
-		this.app.workspace.revealLeaf(leaf);
+		await this.plugin.openContactPage(file);
 
 		// On mobile, collapse the main view after opening contact
 		if (Platform.isMobile) {
@@ -78,7 +74,7 @@ export class FriendTrackerView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Friend tracker";
+		return "Callander";
 	}
 
 	async onOpen() {
