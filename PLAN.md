@@ -102,6 +102,37 @@ as the front door. The sidebar table remains as the "All friends" detail view.
   Revisit only if the roster grows enough that surname sorting/disambiguation
   actually hurts. If it does, add optional `lastName` rather than splitting `name`.
 
+## Phase 11 — Drafts (DONE 2026-07-23)
+
+Zero-structure capture: "Quick note" command → text + optional friend (datalist),
+Enter. Attached drafts live on the friend's `drafts:` frontmatter; unattached in the
+Idea Inbox file. Triage on the dashboard ("✏️ Drafts", kept high) and in a strip atop
+the person page: Make idea (prefilled category modal, target picker for unfiled) or
+discard. Drafts are pre-categorization, not a seventh category.
+
+## Phase 12 — Plans (DONE 2026-07-23)
+
+Temporary containers with a lifecycle: one note per plan in `FriendTracker/Plans/`
+(`name`, flex `date`, `status`, `members` as wikilinks, `items` with buckets 🎯
+Must-do / 🤔 Maybe / ⏳ If there's time / 🧳 Travel & stay + optional cost).
+No checklist — a plan is a menu, not a to-do list. Dashboard "🗺️ Plans" shows
+active plans soonest-first with date/people/items/~cost (+ "passed — mark it
+done?" nudge). Plan page: meta line, members, bucketed items, notes/links in the
+body. "Mark as done" logs a 🤝 event to every member's timeline and archives.
+Quick capture targets plans with a bucket modal. Cost-splitting deliberately
+excluded (ledger-keeping between friends ≈ creepy line).
+
+## Phase 13 — Richer plans + cost splitting (DONE 2026-07-23)
+
+Plan page restructured into sections: 💡 Ideas (category 🥾 Activity / 🍴 Food / 📸
+Sightseeing × priority 🎯 Must-do / 🤔 Maybe) · ✈️ Travel · 🏠 Accommodation ·
+🎒 What to bring (checklist) · 💵 Cost breakdown · Notes · Links. Cost breakdown:
+per-item shared expenses, split "even" or "by shares" (integer weights → proportional,
+generic units), participants = members + your name, live per-person owed preview +
+summary. Legacy `bucket` items migrate on load (logistics→travel, must/maybe→ideas).
+Also this batch: ✈️ Trip event type; birthday-trivia setting toggles (+ Chinese zodiac,
+off by default); copy-event-to-others; friend-list Glance button + shortened months.
+
 ## Phase 10 — Candidate ideas (unscoped, pick what resonates)
 
 - **Resurfacing dates on ideas** — optional "resurface around <flex date>" on an idea

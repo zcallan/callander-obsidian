@@ -677,6 +677,17 @@ If your plugin does not need CSS, delete this file.
 	justify-content: flex-end;
 }
 
+/* Destructive modal action — reads as danger even on mobile (no hover) */
+.friend-tracker-modal-button-danger {
+	color: var(--text-error);
+	margin-right: auto;
+}
+
+.friend-tracker-modal-button-danger:hover {
+	background-color: var(--background-modifier-error);
+	color: var(--text-on-accent);
+}
+
 /* Update modal button styles */
 .modal .friend-tracker-button {
 	margin-top: 16px;
@@ -1861,4 +1872,1102 @@ If your plugin does not need CSS, delete this file.
 .dashboard-section-buttons {
 	display: flex;
 	gap: 6px;
+}
+
+/* Drafts */
+.contact-drafts-strip {
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.contact-draft-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 0;
+}
+
+.contact-draft-text {
+	flex: 1;
+	line-height: 1.4;
+}
+
+.dashboard-draft-delete {
+	flex-shrink: 0;
+}
+
+.is-phone .contact-draft-row {
+	flex-wrap: wrap;
+}
+
+.quick-note-friend-field {
+	margin-top: 10px;
+}
+
+/* Event type dot colors */
+.contact-timeline-dot.type-hangout {
+	background: #5a9cf8;
+}
+
+.contact-timeline-dot.type-life {
+	background: #5cb870;
+}
+
+.contact-timeline-dot.type-given {
+	background: #e69735;
+}
+
+.contact-timeline-dot.type-other {
+	background: #9a7ef0;
+}
+
+/* Plans */
+.plan-meta {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.plan-meta-line {
+	color: var(--text-muted);
+}
+
+/* Plan sections already sit inside a bordered stack section — no
+   second divider, and no trailing separator above the add button */
+.contact-idea-item:has(+ .contact-section-footer),
+.contact-idea-item:has(+ .contact-ideas-add-row) {
+	border-bottom: none;
+}
+
+.plan-item-cost {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.plan-item-duration {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* Transport-type glyph shown to the left of a travel leg's name */
+.plan-item-type-icon {
+	margin-right: 6px;
+	flex: 0 0 auto;
+}
+
+/* Plan itinerary timeline (mirrors the friend timeline) */
+.plan-timeline-item {
+	cursor: pointer;
+}
+
+/* Day header — friendlier than the uppercase year label it reuses */
+.plan-timeline-day {
+	text-transform: none;
+	letter-spacing: 0;
+	font-size: 0.9em;
+}
+
+/* Source-tinted dots so ideas / travel / stays read apart at a glance */
+.contact-timeline-dot.timeline-dot-idea {
+	background: var(--color-yellow);
+}
+.contact-timeline-dot.timeline-dot-travel {
+	background: var(--color-blue);
+}
+.contact-timeline-dot.timeline-dot-accommodation {
+	background: var(--color-green);
+}
+
+.plan-travel-meta {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* Inline "people" tag on a plain list row */
+.plan-item-people {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* "People" sub-line under a timeline row */
+.plan-travel-people {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-top: 2px;
+}
+
+/* Date + Time pair in the travel modal — wraps on narrow screens */
+.plan-schedule-row {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.plan-schedule-field {
+	flex: 1 1 120px;
+	min-width: 0;
+}
+
+.plan-schedule-field .quick-idea-input {
+	width: 100%;
+}
+
+/* iOS renders date/time inputs oversized and they overflow without this */
+.plan-schedule-field input[type="date"],
+.plan-schedule-field input[type="time"] {
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+/* Interests: short tags as pill chips, grouped by category */
+.contact-interest-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.contact-interest-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 3px 6px 3px 11px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 999px;
+	background: var(--background-primary);
+	font-size: 0.85em;
+}
+
+.contact-interest-chip-remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.contact-interest-chip-remove:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.contact-interest-chip-remove svg {
+	width: 13px;
+	height: 13px;
+}
+
+.plan-cost-field {
+	max-width: 70px;
+	flex: 0 0 auto;
+}
+
+.plan-cost-input {
+	margin-top: 8px;
+}
+
+.is-phone .plan-cost-field {
+	max-width: none;
+}
+
+.plan-meta-buttons {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.plan-member-add-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.is-phone .plan-member-add-row {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+/* Plan member chips: Friends / Guests */
+.plan-member-chip .plan-chip-name {
+	cursor: pointer;
+}
+
+.plan-member-chip .plan-chip-name:hover {
+	color: var(--text-accent);
+}
+
+.plan-chip-muted {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+
+.plan-member-chip .contact-member-remove {
+	color: var(--text-muted);
+	cursor: pointer;
+	padding-left: 2px;
+}
+
+.plan-member-chip .contact-member-remove:hover {
+	color: var(--text-error);
+}
+
+
+.plan-member-chips {
+	margin: 4px 0 10px;
+}
+
+/* Plan pills are the main content here — a touch larger than tag chips */
+.plan-member-chip {
+	padding: 6px 13px;
+	font-size: 0.95em;
+	gap: 7px;
+	background: var(--background-modifier-hover);
+}
+
+/* Unconfirmed plan members */
+.plan-member-sublabel {
+	color: var(--text-muted);
+	font-size: 0.75em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-top: 2px;
+}
+
+.plan-member-unconfirmed {
+	border-style: dashed;
+	opacity: 0.85;
+}
+
+.plan-chip-confirm {
+	color: var(--text-muted);
+	cursor: pointer;
+	padding-left: 2px;
+}
+
+.plan-chip-confirm:hover {
+	color: var(--color-green, #5cb870);
+}
+
+.plan-unconfirmed-check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 10px 0 4px;
+	cursor: pointer;
+}
+
+/* Section headers rendered inside already-padded sections */
+.plan-section-header {
+	padding: 0 0 8px;
+}
+
+/* Add-row alignment: stretch every control to the same height so the
+   button can't sit lower than the inputs, whatever the theme's metrics */
+.contact-ideas-add-row,
+.contact-groups-add-row,
+.plan-member-add-row {
+	align-items: stretch;
+}
+
+.contact-ideas-add-row > *,
+.contact-groups-add-row > *,
+.plan-member-add-row > * {
+	margin: 0;
+}
+
+.contact-ideas-add-row .friend-tracker-button,
+.contact-groups-add-row .friend-tracker-button,
+.plan-member-add-row .friend-tracker-button {
+	display: inline-flex;
+	align-items: center;
+	height: auto;
+}
+
+.plan-meta-lines {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+/* Mobile: modal content stays reachable above the on-screen keyboard.
+   The inset var is 0 when the keyboard is closed, so this is inert
+   on desktop and while not typing. */
+.is-mobile .modal {
+	overflow-y: auto;
+}
+
+.is-mobile .modal-content {
+	overflow-y: auto;
+	padding-bottom: var(--callander-keyboard-inset, 0px);
+}
+
+.is-phone .modal-content {
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Modals must never scroll horizontally: box-sizing the 100%-wide
+   inputs, and letting flex-row children actually shrink */
+.modal .friend-tracker-modal-input,
+.modal .contact-field-input,
+.modal .quick-idea-input {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+}
+
+.modal .contact-met-controls,
+.modal .contact-bday-inputs,
+.modal .contact-groups-add-row,
+.modal .quick-idea-categories {
+	min-width: 0;
+	max-width: 100%;
+}
+
+.modal .contact-met-controls > *,
+.modal .contact-bday-inputs > * {
+	min-width: 0;
+	flex-shrink: 1;
+}
+
+/* Date/month/number inputs carry large intrinsic widths on iOS */
+.modal input[type="date"],
+.modal input[type="month"],
+.modal input[type="number"] {
+	min-width: 0;
+	max-width: 100%;
+}
+
+.is-mobile .modal-content {
+	overflow-x: hidden;
+}
+
+.plan-bring-add-row {
+	margin-top: 10px;
+	margin-bottom: 0;
+}
+
+/* Mobile: keep content clear of Obsidian's bottom navigation bar */
+.is-mobile .dashboard-container,
+.is-mobile .diary-view-container {
+	padding-bottom: calc(
+		env(safe-area-inset-bottom, 0px) +
+		var(--mobile-navbar-height, 56px) + 24px
+	);
+}
+
+.is-mobile .contact-content-stacked {
+	padding-bottom: calc(
+		env(safe-area-inset-bottom, 0px) +
+		var(--mobile-navbar-height, 56px) + 24px
+	);
+}
+
+/* Mobile modals: flexdate controls stack full-width — iOS date inputs
+   have intrinsic widths that refuse to shrink in flex rows */
+.is-mobile .modal .friend-tracker-modal-field {
+	max-width: 100%;
+	min-width: 0;
+}
+
+.is-mobile .modal .contact-met-controls {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.is-mobile .modal .contact-bday-inputs {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.is-mobile .modal .contact-met-controls > *,
+.is-mobile .modal .contact-bday-inputs > * {
+	flex: none;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+/* iOS: date/month inputs ignore CSS width until native appearance is
+   stripped. The tap-to-open native picker still works. */
+.is-mobile .modal input[type="date"],
+.is-mobile .modal input[type="month"] {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 100% !important;
+	max-width: 100%;
+	display: block;
+	min-height: var(--input-height, 40px);
+}
+
+/* Companion fix: iOS centers the value text after appearance:none */
+.is-mobile .modal input[type="date"]::-webkit-date-and-time-value,
+.is-mobile .modal input[type="month"]::-webkit-date-and-time-value {
+	text-align: left;
+}
+
+/* Add buttons that sit below their lists */
+.contact-section-footer {
+	margin-top: 10px;
+}
+
+/* Mobile: timeline rows are tap-to-edit; hide the row action buttons */
+.is-mobile .contact-timeline-actions {
+	display: none;
+}
+
+/* Breathing room above the last-updated line */
+.contact-last-updated {
+	margin-top: 10px;
+}
+
+/* Center the value text in appearance-stripped date/month inputs */
+.is-mobile .modal input[type="date"],
+.is-mobile .modal input[type="month"] {
+	display: inline-flex;
+	align-items: center;
+	padding-top: 0;
+	padding-bottom: 0;
+	line-height: normal;
+}
+
+.is-mobile .modal input[type="date"]::-webkit-date-and-time-value,
+.is-mobile .modal input[type="month"]::-webkit-date-and-time-value {
+	margin: 0;
+	text-align: left;
+}
+
+/* Ideas section rhythm: stack header supplies the top spacing; groups
+   breathe evenly; helper text doesn't crowd the list */
+.contact-content-stacked .contact-ideas-section {
+	padding-top: 6px;
+}
+
+.contact-ideas-section .section-helper-text {
+	margin-bottom: 10px;
+}
+
+.contact-idea-group {
+	margin: 0 0 18px;
+}
+
+.contact-idea-group:last-of-type {
+	margin-bottom: 6px;
+}
+
+.contact-idea-group-header {
+	margin-bottom: 4px;
+}
+
+.contact-idea-item {
+	padding: 8px 0;
+}
+
+/* Dashboard section dividers */
+.dashboard-section {
+	border-top: 1px solid var(--background-modifier-border);
+	margin-top: 18px;
+	padding-top: 14px;
+}
+
+/* Info-section buttons size to their content (the flex column was
+   stretching them full width); the deliberate full-width Done stays */
+.contact-fields-container > .friend-tracker-button:not(.button-full-width) {
+	align-self: flex-start;
+	padding-left: 16px;
+	padding-right: 16px;
+}
+
+/* Idea/bucket group headers: small caps, clearly subordinate to the
+   section header — fixes the "two competing headers" look */
+.contact-idea-group-header {
+	font-size: 0.75em;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: 2px;
+}
+
+/* Room between the section header and the first group */
+.contact-content-stacked .contact-ideas-section {
+	padding-top: 10px;
+}
+
+.plan-items-section .contact-idea-group:first-of-type {
+	margin-top: 4px;
+}
+
+/* Dashboard diary rows: date-first, roomier, tagged friends beneath */
+.dashboard-diary-row {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	padding-top: 10px;
+	padding-bottom: 10px;
+}
+
+.dashboard-diary-main {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.dashboard-diary-tagged {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+/* Plan rows: a touch more line separation, slightly larger detail line */
+.dashboard-plan-row {
+	gap: 5px;
+}
+
+.dashboard-plan-row .dashboard-diary-tagged {
+	font-size: 0.9em;
+}
+
+/* Diary rows share the plan-row rhythm */
+.dashboard-diary-row {
+	gap: 5px;
+}
+
+.dashboard-diary-tagged {
+	font-size: 0.9em;
+}
+
+/* Missed birthdays: tighter vertical spacing than the other sections */
+.dashboard-missed-section {
+	margin-top: 12px;
+	padding-top: 10px;
+}
+
+.dashboard-missed-section h3 {
+	margin-bottom: 2px;
+}
+
+.dashboard-missed-section .dashboard-row {
+	padding-top: 3px;
+	padding-bottom: 3px;
+}
+
+/* Bare section headings (no button row) sit lower to visually match
+   the header-row sections like Plans/Diary/Groups */
+.dashboard-section > h3 {
+	margin-top: 5px;
+}
+
+.dashboard-missed-section > h3 {
+	margin-top: 0;
+}
+
+/* Divider between the info fields and the first stacked section */
+.contact-content-stacked .contact-stack-section:first-child {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* A little more air under the Ideas heading */
+.contact-content-stacked .contact-ideas-section {
+	padding-top: 14px;
+}
+
+/* More air between each section divider and its heading */
+.contact-stack-header {
+	padding-top: 22px;
+}
+
+/* Ideas: more room under the section heading before the first group */
+.contact-content-stacked .contact-ideas-section {
+	padding-top: 20px;
+}
+
+/* Tighter gap between list content and the section's action button */
+.contact-section-footer {
+	margin-top: 4px;
+}
+
+/* Timeline: pull the helper text up toward the heading */
+.contact-content-stacked .contact-events-section {
+	padding-top: 2px;
+}
+
+.contact-content-stacked .contact-events-header {
+	margin-top: 0;
+}
+
+/* Group spacing comes from the top side: between-group gaps stay
+   generous, while the last group ends flush so the footer button can
+   sit at a harmonious 12px from the final item */
+.contact-idea-group {
+	margin: 14px 0 0;
+}
+
+.contact-idea-group:first-of-type {
+	margin-top: 0;
+}
+
+.contact-section-footer {
+	margin-top: 0;
+}
+
+/* Friend page header quick actions */
+.contact-page-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 10px;
+}
+
+.contact-header-actions {
+	display: flex;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.contact-header-action {
+	padding: 6px 8px;
+}
+
+/* Header actions as labeled buttons */
+.contact-header-action {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px 11px;
+}
+
+.contact-header-actions {
+	flex-wrap: wrap;
+	justify-content: flex-end;
+}
+
+/* Plan header: title + "Last updated" on top, action buttons stacked below.
+   Column layout at every width, so it never depends on .is-phone. */
+.plan-page-header {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.plan-page-actions {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	margin-top: 10px;
+}
+
+.plan-page-actions .contact-header-action {
+	flex: 0 0 auto;
+}
+
+/* Horizontal button rows always breathe */
+.friend-tracker-modal-buttons {
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+/* All friends list view */
+.friend-list-container {
+	padding: 16px 24px;
+	max-width: 760px;
+	margin: 0 auto;
+}
+
+.friend-list-container h2 {
+	margin: 0;
+}
+
+.friend-list-groups {
+	margin: 10px 0 4px;
+}
+
+.friend-list-sort-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 10px 0 4px;
+}
+
+.friend-list-sort-label {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+.friend-list-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 10px 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.friend-list-row:last-child {
+	border-bottom: none;
+}
+
+.friend-list-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.friend-list-info {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 0;
+}
+
+.friend-list-main {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-weight: 600;
+}
+
+.friend-list-detail {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.friend-list-row .button-icon {
+	opacity: 0;
+	transition: opacity 0.2s ease;
+	flex-shrink: 0;
+}
+
+.friend-list-row:hover .button-icon {
+	opacity: 1;
+}
+
+.is-mobile .friend-list-row .button-icon {
+	opacity: 1;
+}
+
+.is-mobile .friend-list-container {
+	padding-bottom: calc(
+		env(safe-area-inset-bottom, 0px) +
+		var(--mobile-navbar-height, 56px) + 24px
+	);
+}
+
+/* All friends header: labeled add button with breathing room */
+.friend-list-add-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 6px 14px;
+}
+
+.friend-list-container .dashboard-section-header {
+	margin: 4px 0 14px;
+}
+
+/* Sort control sits right */
+.friend-list-sort-row {
+	justify-content: flex-end;
+}
+
+/* Group tags on friend rows: dot + name, quiet */
+.friend-list-group-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: 8px;
+	color: var(--text-muted);
+	font-size: 0.8em;
+	font-weight: 400;
+}
+
+.friend-list-group-tag .group-dot {
+	width: 8px;
+	height: 8px;
+}
+
+.friend-list-glance {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 10px;
+	font-size: 0.85em;
+	flex-shrink: 0;
+}
+
+/* Trip event dot */
+.contact-timeline-dot.type-trip {
+	background: #45b8ac;
+}
+
+/* Center the Glance button against the two-line row */
+.friend-list-row {
+	align-items: center;
+}
+
+.friend-list-glance {
+	align-self: center;
+}
+
+/* Plan idea priority tag */
+.plan-priority-tag {
+	flex-shrink: 0;
+	font-size: 0.85em;
+	width: 1.4em;
+	text-align: center;
+}
+
+.plan-priority-row {
+	margin-top: 0;
+}
+
+/* Cost breakdown */
+.plan-cost-label {
+	font-weight: 600;
+}
+
+.plan-cost-summary {
+	margin-top: 12px;
+	padding-top: 10px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.plan-cost-summary-total {
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.plan-cost-shares {
+	margin: 8px 0;
+}
+
+.plan-cost-share-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 4px 0;
+}
+
+.plan-cost-share-name {
+	font-weight: 500;
+}
+
+.plan-cost-share-input {
+	max-width: 90px;
+}
+
+.plan-cost-preview {
+	margin-top: 10px;
+	padding: 8px 10px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.contact-timeline-dot.type-milestone {
+	background: #dcc22e;
+}
+
+.copy-event-search {
+	width: 100%;
+	margin-bottom: 8px;
+}
+
+.note-input-textarea {
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 100px;
+	resize: vertical;
+	padding: 8px 10px;
+	font-family: var(--font-text);
+	line-height: 1.5;
+	margin-top: 4px;
+}
+
+/* Cost split percent: live total + suffix */
+.plan-cost-total {
+	font-weight: 600;
+	margin: 6px 0;
+}
+
+.plan-cost-total.is-balanced {
+	color: var(--color-green, #5cb870);
+}
+
+.plan-cost-total.is-off {
+	color: var(--text-warning, #e6a935);
+}
+
+.plan-cost-share-suffix {
+	color: var(--text-muted);
+	margin-left: 4px;
+}
+
+/* Cost split rows: small fixed-width right-aligned number inputs */
+.plan-cost-share-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 4px 0;
+}
+
+.plan-cost-share-right {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+}
+
+.modal .plan-cost-share-input {
+	width: 56px;
+	max-width: 56px;
+	flex: none;
+	text-align: right;
+}
+
+.modal .plan-cost-share-input.is-disabled {
+	background: transparent;
+	opacity: 0.5;
+}
+
+.plan-cost-check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+
+.plan-cost-shares-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+
+.plan-cost-checkall {
+	flex-shrink: 0;
+	padding: 3px 10px;
+	font-size: 0.85em;
+}
+
+.plan-cost-owed {
+	color: var(--text-muted);
+	font-weight: 400;
+}
+
+/* Labeled sections inside picker modals */
+.modal-section-label {
+	display: block;
+	font-size: 0.7em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-muted);
+	margin: 16px 0 6px;
+}
+
+.modal-section-label:first-of-type {
+	margin-top: 6px;
+}
+
+/* Cost input with a $ prefix */
+.plan-cost-input-wrap {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.plan-cost-input-prefix {
+	color: var(--text-muted);
+}
+
+.plan-cost-input-wrap .plan-cost-input {
+	flex: 1;
+	margin: 0;
+}
+
+/* Picker pills a touch softer/rounder for a cleaner grid */
+.quick-idea-categories {
+	gap: 8px;
+}
+
+/* ---- Mobile responsiveness pass (2026-07-23) ---- */
+
+/* Friend page: stack the header so actions drop below the name and
+   share the full width evenly instead of crushing into a right column */
+.is-phone .contact-page-header {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.is-phone .contact-header-actions {
+	justify-content: flex-start;
+}
+
+.is-phone .contact-header-action {
+	flex: 1 1 0;
+	justify-content: center;
+}
+
+/* Plan meta: stack the info lines above a left-aligned, wrapping button row */
+.is-phone .plan-meta {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.is-phone .plan-meta-buttons {
+	justify-content: flex-start;
+}
+
+/* All friends: let the header + sort controls wrap on narrow screens */
+.is-phone .friend-list-container .dashboard-section-header,
+.is-phone .friend-list-sort-row {
+	flex-wrap: wrap;
+}
+
+/* Cost modal: long names shrink beside the fixed-width input */
+.plan-cost-share-name {
+	min-width: 0;
+}
+
+.plan-cost-check span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Group/plan member add rows and quick-action rows wrap cleanly */
+.is-phone .friend-tracker-header {
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* Diary title input: don't force a min-width that overflows narrow phones */
+.is-phone .diary-modal-title-input {
+	min-width: 0;
+}
+
+/* Mobile: cost inputs need more room (iOS number fields carry heavy
+   native padding/chrome that clips the digits at desktop widths) */
+.is-mobile .modal .plan-cost-share-input {
+	width: 86px;
+	max-width: 86px;
+	-webkit-appearance: none;
+	appearance: none;
+	padding: 6px 8px;
+	box-sizing: border-box;
 }

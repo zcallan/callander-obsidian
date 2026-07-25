@@ -2,11 +2,12 @@ import { Notice, TFile, TFolder, normalizePath, parseYaml } from "obsidian";
 import type FriendTracker from "@/main";
 import type {
 	ContactWithCountdown,
+	Draft,
 	FriendEvent,
 	GroupInfo,
 	Idea,
 } from "@/types";
-import type { IdeaCategory } from "@/constants";
+import type { EventType, IdeaCategory } from "@/constants";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 
 export const INBOX_BASENAME = "Idea Inbox";
@@ -42,6 +43,47 @@ export class ContactOperations {
 			? metadata.interactions
 			: [];
 		return [...events, ...legacy];
+	}
+
+	static draftsOf(metadata: any): Draft[] {
+		if (!Array.isArray(metadata?.drafts)) return [];
+		return metadata.drafts
+			.map((d: any) =>
+				typeof d === "string"
+					? { text: d, created: "" }
+					: { text: d?.text ?? "", created: d?.created ?? "" }
+			)
+			.filter((d: Draft) => d.text.length > 0);
+	}
+
+	/** Capture a raw thought onto a friend (or the inbox) for later triage */
+	async addDraft(file: TFile, text: string): Promise<void> {
+		const created = new Date().toISOString().split("T")[0];
+		await this.app.fileManager.processFrontMatter(file, (fm) => {
+			fm.drafts = [
+				...ContactOperations.draftsOf(fm),
+				{ text, created },
+			];
+		});
+	}
+
+	async removeDraft(file: TFile, index: number): Promise<void> {
+		await this.app.fileManager.processFrontMatter(file, (fm) => {
+			const drafts = ContactOperations.draftsOf(fm);
+			if (index >= 0 && index < drafts.length) {
+				drafts.splice(index, 1);
+			}
+			if (drafts.length > 0) fm.drafts = drafts;
+			else delete fm.drafts;
+		});
+	}
+
+	async getInboxDrafts(): Promise<Draft[]> {
+		const file = this.app.vault.getAbstractFileByPath(this.getInboxPath());
+		if (!(file instanceof TFile)) return [];
+		const metadata =
+			this.app.metadataCache.getFileCache(file)?.frontmatter;
+		return ContactOperations.draftsOf(metadata);
 	}
 
 	static groupsOf(metadata: any): string[] {
@@ -289,12 +331,13 @@ export class ContactOperations {
 	async addEventToFile(
 		file: TFile,
 		date: string,
-		text: string
+		text: string,
+		type: EventType = "hangout"
 	): Promise<void> {
 		await this.app.fileManager.processFrontMatter(file, (fm) => {
 			const events = ContactOperations.eventsOf(fm);
 			delete fm.interactions;
-			fm.events = [...events, { date, text }];
+			fm.events = [...events, { date, text, type }];
 		});
 	}
 
@@ -312,9 +355,10 @@ export class ContactOperations {
 			const events = ContactOperations.eventsOf(fm);
 			const existing = events.findIndex((e) => e.source === source);
 			if (existing >= 0) {
+				// Update in place; a manually adjusted type is preserved
 				events[existing] = { ...events[existing], date, text };
 			} else {
-				events.push({ date, text, source });
+				events.push({ date, text, type: "hangout", source });
 			}
 			delete fm.interactions;
 			fm.events = events;
@@ -524,6 +568,7 @@ export class ContactOperations {
 						groups: ContactOperations.groupsOf(metadata),
 						ideas,
 						events: ContactOperations.eventsOf(metadata),
+						drafts: ContactOperations.draftsOf(metadata),
 						file,
 					});
 				}

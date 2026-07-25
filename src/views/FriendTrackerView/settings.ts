@@ -7,7 +7,6 @@ import {
 	normalizePath,
 } from "obsidian";
 import type FriendTracker from "@/main";
-import type { ContactWithCountdown } from "@/types";
 
 class FolderSuggest extends AbstractInputSuggest<string> {
 	inputEl: HTMLInputElement;
@@ -47,20 +46,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		const sortColumns: Array<{
-			value: keyof Omit<ContactWithCountdown, "file">;
-			label: string;
-		}> = [
-			{ value: "name", label: "Name" },
-			{ value: "age", label: "Age" },
-			{ value: "birthday", label: "Birthday" },
-			{ value: "daysUntilBirthday", label: "Days until birthday" },
-			{ value: "relationship", label: "Relationship" },
-			{ value: "lastInteraction", label: "Last event" },
-			{ value: "met", label: "Met" },
-			{ value: "openIdeas", label: "Open ideas" },
-		];
-
 		new Setting(containerEl)
 			.setName("Contacts folder")
 			.setDesc("Folder where contact files will be stored")
@@ -91,34 +76,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Default sort")
-			.setDesc("Choose how contacts are sorted by default")
-			.addDropdown((dropdown) => {
-				sortColumns.forEach(({ value, label }) => {
-					dropdown.addOption(value, label);
-				});
-				return dropdown
-					.setValue(this.plugin.settings.defaultSortColumn)
-					.onChange(async (value) => {
-						this.plugin.settings.defaultSortColumn =
-							value as keyof Omit<ContactWithCountdown, "file">;
-						await this.plugin.saveSettings();
-					});
-			})
-			.addDropdown((dropdown) => {
-				dropdown
-					.addOption("asc", "Ascending")
-					.addOption("desc", "Descending")
-					.setValue(this.plugin.settings.defaultSortDirection)
-					.onChange(async (value) => {
-						this.plugin.settings.defaultSortDirection = value as
-							| "asc"
-							| "desc";
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
 			.setName("Belated birthday window")
 			.setDesc(
 				"For this many days after a birthday, show \"birthday was X days ago\" so you can still send a belated message"
@@ -142,6 +99,20 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
+			.setName("Your name")
+			.setDesc(
+				"Included automatically in shared plan messages (\"Copy as message\"), so you don't have to add yourself as a guest"
+			)
+			.addText((text) => {
+				text.setPlaceholder("e.g. Callan")
+					.setValue(this.plugin.settings.yourName)
+					.onChange(async (value) => {
+						this.plugin.settings.yourName = value.trim();
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
 			.setName("Open friends in Callander view")
 			.setDesc(
 				"Clicking a friend's note anywhere (file explorer, quick switcher, links, graph) opens their Callander page instead of raw markdown. The Markdown tab still gets you to the underlying note."
@@ -155,6 +126,32 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+
+		new Setting(containerEl).setName("Birthday trivia").setHeading();
+
+		const trivia: Array<{
+			key:
+				| "showStarSign"
+				| "showChineseZodiac"
+				| "showBirthstone"
+				| "showBirthFlower";
+			name: string;
+		}> = [
+			{ key: "showStarSign", name: "Show star sign" },
+			{ key: "showChineseZodiac", name: "Show Chinese zodiac" },
+			{ key: "showBirthstone", name: "Show birthstone" },
+			{ key: "showBirthFlower", name: "Show birth flower" },
+		];
+		for (const { key, name } of trivia) {
+			new Setting(containerEl).setName(name).addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings[key])
+					.onChange(async (value) => {
+						this.plugin.settings[key] = value;
+						await this.plugin.saveSettings();
+					});
+			});
+		}
 
 		new Setting(containerEl)
 			.setName("Birthday reminders on startup")
@@ -189,32 +186,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}
 				});
-			});
-
-		new Setting(containerEl)
-			.setName("Show \"Met\" column")
-			.setDesc("Show when you met each friend in the overview table")
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings.showMetColumn)
-					.onChange(async (value) => {
-						this.plugin.settings.showMetColumn = value;
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName("Show \"Ideas\" column")
-			.setDesc(
-				"Show how many open ideas you have per friend in the overview table"
-			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings.showIdeasColumn)
-					.onChange(async (value) => {
-						this.plugin.settings.showIdeasColumn = value;
-						await this.plugin.saveSettings();
-					});
 			});
 
 		const headerContainer = containerEl.createEl("div", {

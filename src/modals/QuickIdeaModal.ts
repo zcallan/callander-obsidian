@@ -32,9 +32,9 @@ export class ContactSuggestModal extends FuzzySuggestModal<ContactWithCountdown>
 	}
 }
 
-/** A place an idea can be captured to: a friend, a group, or the inbox. */
+/** A place an idea can be captured to: a friend, group, plan, or the inbox. */
 export interface CaptureTarget {
-	kind: "friend" | "group" | "inbox";
+	kind: "friend" | "group" | "plan" | "inbox";
 	label: string;
 	/** Resolves lazily — group/inbox files are created on first use */
 	getFile: () => Promise<TFile>;
@@ -56,6 +56,7 @@ export class CaptureTargetModal extends FuzzySuggestModal<CaptureTarget> {
 
 	getItemText(target: CaptureTarget): string {
 		if (target.kind === "group") return `${target.label} (group)`;
+		if (target.kind === "plan") return `${target.label} (plan)`;
 		return target.label;
 	}
 
@@ -74,7 +75,8 @@ export class QuickIdeaModal extends Modal {
 		app: App,
 		private contactName: string,
 		initialCategory: IdeaCategory,
-		private onSubmit: (category: IdeaCategory, text: string) => Promise<void>
+		private onSubmit: (category: IdeaCategory, text: string) => Promise<void>,
+		private initialText = ""
 	) {
 		super(app);
 		this.category = initialCategory;
@@ -120,6 +122,7 @@ export class QuickIdeaModal extends Modal {
 				placeholder: "Jot the thought before it evaporates...",
 			},
 		});
+		textInput.value = this.initialText;
 
 		const buttonContainer = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-buttons",

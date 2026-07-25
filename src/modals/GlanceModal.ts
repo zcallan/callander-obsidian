@@ -1,5 +1,5 @@
 import { App, Modal } from "obsidian";
-import type { ContactWithCountdown } from "@/types";
+import type { ContactWithCountdown, FriendEvent } from "@/types";
 import { IDEA_CATEGORIES } from "@/constants";
 import {
 	parseFlexDate,
@@ -21,9 +21,7 @@ export class GlanceModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass("glance-modal");
-		contentEl.createEl("h2", {
-			text: `Before seeing ${this.contact.displayName}`,
-		});
+		contentEl.createEl("h2", { text: this.contact.displayName });
 
 		const met = parseFlexDate(this.contact.met);
 		if (met && met.year !== null) {
@@ -66,14 +64,37 @@ export class GlanceModal extends Modal {
 			});
 		}
 
-		const recent = [...this.contact.events]
-			.sort((a, b) => {
-				const empty = { year: null, month: null, day: null };
-				return (
-					flexSortKey(parseFlexDate(b.date) ?? empty) -
-					flexSortKey(parseFlexDate(a.date) ?? empty)
-				);
-			})
+		const byDateDesc = (a: FriendEvent, b: FriendEvent) => {
+			const empty = { year: null, month: null, day: null };
+			return (
+				flexSortKey(parseFlexDate(b.date) ?? empty) -
+				flexSortKey(parseFlexDate(a.date) ?? empty)
+			);
+		};
+		const sorted = [...this.contact.events].sort(byDateDesc);
+
+		// What's happening in their life — the best pre-hangout memory jog
+		const lifeEvents = sorted
+			.filter((e) => e.type === "life" || e.type === "milestone")
+			.slice(0, 3);
+		if (lifeEvents.length > 0) {
+			contentEl.createEl("div", {
+				cls: "glance-section-header",
+				text: "🌱 In their life",
+			});
+			const list = contentEl.createEl("ul", { cls: "glance-list" });
+			lifeEvents.forEach((e) => {
+				const parsed = parseFlexDate(e.date);
+				list.createEl("li", {
+					text: `${parsed ? formatFlexDate(parsed) : e.date} — ${
+						e.text
+					}`,
+				});
+			});
+		}
+
+		const recent = sorted
+			.filter((e) => e.type !== "life" && e.type !== "milestone")
 			.slice(0, 3);
 		if (recent.length > 0) {
 			contentEl.createEl("div", {

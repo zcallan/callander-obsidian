@@ -7,6 +7,7 @@ export const STANDARD_FIELDS = {
 	BIRTHDAY: "birthday",
 	BIRTHDAY_WISHED: "birthdayWished",
 	MET: "met",
+	HOMETOWN: "hometown",
 	BIRTHPLACE: "birthplace",
 	LOCATION: "location",
 	PARENTS: "parents",
@@ -23,6 +24,8 @@ export const STANDARD_FIELDS = {
 	EXTRAS: "extras",
 	IDEAS: "ideas",
 	GIFT_IDEAS: "giftIdeas", // legacy key, migrated to "ideas"
+	DRAFTS: "drafts",
+	INTERESTS: "interests",
 } as const;
 
 // System fields that shouldn't be shown as custom fields
@@ -37,6 +40,8 @@ export const SYSTEM_FIELDS: StandardFieldValue[] = [
 	STANDARD_FIELDS.EXTRAS,
 	STANDARD_FIELDS.IDEAS,
 	STANDARD_FIELDS.GIFT_IDEAS,
+	STANDARD_FIELDS.DRAFTS,
+	STANDARD_FIELDS.INTERESTS,
 ];
 
 // Fixed idea categories — deliberately few, no user-defined tags (Callander brief)
@@ -50,6 +55,73 @@ export const IDEA_CATEGORIES = [
 ] as const;
 
 export type IdeaCategory = (typeof IDEA_CATEGORIES)[number]["id"];
+
+// What a friend is into — factual, never evaluative. Helps with gifts,
+// conversations, and plans. Grouped on the friend page like ideas.
+export const INTEREST_CATEGORIES = [
+	{ id: "books", label: "Books", emoji: "📚" },
+	{ id: "music", label: "Music", emoji: "🎵" },
+	{ id: "screen", label: "Movies & TV", emoji: "🎬" },
+	{ id: "games", label: "Games", emoji: "🎮" },
+	{ id: "hobbies", label: "Hobbies", emoji: "🎨" },
+	{ id: "sports", label: "Sports", emoji: "⚽" },
+	{ id: "teams", label: "Teams", emoji: "🏟️" },
+	{ id: "foods", label: "Foods", emoji: "🍔" },
+	{ id: "drinks", label: "Drinks", emoji: "🍹" },
+	{ id: "other", label: "Other", emoji: "✨" },
+] as const;
+
+export type InterestCategory = (typeof INTEREST_CATEGORIES)[number]["id"];
+
+// Fixed event types — deliberately few; "hangout" is the broad default.
+// No call/text granularity: that's the road to contact-frequency logging.
+export const EVENT_TYPES = [
+	{ id: "hangout", label: "Hangout", emoji: "🤝" },
+	{ id: "trip", label: "Trip", emoji: "✈️" },
+	{ id: "milestone", label: "Milestone", emoji: "🏅" },
+	{ id: "life", label: "Life event", emoji: "🌱" },
+	{ id: "given", label: "Given", emoji: "🎁" },
+	{ id: "other", label: "Other", emoji: "✨" },
+] as const;
+
+export type EventType = (typeof EVENT_TYPES)[number]["id"];
+
+// Plan ideas carry a category and a priority — a plan is a menu.
+export const PLAN_IDEA_CATEGORIES = [
+	{ id: "activity", label: "Activity", emoji: "🥾" },
+	{ id: "restaurant", label: "Restaurant", emoji: "🍴" },
+	{ id: "cooking", label: "Cooking", emoji: "🍳" },
+	{ id: "sightseeing", label: "Sightseeing", emoji: "📸" },
+	{ id: "other", label: "Other", emoji: "✨" },
+] as const;
+
+export type PlanIdeaCategory = (typeof PLAN_IDEA_CATEGORIES)[number]["id"];
+
+export const PLAN_PRIORITIES = [
+	{ id: "must", label: "Must-do", emoji: "🎯" },
+	{ id: "maybe", label: "Maybe", emoji: "🤔" },
+] as const;
+
+export type PlanPriority = (typeof PLAN_PRIORITIES)[number]["id"];
+
+// How you're getting there — shown as an icon beside travel legs.
+export const TRAVEL_TYPES = [
+	{ id: "car", label: "Car", emoji: "🚗" },
+	{ id: "plane", label: "Plane", emoji: "✈️" },
+	{ id: "bus", label: "Bus", emoji: "🚌" },
+	{ id: "train", label: "Train", emoji: "🚆" },
+	{ id: "boat", label: "Boat", emoji: "⛵" },
+	{ id: "taxi", label: "Taxi", emoji: "🚕" },
+	{ id: "other", label: "Other", emoji: "🧭" },
+] as const;
+
+export type TravelType = (typeof TRAVEL_TYPES)[number]["id"];
+
+export const TRAVEL_TYPE_EMOJI: Record<TravelType, string> =
+	Object.fromEntries(TRAVEL_TYPES.map((t) => [t.id, t.emoji])) as Record<
+		TravelType,
+		string
+	>;
 
 // Fixed palette for group color dots — no color picker, keep it minimal
 export const GROUP_COLORS = [
