@@ -1,4 +1,5 @@
 import { App, Modal } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 
 interface PlanDetails {
@@ -8,7 +9,7 @@ interface PlanDetails {
 }
 
 /** Edit a plan's date (or range) and location. */
-export class PlanDetailsModal extends Modal {
+export class PlanDetailsModal extends FormModal {
 	constructor(
 		app: App,
 		private current: PlanDetails,

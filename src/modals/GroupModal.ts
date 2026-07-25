@@ -1,4 +1,5 @@
 import { App, Modal, Notice } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import type { GroupInfo } from "@/types";
 import { GROUP_COLORS } from "@/constants";
@@ -6,7 +7,7 @@ import { GROUP_COLORS } from "@/constants";
 /**
  * Create or manage a group: name, color dot, delete. Deliberately tiny.
  */
-export class GroupModal extends Modal {
+export class GroupModal extends FormModal {
 	private deleteArmed = false;
 
 	constructor(

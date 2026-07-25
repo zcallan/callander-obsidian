@@ -1,9 +1,10 @@
 import { App, Modal } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 
 /** Create a plan: a name and a date as rough as you actually know. */
-export class PlanModal extends Modal {
+export class PlanModal extends FormModal {
 	constructor(
 		app: App,
 		private plugin: FriendTracker,
@@ -43,6 +44,15 @@ export class PlanModal extends Modal {
 			}
 		);
 
+		const locationField = contentEl.createEl("div", {
+			cls: "friend-tracker-modal-field",
+		});
+		locationField.createEl("label", { text: "Where (optional)" });
+		const locationInput = locationField.createEl("input", {
+			cls: "friend-tracker-modal-input",
+			attr: { type: "text", placeholder: "e.g. Providence, RI" },
+		});
+
 		const buttons = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-buttons",
 		});
@@ -56,7 +66,8 @@ export class PlanModal extends Modal {
 			if (!name) return;
 			const file = await this.plugin.planOperations.createPlan(
 				name,
-				dateValue
+				dateValue,
+				locationInput.value
 			);
 			this.close();
 			this.onCreated(file);

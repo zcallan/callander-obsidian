@@ -1963,11 +1963,30 @@ If your plugin does not need CSS, delete this file.
 	cursor: pointer;
 }
 
+/* A touch more breathing room + slightly larger text than the base timeline */
+.plan-timeline .contact-timeline-item {
+	padding: 10px 0;
+}
+
+.plan-timeline .contact-timeline-text {
+	font-size: 1.05em;
+	line-height: 1.5;
+}
+
+.plan-timeline .contact-timeline-date {
+	margin-bottom: 3px;
+}
+
+/* Hide the timeline rail when nothing's scheduled yet */
+.plan-timeline:empty {
+	display: none;
+}
+
 /* Day header — friendlier than the uppercase year label it reuses */
 .plan-timeline-day {
 	text-transform: none;
 	letter-spacing: 0;
-	font-size: 0.9em;
+	font-size: 0.95em;
 }
 
 /* Source-tinted dots so ideas / travel / stays read apart at a glance */
@@ -1999,20 +2018,70 @@ If your plugin does not need CSS, delete this file.
 	margin-top: 2px;
 }
 
-/* Date + Time pair in the travel modal — wraps on narrow screens */
-.plan-schedule-row {
-	display: flex;
-	gap: 8px;
-	flex-wrap: wrap;
-}
-
+/* Date and Time each on their own line */
 .plan-schedule-field {
-	flex: 1 1 120px;
 	min-width: 0;
 }
 
 .plan-schedule-field .quick-idea-input {
 	width: 100%;
+}
+
+/* Time row: Roughly/Exact selector beside the value input */
+.plan-time-controls {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.plan-time-precision {
+	flex: 0 0 auto;
+	width: auto;
+}
+
+.plan-time-dynamic {
+	flex: 1 1 160px;
+	min-width: 0;
+}
+
+.plan-rough-select {
+	width: 100%;
+	box-sizing: border-box;
+	height: auto;
+	min-height: 0;
+	line-height: normal;
+}
+
+/* Time picked as hour : minute dropdowns */
+.plan-time-selects {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.plan-time-select {
+	flex: 1 1 auto;
+	min-width: 0;
+	/* Obsidian pins <select> to a short fixed height; with the input padding
+	   that clips the digits. Let it grow to fit instead. */
+	height: auto;
+	min-height: 0;
+	line-height: normal;
+}
+
+.plan-time-colon {
+	color: var(--text-muted);
+	flex: 0 0 auto;
+}
+
+/* Whole plan list/timeline rows open their editor on click */
+.plan-clickable-row {
+	cursor: pointer;
+}
+
+.plan-clickable-row:hover {
+	background: var(--background-modifier-hover);
 }
 
 /* iOS renders date/time inputs oversized and they overflow without this */
@@ -2023,6 +2092,15 @@ If your plugin does not need CSS, delete this file.
 	min-width: 0;
 	-webkit-appearance: none;
 	appearance: none;
+}
+
+/* Interests section: match the padding of the other person-page sections */
+.contact-interests-section {
+	padding: 12px 16px;
+}
+
+.contact-content-stacked .contact-interests-section {
+	padding-top: 20px;
 }
 
 /* Interests: short tags as pill chips, grouped by category */
@@ -2092,6 +2170,31 @@ If your plugin does not need CSS, delete this file.
 	display: flex;
 	gap: 8px;
 	align-items: center;
+	margin-top: 12px;
+}
+
+/* Add-member modal: search + tappable results (like "All friends") */
+.plan-member-search {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.plan-member-search-list {
+	margin-top: 10px;
+	max-height: 45vh;
+	overflow-y: auto;
+}
+
+.plan-member-search-list .friend-list-name {
+	font-weight: 500;
+}
+
+.plan-member-search-list .friend-list-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.plan-member-guest .friend-list-name {
+	color: var(--text-accent);
 }
 
 .is-phone .plan-member-add-row {
@@ -2124,6 +2227,11 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-error);
 }
 
+
+/* Members body — aligns the chips with the section header's 16px inset */
+.plan-members-body {
+	padding: 12px 16px;
+}
 
 .plan-member-chips {
 	margin: 4px 0 10px;
@@ -2555,22 +2663,46 @@ If your plugin does not need CSS, delete this file.
 	justify-content: flex-end;
 }
 
-/* Plan header: title + "Last updated" on top, action buttons stacked below.
-   Column layout at every width, so it never depends on .is-phone. */
-.plan-page-header {
+/* Plan header: name + "Last updated" + date/location stacked on the left,
+   action buttons top-right (a horizontal, wrapping row) on desktop. */
+.plan-page-header .contact-name-container {
 	flex-direction: column;
-	align-items: stretch;
+	align-items: flex-start;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.plan-page-header .plan-meta-lines {
+	margin-top: 6px;
+}
+
+/* "Edit details" button under the date/location lines */
+.plan-edit-details {
+	margin-top: 8px;
+	align-self: flex-start;
 }
 
 .plan-page-actions {
-	flex-direction: column;
+	flex-direction: row;
+	flex-wrap: wrap;
 	align-items: flex-start;
 	gap: 6px;
-	margin-top: 10px;
 }
 
 .plan-page-actions .contact-header-action {
 	flex: 0 0 auto;
+}
+
+/* Mobile: whole header stacks; buttons go vertical below date/location. */
+.is-phone .plan-page-header {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.is-phone .plan-page-actions {
+	flex-direction: column;
+	align-items: stretch;
+	margin-top: 10px;
 }
 
 /* Horizontal button rows always breathe */
@@ -2739,15 +2871,47 @@ If your plugin does not need CSS, delete this file.
 	font-weight: 600;
 }
 
+/* No border here — the last expense row's own divider separates it, so a
+   border-top would read as a double line. */
 .plan-cost-summary {
 	margin-top: 12px;
-	padding-top: 10px;
-	border-top: 1px solid var(--background-modifier-border);
 }
 
 .plan-cost-summary-total {
+	cursor: pointer;
 	font-weight: 600;
-	margin-bottom: 4px;
+	padding: 4px 0;
+}
+
+.plan-cost-owed-list {
+	margin-top: 4px;
+	display: flex;
+	flex-direction: column;
+}
+
+.plan-cost-owed-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 0;
+	cursor: pointer;
+	color: var(--text-muted);
+	font-size: 0.92em;
+}
+
+.plan-cost-owed-name {
+	flex: 1 1 auto;
+}
+
+.plan-cost-owed-amount {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+}
+
+.plan-cost-owed-row.paid .plan-cost-owed-name,
+.plan-cost-owed-row.paid .plan-cost-owed-amount {
+	text-decoration: line-through;
+	opacity: 0.6;
 }
 
 .plan-cost-shares {
@@ -2970,4 +3134,28 @@ If your plugin does not need CSS, delete this file.
 	appearance: none;
 	padding: 6px 8px;
 	box-sizing: border-box;
+}
+
+/* Modal "nudge" when an accidental backdrop click is blocked (unsaved edits) */
+@keyframes ft-modal-shake {
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+	20% {
+		transform: translateX(-6px);
+	}
+	40% {
+		transform: translateX(6px);
+	}
+	60% {
+		transform: translateX(-4px);
+	}
+	80% {
+		transform: translateX(4px);
+	}
+}
+
+.modal.ft-modal-shake {
+	animation: ft-modal-shake 0.28s ease;
 }

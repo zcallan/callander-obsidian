@@ -59,15 +59,15 @@ export type IdeaCategory = (typeof IDEA_CATEGORIES)[number]["id"];
 // What a friend is into — factual, never evaluative. Helps with gifts,
 // conversations, and plans. Grouped on the friend page like ideas.
 export const INTEREST_CATEGORIES = [
-	{ id: "books", label: "Books", emoji: "📚" },
+	{ id: "hobbies", label: "Hobby", emoji: "🎨" },
+	{ id: "books", label: "Book", emoji: "📚" },
 	{ id: "music", label: "Music", emoji: "🎵" },
-	{ id: "screen", label: "Movies & TV", emoji: "🎬" },
-	{ id: "games", label: "Games", emoji: "🎮" },
-	{ id: "hobbies", label: "Hobbies", emoji: "🎨" },
-	{ id: "sports", label: "Sports", emoji: "⚽" },
-	{ id: "teams", label: "Teams", emoji: "🏟️" },
-	{ id: "foods", label: "Foods", emoji: "🍔" },
-	{ id: "drinks", label: "Drinks", emoji: "🍹" },
+	{ id: "screen", label: "Movie & TV", emoji: "🎬" },
+	{ id: "games", label: "Game", emoji: "🎮" },
+	{ id: "sports", label: "Sport", emoji: "⚽" },
+	{ id: "teams", label: "Team", emoji: "🏟️" },
+	{ id: "foods", label: "Food", emoji: "🍔" },
+	{ id: "drinks", label: "Drink", emoji: "🍹" },
 	{ id: "other", label: "Other", emoji: "✨" },
 ] as const;
 
@@ -104,10 +104,36 @@ export const PLAN_PRIORITIES = [
 
 export type PlanPriority = (typeof PLAN_PRIORITIES)[number]["id"];
 
+// Rough times of day for plan items — the honest-imprecision alternative to an
+// exact clock time. `sort` is the notional time each one sits at on the
+// timeline, so a "Morning" leg orders before a "Dinner time" one.
+export const ROUGH_TIMES = [
+	{ id: "breakfast", label: "Breakfast", sort: "09:00" },
+	{ id: "morning", label: "Morning", sort: "10:30" },
+	{ id: "lunch", label: "Lunchtime", sort: "12:30" },
+	{ id: "afternoon", label: "Afternoon", sort: "14:00" },
+	{ id: "late-afternoon", label: "Late afternoon", sort: "16:30" },
+	{ id: "dinner", label: "Dinner time", sort: "19:00" },
+	{ id: "late-night", label: "Late night", sort: "21:30" },
+] as const;
+
+export type RoughTimeId = (typeof ROUGH_TIMES)[number]["id"];
+
+/** Look up a stored rough-time id; undefined for exact "HH:MM" or empty. */
+export function roughTime(time: string | undefined | null) {
+	return time ? ROUGH_TIMES.find((r) => r.id === time) : undefined;
+}
+
+/** Chronological sort key for a stored time (exact "HH:MM" or a rough id). */
+export function timeSortValue(time: string | undefined | null): string {
+	if (!time) return "99:99";
+	return roughTime(time)?.sort ?? time;
+}
+
 // How you're getting there — shown as an icon beside travel legs.
 export const TRAVEL_TYPES = [
-	{ id: "car", label: "Car", emoji: "🚗" },
-	{ id: "plane", label: "Plane", emoji: "✈️" },
+	{ id: "car", label: "Driving", emoji: "🚗" },
+	{ id: "plane", label: "Flying", emoji: "✈️" },
 	{ id: "bus", label: "Bus", emoji: "🚌" },
 	{ id: "train", label: "Train", emoji: "🚆" },
 	{ id: "boat", label: "Boat", emoji: "⛵" },

@@ -1,11 +1,11 @@
 import { App, Modal, Setting } from "obsidian";
-
+import { FormModal } from "@/modals/FormModal";
 interface DiaryEntryModalValues {
 	title: string;
 	date: string;
 }
 
-export class DiaryEntryModal extends Modal {
+export class DiaryEntryModal extends FormModal {
 	private values: DiaryEntryModalValues;
 
 	constructor(

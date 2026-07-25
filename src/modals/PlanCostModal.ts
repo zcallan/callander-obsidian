@@ -1,4 +1,5 @@
 import { App, Modal } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type { PlanCost } from "@/types";
 import { PlanOperations } from "@/services/PlanOperations";
 
@@ -7,7 +8,7 @@ import { PlanOperations } from "@/services/PlanOperations";
  * how — evenly, by integer shares (nights, drinks…), or by explicit
  * percent. Each mode keeps its own values so switching never bleeds.
  */
-export class PlanCostModal extends Modal {
+export class PlanCostModal extends FormModal {
 	private mode: "even" | "shares" | "percent";
 	private included: Set<string>;
 	private weights: Record<string, number> = {};
@@ -125,7 +126,13 @@ export class PlanCostModal extends Modal {
 		// Percent mode: fields you've edited are "locked"; the remaining
 		// percentage is split evenly across the untouched ones and updated
 		// in place. Editing another only moves the still-untouched fields.
-		const touched = new Set<string>();
+		// A saved percent split loads its people as already-locked, so the
+		// first rebalance doesn't wipe it back to an even distribution.
+		const touched = new Set<string>(
+			this.initial?.split.mode === "percent"
+				? Object.keys(this.initial.split.shares ?? {})
+				: []
+		);
 		let percentInputs = new Map<string, HTMLInputElement>();
 		const rebalancePercents = () => {
 			const inc = this.includedList();

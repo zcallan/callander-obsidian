@@ -1,11 +1,12 @@
 import { App, Modal } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 
 /**
  * Set (or clear) when an idea should resurface on the dashboard —
  * "show me this in November, before her birthday".
  */
-export class ResurfaceModal extends Modal {
+export class ResurfaceModal extends FormModal {
 	constructor(
 		app: App,
 		private ideaText: string,

@@ -1,11 +1,13 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown } from "@/types";
 
 /**
- * Add someone to a plan: a friend (autocompleted) or anyone else (guest),
- * optionally as unconfirmed.
+ * Add someone to a plan: search your people and tap one, or type any name to
+ * add them as a guest. Mirrors the "All friends" search rather than a fiddly
+ * native autocomplete (which is especially poor on mobile).
  */
-export class AddPlanMemberModal extends Modal {
+export class AddPlanMemberModal extends FormModal {
 	constructor(
 		app: App,
 		private contacts: ContactWithCountdown[],
@@ -22,24 +24,13 @@ export class AddPlanMemberModal extends Modal {
 		contentEl.empty();
 		contentEl.createEl("h2", { text: "Who's coming?" });
 
-		const nameField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
-		});
-		nameField.createEl("label", { text: "Name" });
-		const nameInput = nameField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+		const searchInput = contentEl.createEl("input", {
+			cls: "contact-field-input plan-member-search",
 			attr: {
 				type: "text",
-				placeholder: "A friend, or anyone (guest)",
-				list: "plan-member-suggestions",
+				placeholder: "Search people, or type a guest name",
 			},
 		});
-		const datalist = nameField.createEl("datalist", {
-			attr: { id: "plan-member-suggestions" },
-		});
-		this.contacts.forEach((c) =>
-			datalist.createEl("option", { value: c.displayName })
-		);
 
 		const checkRow = contentEl.createEl("label", {
 			cls: "plan-unconfirmed-check",
@@ -49,34 +40,90 @@ export class AddPlanMemberModal extends Modal {
 		});
 		checkRow.createSpan({ text: "Unconfirmed (not sure they're in yet)" });
 
-		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
-		});
-		const addButton = buttons.createEl("button", {
-			text: "Add",
-			cls: "friend-tracker-modal-button mod-cta",
+		const listEl = contentEl.createEl("div", {
+			cls: "plan-member-search-list",
 		});
 
-		const submit = async () => {
-			const name = nameInput.value.trim();
-			if (!name) return;
-			const contact =
-				this.contacts.find(
-					(c) =>
-						c.displayName.toLowerCase() === name.toLowerCase() ||
-						c.name.toLowerCase() === name.toLowerCase()
-				) ?? null;
-			await this.onSubmit({ contact, name }, checkbox.checked);
+		const add = async (
+			contact: ContactWithCountdown | null,
+			name: string
+		) => {
+			const trimmed = name.trim();
+			if (!trimmed) return;
+			await this.onSubmit({ contact, name: trimmed }, checkbox.checked);
 			this.close();
 		};
-		addButton.addEventListener("click", submit);
-		nameInput.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				submit();
+
+		const filtered = (q: string) =>
+			this.contacts.filter(
+				(c) =>
+					!q ||
+					c.displayName.toLowerCase().includes(q) ||
+					c.name.toLowerCase().includes(q)
+			);
+
+		const row = (label: string, detail: string | null, onClick: () => void) => {
+			const el = listEl.createEl("div", {
+				cls: "friend-list-row plan-member-result",
+			});
+			el.addEventListener("click", onClick);
+			const info = el.createEl("div", { cls: "friend-list-info" });
+			info.createEl("div", { cls: "friend-list-name", text: label });
+			if (detail) {
+				info.createEl("div", {
+					cls: "friend-list-detail",
+					text: detail,
+				});
 			}
+			return el;
+		};
+
+		const renderResults = () => {
+			listEl.empty();
+			const raw = searchInput.value.trim();
+			const q = raw.toLowerCase();
+			const matches = filtered(q);
+
+			for (const c of matches) {
+				const detail =
+					c.age !== null && c.age !== undefined
+						? `Age ${c.age}`
+						: null;
+				row(c.displayName, detail, () => add(c, c.displayName));
+			}
+
+			// Guest fallback when the typed name isn't an exact match
+			const exact = this.contacts.some(
+				(c) =>
+					c.displayName.toLowerCase() === q ||
+					c.name.toLowerCase() === q
+			);
+			if (raw && !exact) {
+				row(`Add “${raw}” as guest`, null, () => add(null, raw)).addClass(
+					"plan-member-guest"
+				);
+			}
+
+			if (matches.length === 0 && !raw) {
+				listEl.createEl("div", {
+					cls: "section-helper-text",
+					text: "No one left to add — type a name to add a guest.",
+				});
+			}
+		};
+
+		searchInput.addEventListener("input", renderResults);
+		searchInput.addEventListener("keydown", (e) => {
+			if (e.key !== "Enter") return;
+			e.preventDefault();
+			const raw = searchInput.value.trim();
+			const matches = filtered(raw.toLowerCase());
+			if (matches.length > 0) add(matches[0], matches[0].displayName);
+			else if (raw) add(null, raw);
 		});
-		setTimeout(() => nameInput.focus(), 0);
+
+		renderResults();
+		setTimeout(() => searchInput.focus(), 0);
 	}
 
 	onClose() {

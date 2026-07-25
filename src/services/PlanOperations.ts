@@ -1,7 +1,11 @@
 import { TFile, TFolder, normalizePath } from "obsidian";
 import type FriendTracker from "@/main";
 import type { PlanIdeaCategory, PlanPriority } from "@/constants";
-import { PLAN_IDEA_CATEGORIES, TRAVEL_TYPE_EMOJI } from "@/constants";
+import {
+	PLAN_IDEA_CATEGORIES,
+	TRAVEL_TYPE_EMOJI,
+	timeSortValue,
+} from "@/constants";
 import type {
 	PlanCost,
 	PlanInfo,
@@ -130,7 +134,8 @@ export class PlanOperations {
 			);
 		});
 
-		const key = (e: PlanTimelineEntry) => `${e.date}T${e.time || "99:99"}`;
+		const key = (e: PlanTimelineEntry) =>
+			`${e.date}T${timeSortValue(e.time)}`;
 		return entries.sort((a, b) => key(a).localeCompare(key(b)));
 	}
 
@@ -183,7 +188,11 @@ export class PlanOperations {
 			});
 	}
 
-	async createPlan(name: string, date: string): Promise<TFile> {
+	async createPlan(
+		name: string,
+		date: string,
+		location = ""
+	): Promise<TFile> {
 		const folderPath = this.getPlansFolderPath();
 		if (!this.app.vault.getAbstractFileByPath(folderPath)) {
 			await this.app.vault.createFolder(folderPath);
@@ -194,9 +203,12 @@ export class PlanOperations {
 		while (this.app.vault.getAbstractFileByPath(path)) {
 			path = normalizePath(`${folderPath}/${safeName} ${counter++}.md`);
 		}
+		const loc = location.trim()
+			? `location: ${JSON.stringify(location.trim())}\n`
+			: "";
 		return await this.app.vault.create(
 			path,
-			`---\nname: ${JSON.stringify(name)}\ndate: ${date}\nstatus: planning\n---\n`
+			`---\nname: ${JSON.stringify(name)}\ndate: ${date}\n${loc}status: planning\n---\n`
 		);
 	}
 
