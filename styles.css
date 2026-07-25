@@ -1989,6 +1989,13 @@ If your plugin does not need CSS, delete this file.
 	font-size: 0.95em;
 }
 
+/* A day in the plan's range with nothing scheduled */
+.plan-timeline-empty {
+	color: var(--text-muted);
+	font-style: italic;
+	cursor: default;
+}
+
 /* Source-tinted dots so ideas / travel / stays read apart at a glance */
 .contact-timeline-dot.timeline-dot-idea {
 	background: var(--color-yellow);
@@ -2894,9 +2901,37 @@ If your plugin does not need CSS, delete this file.
 	align-items: center;
 	gap: 8px;
 	padding: 5px 0;
-	cursor: pointer;
 	color: var(--text-muted);
 	font-size: 0.92em;
+}
+
+/* Checkbox + name toggle "paid"; the rest of the row does not */
+.plan-cost-owed-check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1 1 auto;
+	min-width: 0;
+	cursor: pointer;
+}
+
+/* Your own row can't be ticked — show a clear disabled grey box */
+.plan-cost-owed-check input[type="checkbox"]:disabled {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 16px;
+	height: 16px;
+	flex: 0 0 auto;
+	margin: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background-color: var(--background-modifier-border);
+	opacity: 1;
+	cursor: not-allowed;
+}
+
+.plan-cost-owed-check:has(input:disabled) {
+	cursor: default;
 }
 
 .plan-cost-owed-name {
@@ -2908,10 +2943,75 @@ If your plugin does not need CSS, delete this file.
 	font-variant-numeric: tabular-nums;
 }
 
+.plan-breakdown-btn {
+	flex: 0 0 auto;
+	margin-top: 0;
+	padding: 3px 9px;
+	font-size: 0.8em;
+}
+
 .plan-cost-owed-row.paid .plan-cost-owed-name,
 .plan-cost-owed-row.paid .plan-cost-owed-amount {
 	text-decoration: line-through;
 	opacity: 0.6;
+}
+
+/* Credit rows: money already handed over (deducted from what's owed).
+   Shares plan-item-cost sizing; just recolour. */
+.plan-credit-amount {
+	color: var(--color-green);
+}
+
+/* Cost section footer: "Add expense" + "Add credit". Side by side on desktop,
+   stacked on mobile, with room above it from the "Who owes what" summary. */
+.plan-cost-footer {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-top: 18px;
+}
+
+.plan-cost-footer .friend-tracker-button {
+	margin-top: 0;
+}
+
+.is-phone .plan-cost-footer {
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+/* Per-person breakdown modal */
+.plan-breakdown-list {
+	margin-top: 10px;
+	display: flex;
+	flex-direction: column;
+}
+
+.plan-breakdown-row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 7px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.plan-breakdown-label {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.plan-breakdown-amount {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+}
+
+.plan-breakdown-total {
+	font-weight: 600;
+	border-bottom: none;
+	margin-top: 2px;
 }
 
 .plan-cost-shares {
@@ -3158,4 +3258,154 @@ If your plugin does not need CSS, delete this file.
 
 .modal.ft-modal-shake {
 	animation: ft-modal-shake 0.28s ease;
+}
+
+/* ── Timeline section: Copy button in the header, quick-add footer ── */
+.contact-stack-header .plan-timeline-copy {
+	margin-left: auto;
+	margin-top: 0;
+	padding: 3px 9px;
+	font-size: 0.8em;
+}
+
+.plan-timeline-footer {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.plan-timeline-footer .friend-tracker-button {
+	margin-top: 0;
+}
+
+.is-phone .plan-timeline-footer {
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+/* ── Collapsible Ideas / Travel sections ── */
+.plan-accordion-header {
+	cursor: pointer;
+}
+
+.plan-accordion-chevron {
+	margin-left: auto;
+	display: inline-flex;
+	align-items: center;
+	color: var(--text-muted);
+	transition: transform 0.15s ease;
+	transform: rotate(-90deg);
+}
+
+.plan-accordion.is-open .plan-accordion-chevron {
+	transform: rotate(0deg);
+}
+
+.plan-accordion-body {
+	display: none;
+}
+
+.plan-accordion.is-open .plan-accordion-body {
+	display: block;
+}
+
+/* ── Fun facts (person page) ── */
+.contact-funfacts-section {
+	padding: 12px 16px;
+}
+
+.contact-content-stacked .contact-funfacts-section {
+	padding-top: 20px;
+}
+
+.contact-funfacts-text {
+	white-space: pre-wrap;
+	line-height: 1.5;
+}
+
+/* ── Add-person modal: group filter pills ── */
+.plan-member-groups {
+	margin: 8px 0;
+}
+
+/* ── People field: dropdown + removable pills ── */
+.plan-date-select,
+.plan-people-select {
+	width: 100%;
+	box-sizing: border-box;
+	height: auto;
+	min-height: 0;
+	line-height: normal;
+}
+
+.plan-people-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.plan-people-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 3px 6px 3px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 999px;
+	background: var(--background-primary);
+	font-size: 0.85em;
+}
+
+.plan-people-pill-x {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: 0.85em;
+}
+
+.plan-people-pill-x:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+/* Event location — a muted bullet after the timeline text */
+.contact-timeline-location {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* ── Quotes (person page) ── */
+.contact-quotes-section {
+	padding: 12px 16px;
+}
+
+.contact-content-stacked .contact-quotes-section {
+	padding-top: 20px;
+}
+
+.contact-quote-item {
+	padding: 8px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.contact-quote-text {
+	font-style: italic;
+	line-height: 1.5;
+}
+
+.contact-quote-context {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-top: 2px;
 }

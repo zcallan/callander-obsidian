@@ -8,6 +8,7 @@ import {
 } from "@/constants";
 import type {
 	PlanCost,
+	PlanCredit,
 	PlanInfo,
 	PlanItem,
 	PlanSimpleItem,
@@ -157,6 +158,25 @@ export class PlanOperations {
 			.filter((c: PlanCost) => c.label.length > 0);
 	}
 
+	/** Credits (money already handed over), deducted from what a person owes. */
+	static creditsOf(metadata: any): PlanCredit[] {
+		if (!Array.isArray(metadata?.credits)) return [];
+		return metadata.credits
+			.map((c: any) => ({
+				person: String(c?.person ?? ""),
+				amount: Number(c?.amount) || 0,
+				...(c?.note && { note: String(c.note) }),
+			}))
+			.filter((c: PlanCredit) => c.person.length > 0 && c.amount > 0);
+	}
+
+	/** Total a person has already been credited. */
+	static creditTotalFor(person: string, credits: PlanCredit[]): number {
+		return credits
+			.filter((c) => c.person === person)
+			.reduce((s, c) => s + c.amount, 0);
+	}
+
 	static membersOf(metadata: any): string[] {
 		const raw = metadata?.members;
 		return Array.isArray(raw) ? raw.map(String) : [];
@@ -289,5 +309,47 @@ export class PlanOperations {
 			for (const p of included) result[p] = each;
 		}
 		return result;
+	}
+
+	/**
+	 * How one person's total splits across each expense they're part of:
+	 * label, a human "how" descriptor (e.g. "2 shares", "25%", "even"), and
+	 * the amount they owe for that item.
+	 */
+	static breakdownFor(
+		person: string,
+		costs: PlanCost[],
+		participants: string[],
+		credits: PlanCredit[] = []
+	): Array<{ label: string; descriptor: string; amount: number }> {
+		const rows: Array<{
+			label: string;
+			descriptor: string;
+			amount: number;
+		}> = [];
+		for (const cost of costs) {
+			const amount = PlanOperations.owedFor(cost, participants)[person];
+			if (!amount || amount <= 0) continue;
+			const shares = cost.split.shares ?? {};
+			let descriptor: string;
+			if (cost.split.mode === "shares") {
+				const w = shares[person] ?? 1;
+				descriptor = `${w} ${w === 1 ? "share" : "shares"}`;
+			} else if (cost.split.mode === "percent") {
+				descriptor = `${shares[person] ?? 0}%`;
+			} else {
+				descriptor = "even";
+			}
+			rows.push({ label: cost.label, descriptor, amount });
+		}
+		// Credits come off as negative lines
+		for (const c of credits.filter((c) => c.person === person)) {
+			rows.push({
+				label: "Credit",
+				descriptor: c.note || "already paid",
+				amount: -c.amount,
+			});
+		}
+		return rows;
 	}
 }

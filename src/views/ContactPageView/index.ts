@@ -10,7 +10,7 @@ import {
 import type FriendTracker from "@/main";
 import { ContactFields } from "@/components/ContactFields";
 import { EventTimeline } from "@/components/EventTimeline";
-import type { FriendEvent, Idea, Interest } from "@/types";
+import type { FriendEvent, Idea, Interest, Quote } from "@/types";
 import { AddFieldModal } from "@/modals/AddFieldModal";
 import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
@@ -38,6 +38,7 @@ import {
 } from "@/constants";
 import type {
 	PlanCost,
+	PlanCredit,
 	PlanItem,
 	PlanSimpleItem,
 	PlanTimelineEntry,
@@ -47,10 +48,15 @@ import { PlanDetailsModal } from "@/modals/PlanDetailsModal";
 import { AddPlanMemberModal } from "@/modals/AddPlanMemberModal";
 import { PlanItemModal } from "@/modals/PlanItemModal";
 import { PlanSimpleItemModal } from "@/modals/PlanSimpleItemModal";
+import { ScheduleFieldOptions } from "@/modals/scheduleFields";
 import { InterestModal } from "@/modals/InterestModal";
 import { PlanCostModal } from "@/modals/PlanCostModal";
+import { PlanCostBreakdownModal } from "@/modals/PlanCostBreakdownModal";
+import { PlanCreditModal } from "@/modals/PlanCreditModal";
 import { CopyEventModal } from "@/modals/CopyEventModal";
 import { NoteInputModal } from "@/modals/NoteInputModal";
+import { FunFactsModal } from "@/modals/FunFactsModal";
+import { QuoteModal } from "@/modals/QuoteModal";
 import {
 	parseFlexDate,
 	formatFlexDate,
@@ -68,6 +74,8 @@ export class ContactPageView extends ItemView {
 	public plugin: FriendTracker;
 	private lastIdeaCategory: IdeaCategory = "gift";
 	private lastInterestCategory: InterestCategory = "hobbies";
+	// Which collapsible plan sections are expanded (persists across re-renders)
+	private expandedPlanSections = new Set<string>();
 	/** Guards against reacting to our own writes */
 	private writingUntil = 0;
 
@@ -269,13 +277,52 @@ export class ContactPageView extends ItemView {
 				return wrap;
 			};
 
+			// A collapsible section — click the header to expand; the body
+			// (returned) holds the content. Open state persists across renders,
+			// so adding/editing an item won't snap it shut.
+			const planAccordion = (
+				icon: string,
+				label: string,
+				key: string
+			) => {
+				const wrap = planContent.createEl("div", {
+					cls: "contact-stack-section plan-accordion",
+				});
+				const header = wrap.createEl("div", {
+					cls: "contact-stack-header plan-accordion-header",
+				});
+				setIcon(
+					header.createSpan({ cls: "contact-stack-header-icon" }),
+					icon
+				);
+				header.createSpan({ cls: "plan-accordion-label", text: label });
+				setIcon(
+					header.createSpan({ cls: "plan-accordion-chevron" }),
+					"chevron-down"
+				);
+				const body = wrap.createEl("div", {
+					cls: "plan-accordion-body",
+				});
+				wrap.toggleClass(
+					"is-open",
+					this.expandedPlanSections.has(key)
+				);
+				header.addEventListener("click", () => {
+					const nowOpen = !this.expandedPlanSections.has(key);
+					if (nowOpen) this.expandedPlanSections.add(key);
+					else this.expandedPlanSections.delete(key);
+					wrap.toggleClass("is-open", nowOpen);
+				});
+				return body;
+			};
+
 			this.renderPlanMembers(
 				planSection("users", `Who's in (${this.planMemberCount()})`)
 			);
 			this.renderPlanTimeline(planSection("calendar-clock", "Timeline"));
-			this.renderPlanIdeas(planSection("lightbulb", "Ideas"));
+			this.renderPlanIdeas(planAccordion("lightbulb", "Ideas", "ideas"));
 			this.renderPlanSimpleList(
-				planSection("plane", "Travel"),
+				planAccordion("plane", "Travel", "travel"),
 				"travel",
 				"Add travel"
 			);
@@ -334,11 +381,13 @@ export class ContactPageView extends ItemView {
 		};
 
 		this.renderIdeasSection(section("lightbulb", "Ideas"));
-		// Interests are about the friend, not a group — friends only
+		this.renderEventsSection(section("milestone", "Timeline"));
+		// Interests + fun facts + quotes are about the friend — friends only
 		if (!this.isGroupFile()) {
 			this.renderInterestsSection(section("heart", "Interests"));
+			this.renderFunFactsSection(section("sparkles", "Fun facts"));
+			this.renderQuotesSection(section("quote", "Quotes"));
 		}
-		this.renderEventsSection(section("milestone", "Timeline"));
 		this.renderNotesSection(section("pencil", "Notes"));
 		this.renderExtrasSection(section("document", "Markdown"));
 	}
@@ -711,6 +760,8 @@ export class ContactPageView extends ItemView {
 							"giftIdeas",
 							"drafts",
 							"interests",
+							"funFacts",
+							"quotes",
 							"birthdayWished",
 							"created",
 							"updated",
@@ -1663,14 +1714,20 @@ export class ContactPageView extends ItemView {
 		setIcon(addButton, "plus");
 		addButton.createSpan({ text: "Add person" });
 		addButton.addEventListener("click", async () => {
-			const contacts =
-				await this.plugin.contactOperations.getContacts();
+			const ops = this.plugin.contactOperations;
+			const contacts = await ops.getContacts();
 			const existing = new Set(
 				this.resolvePlanMembers().map((f) => f.path)
 			);
+			const groups = ops.getGroupInfos(contacts).map((g) => ({
+				name: g.name,
+				label: ops.prettyGroupName(g.name),
+				color: g.color,
+			}));
 			new AddPlanMemberModal(
 				this.app,
 				contacts.filter((c) => !existing.has(c.file.path)),
+				groups,
 				async ({ contact, name }, isUnconfirmed) => {
 					const entry = contact
 						? `[[${contact.file.basename}]]`
@@ -1870,7 +1927,11 @@ export class ContactPageView extends ItemView {
 			const textEl = row.createEl("div", {
 				cls: "contact-idea-text",
 			});
-			if (item.type && TRAVEL_TYPE_EMOJI[item.type]) {
+			if (
+				item.type &&
+				TRAVEL_TYPE_EMOJI[item.type] &&
+				!this.startsWithEmoji(item.text)
+			) {
 				textEl.createSpan({
 					cls: "plan-item-type-icon",
 					text: TRAVEL_TYPE_EMOJI[item.type],
@@ -1933,7 +1994,7 @@ export class ContactPageView extends ItemView {
 	}
 
 	/**
-	 * Rough time → its label ("Morning"); exact "HH:MM" → "10am" / "2:30pm";
+	 * Rough time → its label ("Morning"); exact "HH:MM" → "10:00am" / "2:30pm";
 	 * anything else passes through.
 	 */
 	private formatItemTime(time: string): string {
@@ -1945,14 +2006,15 @@ export class ContactPageView extends ItemView {
 		const minute = m[2];
 		const ampm = hour >= 12 ? "pm" : "am";
 		hour = hour % 12 || 12;
-		return minute === "00" ? `${hour}${ampm}` : `${hour}:${minute}${ampm}`;
+		return `${hour}:${minute}${ampm}`;
 	}
 
-	/** Travel legs as an itinerary timeline, mirroring the friend timeline. */
 	/**
 	 * The plan as an itinerary: every dated item across ideas, travel and
 	 * accommodation, grouped by day, earliest first. Derived on the fly from
 	 * PlanOperations.timelineOf — each row points back to its one real item.
+	 * When the plan has an exact start+end date, every day in that range is
+	 * listed (empty ones show "No plans yet") so it reads day-by-day.
 	 */
 	private renderPlanTimeline(container: HTMLElement) {
 		const section = container.createEl("div", {
@@ -1960,83 +2022,175 @@ export class ContactPageView extends ItemView {
 		});
 		const entries = PlanOperations.timelineOf(this.contactData);
 
-		if (entries.length === 0) {
+		// Group entries by day (timelineOf already sorted them chronologically)
+		const byDay = new Map<string, PlanTimelineEntry[]>();
+		for (const entry of entries) {
+			const list = byDay.get(entry.date);
+			if (list) list.push(entry);
+			else byDay.set(entry.date, [entry]);
+		}
+
+		// Days to render: every day that has an item, plus — when the plan has
+		// an exact start and end — every day in that range.
+		const days = new Set<string>(byDay.keys());
+		const startISO = this.exactPlanDay(this.contactData.date);
+		const endISO = this.exactPlanDay(this.contactData.endDate);
+		if (startISO && endISO) {
+			for (const d of this.daysBetween(startISO, endISO)) days.add(d);
+		}
+		const sortedDays = [...days].sort();
+
+		if (sortedDays.length === 0) {
 			section.createEl("div", {
 				cls: "section-helper-text",
 				text: "Give an idea, travel leg or stay a date and it lands here in order — your itinerary as it firms up.",
 			});
-		}
-
-		const timeline = section.createEl("div", {
-			cls: "contact-timeline plan-timeline",
-		});
-
-		let currentDay: string | null = null;
-		for (const entry of entries) {
-			if (entry.date !== currentDay) {
-				currentDay = entry.date;
+		} else {
+			const timeline = section.createEl("div", {
+				cls: "contact-timeline plan-timeline",
+			});
+			for (const day of sortedDays) {
 				timeline.createEl("div", {
 					cls: "contact-timeline-year plan-timeline-day",
-					text: this.formatTimelineDay(entry.date),
+					text: this.formatTimelineDay(day),
 				});
-			}
-
-			const row = timeline.createEl("div", {
-				cls: `contact-timeline-item plan-timeline-item timeline-${entry.source}`,
-			});
-			// Tapping the row edits it — the only path on mobile.
-			row.addEventListener("click", () => this.openTimelineEntry(entry));
-
-			row.createEl("div", {
-				cls: `contact-timeline-dot timeline-dot-${entry.source}`,
-			});
-
-			// Line 1: the time within the day (the day is the group header).
-			if (entry.time) {
-				row.createEl("div", {
-					cls: "contact-timeline-date",
-					text: this.formatItemTime(entry.time),
-				});
-			}
-
-			// Line 2: emoji + detail (+ duration/cost).
-			const textEl = row.createEl("div", {
-				cls: "contact-timeline-text",
-				text: entry.emoji
-					? `${entry.emoji} ${entry.text}`
-					: entry.text,
-			});
-			const metaBits: string[] = [];
-			if (entry.duration) metaBits.push(entry.duration);
-			if (entry.cost !== undefined)
-				metaBits.push(this.formatItemCost(entry.cost));
-			if (metaBits.length) {
-				textEl.createSpan({
-					cls: "plan-travel-meta",
-					text: `  ·  ${metaBits.join("  ·  ")}`,
-				});
-			}
-
-			if (entry.people) {
-				row.createEl("div", {
-					cls: "plan-travel-people",
-					text: entry.people,
-				});
+				const dayEntries = byDay.get(day);
+				if (dayEntries && dayEntries.length > 0) {
+					for (const entry of dayEntries) {
+						this.renderPlanTimelineEntry(timeline, entry);
+					}
+				} else {
+					timeline.createEl("div", {
+						cls: "contact-timeline-item plan-timeline-empty",
+						text: "No plans yet",
+					});
+				}
 			}
 		}
 
+		// Copy button sits top-right in the section header (desktop).
+		const header = container.querySelector(
+			".contact-stack-header"
+		) as HTMLElement | null;
+		if (header) {
+			const copyButton = header.createEl("button", {
+				cls: "friend-tracker-button plan-timeline-copy",
+			});
+			setIcon(copyButton, "copy");
+			copyButton.createSpan({ text: "Copy as text" });
+			copyButton.addEventListener("click", async () => {
+				await navigator.clipboard.writeText(
+					this.buildPlanShareText()
+				);
+				new Notice("📋 Copied — ready to paste as text");
+			});
+		}
+
+		// Quick-add at the bottom of the itinerary
 		const footer = section.createEl("div", {
-			cls: "contact-section-footer",
+			cls: "contact-section-footer plan-timeline-footer",
 		});
-		const copyButton = footer.createEl("button", {
+		const addIdeaBtn = footer.createEl("button", {
 			cls: "friend-tracker-button",
 		});
-		setIcon(copyButton, "copy");
-		copyButton.createSpan({ text: "Copy as message" });
-		copyButton.addEventListener("click", async () => {
-			await navigator.clipboard.writeText(this.buildPlanShareText());
-			new Notice("📋 Copied — ready to paste into iMessage");
+		setIcon(addIdeaBtn, "plus");
+		addIdeaBtn.createSpan({ text: "Add idea" });
+		addIdeaBtn.addEventListener("click", () =>
+			this.openPlanIdeaModal(null, null)
+		);
+
+		const addTravelBtn = footer.createEl("button", {
+			cls: "friend-tracker-button",
 		});
+		setIcon(addTravelBtn, "plus");
+		addTravelBtn.createSpan({ text: "Add travel" });
+		addTravelBtn.addEventListener("click", () =>
+			this.openPlanTravelModal(null, null)
+		);
+	}
+
+	/** One timeline row for a dated item. */
+	private renderPlanTimelineEntry(
+		timeline: HTMLElement,
+		entry: PlanTimelineEntry
+	) {
+		const row = timeline.createEl("div", {
+			cls: `contact-timeline-item plan-timeline-item timeline-${entry.source}`,
+		});
+		// Tapping the row edits it — the only path on mobile.
+		row.addEventListener("click", () => this.openTimelineEntry(entry));
+
+		row.createEl("div", {
+			cls: `contact-timeline-dot timeline-dot-${entry.source}`,
+		});
+
+		// Line 1: the time within the day (the day is the group header).
+		if (entry.time) {
+			row.createEl("div", {
+				cls: "contact-timeline-date",
+				text: this.formatItemTime(entry.time),
+			});
+		}
+
+		// Line 2: emoji + detail (+ duration/cost). Skip the type emoji when
+		// the name already starts with one.
+		const showEmoji =
+			entry.emoji && !this.startsWithEmoji(entry.text);
+		const textEl = row.createEl("div", {
+			cls: "contact-timeline-text",
+			text: showEmoji ? `${entry.emoji} ${entry.text}` : entry.text,
+		});
+		const metaBits: string[] = [];
+		if (entry.duration) metaBits.push(entry.duration);
+		if (entry.cost !== undefined)
+			metaBits.push(this.formatItemCost(entry.cost));
+		if (metaBits.length) {
+			textEl.createSpan({
+				cls: "plan-travel-meta",
+				text: `  ·  ${metaBits.join("  ·  ")}`,
+			});
+		}
+
+		if (entry.people) {
+			row.createEl("div", {
+				cls: "plan-travel-people",
+				text: entry.people,
+			});
+		}
+	}
+
+	/** True when the text already leads with an emoji/pictograph. */
+	private startsWithEmoji(text: string): boolean {
+		return /^\p{Extended_Pictographic}/u.test(text.trim());
+	}
+
+	/** Exact YYYY-MM-DD for a plan flex date, or null if not day-precise. */
+	private exactPlanDay(value: string | number | undefined): string | null {
+		const p = parseFlexDate(value);
+		if (p && p.year !== null && p.month !== null && p.day !== null) {
+			const pad = (n: number) => String(n).padStart(2, "0");
+			return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+		}
+		return null;
+	}
+
+	/** Inclusive ISO days from start to end (capped for safety). */
+	private daysBetween(startISO: string, endISO: string): string[] {
+		const days: string[] = [];
+		const d = new Date(`${startISO}T00:00:00`);
+		const end = new Date(`${endISO}T00:00:00`);
+		if (isNaN(d.getTime()) || isNaN(end.getTime()) || end < d) return days;
+		const pad = (n: number) => String(n).padStart(2, "0");
+		let guard = 0;
+		while (d <= end && guard++ < 400) {
+			days.push(
+				`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+					d.getDate()
+				)}`
+			);
+			d.setDate(d.getDate() + 1);
+		}
+		return days;
 	}
 
 	/** "Thursday 30 July" from an ISO date, en-AU. */
@@ -2072,6 +2226,22 @@ export class ContactPageView extends ItemView {
 	}
 
 	/** Add (index null) or edit a travel leg via the shared item modal. */
+	/** Day dropdown (when exact range) + trip people for the item modals. */
+	private planScheduleOptions(): ScheduleFieldOptions {
+		const opts: ScheduleFieldOptions = {
+			people: this.planParticipants(),
+		};
+		const startISO = this.exactPlanDay(this.contactData.date);
+		const endISO = this.exactPlanDay(this.contactData.endDate);
+		if (startISO && endISO) {
+			opts.dayOptions = this.daysBetween(startISO, endISO).map((d) => ({
+				value: d,
+				label: this.formatTimelineDay(d),
+			}));
+		}
+		return opts;
+	}
+
 	private openPlanTravelModal(index: number | null, item: PlanSimpleItem | null) {
 		new PlanSimpleItemModal(
 			this.app,
@@ -2114,7 +2284,8 @@ export class ContactPageView extends ItemView {
 						else delete this.contactData.travel;
 						await this.saveContactData();
 						this.render();
-				  }
+				  },
+			this.planScheduleOptions()
 		).open();
 	}
 
@@ -2144,7 +2315,8 @@ export class ContactPageView extends ItemView {
 						else delete this.contactData.items;
 						await this.saveContactData();
 						this.render();
-				  }
+				  },
+			this.planScheduleOptions()
 		).open();
 	}
 
@@ -2193,7 +2365,8 @@ export class ContactPageView extends ItemView {
 						else delete this.contactData.accommodation;
 						await this.saveContactData();
 						this.render();
-				  }
+				  },
+			this.planScheduleOptions()
 		).open();
 	}
 
@@ -2290,12 +2463,21 @@ export class ContactPageView extends ItemView {
 			cls: "contact-ideas-section plan-items-section",
 		});
 		const costs = PlanOperations.costsOf(this.contactData);
+		const credits = PlanOperations.creditsOf(this.contactData);
 		const participants = this.planParticipants();
+		// You're the one owed — not someone who owes — so you're excluded from
+		// the tally and can't be ticked off. Credits are money others hand you.
+		const yourName = this.plugin.settings.yourName;
+		const isYou = (p: string) =>
+			!!yourName && p.toLowerCase() === yourName.toLowerCase();
+		const creditPeople = participants.filter((p) => !isYou(p));
+		const money = (n: number) =>
+			n < 0 ? `-$${Math.abs(n).toFixed(2)}` : `$${n.toFixed(2)}`;
 
-		if (costs.length === 0) {
+		if (costs.length === 0 && credits.length === 0) {
 			section.createEl("div", {
 				cls: "section-helper-text",
-				text: "Split shared expenses — the Airbnb, petrol, groceries. Divide evenly or by shares (nights, drinks…).",
+				text: "Split shared expenses — the Airbnb, petrol, groceries. Divide evenly or by shares (nights, drinks…). Add credits for money already handed over.",
 			});
 		}
 
@@ -2322,6 +2504,35 @@ export class ContactPageView extends ItemView {
 					this.render();
 				},
 				this.plugin.settings.yourName
+			).open();
+		};
+
+		const openCredit = (index: number | null, credit: PlanCredit | null) => {
+			new PlanCreditModal(
+				this.app,
+				creditPeople,
+				credit,
+				async (updated) => {
+					const list = PlanOperations.creditsOf(this.contactData);
+					if (index === null) list.push(updated);
+					else list[index] = updated;
+					this.contactData.credits = list;
+					await this.saveContactData();
+					this.render();
+				},
+				index === null
+					? undefined
+					: async () => {
+							const list = PlanOperations.creditsOf(
+								this.contactData
+							);
+							list.splice(index, 1);
+							if (list.length > 0)
+								this.contactData.credits = list;
+							else delete this.contactData.credits;
+							await this.saveContactData();
+							this.render();
+					  }
 			).open();
 		};
 
@@ -2352,13 +2563,31 @@ export class ContactPageView extends ItemView {
 			}
 		});
 
+		// Credits — money already handed over, shown after the expenses
+		credits.forEach((credit, index) => {
+			const row = section.createEl("div", {
+				cls: "contact-idea-item plan-cost-row plan-credit-row plan-clickable-row",
+			});
+			row.addEventListener("click", () => openCredit(index, credit));
+			const textEl = row.createEl("div", { cls: "contact-idea-text" });
+			textEl.createSpan({
+				cls: "plan-cost-label",
+				text: `↩ ${credit.person}`,
+			});
+			textEl.createSpan({
+				cls: "plan-item-cost plan-credit-amount",
+				text: ` · ${money(-credit.amount)}${
+					credit.note ? ` · ${credit.note}` : ""
+				}`,
+			});
+		});
+
 		// Per-person summary — a collapsible accordion; tick each person once
-		// they've paid.
-		if (costs.length > 0 && participants.length > 0) {
+		// they've paid. Amounts are net of any credits.
+		if ((costs.length > 0 || credits.length > 0) && participants.length > 0) {
 			const paid: string[] = Array.isArray(this.contactData.costsPaid)
 				? this.contactData.costsPaid.map(String)
 				: [];
-			const total = costs.reduce((s, c) => s + c.amount, 0);
 
 			const details = section.createEl("details", {
 				cls: "plan-cost-summary",
@@ -2367,19 +2596,44 @@ export class ContactPageView extends ItemView {
 			const summaryEl = details.createEl("summary", {
 				cls: "plan-cost-summary-total",
 			});
-			summaryEl.createSpan({ text: `Who owes what · $${total.toFixed(2)}` });
+			const totalSpan = summaryEl.createSpan();
+			// Outstanding total = net owed by everyone not yet ticked off.
+			const refreshTotal = () => {
+				const done = new Set(
+					Array.isArray(this.contactData.costsPaid)
+						? this.contactData.costsPaid.map(String)
+						: []
+				);
+				const outstanding = participants
+					.filter((p) => !done.has(p) && !isYou(p))
+					.reduce(
+						(s, p) =>
+							s +
+							((owedTotals[p] ?? 0) -
+								PlanOperations.creditTotalFor(p, credits)),
+						0
+					);
+				totalSpan.setText(`Who owes what · ${money(outstanding)}`);
+			};
+			refreshTotal();
 
 			const owedList = details.createEl("div", {
 				cls: "plan-cost-owed-list",
 			});
 			for (const p of participants) {
-				const rowEl = owedList.createEl("label", {
+				const rowEl = owedList.createEl("div", {
 					cls: `plan-cost-owed-row${paid.includes(p) ? " paid" : ""}`,
 				});
-				const checkbox = rowEl.createEl("input", {
+				// Checkbox + name in a label so tapping either toggles "paid".
+				const check = rowEl.createEl("label", {
+					cls: "plan-cost-owed-check",
+				});
+				const checkbox = check.createEl("input", {
 					attr: { type: "checkbox", "aria-label": `Mark ${p} paid` },
 				});
 				checkbox.checked = paid.includes(p);
+				// You can't owe yourself — leave your own row un-tickable.
+				checkbox.disabled = isYou(p);
 				checkbox.addEventListener("change", async () => {
 					const current: string[] = Array.isArray(
 						this.contactData.costsPaid
@@ -2391,22 +2645,49 @@ export class ContactPageView extends ItemView {
 						: current.filter((n) => n !== p);
 					if (next.length > 0) this.contactData.costsPaid = next;
 					else delete this.contactData.costsPaid;
+					// Update in place — a full re-render would collapse the
+					// accordion back to closed.
+					rowEl.toggleClass("paid", checkbox.checked);
+					refreshTotal();
 					await this.saveContactData();
-					this.render();
 				});
-				rowEl.createSpan({
-					cls: "plan-cost-owed-name",
-					text: p,
-				});
+				check.createSpan({ cls: "plan-cost-owed-name", text: p });
+
+				const owedGross = owedTotals[p] ?? 0;
+				const credited = PlanOperations.creditTotalFor(p, credits);
+				const net = owedGross - credited;
 				rowEl.createSpan({
 					cls: "plan-cost-owed-amount",
-					text: `$${(owedTotals[p] ?? 0).toFixed(2)}`,
+					text: money(net),
 				});
+
+				// Per-person breakdown — always shown, disabled when they're
+				// not part of any expense.
+				const breakdownBtn = rowEl.createEl("button", {
+					cls: "friend-tracker-button plan-breakdown-btn",
+					text: "Breakdown",
+				});
+				if (owedGross > 0) {
+					breakdownBtn.addEventListener("click", () => {
+						new PlanCostBreakdownModal(
+							this.app,
+							p,
+							PlanOperations.breakdownFor(
+								p,
+								costs,
+								participants,
+								credits
+							)
+						).open();
+					});
+				} else {
+					breakdownBtn.disabled = true;
+				}
 			}
 		}
 
 		const footer = section.createEl("div", {
-			cls: "contact-section-footer",
+			cls: "contact-section-footer plan-cost-footer",
 		});
 		const addButton = footer.createEl("button", {
 			cls: "friend-tracker-button",
@@ -2429,6 +2710,17 @@ export class ContactPageView extends ItemView {
 				this.plugin.settings.yourName
 			).open();
 		});
+
+		if (creditPeople.length > 0) {
+			const creditButton = footer.createEl("button", {
+				cls: "friend-tracker-button",
+			});
+			setIcon(creditButton, "plus");
+			creditButton.createSpan({ text: "Add credit" });
+			creditButton.addEventListener("click", () =>
+				openCredit(null, null)
+			);
+		}
 	}
 
 	private isGroupFile(): boolean {
@@ -2776,6 +3068,128 @@ export class ContactPageView extends ItemView {
 			: "other";
 	}
 
+	private renderFunFactsSection(container: HTMLElement) {
+		const section = container.createEl("div", {
+			cls: "contact-funfacts-section",
+		});
+		const text =
+			typeof this.contactData.funFacts === "string"
+				? this.contactData.funFacts.trim()
+				: "";
+
+		if (text) {
+			section.createEl("div", { cls: "contact-funfacts-text", text });
+		} else {
+			section.createEl("div", {
+				cls: "section-helper-text",
+				text: "A line or two worth remembering — where you met, an inside joke, what they're into.",
+			});
+		}
+
+		const footer = section.createEl("div", {
+			cls: "contact-section-footer",
+		});
+		const btn = footer.createEl("button", { cls: "friend-tracker-button" });
+		setIcon(btn, "pencil");
+		btn.createSpan({ text: text ? "Edit fun facts" : "Add fun facts" });
+		btn.addEventListener("click", () => {
+			new FunFactsModal(
+				this.app,
+				this.contactData.displayName || this.contactData.name,
+				text,
+				async (value) => {
+					if (value) this.contactData.funFacts = value;
+					else delete this.contactData.funFacts;
+					await this.saveContactData();
+					this.render();
+				}
+			).open();
+		});
+	}
+
+	/** Normalized quote list (legacy plain strings read as { text }). */
+	private quotesOf(): Quote[] {
+		const raw = this.contactData.quotes;
+		if (!Array.isArray(raw)) return [];
+		return raw
+			.map((q: any) =>
+				typeof q === "string"
+					? { text: q }
+					: {
+							text: String(q?.text ?? ""),
+							...(q?.context && { context: String(q.context) }),
+					  }
+			)
+			.filter((q: Quote) => q.text.length > 0);
+	}
+
+	private renderQuotesSection(container: HTMLElement) {
+		const section = container.createEl("div", {
+			cls: "contact-quotes-section",
+		});
+		const quotes = this.quotesOf();
+
+		if (quotes.length === 0) {
+			section.createEl("div", {
+				cls: "section-helper-text",
+				text: "Memorable things they've said — the one-liners you don't want to forget.",
+			});
+		}
+
+		quotes.forEach((q, index) => {
+			const row = section.createEl("div", {
+				cls: "contact-quote-item plan-clickable-row",
+			});
+			row.addEventListener("click", () => this.openQuoteModal(index, q));
+			row.createEl("div", {
+				cls: "contact-quote-text",
+				text: `“${q.text}”`,
+			});
+			if (q.context) {
+				row.createEl("div", {
+					cls: "contact-quote-context",
+					text: `— ${q.context}`,
+				});
+			}
+		});
+
+		const footer = section.createEl("div", {
+			cls: "contact-section-footer",
+		});
+		const addBtn = footer.createEl("button", {
+			cls: "friend-tracker-button",
+		});
+		setIcon(addBtn, "plus");
+		addBtn.createSpan({ text: "Add quote" });
+		addBtn.addEventListener("click", () => this.openQuoteModal(null, null));
+	}
+
+	private openQuoteModal(index: number | null, quote: Quote | null) {
+		new QuoteModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name,
+			quote,
+			async (value) => {
+				const list = this.quotesOf();
+				if (index === null) list.push(value);
+				else list[index] = value;
+				this.contactData.quotes = list;
+				await this.saveContactData();
+				this.render();
+			},
+			index === null
+				? undefined
+				: async () => {
+						const list = this.quotesOf();
+						list.splice(index, 1);
+						if (list.length > 0) this.contactData.quotes = list;
+						else delete this.contactData.quotes;
+						await this.saveContactData();
+						this.render();
+				  }
+		).open();
+	}
+
 	private renderInterestsSection(container: HTMLElement) {
 		const section = container.createEl("div", {
 			cls: "contact-interests-section",
@@ -3016,18 +3430,28 @@ export class ContactPageView extends ItemView {
 		const modal = new EventModal(
 			this.app,
 			null,
-			async (date, text, type) => {
-				await this.addEvent(date, text, type);
+			async (date, text, type, location) => {
+				await this.addEvent(date, text, type, location);
 			}
 		);
 		modal.open();
 	}
 
-	public async addEvent(date: string, text: string, type: EventType) {
+	public async addEvent(
+		date: string,
+		text: string,
+		type: EventType,
+		location?: string
+	) {
 		if (!Array.isArray(this.contactData.events)) {
 			this.contactData.events = [];
 		}
-		this.contactData.events.push({ date, text, type });
+		this.contactData.events.push({
+			date,
+			text,
+			type,
+			...(location && { location }),
+		});
 		await this.saveContactData();
 		this.render();
 	}
@@ -3036,7 +3460,7 @@ export class ContactPageView extends ItemView {
 		const modal = new EventModal(
 			this.app,
 			event,
-			async (date, text, type) => {
+			async (date, text, type, location) => {
 				if (!Array.isArray(this.contactData.events)) {
 					this.contactData.events = [];
 				}
@@ -3047,6 +3471,11 @@ export class ContactPageView extends ItemView {
 					text,
 					type,
 				};
+				if (location) {
+					this.contactData.events[index].location = location;
+				} else {
+					delete this.contactData.events[index].location;
+				}
 				await this.saveContactData();
 				this.render();
 			},

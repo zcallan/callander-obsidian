@@ -26,6 +26,8 @@ export const STANDARD_FIELDS = {
 	GIFT_IDEAS: "giftIdeas", // legacy key, migrated to "ideas"
 	DRAFTS: "drafts",
 	INTERESTS: "interests",
+	FUN_FACTS: "funFacts",
+	QUOTES: "quotes",
 } as const;
 
 // System fields that shouldn't be shown as custom fields
@@ -42,6 +44,8 @@ export const SYSTEM_FIELDS: StandardFieldValue[] = [
 	STANDARD_FIELDS.GIFT_IDEAS,
 	STANDARD_FIELDS.DRAFTS,
 	STANDARD_FIELDS.INTERESTS,
+	STANDARD_FIELDS.FUN_FACTS,
+	STANDARD_FIELDS.QUOTES,
 ];
 
 // Fixed idea categories — deliberately few, no user-defined tags (Callander brief)
@@ -108,6 +112,7 @@ export type PlanPriority = (typeof PLAN_PRIORITIES)[number]["id"];
 // exact clock time. `sort` is the notional time each one sits at on the
 // timeline, so a "Morning" leg orders before a "Dinner time" one.
 export const ROUGH_TIMES = [
+	{ id: "early-morning", label: "Early morning", sort: "07:00" },
 	{ id: "breakfast", label: "Breakfast", sort: "09:00" },
 	{ id: "morning", label: "Morning", sort: "10:30" },
 	{ id: "lunch", label: "Lunchtime", sort: "12:30" },

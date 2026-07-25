@@ -97,7 +97,8 @@ export class CopyEventModal extends FormModal {
 					c.file,
 					this.event.date,
 					this.event.text,
-					this.event.type ?? "hangout"
+					this.event.type ?? "hangout",
+					this.event.location
 				);
 				await this.plugin.refreshOpenContactPages(c.file);
 			}
