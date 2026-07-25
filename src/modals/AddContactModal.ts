@@ -121,32 +121,14 @@ export class AddContactModal extends Modal {
 		};
 		infos.forEach((i) => addChip(i.name));
 
-		const newGroupRow = groupsWrap.createDiv({
-			cls: "contact-groups-add-row",
-		});
-		const newGroupInput = newGroupRow.createEl("input", {
-			cls: "friend-tracker-modal-input",
-			attr: { type: "text", placeholder: "New group…" },
-		});
-		const newGroupButton = newGroupRow.createEl("button", {
-			cls: "friend-tracker-button",
-			text: "Add",
-			attr: { type: "button" },
-		});
-		const addNewGroup = () => {
-			const name = newGroupInput.value.trim().toLowerCase();
-			if (!name || member.has(name)) return;
-			member.add(name);
-			addChip(name).addClass("selected");
-			newGroupInput.value = "";
-		};
-		newGroupButton.addEventListener("click", addNewGroup);
-		newGroupInput.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				addNewGroup();
-			}
-		});
+		// Group creation lives on the dashboard — here you only toggle
+		// membership of existing groups
+		if (infos.length === 0) {
+			groupsWrap.createEl("div", {
+				cls: "section-helper-text",
+				text: "No groups yet — create them from the dashboard.",
+			});
+		}
 
 		// Submit button
 		form.createEl("button", {
@@ -211,7 +193,7 @@ export class AddContactModal extends Modal {
 		const fileContent = `---\n${yaml}\n---\n`;
 
 		try {
-			await this.app.vault.create(filePath, fileContent);
+			const file = await this.app.vault.create(filePath, fileContent);
 
 			// Wait a moment for the file to be indexed
 			await new Promise((resolve) => setTimeout(resolve, 300));
@@ -230,6 +212,8 @@ export class AddContactModal extends Modal {
 			}
 
 			new Notice(`Added ${data.name}`);
+			// Straight to their page
+			await this.plugin.openContactPage(file);
 		} catch (error) {
 			new Notice(`Error adding friend: ${error}`);
 		}

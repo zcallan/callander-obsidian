@@ -1,10 +1,21 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
 import type FriendTracker from "@/main";
-import type { ContactWithCountdown, Idea } from "@/types";
+import type { ContactWithCountdown, Draft, Idea } from "@/types";
 import { IDEA_CATEGORIES } from "@/constants";
-import { ContactSuggestModal } from "@/modals/QuickIdeaModal";
+import {
+	CaptureTargetModal,
+	ContactSuggestModal,
+	QuickIdeaModal,
+} from "@/modals/QuickIdeaModal";
 import { GroupModal } from "@/modals/GroupModal";
-import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
+import { ConfirmModal } from "@/modals/ConfirmModal";
+import {
+	parseFlexDate,
+	formatFlexDate,
+	flexSortKey,
+} from "@/utils/flexdate";
+import { PlanModal } from "@/modals/PlanModal";
+import { PlanOperations } from "@/services/PlanOperations";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -93,6 +104,9 @@ export class DashboardView extends ItemView {
 		action("lightbulb", "Add idea", () =>
 			this.plugin.openQuickIdeaCapture()
 		);
+		action("pencil-line", "Quick note", () =>
+			this.plugin.openQuickNote()
+		);
 		action("table", "All friends", () =>
 			this.plugin.activateFriendTracker()
 		);
@@ -116,6 +130,9 @@ export class DashboardView extends ItemView {
 		});
 		this.renderFriendList(friendList);
 
+		// Drafts to triage — kept high so they don't rot
+		await this.renderDrafts(container);
+
 		// Birthdays: upcoming + missed (not yet wished)
 		const upcomingSection = container.createEl("div", {
 			cls: "dashboard-section",
@@ -123,6 +140,9 @@ export class DashboardView extends ItemView {
 		upcomingSection.createEl("h3", { text: "🎂 Upcoming birthdays" });
 		this.renderUpcomingBirthdays(upcomingSection);
 		this.renderMissedBirthdays(container);
+
+		// Upcoming plans
+		this.renderPlans(container);
 
 		// Diary: the latest entries
 		this.renderDiary(container);
@@ -166,15 +186,24 @@ export class DashboardView extends ItemView {
 	private renderFriendList(listEl: HTMLElement) {
 		listEl.empty();
 		const q = this.searchQuery.trim().toLowerCase();
-		const matches = this.contacts
-			.filter(
-				(c) =>
-					!q ||
-					c.displayName.toLowerCase().includes(q) ||
-					c.name.toLowerCase().includes(q) ||
-					c.groups.some((g) => g.includes(q))
-			)
-			.sort((a, b) => a.displayName.localeCompare(b.displayName));
+		let matches: ContactWithCountdown[];
+		if (q) {
+			// Searching covers everyone, alphabetically
+			matches = this.contacts
+				.filter(
+					(c) =>
+						c.displayName.toLowerCase().includes(q) ||
+						c.name.toLowerCase().includes(q) ||
+						c.groups.some((g) => g.includes(q))
+				)
+				.sort((a, b) => a.displayName.localeCompare(b.displayName));
+		} else {
+			// Browsing shows the 10 most recently interacted-with friends:
+			// any idea/event/draft/edit touches their file's mtime
+			matches = [...this.contacts]
+				.sort((a, b) => b.file.stat.mtime - a.file.stat.mtime)
+				.slice(0, 10);
+		}
 
 		for (const contact of matches) {
 			const chip = listEl.createEl("button", {
@@ -196,6 +225,290 @@ export class DashboardView extends ItemView {
 				cls: "section-helper-text",
 				text: q ? "No friends match." : "No friends yet.",
 			});
+		}
+	}
+
+	private async renderDrafts(container: HTMLElement) {
+		const ops = this.plugin.contactOperations;
+		const inboxFile = this.app.vault.getAbstractFileByPath(
+			ops.getInboxPath()
+		);
+		const inboxDrafts = await ops.getInboxDrafts();
+
+		const all: Array<{
+			draft: Draft;
+			index: number;
+			contact: ContactWithCountdown | null;
+			holder: TFile;
+		}> = [
+			...this.contacts.flatMap((c) =>
+				c.drafts.map((draft, index) => ({
+					draft,
+					index,
+					contact: c,
+					holder: c.file,
+				}))
+			),
+			...(inboxFile instanceof TFile
+				? inboxDrafts.map((draft, index) => ({
+						draft,
+						index,
+						contact: null,
+						holder: inboxFile,
+				  }))
+				: []),
+		].sort((a, b) =>
+			(b.draft.created || "").localeCompare(a.draft.created || "")
+		);
+
+		if (all.length === 0) return;
+
+		const section = container.createEl("div", {
+			cls: "dashboard-section",
+		});
+		section.createEl("h3", { text: "✏️ Drafts" });
+
+		for (const item of all) {
+			const row = section.createEl("div", { cls: "dashboard-row" });
+			const label = row.createSpan({
+				cls: item.contact
+					? "dashboard-row-clickable-label"
+					: undefined,
+				text: item.draft.text,
+			});
+			label.createSpan({
+				cls: "dashboard-row-date",
+				text: ` · ${
+					item.contact?.displayName ?? "unfiled"
+				}${this.draftAge(item.draft.created)}`,
+			});
+			if (item.contact) {
+				const file = item.contact.file;
+				label.addEventListener("click", () => this.openContact(file));
+			}
+
+			const ideaButton = row.createEl("button", {
+				cls: "friend-tracker-button dashboard-row-action",
+				text: "Make idea",
+			});
+			ideaButton.addEventListener("click", () =>
+				this.categorizeDraft(item.holder, item.index, item.draft, item.contact)
+			);
+
+			const deleteButton = row.createEl("button", {
+				cls: "friend-tracker-button button-icon button-danger dashboard-row-action dashboard-draft-delete",
+				attr: { "aria-label": "Discard draft" },
+			});
+			setIcon(deleteButton, "trash");
+			deleteButton.addEventListener("click", () => {
+				const preview =
+					item.draft.text.length > 80
+						? item.draft.text.slice(0, 80) + "…"
+						: item.draft.text;
+				new ConfirmModal(
+					this.app,
+					"Discard draft",
+					`Discard "${preview}"?`,
+					"Discard",
+					async () => {
+						await ops.removeDraft(item.holder, item.index);
+						await this.plugin.refreshOpenContactPages(
+							item.holder
+						);
+						await this.refresh();
+					}
+				).open();
+			});
+		}
+	}
+
+	private draftAge(created: string): string {
+		if (!created) return "";
+		const [y, m, d] = created.split("-").map(Number);
+		if (!y || !m || !d) return "";
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		const days = Math.round(
+			(today.getTime() - new Date(y, m - 1, d).getTime()) / 86400000
+		);
+		if (days <= 0) return " · today";
+		if (days === 1) return " · yesterday";
+		return ` · ${days}d ago`;
+	}
+
+	/** Turn a draft into a proper categorized idea, then remove the draft */
+	private categorizeDraft(
+		holder: TFile,
+		index: number,
+		draft: Draft,
+		contact: ContactWithCountdown | null
+	) {
+		const ops = this.plugin.contactOperations;
+		const finish = async (targetFile: TFile) => {
+			await ops.removeDraft(holder, index);
+			await this.plugin.refreshOpenContactPages(holder);
+			await this.plugin.refreshOpenContactPages(targetFile);
+			new Notice("💡 Filed as idea");
+			await this.refresh();
+		};
+
+		if (contact) {
+			new QuickIdeaModal(
+				this.app,
+				contact.displayName,
+				this.plugin.lastQuickIdeaCategory,
+				async (category, text) => {
+					this.plugin.lastQuickIdeaCategory = category;
+					await ops.addIdea(contact.file, category, text);
+					await finish(contact.file);
+				},
+				draft.text
+			).open();
+		} else {
+			// Ideas carry categories; plans take bucketed items — exclude
+			// plans from draft categorization to keep the shapes straight
+			const targets = this.plugin
+				.buildCaptureTargets(this.contacts)
+				.filter((t) => t.kind !== "plan");
+			new CaptureTargetModal(this.app, targets, (target) => {
+				new QuickIdeaModal(
+					this.app,
+					target.kind === "inbox" ? "the inbox" : target.label,
+					this.plugin.lastQuickIdeaCategory,
+					async (category, text) => {
+						this.plugin.lastQuickIdeaCategory = category;
+						const file = await target.getFile();
+						await ops.addIdea(file, category, text);
+						await finish(file);
+					},
+					draft.text
+				).open();
+			}).open();
+		}
+	}
+
+	private renderPlans(container: HTMLElement) {
+		const plans = this.plugin.planOperations
+			.getPlans()
+			.filter((p) => p.status !== "done")
+			.sort((a, b) => {
+				const empty = { year: null, month: null, day: null };
+				const keyA = parseFlexDate(a.date)
+					? flexSortKey(parseFlexDate(a.date)!)
+					: Number.MAX_SAFE_INTEGER;
+				const keyB = parseFlexDate(b.date)
+					? flexSortKey(parseFlexDate(b.date)!)
+					: Number.MAX_SAFE_INTEGER;
+				return keyA - keyB;
+			});
+
+		const section = container.createEl("div", {
+			cls: "dashboard-section",
+		});
+		const header = section.createEl("div", {
+			cls: "dashboard-section-header",
+		});
+		header.createEl("h3", { text: "🗺️ Plans" });
+		const newButton = header.createEl("button", {
+			cls: "friend-tracker-button",
+			text: "New plan",
+		});
+		newButton.addEventListener("click", () => {
+			new PlanModal(this.app, this.plugin, async (file) => {
+				await this.plugin.openContactPage(file);
+			}).open();
+		});
+
+		if (plans.length === 0) {
+			section.createEl("div", {
+				cls: "section-helper-text",
+				text: "Something brewing? A weekend away, a dinner — plan it with the people it's for.",
+			});
+			return;
+		}
+
+		for (const plan of plans) {
+			const row = section.createEl("div", {
+				cls: "dashboard-row dashboard-row-clickable dashboard-diary-row dashboard-plan-row",
+			});
+			const main = row.createEl("div", {
+				cls: "dashboard-diary-main",
+			});
+			main.createSpan({ text: plan.name });
+			const metaParts: string[] = [];
+			const dateFlex = parseFlexDate(plan.date);
+			if (dateFlex) {
+				const fmtDay = (y: number, m: number, d: number) =>
+					new Date(y, m - 1, d).toLocaleDateString("en-AU", {
+						weekday: "short",
+						day: "numeric",
+						month: "short",
+					});
+				let when = formatFlexDate(dateFlex);
+				if (dateFlex.month !== null && dateFlex.day !== null) {
+					const year =
+						dateFlex.year ?? new Date().getFullYear();
+					when = fmtDay(year, dateFlex.month, dateFlex.day);
+					const endFlex = parseFlexDate(plan.endDate);
+					if (
+						endFlex &&
+						endFlex.month !== null &&
+						endFlex.day !== null
+					) {
+						when += ` - ${fmtDay(
+							endFlex.year ?? year,
+							endFlex.month,
+							endFlex.day
+						)}`;
+					}
+					const target = new Date(
+						year,
+						dateFlex.month - 1,
+						dateFlex.day
+					);
+					target.setHours(0, 0, 0, 0);
+					const today = new Date();
+					today.setHours(0, 0, 0, 0);
+					const days = Math.round(
+						(target.getTime() - today.getTime()) / 86400000
+					);
+					if (days === 0) when += " · today!";
+					else if (days > 0) when += ` · in ${days} days`;
+					else when += " · passed — mark it done?";
+				}
+				metaParts.push(when);
+			}
+			if (metaParts.length > 0) {
+				main.createSpan({
+					cls: "dashboard-row-date",
+					text: metaParts.join(" · "),
+				});
+			}
+
+			// Second line: location, headcount, budget
+			const detailParts: string[] = [];
+			if (plan.location) detailParts.push(plan.location);
+			if (plan.members.length > 0) {
+				detailParts.push(
+					`${plan.members.length} ${
+						plan.members.length === 1 ? "person" : "people"
+					}`
+				);
+			}
+			const est = PlanOperations.estimate({
+				items: plan.items,
+			});
+			if (est > 0) detailParts.push(`~$${est}`);
+			if (detailParts.length > 0) {
+				row.createEl("div", {
+					cls: "dashboard-diary-tagged",
+					text: detailParts.join(" · "),
+				});
+			}
+
+			row.addEventListener("click", () =>
+				this.openContact(plan.file)
+			);
 		}
 	}
 
@@ -236,15 +549,34 @@ export class DashboardView extends ItemView {
 			return;
 		}
 
+		const resolvedLinks = this.app.metadataCache.resolvedLinks;
 		for (const entry of entries) {
 			const row = section.createEl("div", {
-				cls: "dashboard-row dashboard-row-clickable",
+				cls: "dashboard-row dashboard-row-clickable dashboard-diary-row",
 			});
-			row.createSpan({ text: entry.title });
-			row.createSpan({
-				cls: "dashboard-row-meta",
-				text: this.formatEntryDate(entry.date),
+			const main = row.createEl("div", {
+				cls: "dashboard-diary-main",
 			});
+			main.createSpan({ text: entry.title });
+
+			// Second line: tagged friends (when any), then the date
+			const links = resolvedLinks[entry.file.path] ?? {};
+			const tagged = this.contacts
+				.filter((c) => (links[c.file.path] ?? 0) > 0)
+				.map((c) => c.displayName);
+			const detailParts: string[] = [];
+			if (tagged.length > 0) {
+				detailParts.push(`with ${tagged.join(", ")}`);
+			}
+			const dateLabel = this.formatEntryDate(entry.date);
+			if (dateLabel) detailParts.push(dateLabel);
+			if (detailParts.length > 0) {
+				row.createEl("div", {
+					cls: "dashboard-diary-tagged",
+					text: detailParts.join(" · "),
+				});
+			}
+
 			row.addEventListener("click", async () => {
 				await this.app.workspace.getLeaf(false).openFile(entry.file);
 			});
@@ -256,6 +588,7 @@ export class DashboardView extends ItemView {
 		if (!y || !m || !d) return dateStr;
 		const date = new Date(y, m - 1, d);
 		return date.toLocaleDateString("en-AU", {
+			weekday: "short",
 			day: "numeric",
 			month: "long",
 			...(y !== new Date().getFullYear() && { year: "numeric" }),
@@ -421,7 +754,7 @@ export class DashboardView extends ItemView {
 		if (missed.length === 0) return;
 
 		const section = container.createEl("div", {
-			cls: "dashboard-section",
+			cls: "dashboard-section dashboard-missed-section",
 		});
 		section.createEl("h3", { text: "🕯️ Missed birthdays" });
 

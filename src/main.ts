@@ -1,4 +1,11 @@
-import { Plugin, Notice, TFile, WorkspaceLeaf, ViewState } from "obsidian";
+import {
+	Plugin,
+	Notice,
+	Platform,
+	TFile,
+	WorkspaceLeaf,
+	ViewState,
+} from "obsidian";
 import { FriendTrackerSettings, DEFAULT_SETTINGS } from "./types";
 import { IdeaCategory } from "@/constants";
 import {
@@ -7,6 +14,9 @@ import {
 	ContactSuggestModal,
 	QuickIdeaModal,
 } from "@/modals/QuickIdeaModal";
+import { QuickNoteModal } from "@/modals/QuickNoteModal";
+import { PlanItemModal } from "@/modals/PlanItemModal";
+import { PlanOperations } from "@/services/PlanOperations";
 import {
 	FriendTrackerView,
 	VIEW_TYPE_FRIEND_TRACKER,
@@ -32,13 +42,15 @@ export default class FriendTracker extends Plugin {
 	settings: FriendTrackerSettings;
 	public contactOperations: ContactOperations;
 	public diaryOperations: DiaryOperations;
-	private lastQuickIdeaCategory: IdeaCategory = "gift";
+	public planOperations: PlanOperations;
+	public lastQuickIdeaCategory: IdeaCategory = "gift";
 	private statusBarEl: HTMLElement | null = null;
 
 	async onload() {
 		await this.loadSettings();
 		this.contactOperations = new ContactOperations(this);
 		this.diaryOperations = new DiaryOperations(this);
+		this.planOperations = new PlanOperations(this);
 
 		// On mobile, we should wait for layout-ready
 		this.app.workspace.onLayoutReady(() => {
@@ -104,6 +116,11 @@ export default class FriendTracker extends Plugin {
 				callback: () => this.openQuickIdeaCapture(),
 			});
 			this.addCommand({
+				id: "quick-note",
+				name: "Quick note (draft)",
+				callback: () => this.openQuickNote(),
+			});
+			this.addCommand({
 				id: "add-friend",
 				name: "Add friend",
 				callback: () => this.openAddContactModal(),
@@ -137,6 +154,11 @@ export default class FriendTracker extends Plugin {
 				callback: () => this.openIdeaSearch(),
 			});
 			this.addCommand({
+				id: "export-birthday-calendar",
+				name: "Export birthday calendar (.ics for Apple Calendar)",
+				callback: () => this.exportBirthdayCalendar(),
+			});
+			this.addCommand({
 				id: "year-recap",
 				name: "Generate year in friendships",
 				callback: () => this.generateYearRecap(),
@@ -150,6 +172,9 @@ export default class FriendTracker extends Plugin {
 			// Clicking a friend anywhere (file explorer, quick switcher,
 			// links, graph) opens their Callander page, not raw markdown
 			this.installContactViewIntercept();
+
+			// Mobile: keep modal inputs visible above the on-screen keyboard
+			this.installKeyboardInsetTracking();
 
 			// Diary entries that were logged to timelines stay in sync:
 			// later edits to the entry update the derived events
@@ -179,13 +204,131 @@ export default class FriendTracker extends Plugin {
 
 			this.statusBarEl = this.addStatusBarItem();
 
-			// Check for birthdays after everything is initialized
+			// One-time data migration: birthplace values move to the new
+			// hometown field (the birthplace field itself remains)
+			await this.migrateBirthplaceValues();
+
+			// Check for birthdays after everything is initialized — and
+			// keep checking (hourly + on focus) so a Mac waking up with
+			// Obsidian in the background still notifies. The once-per-day
+			// guard inside makes repeats free.
 			await this.checkBirthdays();
 			await this.updateStatusBar();
+			this.registerInterval(
+				window.setInterval(() => this.checkBirthdays(), 60 * 60 * 1000)
+			);
+			this.registerDomEvent(window, "focus", () =>
+				this.checkBirthdays()
+			);
 		} catch (error) {
 			console.error("Callander failed to load:", error);
 			new Notice("Callander failed to load: " + error.message);
 		}
+	}
+
+	// ---- Mobile keyboard handling ----
+
+	/**
+	 * iOS: the on-screen keyboard overlays the layout viewport, clipping
+	 * the bottom of open modals. Track the keyboard's height into a CSS
+	 * variable (used to pad modal content) and scroll the focused input
+	 * clear once the keyboard has animated in.
+	 */
+	private installKeyboardInsetTracking() {
+		if (!Platform.isMobile) return;
+
+		const setInset = (px: number) => {
+			const value = Math.max(0, Math.round(px));
+			document.body.style.setProperty(
+				"--callander-keyboard-inset",
+				`${value}px`
+			);
+		};
+		const currentInset = () =>
+			parseInt(
+				document.body.style.getPropertyValue(
+					"--callander-keyboard-inset"
+				)
+			) || 0;
+
+		// Primary: Capacitor's native keyboard events (Obsidian mobile is
+		// Capacitor; on iOS the webview often does NOT resize for the
+		// keyboard, so visualViewport alone sees nothing)
+		const onShow = (event: Event) => {
+			const height = Number((event as any)?.keyboardHeight);
+			setInset(
+				Number.isFinite(height) && height > 0
+					? height
+					: Math.round(window.innerHeight * 0.42)
+			);
+		};
+		const onHide = () => setInset(0);
+		for (const type of ["keyboardWillShow", "keyboardDidShow"]) {
+			window.addEventListener(type, onShow);
+		}
+		for (const type of ["keyboardWillHide", "keyboardDidHide"]) {
+			window.addEventListener(type, onHide);
+		}
+		this.register(() => {
+			for (const type of ["keyboardWillShow", "keyboardDidShow"]) {
+				window.removeEventListener(type, onShow);
+			}
+			for (const type of ["keyboardWillHide", "keyboardDidHide"]) {
+				window.removeEventListener(type, onHide);
+			}
+			document.body.style.removeProperty(
+				"--callander-keyboard-inset"
+			);
+		});
+
+		// Secondary: visualViewport, when the webview does resize
+		const vv = window.visualViewport;
+		if (vv) {
+			const update = () => {
+				const inset =
+					window.innerHeight - vv.height - vv.offsetTop;
+				if (inset > 30) setInset(inset);
+			};
+			vv.addEventListener("resize", update);
+			this.register(() =>
+				vv.removeEventListener("resize", update)
+			);
+		}
+
+		// Focus assist + last-resort fallback: if nothing reported a
+		// keyboard by the time the animation is done, assume one
+		this.registerDomEvent(document, "focusin", (event) => {
+			const target = event.target as HTMLElement | null;
+			if (
+				target &&
+				target.closest(".modal") &&
+				["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
+			) {
+				window.setTimeout(() => {
+					if (currentInset() < 30) {
+						setInset(Math.round(window.innerHeight * 0.42));
+					}
+					target.scrollIntoView({
+						block: "center",
+						behavior: "smooth",
+					});
+				}, 350);
+			}
+		});
+
+		// Drop the inset when focus leaves modal inputs entirely
+		this.registerDomEvent(document, "focusout", () => {
+			window.setTimeout(() => {
+				const active = document.activeElement as HTMLElement | null;
+				const stillTyping =
+					active &&
+					active.closest(".modal") &&
+					["INPUT", "TEXTAREA", "SELECT"].includes(
+						active.tagName
+					);
+				if (!stillTyping) setInset(0);
+			}, 150);
+		});
 	}
 
 	// ---- Contact view intercept ----
@@ -234,7 +377,20 @@ export default class FriendTracker extends Plugin {
 		) {
 			return false;
 		}
-		// Contacts (and groups/inbox) are identified by a name frontmatter
+		// Plans and Groups are Callander pages by construction — don't
+		// wait for the metadata cache (freshly created files aren't
+		// indexed yet, which would bounce them to the markdown editor)
+		if (
+			path.startsWith(
+				this.planOperations.getPlansFolderPath() + "/"
+			) ||
+			path.startsWith(
+				this.contactOperations.getGroupsFolderPath() + "/"
+			)
+		) {
+			return true;
+		}
+		// Contacts (and the inbox) are identified by a name frontmatter
 		// field — generated notes like recaps don't have one
 		const frontmatter =
 			this.app.metadataCache.getCache(path)?.frontmatter;
@@ -288,22 +444,20 @@ export default class FriendTracker extends Plugin {
 		for (const leaf of workspace.getLeavesOfType(
 			VIEW_TYPE_FRIEND_TRACKER
 		)) {
+			// Ignore any leftover sidebar-docked copies from the old layout
+			if (leaf.getRoot() !== workspace.rootSplit) continue;
 			const view = await leaf.view;
 			if (view instanceof FriendTrackerView) {
 				workspace.revealLeaf(leaf);
 				return;
 			}
 		}
-		const leaf = workspace.getRightLeaf(false);
-		if (leaf) {
-			await leaf.setViewState({
-				type: VIEW_TYPE_FRIEND_TRACKER,
-				active: true,
-			});
-			workspace.revealLeaf(leaf);
-		} else {
-			new Notice("Could not create Callander view");
-		}
+		const leaf = workspace.getLeaf(true);
+		await leaf.setViewState({
+			type: VIEW_TYPE_FRIEND_TRACKER,
+			active: true,
+		});
+		workspace.revealLeaf(leaf);
 	}
 
 	// ---- Quick actions ----
@@ -320,9 +474,11 @@ export default class FriendTracker extends Plugin {
 		}).open();
 	}
 
-	public async openQuickIdeaCapture() {
-		const contacts = await this.contactOperations.getContacts();
-		const targets: CaptureTarget[] = [
+	/** Everywhere an idea can be captured to: friends, groups, the inbox */
+	public buildCaptureTargets(
+		contacts: import("@/types").ContactWithCountdown[]
+	): CaptureTarget[] {
+		return [
 			...contacts.map(
 				(c): CaptureTarget => ({
 					kind: "friend",
@@ -340,14 +496,60 @@ export default class FriendTracker extends Plugin {
 					getFile: () => this.contactOperations.ensureGroupFile(g),
 				})
 			),
+			...this.planOperations
+				.getPlans()
+				.filter((p) => p.status !== "done")
+				.map(
+					(p): CaptureTarget => ({
+						kind: "plan",
+						label: p.name,
+						getFile: async () => p.file,
+					})
+				),
 			{
 				kind: "inbox",
 				label: "📥 Idea inbox (file to a friend later)",
 				getFile: () => this.contactOperations.ensureInboxFile(),
 			},
 		];
+	}
+
+	/** Zero-structure capture: text + optional friend, triaged later */
+	public async openQuickNote() {
+		const contacts = await this.contactOperations.getContacts();
+		new QuickNoteModal(this.app, contacts, async (text, contact) => {
+			const file = contact
+				? contact.file
+				: await this.contactOperations.ensureInboxFile();
+			await this.contactOperations.addDraft(file, text);
+			new Notice(
+				contact
+					? `✏️ Draft saved for ${contact.displayName}`
+					: "✏️ Draft saved — file it from the dashboard"
+			);
+			if (contact) await this.refreshOpenContactPages(contact.file);
+		}).open();
+	}
+
+	public async openQuickIdeaCapture() {
+		const contacts = await this.contactOperations.getContacts();
+		const targets = this.buildCaptureTargets(contacts);
 
 		new CaptureTargetModal(this.app, targets, (target) => {
+			// Plans take categorized ideas (activity/food/sightseeing)
+			if (target.kind === "plan") {
+				new PlanItemModal(
+					this.app,
+					target.label,
+					async (value) => {
+						const file = await target.getFile();
+						await this.planOperations.addItem(file, value);
+						new Notice(`🗺️ Added to ${target.label}`);
+						await this.refreshOpenContactPages(file);
+					}
+				).open();
+				return;
+			}
 			new QuickIdeaModal(
 				this.app,
 				target.kind === "inbox" ? "the inbox" : target.label,
@@ -555,6 +757,87 @@ export default class FriendTracker extends Plugin {
 		this.app.workspace.revealLeaf(leaf);
 	}
 
+	// ---- Birthday calendar export ----
+
+	/**
+	 * Export birthdays as an .ics file covering the next year — one event
+	 * per friend with the age they turn in its title, and a 9am alert.
+	 * Imported into an iCloud calendar, this gives native notifications
+	 * on Mac AND iPhone, even with Obsidian closed.
+	 */
+	private async exportBirthdayCalendar() {
+		const contacts = await this.contactOperations.getContacts();
+		const now = new Date();
+		const stamp =
+			now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+		const pad = (n: number) => String(n).padStart(2, "0");
+		const escape = (s: string) =>
+			s.replace(/\\/g, "\\\\").replace(/[,;]/g, (m) => "\\" + m);
+
+		const lines: string[] = [
+			"BEGIN:VCALENDAR",
+			"VERSION:2.0",
+			"PRODID:-//Callander//Birthday Calendar//EN",
+			"CALSCALE:GREGORIAN",
+			"X-WR-CALNAME:Callander Birthdays",
+		];
+
+		let eventCount = 0;
+		for (const c of contacts) {
+			const parsed = parseFlexDate(c.birthday);
+			// A calendar event needs a month and a day
+			if (!parsed || parsed.month === null || parsed.day === null) {
+				continue;
+			}
+			const uidBase = c.file.basename
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, "-");
+
+			// The next occurrence only — one year of coverage
+			{
+				const today = new Date();
+				today.setHours(0, 0, 0, 0);
+				let year = now.getFullYear();
+				let occurrence = new Date(year, parsed.month - 1, parsed.day);
+				occurrence.setHours(0, 0, 0, 0);
+				if (occurrence < today) {
+					year++;
+					occurrence = new Date(year, parsed.month - 1, parsed.day);
+				}
+
+				const title =
+					parsed.year !== null
+						? `🎂 ${c.displayName} turns ${year - parsed.year}`
+						: `🎂 ${c.displayName}'s birthday`;
+
+				lines.push(
+					"BEGIN:VEVENT",
+					`UID:callander-${uidBase}-${year}@callander`,
+					`DTSTAMP:${stamp}`,
+					`DTSTART;VALUE=DATE:${year}${pad(parsed.month)}${pad(
+						parsed.day
+					)}`,
+					`SUMMARY:${escape(title)}`,
+					"BEGIN:VALARM",
+					"ACTION:DISPLAY",
+					`DESCRIPTION:${escape(title)}`,
+					"TRIGGER:PT9H",
+					"END:VALARM",
+					"END:VEVENT"
+				);
+				eventCount++;
+			}
+		}
+		lines.push("END:VCALENDAR");
+
+		const path = "Callander Birthdays.ics";
+		await this.app.vault.adapter.write(path, lines.join("\r\n"));
+		new Notice(
+			`📅 Saved "${path}" to your vault root (${eventCount} events — everyone's next birthday).\n\nOpen it in Finder and double-click to add to Apple Calendar — pick an iCloud calendar to get iPhone alerts too. Re-run and re-import yearly to top up.`,
+			15000
+		);
+	}
+
 	// ---- Year recap ----
 
 	private async generateYearRecap() {
@@ -591,7 +874,22 @@ export default class FriendTracker extends Plugin {
 				);
 			}
 		}
-		lines.push("", `**${totalEvents} events across everyone.**`, "");
+		const yearEvents = contacts.flatMap((c) =>
+			c.events.filter((e) => parseFlexDate(e.date)?.year === year)
+		);
+		const hangouts = yearEvents.filter(
+			(e) => e.type === "hangout"
+		).length;
+		const lifeMoments = yearEvents.filter(
+			(e) => e.type === "life"
+		).length;
+		lines.push(
+			"",
+			`**${totalEvents} events across everyone** — ${hangouts} hangout${
+				hangouts === 1 ? "" : "s"
+			}, ${lifeMoments} of their life moments witnessed.`,
+			""
+		);
 
 		const ideasDone = contacts.reduce(
 			(n, c) => n + c.ideas.filter((i) => i.done).length,
@@ -625,7 +923,7 @@ export default class FriendTracker extends Plugin {
 
 	// If this contact's page is open anywhere, reload it so the in-memory
 	// copy doesn't go stale (and later overwrite frontmatter changes)
-	private async refreshOpenContactPages(file: TFile) {
+	public async refreshOpenContactPages(file: TFile) {
 		const leaves = this.app.workspace.getLeavesOfType(
 			VIEW_TYPE_CONTACT_PAGE
 		);
@@ -636,6 +934,38 @@ export default class FriendTracker extends Plugin {
 				view.file?.path === file.path
 			) {
 				await view.setFile(file);
+			}
+		}
+	}
+
+	/**
+	 * Existing "birthplace" values were really hometowns — move them to
+	 * the new hometown field. Only touches files that need it; birthplace
+	 * stays available as a field for genuine birthplaces.
+	 */
+	private async migrateBirthplaceValues() {
+		const folder = this.app.vault.getFolderByPath(
+			this.settings.contactsFolder
+		);
+		if (!folder) return;
+		for (const child of folder.children) {
+			if (!(child instanceof TFile) || child.extension !== "md") {
+				continue;
+			}
+			const fm = this.app.metadataCache.getFileCache(child)?.frontmatter;
+			if (fm?.birthplace && !fm?.hometown) {
+				await this.app.fileManager.processFrontMatter(
+					child,
+					(frontmatter) => {
+						if (
+							frontmatter.birthplace &&
+							!frontmatter.hometown
+						) {
+							frontmatter.hometown = frontmatter.birthplace;
+							delete frontmatter.birthplace;
+						}
+					}
+				);
 			}
 		}
 	}
@@ -664,6 +994,23 @@ export default class FriendTracker extends Plugin {
 					? names.join(", ") + " and " + lastPerson
 					: lastPerson;
 			new Notice(`🎂 It's ${nameList}'s birthday today!`, 8000);
+
+			// Real macOS notification too (Obsidian is Electron) — reaches
+			// Notification Center even when Obsidian isn't focused
+			if (Platform.isDesktopApp && typeof Notification === "function") {
+				try {
+					for (const c of todayBirthdays) {
+						// On the day itself, age is the age they turn
+						const turning =
+							c.age !== null ? ` — turning ${c.age}` : "";
+						new Notification("Callander", {
+							body: `🎂 It's ${c.displayName}'s birthday today${turning}!`,
+						});
+					}
+				} catch (error) {
+					console.error("Callander: system notification failed", error);
+				}
+			}
 		}
 
 		// One digest for everything coming up inside the reminder window
@@ -737,6 +1084,10 @@ export default class FriendTracker extends Plugin {
 		}
 		if (data?.defaultActiveTab === "interactions") {
 			data.defaultActiveTab = "events";
+		}
+		// "age" sort split into youngest/eldest
+		if (data?.friendListSort === "age") {
+			data.friendListSort = "youngest";
 		}
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 	}

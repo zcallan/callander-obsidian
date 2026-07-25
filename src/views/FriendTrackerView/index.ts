@@ -1,15 +1,14 @@
-import { ItemView, WorkspaceLeaf, EventRef, TFile, Platform } from "obsidian";
+import { ItemView, WorkspaceLeaf, EventRef, TFile } from "obsidian";
 import type FriendTracker from "@/main";
 import { TableView } from "./TableView";
 import { ContactOperations } from "@/services/ContactOperations";
-import type { SortConfig, ContactWithCountdown } from "@/types";
+import type { ContactWithCountdown, FriendListSort } from "@/types";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { DeleteContactModal } from "@/modals/DeleteContactModal";
 
 export const VIEW_TYPE_FRIEND_TRACKER = "friend-tracker-view";
 
 export class FriendTrackerView extends ItemView {
-	currentSort: SortConfig;
 	public groupFilter = "";
 	private tableView: TableView;
 	private contactOps: ContactOperations;
@@ -19,12 +18,15 @@ export class FriendTrackerView extends ItemView {
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
-		this.currentSort = {
-			column: this.plugin.settings.defaultSortColumn,
-			direction: this.plugin.settings.defaultSortDirection,
-		};
 		this.tableView = new TableView(this);
 		this.contactOps = new ContactOperations(this.plugin);
+		// Main-pane page: participate in tab history
+		this.navigation = true;
+	}
+
+	public async setFriendListSort(sort: FriendListSort) {
+		this.plugin.settings.friendListSort = sort;
+		await this.plugin.saveSettings();
 	}
 
 	get settings() {
@@ -42,23 +44,8 @@ export class FriendTrackerView extends ItemView {
 		modal.open();
 	}
 
-	public handleSort(column: keyof Omit<ContactWithCountdown, "file">) {
-		if (this.currentSort.column === column) {
-			this.currentSort.direction =
-				this.currentSort.direction === "asc" ? "desc" : "asc";
-		} else {
-			this.currentSort = { column, direction: "asc" };
-		}
-		this.refresh();
-	}
-
 	public async openContact(file: TFile) {
 		await this.plugin.openContactPage(file);
-
-		// On mobile, collapse the main view after opening contact
-		if (Platform.isMobile) {
-			this.app.workspace.rightSplit.collapse();
-		}
 	}
 
 	public async openDeleteModal(file: TFile) {
@@ -129,44 +116,10 @@ export class FriendTrackerView extends ItemView {
 				container.removeChild(container.firstChild);
 			}
 
-			// Get contacts and apply sort if needed
+			// The list view handles its own filtering and sorting
 			const contacts = await this.contactOps.getContacts();
-			const sortConfig: SortConfig =
-				this.currentSort.column && this.currentSort.direction
-					? this.currentSort
-					: {
-							column: "name" as keyof Omit<
-								ContactWithCountdown,
-								"file"
-							>,
-							direction: "asc" as "asc" | "desc",
-					  };
-
-			const sortedContacts = contacts.sort((a, b) => {
-				const valueA = a[sortConfig.column];
-				const valueB = b[sortConfig.column];
-
-				// Handle null values in sorting
-				if (valueA === null && valueB === null) return 0;
-				if (valueA === null)
-					return sortConfig.direction === "asc" ? -1 : 1;
-				if (valueB === null)
-					return sortConfig.direction === "asc" ? 1 : -1;
-
-				if (valueA < valueB)
-					return sortConfig.direction === "asc" ? -1 : 1;
-				if (valueA > valueB)
-					return sortConfig.direction === "asc" ? 1 : -1;
-				return 0;
-			});
-
-			// Create a fresh container for the table
 			const tableContainer = container.createDiv();
-			await this.tableView.render(
-				tableContainer,
-				sortedContacts,
-				sortConfig
-			);
+			await this.tableView.render(tableContainer, contacts);
 		} finally {
 			this.isRefreshing = false;
 		}
@@ -175,13 +128,5 @@ export class FriendTrackerView extends ItemView {
 	private isContactFile(file: TFile): boolean {
 		const contactFolder = this.plugin.settings.contactsFolder;
 		return file.path.startsWith(contactFolder + "/");
-	}
-
-	private async sortContacts(
-		column: keyof Omit<ContactWithCountdown, "file">,
-		direction: "asc" | "desc"
-	) {
-		this.currentSort = { column, direction };
-		await this.refresh();
 	}
 }

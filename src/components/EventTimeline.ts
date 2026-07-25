@@ -2,6 +2,7 @@ import { setIcon } from "obsidian";
 import type { ContactPageView } from "@/views/ContactPageView";
 import type { FriendEvent } from "@/types";
 import { ConfirmModal } from "@/modals/ConfirmModal";
+import { EVENT_TYPES } from "@/constants";
 import {
 	parseFlexDate,
 	formatFlexDate,
@@ -89,7 +90,17 @@ export class EventTimeline {
 			cls: "contact-timeline-item",
 		});
 
-		item.createEl("div", { cls: "contact-timeline-dot" });
+		// Tapping the item opens the edit modal (the only path on mobile,
+		// where the hover action buttons don't exist)
+		item.addEventListener("click", () => {
+			this.view.openEditEventModal(index, event);
+		});
+
+		// Typed events get a colored dot + emoji; untyped render neutral
+		const type = EVENT_TYPES.find((t) => t.id === event.type);
+		item.createEl("div", {
+			cls: `contact-timeline-dot${type ? ` type-${type.id}` : ""}`,
+		});
 
 		// Date within a year group: "May 12", "May", or "Sometime that year"
 		const dateLabel = parsed
@@ -100,7 +111,7 @@ export class EventTimeline {
 
 		item.createEl("div", {
 			cls: "contact-timeline-date",
-			text: dateLabel,
+			text: type ? `${type.emoji} ${dateLabel}` : dateLabel,
 		});
 
 		const textEl = item.createEl("div", {
@@ -135,7 +146,8 @@ export class EventTimeline {
 			attr: { "aria-label": "Edit event" },
 		});
 		setIcon(editBtn, "pencil");
-		editBtn.addEventListener("click", () => {
+		editBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
 			this.view.openEditEventModal(index, event);
 		});
 
@@ -144,7 +156,8 @@ export class EventTimeline {
 			attr: { "aria-label": "Delete event" },
 		});
 		setIcon(deleteBtn, "trash");
-		deleteBtn.addEventListener("click", () => {
+		deleteBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
 			const preview =
 				event.text.length > 80
 					? event.text.slice(0, 80) + "…"
