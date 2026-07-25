@@ -1,10 +1,11 @@
 import { App, Modal } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type { FriendEvent } from "@/types";
 import { EVENT_TYPES, EventType } from "@/constants";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 
-export class EventModal extends Modal {
+export class EventModal extends FormModal {
 	private event: FriendEvent | null;
 	private type: EventType;
 	private onSubmit: (date: string, text: string, type: EventType) => void;

@@ -1,4 +1,5 @@
 import { App, Modal } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import {
 	PLAN_IDEA_CATEGORIES,
 	PLAN_PRIORITIES,
@@ -6,6 +7,7 @@ import {
 	PlanPriority,
 } from "@/constants";
 import { appendScheduleFields } from "@/modals/scheduleFields";
+import { ConfirmModal } from "@/modals/ConfirmModal";
 
 export interface PlanItemValue {
 	category: PlanIdeaCategory;
@@ -21,7 +23,7 @@ export interface PlanItemValue {
  * Capture or edit a plan idea: category + priority + text + cost, plus an
  * optional date/time/people. A date promotes the idea onto the plan timeline.
  */
-export class PlanItemModal extends Modal {
+export class PlanItemModal extends FormModal {
 	private category: PlanIdeaCategory;
 	private priority: PlanPriority;
 
@@ -29,7 +31,8 @@ export class PlanItemModal extends Modal {
 		app: App,
 		private planName: string,
 		private onSubmit: (value: PlanItemValue) => Promise<void>,
-		private initial: PlanItemValue | null = null
+		private initial: PlanItemValue | null = null,
+		private onDelete?: () => Promise<void>
 	) {
 		super(app);
 		this.category = initial?.category ?? "activity";
@@ -42,6 +45,17 @@ export class PlanItemModal extends Modal {
 		contentEl.createEl("h2", {
 			text: this.initial ? "Edit idea" : `Add to ${this.planName}`,
 		});
+
+		// Idea text first — the one thing you always fill in.
+		contentEl.createEl("div", {
+			cls: "modal-section-label",
+			text: "Idea",
+		});
+		const textInput = contentEl.createEl("input", {
+			cls: "quick-idea-input",
+			attr: { type: "text", placeholder: "e.g. Get a lobster roll" },
+		});
+		textInput.value = this.initial?.text ?? "";
 
 		// Category picker
 		contentEl.createEl("div", {
@@ -78,16 +92,6 @@ export class PlanItemModal extends Modal {
 			time: this.initial?.time,
 			people: this.initial?.people,
 		});
-
-		contentEl.createEl("div", {
-			cls: "modal-section-label",
-			text: "Idea",
-		});
-		const textInput = contentEl.createEl("input", {
-			cls: "quick-idea-input",
-			attr: { type: "text", placeholder: "e.g. Get a lobster roll" },
-		});
-		textInput.value = this.initial?.text ?? "";
 
 		contentEl.createEl("div", {
 			cls: "modal-section-label",
@@ -135,6 +139,30 @@ export class PlanItemModal extends Modal {
 		const buttonRow = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-buttons",
 		});
+
+		if (this.initial && this.onDelete) {
+			const deleteButton = buttonRow.createEl("button", {
+				text: "Delete",
+				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+			});
+			deleteButton.addEventListener("click", () => {
+				const preview =
+					this.initial!.text.length > 80
+						? this.initial!.text.slice(0, 80) + "…"
+						: this.initial!.text;
+				new ConfirmModal(
+					this.app,
+					"Delete idea",
+					`Delete "${preview}"?`,
+					"Delete",
+					async () => {
+						await this.onDelete!();
+						this.close();
+					}
+				).open();
+			});
+		}
+
 		const saveButton = buttonRow.createEl("button", {
 			text: this.initial ? "Save" : "Add",
 			cls: "friend-tracker-modal-button mod-cta",

@@ -1,8 +1,9 @@
 import { App, Modal } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown } from "@/types";
 
 /** Confirmation step for merging duplicate friends. */
-export class MergeFriendsModal extends Modal {
+export class MergeFriendsModal extends FormModal {
 	constructor(
 		app: App,
 		private keep: ContactWithCountdown,

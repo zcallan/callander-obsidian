@@ -1,4 +1,5 @@
 import { App, Modal } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type { TravelType } from "@/constants";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { appendScheduleFields } from "@/modals/scheduleFields";
@@ -26,7 +27,7 @@ interface TravelTypeOption {
  * `schedule` to show the Date / Time / People fields (travel & accommodation).
  * New travel legs default to the first type (Car).
  */
-export class PlanSimpleItemModal extends Modal {
+export class PlanSimpleItemModal extends FormModal {
 	private type?: TravelType;
 
 	constructor(
@@ -193,7 +194,7 @@ export class PlanSimpleItemModal extends Modal {
 			this.close();
 		};
 		saveButton.addEventListener("click", submit);
-		const inputs = [textInput, durationInput, costInput];
+		const inputs: HTMLElement[] = [textInput, durationInput, costInput];
 		if (schedule) inputs.push(...schedule.inputs);
 		for (const input of inputs) {
 			input.addEventListener("keydown", (e) => {

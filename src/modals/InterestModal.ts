@@ -1,11 +1,12 @@
 import { App, Modal } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import { INTEREST_CATEGORIES, InterestCategory } from "@/constants";
 
 /**
  * Capture a friend's interest: pick a category, type the thing. Enter saves.
  * Deliberately factual — what they're into, never a rating.
  */
-export class InterestModal extends Modal {
+export class InterestModal extends FormModal {
 	private category: InterestCategory;
 
 	constructor(

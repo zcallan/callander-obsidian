@@ -1,4 +1,5 @@
 import { App, Modal, Notice } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import type { ContactWithCountdown } from "@/types";
 import { createFlexDateInput } from "@/components/FlexDateInput";
@@ -7,7 +8,7 @@ import { createFlexDateInput } from "@/components/FlexDateInput";
  * Log one event onto several friends' timelines at once —
  * "bowling with the basketball crew".
  */
-export class GroupEventModal extends Modal {
+export class GroupEventModal extends FormModal {
 	constructor(
 		app: App,
 		private plugin: FriendTracker,

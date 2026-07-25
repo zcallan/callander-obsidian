@@ -1,4 +1,5 @@
 import { App, Modal } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown } from "@/types";
 
 /**
@@ -6,7 +7,7 @@ import type { ContactWithCountdown } from "@/types";
  * Enter. No category, no structure — triage happens later on the
  * dashboard, when there's time.
  */
-export class QuickNoteModal extends Modal {
+export class QuickNoteModal extends FormModal {
 	constructor(
 		app: App,
 		private contacts: ContactWithCountdown[],

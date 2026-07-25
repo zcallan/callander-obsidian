@@ -1,4 +1,5 @@
 import { App, FuzzySuggestModal, Modal, TFile } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown } from "@/types";
 import { IDEA_CATEGORIES, IdeaCategory } from "@/constants";
 
@@ -68,7 +69,7 @@ export class CaptureTargetModal extends FuzzySuggestModal<CaptureTarget> {
 /**
  * Step 2 of quick capture: category + text. Enter saves.
  */
-export class QuickIdeaModal extends Modal {
+export class QuickIdeaModal extends FormModal {
 	private category: IdeaCategory;
 
 	constructor(

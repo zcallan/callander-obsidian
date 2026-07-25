@@ -1,4 +1,5 @@
 import { App, Modal, Notice } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import type { ContactWithCountdown, FriendEvent } from "@/types";
 import { EVENT_TYPES } from "@/constants";
@@ -7,7 +8,7 @@ import { EVENT_TYPES } from "@/constants";
  * Copy a timeline event onto one or more other friends — e.g. a trip to
  * Ireland logged on Crista, copied to both Austins.
  */
-export class CopyEventModal extends Modal {
+export class CopyEventModal extends FormModal {
 	constructor(
 		app: App,
 		private plugin: FriendTracker,

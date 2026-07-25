@@ -1,4 +1,5 @@
 import { App, Modal, Notice } from "obsidian";
+import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import { stringifyYaml } from "obsidian";
 import { VIEW_TYPE_FRIEND_TRACKER } from "@/views/FriendTrackerView";
@@ -7,7 +8,7 @@ import { createRelationshipInput } from "@/components/ContactFields";
 import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 
-export class AddContactModal extends Modal {
+export class AddContactModal extends FormModal {
 	constructor(app: App, private plugin: FriendTracker) {
 		super(app);
 	}
