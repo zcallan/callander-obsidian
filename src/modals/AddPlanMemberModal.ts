@@ -2,15 +2,23 @@ import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown } from "@/types";
 
+interface GroupOption {
+	name: string;
+	label: string;
+	color?: string | null;
+}
+
 /**
- * Add someone to a plan: search your people and tap one, or type any name to
- * add them as a guest. Mirrors the "All friends" search rather than a fiddly
- * native autocomplete (which is especially poor on mobile).
+ * Add someone to a plan: search your people and tap one, filter by group, or
+ * type any name to add them as a guest. Mirrors the "All friends" search.
  */
 export class AddPlanMemberModal extends FormModal {
+	private groupFilter = "";
+
 	constructor(
 		app: App,
 		private contacts: ContactWithCountdown[],
+		private groups: GroupOption[],
 		private onSubmit: (
 			entry: { contact: ContactWithCountdown | null; name: string },
 			unconfirmed: boolean
@@ -32,6 +40,33 @@ export class AddPlanMemberModal extends FormModal {
 			},
 		});
 
+		// Group filter pills
+		if (this.groups.length > 0) {
+			const pills = contentEl.createEl("div", {
+				cls: "contact-group-chips plan-member-groups",
+			});
+			for (const g of this.groups) {
+				const chip = pills.createEl("button", {
+					cls: `contact-group-chip ${
+						this.groupFilter === g.name ? "selected" : ""
+					}`,
+				});
+				const dot = chip.createEl("span", { cls: "group-dot" });
+				dot.style.backgroundColor =
+					g.color ?? "var(--background-modifier-border)";
+				chip.createSpan({ text: g.label });
+				chip.addEventListener("click", () => {
+					this.groupFilter =
+						this.groupFilter === g.name ? "" : g.name;
+					pills
+						.findAll(".contact-group-chip")
+						.forEach((el) => el.removeClass("selected"));
+					if (this.groupFilter === g.name) chip.addClass("selected");
+					renderResults();
+				});
+			}
+		}
+
 		const checkRow = contentEl.createEl("label", {
 			cls: "plan-unconfirmed-check",
 		});
@@ -44,6 +79,9 @@ export class AddPlanMemberModal extends FormModal {
 			cls: "plan-member-search-list",
 		});
 
+		const colorOf = new Map(this.groups.map((g) => [g.name, g.color]));
+		const labelOf = new Map(this.groups.map((g) => [g.name, g.label]));
+
 		const add = async (
 			contact: ContactWithCountdown | null,
 			name: string
@@ -54,28 +92,36 @@ export class AddPlanMemberModal extends FormModal {
 			this.close();
 		};
 
+		// Newest-modified first, filtered by search + group
 		const filtered = (q: string) =>
-			this.contacts.filter(
-				(c) =>
-					!q ||
-					c.displayName.toLowerCase().includes(q) ||
-					c.name.toLowerCase().includes(q)
-			);
+			this.contacts
+				.filter(
+					(c) =>
+						(!this.groupFilter ||
+							c.groups.includes(this.groupFilter)) &&
+						(!q ||
+							c.displayName.toLowerCase().includes(q) ||
+							c.name.toLowerCase().includes(q))
+				)
+				.sort((a, b) => b.file.stat.mtime - a.file.stat.mtime);
 
-		const row = (label: string, detail: string | null, onClick: () => void) => {
+		const contactRow = (c: ContactWithCountdown) => {
 			const el = listEl.createEl("div", {
 				cls: "friend-list-row plan-member-result",
 			});
-			el.addEventListener("click", onClick);
+			el.addEventListener("click", () => add(c, c.displayName));
 			const info = el.createEl("div", { cls: "friend-list-info" });
-			info.createEl("div", { cls: "friend-list-name", text: label });
-			if (detail) {
-				info.createEl("div", {
-					cls: "friend-list-detail",
-					text: detail,
+			const main = info.createEl("div", { cls: "friend-list-main" });
+			main.createSpan({ cls: "friend-list-name", text: c.displayName });
+			for (const g of c.groups) {
+				const tag = main.createEl("span", {
+					cls: "friend-list-group-tag",
 				});
+				const dot = tag.createEl("span", { cls: "group-dot" });
+				dot.style.backgroundColor =
+					colorOf.get(g) ?? "var(--background-modifier-border)";
+				tag.createSpan({ text: labelOf.get(g) ?? g });
 			}
-			return el;
 		};
 
 		const renderResults = () => {
@@ -84,13 +130,7 @@ export class AddPlanMemberModal extends FormModal {
 			const q = raw.toLowerCase();
 			const matches = filtered(q);
 
-			for (const c of matches) {
-				const detail =
-					c.age !== null && c.age !== undefined
-						? `Age ${c.age}`
-						: null;
-				row(c.displayName, detail, () => add(c, c.displayName));
-			}
+			for (const c of matches) contactRow(c);
 
 			// Guest fallback when the typed name isn't an exact match
 			const exact = this.contacts.some(
@@ -99,15 +139,22 @@ export class AddPlanMemberModal extends FormModal {
 					c.name.toLowerCase() === q
 			);
 			if (raw && !exact) {
-				row(`Add “${raw}” as guest`, null, () => add(null, raw)).addClass(
-					"plan-member-guest"
-				);
+				const el = listEl.createEl("div", {
+					cls: "friend-list-row plan-member-result plan-member-guest",
+				});
+				el.addEventListener("click", () => add(null, raw));
+				el.createEl("div", {
+					cls: "friend-list-info",
+				}).createEl("div", {
+					cls: "friend-list-name",
+					text: `Add “${raw}” as guest`,
+				});
 			}
 
 			if (matches.length === 0 && !raw) {
 				listEl.createEl("div", {
 					cls: "section-helper-text",
-					text: "No one left to add — type a name to add a guest.",
+					text: "No one to add — type a name to add a guest.",
 				});
 			}
 		};

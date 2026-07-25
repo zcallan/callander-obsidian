@@ -332,12 +332,16 @@ export class ContactOperations {
 		file: TFile,
 		date: string,
 		text: string,
-		type: EventType = "hangout"
+		type: EventType = "hangout",
+		location?: string
 	): Promise<void> {
 		await this.app.fileManager.processFrontMatter(file, (fm) => {
 			const events = ContactOperations.eventsOf(fm);
 			delete fm.interactions;
-			fm.events = [...events, { date, text, type }];
+			fm.events = [
+				...events,
+				{ date, text, type, ...(location && { location }) },
+			];
 		});
 	}
 

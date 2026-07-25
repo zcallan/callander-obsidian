@@ -119,6 +119,14 @@ export class EventTimeline {
 			text: event.text,
 		});
 
+		// Where it happened, as a bullet after the text
+		if (event.location) {
+			textEl.createSpan({
+				cls: "contact-timeline-location",
+				text: ` · 📍 ${event.location}`,
+			});
+		}
+
 		// Provenance badge: this event came from a diary entry
 		if (event.source) {
 			const badge = textEl.createEl("span", {

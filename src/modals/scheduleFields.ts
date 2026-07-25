@@ -2,8 +2,9 @@ import { ROUGH_TIMES, roughTime } from "@/constants";
 
 /**
  * Shared Date / Time / People fields for plan-item modals (ideas, travel,
- * accommodation). Time mirrors the flexible date picker: choose "Roughly"
- * (a part of the day — Morning, Lunchtime…) or "Exact" (hour + minute).
+ * accommodation). Time mirrors the flexible date picker (Roughly / Exact).
+ * When the plan has an exact date range, Date is a dropdown of its days; and
+ * when trip people are known, People is a dropdown that adds removable pills.
  * Blank fields are omitted from the returned value.
  */
 
@@ -13,6 +14,13 @@ export interface ScheduleFieldValues {
 	people?: string;
 }
 
+export interface ScheduleFieldOptions {
+	/** When set, Date is a dropdown of these days instead of a date picker. */
+	dayOptions?: Array<{ value: string; label: string }>;
+	/** When set, People is a dropdown of these names (adds pills). */
+	people?: string[];
+}
+
 export interface ScheduleFieldsHandle {
 	values: () => ScheduleFieldValues;
 	inputs: HTMLElement[];
@@ -20,23 +28,48 @@ export interface ScheduleFieldsHandle {
 
 export function appendScheduleFields(
 	container: HTMLElement,
-	initial: ScheduleFieldValues = {}
+	initial: ScheduleFieldValues = {},
+	options: ScheduleFieldOptions = {}
 ): ScheduleFieldsHandle {
-	// Date on its own line.
-	const dateField = container.createEl("div", {
-		cls: "plan-schedule-field",
-	});
+	// --- Date ---
+	const dateField = container.createEl("div", { cls: "plan-schedule-field" });
 	dateField.createEl("div", { cls: "modal-section-label", text: "Date" });
-	const dateInput = dateField.createEl("input", {
-		cls: "quick-idea-input",
-		attr: { type: "date" },
-	});
-	dateInput.value = initial.date ?? "";
+	const initialDate = initial.date ?? "";
+	let dateInput: HTMLInputElement | null = null;
+	let dateSelect: HTMLSelectElement | null = null;
+	if (options.dayOptions && options.dayOptions.length > 0) {
+		dateSelect = dateField.createEl("select", {
+			cls: "quick-idea-input plan-date-select",
+		});
+		dateSelect.createEl("option", { value: "", text: "—" });
+		for (const d of options.dayOptions) {
+			const opt = dateSelect.createEl("option", {
+				value: d.value,
+				text: d.label,
+			});
+			if (d.value === initialDate) opt.selected = true;
+		}
+		// Preserve a stored date that falls outside the current range.
+		if (
+			initialDate &&
+			!options.dayOptions.some((d) => d.value === initialDate)
+		) {
+			const opt = dateSelect.createEl("option", {
+				value: initialDate,
+				text: initialDate,
+			});
+			opt.selected = true;
+		}
+	} else {
+		dateInput = dateField.createEl("input", {
+			cls: "quick-idea-input",
+			attr: { type: "date" },
+		});
+		dateInput.value = initialDate;
+	}
 
-	// Time on its own line: Roughly/Exact selector beside its value input.
-	const timeField = container.createEl("div", {
-		cls: "plan-schedule-field",
-	});
+	// --- Time: Roughly / Exact ---
+	const timeField = container.createEl("div", { cls: "plan-schedule-field" });
 	timeField.createEl("div", { cls: "modal-section-label", text: "Time" });
 	const timeControls = timeField.createEl("div", {
 		cls: "plan-time-controls",
@@ -44,9 +77,7 @@ export function appendScheduleFields(
 
 	const initialTime = initial.time ?? "";
 	const isExact = /^\d{1,2}:\d{2}$/.test(initialTime);
-	const [initHour, initMinute] = isExact
-		? initialTime.split(":")
-		: ["", ""];
+	const [initHour, initMinute] = isExact ? initialTime.split(":") : ["", ""];
 	let precision: "rough" | "exact" = isExact ? "exact" : "rough";
 
 	const precisionSelect = timeControls.createEl("select", {
@@ -109,29 +140,94 @@ export function appendScheduleFields(
 	});
 	renderTime();
 
+	// --- People ---
 	container.createEl("div", { cls: "modal-section-label", text: "People" });
-	const peopleInput = container.createEl("input", {
-		cls: "quick-idea-input",
-		attr: { type: "text", placeholder: "e.g. Callan, Steve" },
-	});
-	peopleInput.value = initial.people ?? "";
+	let peopleInput: HTMLInputElement | null = null;
+	let getPeople: () => string;
+
+	if (options.people && options.people.length > 0) {
+		const peopleOptions = options.people;
+		const selected = (initial.people ?? "")
+			.split(",")
+			.map((s) => s.trim())
+			.filter(Boolean);
+
+		const wrap = container.createEl("div", { cls: "plan-people-field" });
+		const select = wrap.createEl("select", {
+			cls: "quick-idea-input plan-people-select",
+		});
+		const pillsEl = wrap.createEl("div", { cls: "plan-people-pills" });
+
+		const renderSelect = () => {
+			select.empty();
+			select.createEl("option", { value: "", text: "Add a person…" });
+			for (const p of peopleOptions) {
+				if (!selected.includes(p)) {
+					select.createEl("option", { value: p, text: p });
+				}
+			}
+			select.value = "";
+		};
+		const renderPills = () => {
+			pillsEl.empty();
+			selected.forEach((name, i) => {
+				const pill = pillsEl.createEl("span", {
+					cls: "plan-people-pill",
+				});
+				pill.createSpan({ text: name });
+				const x = pill.createEl("button", {
+					cls: "plan-people-pill-x",
+					attr: { type: "button", "aria-label": `Remove ${name}` },
+				});
+				x.setText("✕");
+				x.addEventListener("click", (e) => {
+					e.preventDefault();
+					selected.splice(i, 1);
+					renderPills();
+					renderSelect();
+				});
+			});
+		};
+		select.addEventListener("change", () => {
+			const v = select.value;
+			if (v && !selected.includes(v)) selected.push(v);
+			renderPills();
+			renderSelect();
+		});
+		renderSelect();
+		renderPills();
+		getPeople = () => selected.join(", ");
+	} else {
+		peopleInput = container.createEl("input", {
+			cls: "quick-idea-input",
+			attr: { type: "text", placeholder: "e.g. Callan, Steve" },
+		});
+		peopleInput.value = initial.people ?? "";
+		getPeople = () => peopleInput!.value.trim();
+	}
+
+	const inputs: HTMLElement[] = [precisionSelect];
+	if (dateInput) inputs.push(dateInput);
+	if (peopleInput) inputs.push(peopleInput);
 
 	return {
 		values: () => {
-			const date = dateInput.value.trim();
+			const date = dateSelect
+				? dateSelect.value
+				: dateInput?.value.trim() ?? "";
 			let time = "";
 			if (precision === "exact" && hourSelect && minuteSelect) {
 				time = `${hourSelect.value}:${minuteSelect.value}`;
 			} else if (roughSelect) {
 				time = roughSelect.value;
 			}
-			const people = peopleInput.value.trim();
+			const people = getPeople();
 			return {
 				...(date && { date }),
 				...(time && { time }),
 				...(people && { people }),
 			};
 		},
-		inputs: [dateInput, peopleInput, precisionSelect],
+		inputs,
 	};
 }

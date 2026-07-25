@@ -2,7 +2,10 @@ import { App, Modal } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { TravelType } from "@/constants";
 import { ConfirmModal } from "@/modals/ConfirmModal";
-import { appendScheduleFields } from "@/modals/scheduleFields";
+import {
+	appendScheduleFields,
+	ScheduleFieldOptions,
+} from "@/modals/scheduleFields";
 
 export interface PlanSimpleItemValue {
 	text: string;
@@ -44,7 +47,8 @@ export class PlanSimpleItemModal extends FormModal {
 		},
 		private types: readonly TravelTypeOption[] | null = null,
 		private schedule = false,
-		private onDelete?: () => Promise<void>
+		private onDelete?: () => Promise<void>,
+		private scheduleOptions: ScheduleFieldOptions = {}
 	) {
 		super(app);
 		// New legs default to the first type (Car); editing keeps what's set.
@@ -91,11 +95,15 @@ export class PlanSimpleItemModal extends FormModal {
 		// Date / Time / People — real pickers so legs sort chronologically
 		// (travel & accommodation). Shared with the idea modal.
 		const schedule = this.schedule
-			? appendScheduleFields(contentEl, {
-					date: this.initial?.date,
-					time: this.initial?.time,
-					people: this.initial?.people,
-			  })
+			? appendScheduleFields(
+					contentEl,
+					{
+						date: this.initial?.date,
+						time: this.initial?.time,
+						people: this.initial?.people,
+					},
+					this.scheduleOptions
+			  )
 			: null;
 
 		contentEl.createEl("div", {

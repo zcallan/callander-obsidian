@@ -139,6 +139,17 @@ export interface PlanCost {
 	};
 }
 
+/**
+ * Money a person has already handed over (a transfer, or covering something
+ * else) — deducted from what they owe. Not split; it applies to one person.
+ */
+export interface PlanCredit {
+	person: string;
+	amount: number;
+	/** Optional context, e.g. "Venmo", "covered petrol". */
+	note?: string;
+}
+
 export interface PlanInfo {
 	file: TFile;
 	name: string;
@@ -176,6 +187,8 @@ export interface FriendEvent {
 	text: string;
 	/** Optional — legacy/untyped events are fine and render neutral */
 	type?: EventType;
+	/** Optional where it happened, shown after the text on the timeline */
+	location?: string;
 	/** Path of the diary entry this event was logged from, if any —
 	 * used to update instead of duplicate when re-logging */
 	source?: string;
@@ -193,6 +206,12 @@ export interface Idea {
 export interface Interest {
 	category: InterestCategory;
 	text: string;
+}
+
+/** A memorable thing a friend said, with optional context (when/where). */
+export interface Quote {
+	text: string;
+	context?: string;
 }
 
 export interface DiaryEntry {

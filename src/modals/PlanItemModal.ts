@@ -6,7 +6,10 @@ import {
 	PlanIdeaCategory,
 	PlanPriority,
 } from "@/constants";
-import { appendScheduleFields } from "@/modals/scheduleFields";
+import {
+	appendScheduleFields,
+	ScheduleFieldOptions,
+} from "@/modals/scheduleFields";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 
 export interface PlanItemValue {
@@ -32,7 +35,8 @@ export class PlanItemModal extends FormModal {
 		private planName: string,
 		private onSubmit: (value: PlanItemValue) => Promise<void>,
 		private initial: PlanItemValue | null = null,
-		private onDelete?: () => Promise<void>
+		private onDelete?: () => Promise<void>,
+		private scheduleOptions: ScheduleFieldOptions = {}
 	) {
 		super(app);
 		this.category = initial?.category ?? "activity";
@@ -87,11 +91,15 @@ export class PlanItemModal extends FormModal {
 		});
 
 		// Optional scheduling — a date promotes this idea onto the timeline.
-		const schedule = appendScheduleFields(contentEl, {
-			date: this.initial?.date,
-			time: this.initial?.time,
-			people: this.initial?.people,
-		});
+		const schedule = appendScheduleFields(
+			contentEl,
+			{
+				date: this.initial?.date,
+				time: this.initial?.time,
+				people: this.initial?.people,
+			},
+			this.scheduleOptions
+		);
 
 		contentEl.createEl("div", {
 			cls: "modal-section-label",

@@ -8,12 +8,22 @@ import { ConfirmModal } from "@/modals/ConfirmModal";
 export class EventModal extends FormModal {
 	private event: FriendEvent | null;
 	private type: EventType;
-	private onSubmit: (date: string, text: string, type: EventType) => void;
+	private onSubmit: (
+		date: string,
+		text: string,
+		type: EventType,
+		location: string
+	) => void;
 
 	constructor(
 		app: App,
 		event: FriendEvent | null,
-		onSubmit: (date: string, text: string, type: EventType) => void,
+		onSubmit: (
+			date: string,
+			text: string,
+			type: EventType,
+			location: string
+		) => void,
 		private onDelete?: () => Promise<void>,
 		private onCopy?: () => void
 	) {
@@ -88,6 +98,16 @@ export class EventModal extends FormModal {
 		});
 		textInput.value = this.event?.text || "";
 
+		const locationField = contentEl.createEl("div", {
+			cls: "friend-tracker-modal-field",
+		});
+		locationField.createEl("label", { text: "Location (optional)" });
+		const locationInput = locationField.createEl("input", {
+			cls: "friend-tracker-modal-input",
+			attr: { type: "text", placeholder: "e.g. Providence, RI" },
+		});
+		locationInput.value = this.event?.location || "";
+
 		const buttonContainer = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-buttons",
 		});
@@ -134,17 +154,19 @@ export class EventModal extends FormModal {
 		const submit = () => {
 			const text = textInput.value.trim();
 			if (!text || !dateValue) return;
-			this.onSubmit(dateValue, text, this.type);
+			this.onSubmit(dateValue, text, this.type, locationInput.value.trim());
 			this.close();
 		};
 
 		saveButton.addEventListener("click", submit);
-		textInput.addEventListener("keydown", (event) => {
+		const onKeydown = (event: KeyboardEvent) => {
 			if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
 				event.preventDefault();
 				submit();
 			}
-		});
+		};
+		textInput.addEventListener("keydown", onKeydown);
+		locationInput.addEventListener("keydown", onKeydown);
 
 		setTimeout(() => textInput.focus(), 0);
 	}
