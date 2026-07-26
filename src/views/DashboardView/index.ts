@@ -1,7 +1,12 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
 import type FriendTracker from "@/main";
-import type { ContactWithCountdown, Draft, Idea } from "@/types";
-import { IDEA_CATEGORIES } from "@/constants";
+import type { ContactWithCountdown, Draft, Idea, SomedayInfo } from "@/types";
+import {
+	IDEA_CATEGORIES,
+	formatSomedayDays,
+	somedayTimeframe,
+} from "@/constants";
+import { SomedayModal } from "@/modals/SomedayModal";
 import {
 	CaptureTargetModal,
 	ContactSuggestModal,
@@ -143,6 +148,9 @@ export class DashboardView extends ItemView {
 
 		// Upcoming plans
 		this.renderPlans(container);
+
+		// Somedays: the wishlist of not-yet-plans
+		this.renderSomedays(container);
 
 		// Diary: the latest entries
 		this.renderDiary(container);
@@ -510,6 +518,102 @@ export class DashboardView extends ItemView {
 				this.openContact(plan.file)
 			);
 		}
+	}
+
+	private renderSomedays(container: HTMLElement) {
+		const somedays = this.plugin.somedayOperations
+			.getSomedays()
+			.filter((s) => s.status !== "done" && !s.convertedTo)
+			.sort((a, b) => {
+				const fa = parseFlexDate(a.date);
+				const fb = parseFlexDate(b.date);
+				const ka =
+					fa && fa.year !== null
+						? flexSortKey(fa)
+						: Number.MAX_SAFE_INTEGER;
+				const kb =
+					fb && fb.year !== null
+						? flexSortKey(fb)
+						: Number.MAX_SAFE_INTEGER;
+				if (ka !== kb) return ka - kb;
+				return a.name.localeCompare(b.name);
+			});
+
+		const section = container.createEl("div", {
+			cls: "dashboard-section",
+		});
+		const header = section.createEl("div", {
+			cls: "dashboard-section-header",
+		});
+		header.createEl("h3", { text: "💭 Somedays" });
+		const buttons = header.createEl("div", {
+			cls: "dashboard-section-buttons",
+		});
+		const newButton = buttons.createEl("button", {
+			cls: "friend-tracker-button",
+			text: "New someday",
+		});
+		newButton.addEventListener("click", () => {
+			new SomedayModal(this.app, this.plugin, null, async (file) => {
+				await this.plugin.activateSomedays(file.path);
+			}).open();
+		});
+		const allButton = buttons.createEl("button", {
+			cls: "friend-tracker-button",
+			text: "See all",
+		});
+		allButton.addEventListener("click", () =>
+			this.plugin.activateSomedays()
+		);
+
+		if (somedays.length === 0) {
+			section.createEl("div", {
+				cls: "section-helper-text",
+				text: "A park to visit, a bar to try, a trip you keep meaning to take — jot it before it slips.",
+			});
+			return;
+		}
+
+		for (const s of somedays.slice(0, 5)) {
+			const row = section.createEl("div", {
+				cls: "dashboard-row dashboard-row-clickable",
+			});
+			row.createSpan({ text: s.name });
+			const metaParts: string[] = [];
+			const when = this.somedayWhen(s);
+			if (when) metaParts.push(when);
+			const daysLabel = formatSomedayDays(s.days);
+			if (daysLabel) metaParts.push(daysLabel);
+			if (s.cost !== null) metaParts.push(`~$${s.cost}`);
+			if (metaParts.length > 0) {
+				row.createSpan({
+					cls: "dashboard-row-meta",
+					text: metaParts.join(" · "),
+				});
+			}
+			row.addEventListener("click", () =>
+				this.plugin.activateSomedays(s.file.path)
+			);
+		}
+		if (somedays.length > 5) {
+			const more = section.createEl("div", {
+				cls: "section-helper-text dashboard-row-clickable",
+				text: `+${somedays.length - 5} more on the Somedays page`,
+			});
+			more.addEventListener("click", () =>
+				this.plugin.activateSomedays()
+			);
+		}
+	}
+
+	private somedayWhen(s: SomedayInfo): string {
+		const f = parseFlexDate(s.date);
+		if (f) return formatFlexDate(f);
+		if (s.timeframe) {
+			const tf = somedayTimeframe(s.timeframe);
+			return tf ? `${tf.emoji} ${tf.label}` : s.timeframe;
+		}
+		return "";
 	}
 
 	private renderDiary(container: HTMLElement) {

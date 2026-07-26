@@ -5,6 +5,7 @@ import type {
 	InterestCategory,
 	PlanIdeaCategory,
 	PlanPriority,
+	SomedayDay,
 	TravelType,
 } from "./constants";
 
@@ -212,6 +213,37 @@ export interface Interest {
 export interface Quote {
 	text: string;
 	context?: string;
+}
+
+/** A child idea under a Someday — e.g. a bakery to hit on the Maine trip. */
+export interface SomedaySubIdea {
+	text: string;
+	done?: boolean;
+}
+
+/**
+ * A standalone wishlist idea — a park to visit, "Maine in fall" — captured
+ * before it's ever a committed Plan. Lives as its own note in the Somedays
+ * folder. Deliberately lighter than a Plan: no members, no split costs.
+ */
+export interface SomedayInfo {
+	file: TFile;
+	name: string;
+	/** FlexDate string ("2026" | "2026-10" | "2026-10-18"), or "" */
+	date: string;
+	/** Season/preset id or free text ("fall"), or "" */
+	timeframe: string;
+	/** Candidate weekdays it could happen on */
+	days: SomedayDay[];
+	/** Ballpark estimate, or null when unset */
+	cost: number | null;
+	location: string;
+	notes: string;
+	subIdeas: SomedaySubIdea[];
+	/** open | done (done = did it / archived) */
+	status: string;
+	/** Path of the Plan this became once converted; "" otherwise */
+	convertedTo: string;
 }
 
 export interface DiaryEntry {

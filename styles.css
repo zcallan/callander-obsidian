@@ -1813,6 +1813,13 @@ If your plugin does not need CSS, delete this file.
 	flex-direction: column;
 	align-items: stretch;
 }
+/* Column layout drops the desktop stretch-to-button-height, leaving the
+   underline input squished; restore a matching, tappable height. */
+.is-phone .contact-ideas-add-row .contact-field-input {
+	box-sizing: border-box;
+	flex: none;
+	min-height: 36px;
+}
 
 .is-phone .contact-idea-category-select {
 	width: 100%;
@@ -3281,8 +3288,12 @@ If your plugin does not need CSS, delete this file.
 }
 
 .is-phone .plan-timeline-footer {
-	flex-direction: column;
-	align-items: flex-start;
+	flex-direction: row;
+	align-items: stretch;
+}
+.is-phone .plan-timeline-footer .friend-tracker-button {
+	flex: 1 1 0;
+	justify-content: center;
 }
 
 /* ── Collapsible Ideas / Travel sections ── */
@@ -3408,4 +3419,136 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 	font-size: 0.85em;
 	margin-top: 2px;
+}
+
+/* ---- Somedays: wishlist cards + editor chips ---- */
+.someday-card {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 12px 14px;
+	margin-bottom: 12px;
+	background: var(--background-primary);
+}
+.someday-inactive {
+	opacity: 0.55;
+}
+.someday-card-head {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.someday-title {
+	font-weight: 600;
+	font-size: 1.05em;
+}
+.someday-when {
+	color: var(--text-accent);
+	font-size: 0.85em;
+	white-space: nowrap;
+}
+.someday-meta {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-top: 3px;
+}
+.someday-notes {
+	color: var(--text-normal);
+	font-size: 0.9em;
+	margin-top: 6px;
+	white-space: pre-wrap;
+}
+.someday-converted-link {
+	color: var(--text-accent);
+	font-size: 0.85em;
+	margin-top: 6px;
+	cursor: pointer;
+}
+.someday-converted-link:hover {
+	text-decoration: underline;
+}
+.someday-subideas {
+	margin-top: 10px;
+}
+.someday-subidea {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 2px 0;
+}
+.someday-subidea-text {
+	flex: 1;
+	font-size: 0.9em;
+}
+.someday-subidea.done .someday-subidea-text {
+	text-decoration: line-through;
+	color: var(--text-muted);
+}
+.someday-subidea-add {
+	margin-top: 6px;
+	margin-bottom: 0;
+}
+.someday-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+.someday-action {
+	margin-top: 0;
+}
+.someday-card.is-focused {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+/* Editor: timeframe + day chips */
+.friend-tracker-modal-sublabel {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin: 8px 0 4px;
+}
+.someday-timeframe-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-bottom: 6px;
+}
+.someday-timeframe-free {
+	margin-top: 4px;
+}
+.someday-day-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.someday-day-chip {
+	width: 34px;
+	height: 34px;
+	flex: 0 0 auto;
+	padding: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 50%;
+	background: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: 0.85em;
+	-webkit-appearance: none;
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.someday-day-chip.is-on {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+.someday-day-presets {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+.someday-day-presets .friend-tracker-button {
+	margin-top: 0;
 }

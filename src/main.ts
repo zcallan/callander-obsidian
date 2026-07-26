@@ -6,8 +6,8 @@ import {
 	WorkspaceLeaf,
 	ViewState,
 } from "obsidian";
-import { FriendTrackerSettings, DEFAULT_SETTINGS } from "./types";
-import { IdeaCategory } from "@/constants";
+import { FriendTrackerSettings, DEFAULT_SETTINGS, SomedayInfo } from "./types";
+import { IdeaCategory, somedayTimeframe, formatSomedayDays } from "@/constants";
 import {
 	CaptureTargetModal,
 	CaptureTarget,
@@ -17,6 +17,7 @@ import {
 import { QuickNoteModal } from "@/modals/QuickNoteModal";
 import { PlanItemModal } from "@/modals/PlanItemModal";
 import { PlanOperations } from "@/services/PlanOperations";
+import { SomedayOperations } from "@/services/SomedayOperations";
 import {
 	FriendTrackerView,
 	VIEW_TYPE_FRIEND_TRACKER,
@@ -30,12 +31,15 @@ import { ContactOperations } from "@/services/ContactOperations";
 import { DiaryOperations } from "@/services/DiaryOperations";
 import { DiaryView, VIEW_TYPE_DIARY } from "@/views/DiaryView";
 import { DashboardView, VIEW_TYPE_DASHBOARD } from "@/views/DashboardView";
+import { SomedaysView, VIEW_TYPE_SOMEDAYS } from "@/views/SomedaysView";
 import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { GlanceModal } from "@/modals/GlanceModal";
 import { GroupEventModal } from "@/modals/GroupEventModal";
 import { IdeaSearchModal } from "@/modals/IdeaSearchModal";
 import { MergeFriendsModal } from "@/modals/MergeFriendsModal";
+import { SomedayModal } from "@/modals/SomedayModal";
+import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { parseFlexDate } from "@/utils/flexdate";
 
 export default class FriendTracker extends Plugin {
@@ -43,6 +47,7 @@ export default class FriendTracker extends Plugin {
 	public contactOperations: ContactOperations;
 	public diaryOperations: DiaryOperations;
 	public planOperations: PlanOperations;
+	public somedayOperations: SomedayOperations;
 	public lastQuickIdeaCategory: IdeaCategory = "gift";
 	private statusBarEl: HTMLElement | null = null;
 
@@ -51,6 +56,7 @@ export default class FriendTracker extends Plugin {
 		this.contactOperations = new ContactOperations(this);
 		this.diaryOperations = new DiaryOperations(this);
 		this.planOperations = new PlanOperations(this);
+		this.somedayOperations = new SomedayOperations(this);
 
 		// On mobile, we should wait for layout-ready
 		this.app.workspace.onLayoutReady(() => {
@@ -77,6 +83,10 @@ export default class FriendTracker extends Plugin {
 				VIEW_TYPE_DASHBOARD,
 				(leaf) => new DashboardView(leaf, this)
 			);
+			this.registerView(
+				VIEW_TYPE_SOMEDAYS,
+				(leaf) => new SomedaysView(leaf, this)
+			);
 
 			// Ribbon: the dashboard is the front door
 			this.addRibbonIcon("heart-handshake", "Open Callander", () =>
@@ -87,6 +97,9 @@ export default class FriendTracker extends Plugin {
 			);
 			this.addRibbonIcon("lightbulb", "Add idea for a friend", () =>
 				this.openQuickIdeaCapture()
+			);
+			this.addRibbonIcon("sparkles", "Open somedays", () =>
+				this.activateSomedays()
 			);
 
 			// Commands
@@ -114,6 +127,16 @@ export default class FriendTracker extends Plugin {
 				id: "add-idea",
 				name: "Add idea for a friend",
 				callback: () => this.openQuickIdeaCapture(),
+			});
+			this.addCommand({
+				id: "open-somedays",
+				name: "Open somedays",
+				callback: () => this.activateSomedays(),
+			});
+			this.addCommand({
+				id: "add-someday",
+				name: "New someday",
+				callback: () => this.openSomedayModal(),
 			});
 			this.addCommand({
 				id: "quick-note",
@@ -348,6 +371,22 @@ export default class FriendTracker extends Plugin {
 				plugin.settings.openContactsInCallanderView &&
 				viewState.type === "markdown" &&
 				typeof path === "string" &&
+				plugin.shouldOpenAsSomeday(path)
+			) {
+				return original.call(
+					this,
+					{
+						...viewState,
+						type: VIEW_TYPE_SOMEDAYS,
+						state: { focusPath: path },
+					} as ViewState,
+					eventState
+				);
+			}
+			if (
+				plugin.settings.openContactsInCallanderView &&
+				viewState.type === "markdown" &&
+				typeof path === "string" &&
 				plugin.shouldOpenAsContact(path)
 			) {
 				return original.call(
@@ -377,6 +416,10 @@ export default class FriendTracker extends Plugin {
 		) {
 			return false;
 		}
+		// Somedays have their own list view, not a contact page
+		if (this.somedayOperations.isSomedayFile(path)) {
+			return false;
+		}
 		// Plans and Groups are Callander pages by construction — don't
 		// wait for the metadata cache (freshly created files aren't
 		// indexed yet, which would bounce them to the markdown editor)
@@ -395,6 +438,12 @@ export default class FriendTracker extends Plugin {
 		const frontmatter =
 			this.app.metadataCache.getCache(path)?.frontmatter;
 		return !!frontmatter && typeof frontmatter.name === "string";
+	}
+
+	/** Someday files route to the Somedays list view, not a contact page. */
+	private shouldOpenAsSomeday(path: string): boolean {
+		if (this.markdownBypass.has(path)) return false;
+		return this.somedayOperations.isSomedayFile(path);
 	}
 
 	/** Open a contact's underlying note as raw markdown, bypassing the intercept */
@@ -430,6 +479,24 @@ export default class FriendTracker extends Plugin {
 			VIEW_TYPE_DASHBOARD,
 			(v) => v instanceof DashboardView
 		);
+	}
+
+	public async activateSomedays(focusPath?: string) {
+		await this.activateLeafOfType(
+			VIEW_TYPE_SOMEDAYS,
+			(v) => v instanceof SomedaysView
+		);
+		if (focusPath) {
+			for (const leaf of this.app.workspace.getLeavesOfType(
+				VIEW_TYPE_SOMEDAYS
+			)) {
+				const view = leaf.view;
+				if (view instanceof SomedaysView) {
+					await view.setState({ focusPath }, {});
+					break;
+				}
+			}
+		}
 	}
 
 	public async activateDiaryView() {
@@ -566,6 +633,55 @@ export default class FriendTracker extends Plugin {
 					await this.refreshOpenContactPages(file);
 				}
 			).open();
+		}).open();
+	}
+
+	/** Create a new Someday, then jump to (and highlight) it on the Somedays page. */
+	public openSomedayModal() {
+		new SomedayModal(this.app, this, null, async (file) => {
+			await this.activateSomedays(file.path);
+		}).open();
+	}
+
+	/** Promote a Someday into a full Plan, seeding it from the idea's fields. */
+	public async convertSomedayToPlan(someday: SomedayInfo) {
+		const plan = await this.planOperations.createPlan(
+			someday.name,
+			someday.date,
+			someday.location
+		);
+		// Sub-ideas become the plan's idea menu
+		for (const sub of someday.subIdeas) {
+			await this.planOperations.addItem(plan, {
+				text: sub.text,
+				category: "activity",
+				priority: "maybe",
+			});
+		}
+		// Fuzzy fields (timeframe, days, budget, notes) don't fit a plan's
+		// concrete model — seed them into the plan's notes as a starting brief.
+		const seed: string[] = [];
+		if (someday.timeframe) {
+			const tf = somedayTimeframe(someday.timeframe);
+			seed.push(`Timeframe: ${tf ? tf.label : someday.timeframe}`);
+		}
+		const daysLabel = formatSomedayDays(someday.days);
+		if (daysLabel) seed.push(`Good days: ${daysLabel}`);
+		if (someday.cost !== null) seed.push(`Rough budget: ~$${someday.cost}`);
+		if (someday.notes) seed.push(someday.notes);
+		if (seed.length > 0) {
+			await this.app.fileManager.processFrontMatter(plan, (fm) => {
+				fm.notes = seed.join("\n");
+			});
+		}
+		// Link the someday to the plan it became — a breadcrumb if kept.
+		await this.somedayOperations.markConverted(someday.file, plan.path);
+
+		new ConvertSomedayModal(this.app, someday.name, async (keep) => {
+			if (!keep) {
+				await this.somedayOperations.deleteSomeday(someday.file);
+			}
+			await this.openContactPage(plan);
 		}).open();
 	}
 

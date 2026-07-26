@@ -523,9 +523,20 @@ export class ContactPageView extends ItemView {
 							? "Birthday tomorrow!"
 							: `${daysUntil} days until birthday`;
 
-					countdownContainer.createSpan({
-						text: daysText,
-					});
+					// Within 90 days — show which weekday it falls on (only
+					// when the exact day is known).
+					let text = daysText;
+					if (day !== null) {
+						const target = new Date();
+						target.setHours(0, 0, 0, 0);
+						target.setDate(target.getDate() + daysUntil);
+						const weekday = target.toLocaleDateString("en-AU", {
+							weekday: "long",
+						});
+						text = `${daysText} (${weekday})`;
+					}
+
+					countdownContainer.createSpan({ text });
 				}
 			}
 

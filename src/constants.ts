@@ -154,6 +154,58 @@ export const TRAVEL_TYPE_EMOJI: Record<TravelType, string> =
 		string
 	>;
 
+// ---- Somedays: a wishlist of ideas, before they become committed Plans ----
+
+// Candidate days-of-week a Someday could happen on. `short` is the one-letter
+// chip label (Mon→Sun order is canonical for display).
+export const SOMEDAY_DAYS = [
+	{ id: "mon", label: "Mon", short: "M" },
+	{ id: "tue", label: "Tue", short: "T" },
+	{ id: "wed", label: "Wed", short: "W" },
+	{ id: "thu", label: "Thu", short: "T" },
+	{ id: "fri", label: "Fri", short: "F" },
+	{ id: "sat", label: "Sat", short: "S" },
+	{ id: "sun", label: "Sun", short: "S" },
+] as const;
+
+export type SomedayDay = (typeof SOMEDAY_DAYS)[number]["id"];
+
+// Quick presets that select several day chips at once.
+export const SOMEDAY_DAY_PRESETS = [
+	{ id: "weekend", label: "Weekend", days: ["sat", "sun"] },
+	{ id: "weekday", label: "Weekday", days: ["mon", "tue", "wed", "thu", "fri"] },
+] as const;
+
+// Fuzzy, non-calendar timing — for "Maine in fall" or a plain "someday".
+// Free text is also allowed; these are just the quick chips.
+export const SOMEDAY_TIMEFRAMES = [
+	{ id: "spring", label: "Spring", emoji: "🌸" },
+	{ id: "summer", label: "Summer", emoji: "☀️" },
+	{ id: "fall", label: "Fall", emoji: "🍂" },
+	{ id: "winter", label: "Winter", emoji: "❄️" },
+	{ id: "someday", label: "Someday", emoji: "💭" },
+] as const;
+
+export type SomedayTimeframe = (typeof SOMEDAY_TIMEFRAMES)[number]["id"];
+
+/** Look up a timeframe preset for its emoji/label; undefined for free text. */
+export function somedayTimeframe(id: string | undefined | null) {
+	return id ? SOMEDAY_TIMEFRAMES.find((t) => t.id === id) : undefined;
+}
+
+/** Human summary of candidate days: "Weekends" | "Weekdays" | "Mon, Tue" | "Thu". */
+export function formatSomedayDays(days: readonly string[]): string {
+	if (!days || days.length === 0) return "";
+	const set = new Set(days);
+	if (set.size === 2 && set.has("sat") && set.has("sun")) return "Weekends";
+	const weekdays = ["mon", "tue", "wed", "thu", "fri"];
+	if (set.size === 5 && weekdays.every((d) => set.has(d))) return "Weekdays";
+	// Canonical Mon→Sun order regardless of how they were stored
+	return SOMEDAY_DAYS.filter((d) => set.has(d.id))
+		.map((d) => d.label)
+		.join(", ");
+}
+
 // Fixed palette for group color dots — no color picker, keep it minimal
 export const GROUP_COLORS = [
 	"#e05561",
