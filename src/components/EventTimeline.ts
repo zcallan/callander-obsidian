@@ -25,31 +25,42 @@ export class EventTimeline {
 			cls: "contact-timeline",
 		});
 
+		const empty = { year: null, month: null, day: null };
+		type Row =
+			| {
+					kind: "event";
+					event: FriendEvent;
+					index: number;
+					parsed: ReturnType<typeof parseFlexDate>;
+			  }
+			| {
+					kind: "met";
+					parsed: NonNullable<ReturnType<typeof parseFlexDate>>;
+			  };
+
+		const rows: Row[] = events.map((event, index) => ({
+			kind: "event",
+			event,
+			index,
+			parsed: parseFlexDate(event.date),
+		}));
+
+		// The origin — where the friendship began — sorts in like any dated row
+		// rather than being pinned to the bottom.
+		const metFlex = parseFlexDate(met);
+		if (metFlex && metFlex.year !== null) {
+			rows.push({ kind: "met", parsed: metFlex });
+		}
+
 		// Newest first; coarser dates sort after finer ones in the same period
-		const sorted = events
-			.map((event, index) => ({ event, index }))
-			.sort((a, b) => {
-				const keyA = flexSortKey(
-					parseFlexDate(a.event.date) ?? {
-						year: null,
-						month: null,
-						day: null,
-					}
-				);
-				const keyB = flexSortKey(
-					parseFlexDate(b.event.date) ?? {
-						year: null,
-						month: null,
-						day: null,
-					}
-				);
-				return keyB - keyA;
-			});
+		rows.sort(
+			(a, b) =>
+				flexSortKey(b.parsed ?? empty) - flexSortKey(a.parsed ?? empty)
+		);
 
 		let currentYearLabel: string | null = null;
-
-		for (const { event, index } of sorted) {
-			const parsed = parseFlexDate(event.date);
+		for (const row of rows) {
+			const parsed = row.parsed;
 			const yearLabel =
 				parsed?.year !== null && parsed?.year !== undefined
 					? String(parsed.year)
@@ -63,20 +74,23 @@ export class EventTimeline {
 				});
 			}
 
-			this.renderEventItem(timeline, event, index, parsed);
-		}
-
-		// The origin point: where the friendship began
-		const metFlex = parseFlexDate(met);
-		if (metFlex && metFlex.year !== null) {
-			const origin = timeline.createEl("div", {
-				cls: "contact-timeline-item contact-timeline-origin",
-			});
-			origin.createEl("div", { cls: "contact-timeline-dot" });
-			origin.createEl("div", {
-				cls: "contact-timeline-date",
-				text: `Met — ${formatFlexDate(metFlex)}`,
-			});
+			if (row.kind === "event") {
+				this.renderEventItem(
+					timeline,
+					row.event,
+					row.index,
+					row.parsed
+				);
+			} else {
+				const origin = timeline.createEl("div", {
+					cls: "contact-timeline-item contact-timeline-origin",
+				});
+				origin.createEl("div", { cls: "contact-timeline-dot" });
+				origin.createEl("div", {
+					cls: "contact-timeline-date",
+					text: `Met — ${formatFlexDate(row.parsed)}`,
+				});
+			}
 		}
 	}
 
@@ -123,7 +137,7 @@ export class EventTimeline {
 		if (event.location) {
 			textEl.createSpan({
 				cls: "contact-timeline-location",
-				text: ` · 📍 ${event.location}`,
+				text: ` · ${event.location}`,
 			});
 		}
 
