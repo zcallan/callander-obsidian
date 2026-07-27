@@ -222,21 +222,15 @@ export class TableView {
 				});
 			}
 
-			// Line 2: the glanceable details
+			// Line 2: birthday as a plain date, then age
 			const parts: string[] = [];
+			const bday = this.birthdayDate(contact);
+			if (bday) parts.push(bday);
 			if (contact.age !== null) parts.push(`Age ${contact.age}`);
-			const birthdayPart = this.birthdayPart(contact);
-			if (birthdayPart) parts.push(birthdayPart);
-			if (contact.lastInteraction) {
-				parts.push(`Last event: ${contact.lastInteraction}`);
-			}
-			if (contact.openIdeas > 0) {
-				parts.push(`💡 ${contact.openIdeas}`);
-			}
 			if (parts.length > 0) {
 				info.createEl("div", {
 					cls: "friend-list-detail",
-					text: parts.join(" · "),
+					text: parts.join(" • "),
 				});
 			}
 
@@ -245,7 +239,10 @@ export class TableView {
 				cls: "friend-tracker-button friend-list-glance",
 			});
 			setIcon(glanceButton, "eye");
-			glanceButton.createSpan({ text: "Glance" });
+			glanceButton.createSpan({
+				cls: "friend-list-glance-label",
+				text: "Glance",
+			});
 			glanceButton.addEventListener("click", (e) => {
 				e.stopPropagation();
 				new GlanceModal(this.view.app, contact).open();
@@ -253,29 +250,16 @@ export class TableView {
 		}
 	}
 
-	private birthdayPart(contact: ContactWithCountdown): string {
-		if (contact.daysUntilBirthday === 0) return "🎂 Birthday today!";
-		const belatedWindow = this.view.settings.belatedBirthdayDays;
-		if (
-			contact.daysSinceBirthday !== null &&
-			contact.daysSinceBirthday > 0 &&
-			contact.daysSinceBirthday <= belatedWindow
-		) {
-			return `🎂 was ${contact.daysSinceBirthday} days ago`;
+	/** Birthday as a plain date: "21 Aug 1997", "21 Aug", or "Aug 1997". */
+	private birthdayDate(contact: ContactWithCountdown): string {
+		const p = parseFlexDate(contact.birthday);
+		if (!p || p.month === null) return "";
+		const shortMonth = monthName(p.month).slice(0, 3);
+		if (p.day === null) {
+			return p.year !== null ? `${shortMonth} ${p.year}` : shortMonth;
 		}
-		if (
-			contact.daysUntilBirthday !== null &&
-			contact.daysUntilBirthday <= 90
-		) {
-			return `🎂 in ${contact.daysUntilBirthday} days`;
-		}
-		const parsed = parseFlexDate(contact.birthday);
-		if (parsed?.month) {
-			const shortMonth = monthName(parsed.month).slice(0, 3);
-			return `🎂 ${
-				parsed.day ? `${shortMonth} ${parsed.day}` : shortMonth
-			}`;
-		}
-		return "";
+		return p.year !== null
+			? `${p.day} ${shortMonth} ${p.year}`
+			: `${p.day} ${shortMonth}`;
 	}
 }

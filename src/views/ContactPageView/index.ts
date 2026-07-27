@@ -1317,6 +1317,26 @@ export class ContactPageView extends ItemView {
 				}
 				await this.saveContactData();
 				this.render();
+			},
+			() => this.confirmDeletePlan()
+		).open();
+	}
+
+	/** Delete the plan note entirely (sent to the Obsidian trash). */
+	private confirmDeletePlan() {
+		const file = this._file;
+		if (!file) return;
+		const name = this.contactData.name || file.basename;
+		new ConfirmModal(
+			this.app,
+			"Delete plan",
+			`Delete the plan "${name}"?`,
+			"Delete",
+			async () => {
+				await this.app.fileManager.trashFile(file);
+				new Notice(`Deleted "${name}"`);
+				this.leaf.detach();
+				await this.plugin.activateDashboard();
 			}
 		).open();
 	}
@@ -2095,6 +2115,22 @@ export class ContactPageView extends ItemView {
 				);
 				new Notice("📋 Copied — ready to paste as text");
 			});
+
+			const calButton = header.createEl("button", {
+				cls: "friend-tracker-button plan-timeline-cal",
+			});
+			setIcon(calButton, "calendar-plus");
+			calButton.createSpan({ text: "Add to calendar" });
+			calButton.addEventListener("click", () =>
+				this.plugin.exportPlanCalendar(
+					this.contactData,
+					String(
+						this.contactData.name ||
+							this._file?.basename ||
+							"Plan"
+					)
+				)
+			);
 		}
 
 		// Quick-add at the bottom of the itinerary
@@ -3441,8 +3477,8 @@ export class ContactPageView extends ItemView {
 		const modal = new EventModal(
 			this.app,
 			null,
-			async (date, text, type, location) => {
-				await this.addEvent(date, text, type, location);
+			async (date, text, type, location, link) => {
+				await this.addEvent(date, text, type, location, link);
 			}
 		);
 		modal.open();
@@ -3452,7 +3488,8 @@ export class ContactPageView extends ItemView {
 		date: string,
 		text: string,
 		type: EventType,
-		location?: string
+		location?: string,
+		link?: string
 	) {
 		if (!Array.isArray(this.contactData.events)) {
 			this.contactData.events = [];
@@ -3462,6 +3499,7 @@ export class ContactPageView extends ItemView {
 			text,
 			type,
 			...(location && { location }),
+			...(link && { link }),
 		});
 		await this.saveContactData();
 		this.render();
@@ -3471,7 +3509,7 @@ export class ContactPageView extends ItemView {
 		const modal = new EventModal(
 			this.app,
 			event,
-			async (date, text, type, location) => {
+			async (date, text, type, location, link) => {
 				if (!Array.isArray(this.contactData.events)) {
 					this.contactData.events = [];
 				}
@@ -3486,6 +3524,11 @@ export class ContactPageView extends ItemView {
 					this.contactData.events[index].location = location;
 				} else {
 					delete this.contactData.events[index].location;
+				}
+				if (link) {
+					this.contactData.events[index].link = link;
+				} else {
+					delete this.contactData.events[index].link;
 				}
 				await this.saveContactData();
 				this.render();

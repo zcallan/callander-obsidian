@@ -125,6 +125,22 @@ export function flexSortKey(date: FlexDate): number {
 }
 
 /**
+ * Is this flex date in the future (or today)? Used to mark upcoming timeline
+ * events. A year-only date in the current year reads as past; a future year,
+ * a later month this year, or today-or-later this month read as upcoming.
+ */
+export function isFlexUpcoming(date: FlexDate, now = new Date()): boolean {
+	if (date.year === null) return false;
+	const y = now.getFullYear();
+	if (date.year !== y) return date.year > y;
+	if (date.month === null) return false;
+	const m = now.getMonth() + 1;
+	if (date.month !== m) return date.month > m;
+	if (date.day === null) return true;
+	return date.day >= now.getDate();
+}
+
+/**
  * Human "how long ago" at the date's own precision, e.g. "5 years ago",
  * "8 months ago", "this year". Returns "" when the year is unknown.
  */

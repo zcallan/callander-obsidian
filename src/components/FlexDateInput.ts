@@ -15,7 +15,11 @@ export function createFlexDateInput(
 	container: HTMLElement,
 	initialValue: string | number | null | undefined,
 	onChange: (value: string) => void,
-	options?: { inputClass?: string; defaultPrecision?: FlexPrecision }
+	options?: {
+		inputClass?: string;
+		defaultPrecision?: FlexPrecision;
+		allowFuture?: boolean;
+	}
 ): void {
 	const inputClass = options?.inputClass ?? "contact-field-input";
 
@@ -64,7 +68,9 @@ export function createFlexDateInput(
 			input.type = "number";
 			input.placeholder = "e.g. 2019";
 			input.min = "1900";
-			input.max = String(new Date().getFullYear());
+			input.max = String(
+				new Date().getFullYear() + (options?.allowFuture ? 50 : 0)
+			);
 			if (parsed?.year) input.value = String(parsed.year);
 		} else if (precision === "month") {
 			input.type = "month";

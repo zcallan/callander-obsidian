@@ -1,30 +1,57 @@
-import { ItemView, WorkspaceLeaf, TFile, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, Notice } from "obsidian";
 import type FriendTracker from "@/main";
 import type { SomedayInfo } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { SomedayViewModal } from "@/modals/SomedayViewModal";
 import {
 	parseFlexDate,
 	formatFlexDate,
 	flexSortKey,
 } from "@/utils/flexdate";
-import { formatSomedayDays, somedayTimeframe } from "@/constants";
+import {
+	formatSomedayDays,
+	formatSomedaySeasons,
+	somedayCompany,
+	SOMEDAY_DAYS,
+	SOMEDAY_SEASONS,
+	SOMEDAY_COMPANY,
+	SomedayDay,
+	SomedayCompany,
+} from "@/constants";
 
 export const VIEW_TYPE_SOMEDAYS = "callander-somedays";
 
+type DayFilter = "today" | "tomorrow" | "weekend";
+/** JS getDay() (0=Sun) → our weekday ids */
+const WEEKDAY_BY_INDEX: SomedayDay[] = [
+	"sun",
+	"mon",
+	"tue",
+	"wed",
+	"thu",
+	"fri",
+	"sat",
+];
+
 /**
- * The full page of Somedays — the wishlist. Lists every idea as a card, sorted
- * so the soonest-dated float to the top and finished/converted ones sink. A
- * light counterpart to the Plans list; a card can be promoted into a real Plan.
+ * The full page of Somedays — the wishlist. Each idea is a plain row; clicking
+ * one opens a view modal. A filter bar narrows by when (Today / Weekend / a
+ * specific day / a season) and by party (solo vs group).
  */
 export class SomedaysView extends ItemView {
 	private somedays: SomedayInfo[] = [];
 	private searchQuery = "";
 	private focusPath: string | null = null;
+	private listEl: HTMLElement | null = null;
+
+	// Filters — "when" (day toggles + specific-day + season, union) and party.
+	private dayFilters = new Set<DayFilter>();
+	private specificDay: SomedayDay | "" = "";
+	private season = "";
+	private company: SomedayCompany | "" = "";
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
-		// Participate in tab history so back/forward arrows work
 		this.navigation = true;
 	}
 
@@ -67,7 +94,7 @@ export class SomedaysView extends ItemView {
 		await this.refresh();
 	}
 
-	// Opening a Someday file routes here with its path, so we can highlight it.
+	// Opening a Someday file routes here with its path → open its view modal.
 	async setState(state: any, result: any) {
 		this.focusPath = state?.focusPath ?? null;
 		await super.setState(state, result);
@@ -86,6 +113,53 @@ export class SomedaysView extends ItemView {
 		this.render();
 	}
 
+	// ---- Filtering ----
+
+	private weekdayId(d: Date): SomedayDay {
+		return WEEKDAY_BY_INDEX[d.getDay()];
+	}
+
+	private matchesFilters(s: SomedayInfo): boolean {
+		// Party — solo/group, with "either" matching both. Unset is excluded.
+		if (
+			this.company === "solo" &&
+			!(s.company === "solo" || s.company === "either")
+		) {
+			return false;
+		}
+		if (
+			this.company === "group" &&
+			!(s.company === "group" || s.company === "either")
+		) {
+			return false;
+		}
+
+		// "When" — union of active filters. An idea with no candidate days is
+		// available any day, so it passes every day filter.
+		const dayOk = (wd: SomedayDay) =>
+			s.days.length === 0 || s.days.includes(wd);
+		const preds: boolean[] = [];
+		if (this.dayFilters.has("today")) {
+			preds.push(dayOk(this.weekdayId(new Date())));
+		}
+		if (this.dayFilters.has("tomorrow")) {
+			const d = new Date();
+			d.setDate(d.getDate() + 1);
+			preds.push(dayOk(this.weekdayId(d)));
+		}
+		if (this.dayFilters.has("weekend")) {
+			preds.push(
+				s.days.length === 0 ||
+					s.days.includes("sat") ||
+					s.days.includes("sun")
+			);
+		}
+		if (this.specificDay) preds.push(dayOk(this.specificDay));
+		if (this.season) preds.push(s.seasons.includes(this.season));
+		if (preds.length === 0) return true;
+		return preds.some((p) => p);
+	}
+
 	/** Active (open, un-converted) first; dated before undated; done/converted last. */
 	private rank(s: SomedayInfo): number {
 		if (s.status === "done" || s.convertedTo) return 3;
@@ -95,17 +169,15 @@ export class SomedaysView extends ItemView {
 
 	private sorted(): SomedayInfo[] {
 		const q = this.searchQuery.trim().toLowerCase();
-		const matches = q
-			? this.somedays.filter(
-					(s) =>
-						s.name.toLowerCase().includes(q) ||
-						s.notes.toLowerCase().includes(q) ||
-						s.location.toLowerCase().includes(q) ||
-						s.subIdeas.some((sub) =>
-							sub.text.toLowerCase().includes(q)
-						)
-			  )
-			: [...this.somedays];
+		const matches = this.somedays.filter((s) => {
+			if (!this.matchesFilters(s)) return false;
+			if (!q) return true;
+			return (
+				s.name.toLowerCase().includes(q) ||
+				s.notes.toLowerCase().includes(q) ||
+				s.subIdeas.some((sub) => sub.text.toLowerCase().includes(q))
+			);
+		});
 		return matches.sort((a, b) => {
 			const ra = this.rank(a);
 			const rb = this.rank(b);
@@ -120,13 +192,32 @@ export class SomedaysView extends ItemView {
 		});
 	}
 
+	/** Open, un-converted somedays among the currently filtered set. */
+	private openCandidates(): SomedayInfo[] {
+		return this.sorted().filter(
+			(s) => s.status !== "done" && !s.convertedTo
+		);
+	}
+
+	private surpriseMe() {
+		const open = this.openCandidates();
+		if (open.length === 0) {
+			new Notice("Nothing to surprise you with");
+			return;
+		}
+		const pick = open[Math.floor(Math.random() * open.length)];
+		this.openViewModal(pick);
+	}
+
+	// ---- Rendering ----
+
 	private render() {
 		const container = this.containerEl.children[1] as HTMLElement;
 		const scrollTop = container.scrollTop;
 		container.empty();
 		container.addClass("dashboard-container", "somedays-container");
 
-		// Header + New someday
+		// Header + New someday (+ Surprise me)
 		const header = container.createEl("div", { cls: "dashboard-header" });
 		header.createEl("h2", { text: "Somedays" });
 		const actions = header.createEl("div", { cls: "dashboard-actions" });
@@ -137,10 +228,16 @@ export class SomedaysView extends ItemView {
 		newBtn.createSpan({ text: "New someday" });
 		newBtn.addEventListener("click", () => this.openEditor(null));
 
-		container.createEl("div", {
-			cls: "section-helper-text",
-			text: "Ideas you might do one day — a park, a bar, a trip. Give them a rough when; convert one into a plan when it firms up.",
-		});
+		if (this.openCandidates().length >= 2) {
+			const surpriseBtn = actions.createEl("button", {
+				cls: "friend-tracker-button",
+			});
+			setIcon(surpriseBtn, "dices");
+			surpriseBtn.createSpan({ text: "Surprise me" });
+			surpriseBtn.addEventListener("click", () => this.surpriseMe());
+		}
+
+		if (this.somedays.length > 0) this.renderFilters(container);
 
 		// Search (only worth showing once there are a few)
 		if (this.somedays.length > 4) {
@@ -154,202 +251,163 @@ export class SomedaysView extends ItemView {
 			searchInput.value = this.searchQuery;
 			searchInput.addEventListener("input", () => {
 				this.searchQuery = searchInput.value;
-				this.render();
+				this.renderList();
 			});
 		}
+
+		this.listEl = container.createEl("div", { cls: "someday-list" });
+		this.renderList();
+
+		// Intro/helper text sits at the very bottom, under the list.
+		container.createEl("div", {
+			cls: "section-helper-text someday-footer-note",
+			text: "Ideas you might do one day — a park, a bar, a trip. Give them a rough when; convert one into a plan when it firms up.",
+		});
+
+		container.scrollTop = scrollTop;
+	}
+
+	private filterPill(
+		row: HTMLElement,
+		label: string,
+		active: boolean,
+		onClick: () => void
+	) {
+		const pill = row.createEl("button", {
+			cls: `someday-filter-pill${active ? " is-active" : ""}`,
+			text: label,
+			attr: { type: "button" },
+		});
+		pill.addEventListener("click", onClick);
+		return pill;
+	}
+
+	private renderFilters(container: HTMLElement) {
+		const wrap = container.createEl("div", { cls: "someday-filters" });
+
+		// Days — day toggles + a specific-day and a season dropdown (union)
+		const row1 = wrap.createEl("div", { cls: "someday-filter-row" });
+		row1.createSpan({ cls: "someday-filter-label", text: "Days" });
+		const opts1 = row1.createEl("div", { cls: "someday-filter-options" });
+		const dayPill = (id: DayFilter, label: string) =>
+			this.filterPill(opts1, label, this.dayFilters.has(id), () => {
+				if (this.dayFilters.has(id)) this.dayFilters.delete(id);
+				else this.dayFilters.add(id);
+				this.render();
+			});
+		dayPill("today", "Today");
+		dayPill("tomorrow", "Tomorrow");
+		dayPill("weekend", "Weekend");
+
+		const daySel = opts1.createEl("select", {
+			cls: "dropdown someday-filter-select",
+		});
+		daySel.createEl("option", { value: "", text: "Day…" });
+		SOMEDAY_DAYS.forEach((d) =>
+			daySel.createEl("option", { value: d.id, text: d.label })
+		);
+		daySel.value = this.specificDay;
+		daySel.addEventListener("change", () => {
+			this.specificDay = daySel.value as SomedayDay | "";
+			this.render();
+		});
+
+		const seasonSel = opts1.createEl("select", {
+			cls: "dropdown someday-filter-select",
+		});
+		seasonSel.createEl("option", { value: "", text: "Season…" });
+		SOMEDAY_SEASONS.forEach((s) =>
+			seasonSel.createEl("option", { value: s.id, text: s.label })
+		);
+		seasonSel.value = this.season;
+		seasonSel.addEventListener("change", () => {
+			this.season = seasonSel.value;
+			this.render();
+		});
+
+		// Party — solo / group (each a toggle; neither = everyone)
+		const row2 = wrap.createEl("div", { cls: "someday-filter-row" });
+		row2.createSpan({ cls: "someday-filter-label", text: "Party" });
+		const opts2 = row2.createEl("div", { cls: "someday-filter-options" });
+		(["solo", "group"] as const).forEach((id) => {
+			const c = SOMEDAY_COMPANY.find((x) => x.id === id)!;
+			this.filterPill(
+				opts2,
+				`${c.emoji} ${c.label}`,
+				this.company === id,
+				() => {
+					this.company = this.company === id ? "" : id;
+					this.render();
+				}
+			);
+		});
+	}
+
+	private renderList() {
+		const listEl = this.listEl;
+		if (!listEl) return;
+		listEl.empty();
 
 		const list = this.sorted();
 		if (list.length === 0) {
-			container.createEl("div", {
+			listEl.createEl("div", {
 				cls: "section-helper-text",
-				text: this.searchQuery
-					? "Nothing matches."
-					: "No somedays yet. Add the first thing you'd love to do.",
+				text:
+					this.somedays.length === 0
+						? "No somedays yet. Add the first thing you'd love to do."
+						: "Nothing matches these filters.",
 			});
-			container.scrollTop = scrollTop;
 			return;
 		}
 
-		let focusEl: HTMLElement | null = null;
-		for (const someday of list) {
-			const card = this.renderCard(container, someday);
-			if (this.focusPath && someday.file.path === this.focusPath) {
-				focusEl = card;
-			}
-		}
+		for (const someday of list) this.renderRow(listEl, someday);
 
-		container.scrollTop = scrollTop;
-		if (focusEl) {
-			const el = focusEl;
-			el.addClass("is-focused");
-			setTimeout(() => el.scrollIntoView({ block: "center" }), 0);
-			// Clear the highlight target so a later refresh doesn't re-flash it
+		// A row opened directly (via its file) → open its view modal, once.
+		if (this.focusPath) {
+			const target = list.find((s) => s.file.path === this.focusPath);
 			this.focusPath = null;
+			if (target) this.openViewModal(target);
 		}
 	}
 
 	private whenLabel(s: SomedayInfo): string {
 		const f = parseFlexDate(s.date);
 		if (f) return formatFlexDate(f);
-		if (s.timeframe) {
-			const tf = somedayTimeframe(s.timeframe);
-			return tf ? `${tf.emoji} ${tf.label}` : s.timeframe;
-		}
-		return "";
+		return formatSomedaySeasons(s.seasons) || "Any time";
 	}
 
-	private renderCard(
-		container: HTMLElement,
-		someday: SomedayInfo
-	): HTMLElement {
-		const ops = this.plugin.somedayOperations;
+	private renderRow(container: HTMLElement, someday: SomedayInfo) {
 		const inactive = someday.status === "done" || !!someday.convertedTo;
-		const card = container.createEl("div", {
-			cls: `someday-card${inactive ? " someday-inactive" : ""}`,
+		const row = container.createEl("div", {
+			cls: `someday-card someday-row${
+				inactive ? " someday-inactive" : ""
+			}`,
+		});
+		row.createEl("div", { cls: "someday-card-titleline" }).createSpan({
+			cls: "someday-title",
+			text: someday.name,
 		});
 
-		// Title + when
-		const head = card.createEl("div", { cls: "someday-card-head" });
-		head.createSpan({ cls: "someday-title", text: someday.name });
-		const when = this.whenLabel(someday);
-		if (when) head.createSpan({ cls: "someday-when", text: when });
-
-		// Meta: days · cost · location
-		const metaParts: string[] = [];
-		const daysLabel = formatSomedayDays(someday.days);
-		if (daysLabel) metaParts.push(daysLabel);
-		if (someday.cost !== null) metaParts.push(`~$${someday.cost}`);
-		if (someday.location) metaParts.push(someday.location);
-		if (metaParts.length > 0) {
-			card.createEl("div", {
-				cls: "someday-meta",
-				text: metaParts.join(" · "),
-			});
-		}
-
-		if (someday.notes) {
-			card.createEl("div", { cls: "someday-notes", text: someday.notes });
-		}
-
-		// Breadcrumb to the plan it became
-		if (someday.convertedTo) {
-			const link = card.createEl("div", {
-				cls: "someday-converted-link",
-				text: "→ opened as a plan",
-			});
-			link.addEventListener("click", () => {
-				const pf = this.app.vault.getFileByPath(someday.convertedTo);
-				if (pf) this.plugin.openContactPage(pf);
-			});
-		}
-
-		this.renderSubIdeas(card, someday);
-
-		// Actions
-		const actions = card.createEl("div", { cls: "someday-actions" });
-		const action = (
-			icon: string,
-			label: string,
-			onClick: () => void,
-			extraCls = ""
-		) => {
-			const btn = actions.createEl("button", {
-				cls: `friend-tracker-button someday-action ${extraCls}`.trim(),
-			});
-			setIcon(btn, icon);
-			btn.createSpan({ text: label });
-			btn.addEventListener("click", onClick);
-			return btn;
-		};
-
-		action("pencil", "Edit", () => this.openEditor(someday));
-		if (!someday.convertedTo) {
-			action("map", "Convert to plan", () =>
-				this.plugin.convertSomedayToPlan(someday)
-			);
-		}
-		if (someday.status === "done") {
-			action("rotate-ccw", "Reopen", async () => {
-				await ops.setStatus(someday.file, "open");
-				await this.refresh();
-			});
-		} else {
-			action("check", "Done", async () => {
-				await ops.setStatus(someday.file, "done");
-				await this.refresh();
-			});
-		}
-		const del = actions.createEl("button", {
-			cls: "friend-tracker-button button-icon button-danger someday-action",
-			attr: { "aria-label": "Delete someday" },
-		});
-		setIcon(del, "trash");
-		del.addEventListener("click", () => {
-			new ConfirmModal(
-				this.app,
-				"Delete someday",
-				`Delete "${someday.name}"?`,
-				"Delete",
-				async () => {
-					await ops.deleteSomeday(someday.file);
-					await this.refresh();
-				}
-			).open();
+		const subParts: string[] = [this.whenLabel(someday)];
+		const comp = somedayCompany(someday.company);
+		if (comp) subParts.push(comp.label);
+		const days = formatSomedayDays(someday.days);
+		if (days) subParts.push(days);
+		row.createEl("div", {
+			cls: "someday-card-subline",
+			text: subParts.filter(Boolean).join(" · "),
 		});
 
-		return card;
+		row.addEventListener("click", () => this.openViewModal(someday));
 	}
 
-	private renderSubIdeas(card: HTMLElement, someday: SomedayInfo) {
-		const ops = this.plugin.somedayOperations;
-		const wrap = card.createEl("div", { cls: "someday-subideas" });
-
-		someday.subIdeas.forEach((sub, index) => {
-			const row = wrap.createEl("div", {
-				cls: `someday-subidea${sub.done ? " done" : ""}`,
-			});
-			const box = row.createEl("input", {
-				attr: { type: "checkbox", "aria-label": "Done" },
-			});
-			box.checked = !!sub.done;
-			box.addEventListener("change", async () => {
-				await ops.toggleSubIdea(someday.file, index);
-				await this.refresh();
-			});
-			row.createSpan({ cls: "someday-subidea-text", text: sub.text });
-			const del = row.createEl("button", {
-				cls: "friend-tracker-button button-icon button-danger",
-				attr: { "aria-label": "Remove sub-idea" },
-			});
-			setIcon(del, "trash");
-			del.addEventListener("click", async () => {
-				await ops.removeSubIdea(someday.file, index);
-				await this.refresh();
-			});
-		});
-
-		const addRow = wrap.createEl("div", {
-			cls: "contact-ideas-add-row someday-subidea-add",
-		});
-		const input = addRow.createEl("input", {
-			cls: "contact-field-input",
-			attr: { type: "text", placeholder: "Add a sub-idea…" },
-		});
-		const addBtn = addRow.createEl("button", {
-			cls: "friend-tracker-button",
-		});
-		setIcon(addBtn, "plus");
-		addBtn.createSpan({ text: "Add" });
-		const add = async () => {
-			const text = input.value.trim();
-			if (!text) return;
-			await ops.addSubIdea(someday.file, text);
-			await this.refresh();
-		};
-		addBtn.addEventListener("click", add);
-		input.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") add();
-		});
+	private openViewModal(someday: SomedayInfo) {
+		new SomedayViewModal(
+			this.app,
+			this.plugin,
+			someday,
+			() => this.refresh()
+		).open();
 	}
 
 	private openEditor(someday: SomedayInfo | null) {

@@ -12,7 +12,8 @@ export class EventModal extends FormModal {
 		date: string,
 		text: string,
 		type: EventType,
-		location: string
+		location: string,
+		link: string
 	) => void;
 
 	constructor(
@@ -22,7 +23,8 @@ export class EventModal extends FormModal {
 			date: string,
 			text: string,
 			type: EventType,
-			location: string
+			location: string,
+			link: string
 		) => void,
 		private onDelete?: () => Promise<void>,
 		private onCopy?: () => void
@@ -86,6 +88,7 @@ export class EventModal extends FormModal {
 			{
 				inputClass: "friend-tracker-modal-input",
 				defaultPrecision: "day",
+				allowFuture: true,
 			}
 		);
 
@@ -107,6 +110,31 @@ export class EventModal extends FormModal {
 			attr: { type: "text", placeholder: "e.g. Providence, RI" },
 		});
 		locationInput.value = this.event?.location || "";
+
+		// Link — a plain URL with an Open button to the right
+		const linkField = contentEl.createEl("div", {
+			cls: "friend-tracker-modal-field",
+		});
+		linkField.createEl("label", { text: "Link (optional)" });
+		const linkRow = linkField.createEl("div", { cls: "event-link-row" });
+		const linkInput = linkRow.createEl("input", {
+			cls: "friend-tracker-modal-input",
+			attr: { type: "text", placeholder: "https://…" },
+		});
+		linkInput.value = this.event?.link || "";
+		const openButton = linkRow.createEl("button", {
+			cls: "friend-tracker-button event-link-open",
+			text: "Open",
+			attr: { type: "button" },
+		});
+		openButton.addEventListener("click", () => {
+			const raw = linkInput.value.trim();
+			if (!raw) return;
+			const url = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw)
+				? raw
+				: `https://${raw}`;
+			window.open(url, "_blank");
+		});
 
 		const buttonContainer = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-buttons",
@@ -154,7 +182,13 @@ export class EventModal extends FormModal {
 		const submit = () => {
 			const text = textInput.value.trim();
 			if (!text || !dateValue) return;
-			this.onSubmit(dateValue, text, this.type, locationInput.value.trim());
+			this.onSubmit(
+				dateValue,
+				text,
+				this.type,
+				locationInput.value.trim(),
+				linkInput.value.trim()
+			);
 			this.close();
 		};
 

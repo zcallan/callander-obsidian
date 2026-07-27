@@ -1,21 +1,26 @@
 import { App, TFile } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
-import { createFlexDateInput } from "@/components/FlexDateInput";
 import type FriendTracker from "@/main";
 import type { SomedayInfo } from "@/types";
 import type { SomedayFields } from "@/services/SomedayOperations";
 import {
 	SOMEDAY_DAYS,
 	SOMEDAY_DAY_PRESETS,
-	SOMEDAY_TIMEFRAMES,
+	SOMEDAY_SEASONS,
+	SOMEDAY_COMPANY,
 	SomedayDay,
+	SomedayCompany,
 } from "@/constants";
+import { parseFlexDate, toFlexString, flexPrecision } from "@/utils/flexdate";
+
+type WhenMode = "anytime" | "year" | "month" | "day" | "season";
 
 /**
  * Create or edit a Someday — a wishlist idea. Deliberately lighter than a plan:
- * a name, a rough when (calendar date and/or a season), which days could work,
- * a ballpark cost, a place, and notes. Sub-ideas are managed on the full page.
+ * a name, a rough when (a calendar date at any precision, or one/more seasons),
+ * which days suit it, an estimated cost, solo/group, and notes. Sub-ideas are
+ * managed on the full page.
  */
 export class SomedayModal extends FormModal {
 	constructor(
@@ -49,78 +54,140 @@ export class SomedayModal extends FormModal {
 		});
 		nameInput.value = this.existing?.name ?? "";
 
-		// ---- When: rough/exact date, plus an optional season/timeframe ----
+		// ---- When: a rough/exact date, or one or more seasons ----
 		const whenField = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-field",
 		});
 		whenField.createEl("label", { text: "When (as rough as you like)" });
-		let dateValue = this.existing?.date ?? "";
-		createFlexDateInput(
-			whenField,
-			dateValue,
-			(v) => {
-				dateValue = v;
-			},
-			{
-				inputClass: "friend-tracker-modal-input",
-				defaultPrecision: "month",
-			}
-		);
 
-		whenField.createEl("div", {
-			cls: "friend-tracker-modal-sublabel",
-			text: "…or a rough timeframe",
+		let dateValue = this.existing?.date ?? "";
+		const seasons = new Set<string>(this.existing?.seasons ?? []);
+		const initialFlex = parseFlexDate(dateValue);
+		let whenMode: WhenMode =
+			seasons.size > 0
+				? "season"
+				: initialFlex
+				? flexPrecision(initialFlex)
+				: "anytime";
+
+		const whenControls = whenField.createEl("div", {
+			cls: "contact-met-controls",
 		});
-		let timeframe = this.existing?.timeframe ?? "";
-		const tfRow = whenField.createEl("div", {
-			cls: "someday-timeframe-chips",
+		const modeSelect = whenControls.createEl("select", {
+			cls: "dropdown contact-met-precision",
 		});
-		const tfButtons = new Map<string, HTMLButtonElement>();
-		let tfFree: HTMLInputElement;
-		const isPreset = (v: string) =>
-			SOMEDAY_TIMEFRAMES.some((t) => t.id === v);
-		const refreshTimeframe = () => {
-			tfButtons.forEach((el, id) =>
-				el.toggleClass("selected", timeframe === id)
-			);
-			// Show free text only when it isn't one of the presets
-			if (document.activeElement !== tfFree) {
-				tfFree.value = timeframe && !isPreset(timeframe) ? timeframe : "";
+		(
+			[
+				["anytime", "Any time"],
+				["year", "Year only"],
+				["month", "Month"],
+				["day", "Exact day"],
+				["season", "Season"],
+			] as Array<[WhenMode, string]>
+		).forEach(([id, label]) =>
+			modeSelect.createEl("option", { value: id, text: label })
+		);
+		modeSelect.value = whenMode;
+
+		const whenSlot = whenField.createEl("div", { cls: "someday-when-slot" });
+		const pad = (n: number) => String(n).padStart(2, "0");
+
+		const renderWhenSlot = () => {
+			whenSlot.empty();
+			if (whenMode === "anytime") {
+				dateValue = "";
+				seasons.clear();
+				whenSlot.createEl("div", {
+					cls: "section-helper-text",
+					text: "No particular time — a someday for whenever.",
+				});
+				return;
+			}
+			if (whenMode === "season") {
+				dateValue = ""; // a date and seasons are mutually exclusive
+				const pills = whenSlot.createEl("div", {
+					cls: "someday-timeframe-chips",
+				});
+				SOMEDAY_SEASONS.forEach((s) => {
+					const btn = pills.createEl("button", {
+						cls: `quick-idea-category-button${
+							seasons.has(s.id) ? " selected" : ""
+						}`,
+						attr: { type: "button", "aria-label": s.label },
+					});
+					btn.createSpan({
+						cls: "quick-idea-category-emoji",
+						text: s.emoji,
+					});
+					btn.createSpan({ text: s.label });
+					btn.addEventListener("click", () => {
+						if (seasons.has(s.id)) seasons.delete(s.id);
+						else seasons.add(s.id);
+						btn.toggleClass("selected", seasons.has(s.id));
+					});
+				});
+			} else {
+				seasons.clear();
+				const input = whenSlot.createEl("input", {
+					cls: "friend-tracker-modal-input someday-when-date",
+				});
+				const parsed = parseFlexDate(dateValue);
+				if (whenMode === "year") {
+					input.type = "number";
+					input.placeholder = "e.g. 2026";
+					input.min = "2000";
+					if (parsed?.year) input.value = String(parsed.year);
+				} else if (whenMode === "month") {
+					input.type = "month";
+					if (parsed?.year && parsed?.month) {
+						input.value = `${parsed.year}-${pad(parsed.month)}`;
+					}
+				} else {
+					input.type = "date";
+					if (parsed?.year && parsed?.month && parsed?.day) {
+						input.value = `${parsed.year}-${pad(parsed.month)}-${pad(
+							parsed.day
+						)}`;
+					}
+				}
+				input.addEventListener("change", () => {
+					const raw = input.value.trim();
+					if (!raw) {
+						dateValue = "";
+						return;
+					}
+					const p = parseFlexDate(raw);
+					if (p) dateValue = toFlexString(p);
+				});
 			}
 		};
-		SOMEDAY_TIMEFRAMES.forEach((tf) => {
-			const btn = tfRow.createEl("button", {
-				cls: "quick-idea-category-button",
-				attr: { "aria-label": tf.label, type: "button" },
-			});
-			btn.createSpan({
-				cls: "quick-idea-category-emoji",
-				text: tf.emoji,
-			});
-			btn.createSpan({ text: tf.label });
-			btn.addEventListener("click", () => {
-				timeframe = timeframe === tf.id ? "" : tf.id;
-				refreshTimeframe();
-			});
-			tfButtons.set(tf.id, btn);
-		});
-		tfFree = whenField.createEl("input", {
-			cls: "friend-tracker-modal-input someday-timeframe-free",
-			attr: { type: "text", placeholder: "or type your own…" },
-		});
-		tfFree.addEventListener("input", () => {
-			timeframe = tfFree.value.trim();
-			tfButtons.forEach((el, id) =>
-				el.toggleClass("selected", timeframe === id)
-			);
-		});
-		refreshTimeframe();
 
-		// ---- Days that work ----
+		modeSelect.addEventListener("change", () => {
+			const prev = whenMode;
+			whenMode = modeSelect.value as WhenMode;
+			// Moving to a coarser date precision truncates the stored value
+			if (whenMode !== "season" && prev !== "season") {
+				const parsed = parseFlexDate(dateValue);
+				if (parsed) {
+					const t = { ...parsed };
+					if (whenMode === "year") {
+						t.month = null;
+						t.day = null;
+					} else if (whenMode === "month") {
+						t.day = null;
+					}
+					dateValue = toFlexString(t);
+				}
+			}
+			renderWhenSlot();
+		});
+		renderWhenSlot();
+
+		// ---- Best days ----
 		const daysField = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-field",
 		});
-		daysField.createEl("label", { text: "Good days (optional)" });
+		daysField.createEl("label", { text: "Best days (optional)" });
 		const days = new Set<SomedayDay>(this.existing?.days ?? []);
 		const dayRow = daysField.createEl("div", { cls: "someday-day-chips" });
 		const dayButtons = new Map<SomedayDay, HTMLButtonElement>();
@@ -153,22 +220,31 @@ export class SomedayModal extends FormModal {
 				refreshDays();
 			});
 		});
-		const anyBtn = presetRow.createEl("button", {
+		const allBtn = presetRow.createEl("button", {
 			cls: "friend-tracker-button",
-			text: "Any",
+			text: "All days",
 			attr: { type: "button" },
 		});
-		anyBtn.addEventListener("click", () => {
+		allBtn.addEventListener("click", () => {
+			SOMEDAY_DAYS.forEach((d) => days.add(d.id));
+			refreshDays();
+		});
+		const clearBtn = presetRow.createEl("button", {
+			cls: "friend-tracker-button",
+			text: "Clear",
+			attr: { type: "button" },
+		});
+		clearBtn.addEventListener("click", () => {
 			days.clear();
 			refreshDays();
 		});
 		refreshDays();
 
-		// ---- Cost ----
+		// ---- Estimated cost ----
 		const costField = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-field",
 		});
-		costField.createEl("label", { text: "Ballpark cost (optional)" });
+		costField.createEl("label", { text: "Estimated cost (optional)" });
 		const costInput = costField.createEl("input", {
 			cls: "friend-tracker-modal-input",
 			attr: {
@@ -182,16 +258,38 @@ export class SomedayModal extends FormModal {
 			costInput.value = String(this.existing.cost);
 		}
 
-		// ---- Location ----
-		const locField = contentEl.createEl("div", {
+		// ---- Solo or group ----
+		const companyField = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-field",
 		});
-		locField.createEl("label", { text: "Where (optional)" });
-		const locInput = locField.createEl("input", {
-			cls: "friend-tracker-modal-input",
-			attr: { type: "text", placeholder: "e.g. Maine, USA" },
+		companyField.createEl("label", { text: "Solo or group?" });
+		// Required — defaults to "Either" (an edit keeps whatever was saved).
+		let company: SomedayCompany = this.existing?.company || "either";
+		const companyRow = companyField.createEl("div", {
+			cls: "someday-timeframe-chips",
 		});
-		locInput.value = this.existing?.location ?? "";
+		const companyButtons = new Map<SomedayCompany, HTMLButtonElement>();
+		const refreshCompany = () =>
+			companyButtons.forEach((el, id) =>
+				el.toggleClass("selected", company === id)
+			);
+		SOMEDAY_COMPANY.forEach((c) => {
+			const btn = companyRow.createEl("button", {
+				cls: "quick-idea-category-button",
+				attr: { type: "button", "aria-label": c.label },
+			});
+			btn.createSpan({
+				cls: "quick-idea-category-emoji",
+				text: c.emoji,
+			});
+			btn.createSpan({ text: c.label });
+			btn.addEventListener("click", () => {
+				company = c.id;
+				refreshCompany();
+			});
+			companyButtons.set(c.id, btn);
+		});
+		refreshCompany();
 
 		// ---- Notes ----
 		const notesField = contentEl.createEl("div", {
@@ -252,14 +350,24 @@ export class SomedayModal extends FormModal {
 					: null;
 			const fields: SomedayFields = {
 				name,
-				date: dateValue,
-				timeframe,
+				date:
+					whenMode === "year" ||
+					whenMode === "month" ||
+					whenMode === "day"
+						? dateValue
+						: "",
+				seasons:
+					whenMode === "season"
+						? SOMEDAY_SEASONS.filter((s) => seasons.has(s.id)).map(
+								(s) => s.id
+						  )
+						: [],
 				days: SOMEDAY_DAYS.filter((d) => days.has(d.id)).map(
 					(d) => d.id
 				),
 				cost,
-				location: locInput.value.trim(),
 				notes: notesInput.value.trim(),
+				company,
 			};
 			const ops = this.plugin.somedayOperations;
 			const file = this.existing

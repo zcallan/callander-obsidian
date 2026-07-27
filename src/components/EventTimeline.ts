@@ -7,11 +7,30 @@ import {
 	parseFlexDate,
 	formatFlexDate,
 	flexSortKey,
+	isFlexUpcoming,
 } from "@/utils/flexdate";
 
 /**
- * The story of the friendship so far: events newest-first, grouped by year,
- * with the "met" date as the timeline's origin point at the bottom.
+ * If the text opens with an emoji (incl. variation selectors, skin tones and
+ * ZWJ sequences), split it off so it can stand in for the type emoji.
+ */
+export function splitLeadingEmoji(
+	text: string
+): { emoji: string; rest: string } | null {
+	const trimmed = text.trimStart();
+	// base pictographic + any joiners/variation-selectors/skin-tones that follow
+	const match = trimmed.match(
+		/^(\p{Extended_Pictographic}(?:\u200d\p{Extended_Pictographic}|[\uFE00-\uFE0F\u{1F3FB}-\u{1F3FF}])*)/u
+	);
+	if (!match) return null;
+	const emoji = match[1];
+	return { emoji, rest: trimmed.slice(emoji.length).trimStart() };
+}
+
+/**
+ * The story of the friendship so far: future events surface at the top under
+ * an "Upcoming" heading (soonest first); everything past runs newest-first,
+ * grouped by year, with the "met" date as the timeline's origin point.
  */
 export class EventTimeline {
 	constructor(private view: ContactPageView) {}
@@ -52,14 +71,40 @@ export class EventTimeline {
 			rows.push({ kind: "met", parsed: metFlex });
 		}
 
-		// Newest first; coarser dates sort after finer ones in the same period
-		rows.sort(
-			(a, b) =>
-				flexSortKey(b.parsed ?? empty) - flexSortKey(a.parsed ?? empty)
-		);
+		// Future events (never the "met" origin) float to the top.
+		const isUpcoming = (row: Row) =>
+			row.kind === "event" && !!row.parsed && isFlexUpcoming(row.parsed);
+		const upcoming = rows
+			.filter(isUpcoming)
+			.sort(
+				(a, b) =>
+					flexSortKey(a.parsed ?? empty) -
+					flexSortKey(b.parsed ?? empty)
+			);
+		const past = rows
+			.filter((r) => !isUpcoming(r))
+			.sort(
+				(a, b) =>
+					flexSortKey(b.parsed ?? empty) -
+					flexSortKey(a.parsed ?? empty)
+			);
 
+		// Upcoming events — soonest first, at the top, each tagged "Upcoming".
+		for (const row of upcoming) {
+			if (row.kind === "event") {
+				this.renderEventItem(
+					timeline,
+					row.event,
+					row.index,
+					row.parsed,
+					true
+				);
+			}
+		}
+
+		// Past — newest first, grouped by year, with the "met" origin folded in.
 		let currentYearLabel: string | null = null;
-		for (const row of rows) {
+		for (const row of past) {
 			const parsed = row.parsed;
 			const yearLabel =
 				parsed?.year !== null && parsed?.year !== undefined
@@ -79,7 +124,8 @@ export class EventTimeline {
 					timeline,
 					row.event,
 					row.index,
-					row.parsed
+					row.parsed,
+					false
 				);
 			} else {
 				const origin = timeline.createEl("div", {
@@ -98,10 +144,11 @@ export class EventTimeline {
 		container: HTMLElement,
 		event: FriendEvent,
 		index: number,
-		parsed: ReturnType<typeof parseFlexDate>
+		parsed: ReturnType<typeof parseFlexDate>,
+		upcoming: boolean
 	) {
 		const item = container.createEl("div", {
-			cls: "contact-timeline-item",
+			cls: `contact-timeline-item${upcoming ? " upcoming" : ""}`,
 		});
 
 		// Tapping the item opens the edit modal (the only path on mobile,
@@ -110,27 +157,42 @@ export class EventTimeline {
 			this.view.openEditEventModal(index, event);
 		});
 
-		// Typed events get a colored dot + emoji; untyped render neutral
+		// Typed events get a colored dot; untyped render neutral
 		const type = EVENT_TYPES.find((t) => t.id === event.type);
 		item.createEl("div", {
 			cls: `contact-timeline-dot${type ? ` type-${type.id}` : ""}`,
 		});
 
-		// Date within a year group: "May 12", "May", or "Sometime that year"
-		const dateLabel = parsed
+		// Upcoming items keep the full date (incl. year); past items sit inside
+		// a year group so they drop the year: "May 12", "May", "Sometime that year".
+		const dateLabel = upcoming
+			? parsed
+				? formatFlexDate(parsed)
+				: String(event.date || "")
+			: parsed
 			? parsed.month !== null
 				? formatFlexDate({ ...parsed, year: null })
 				: "Sometime that year"
 			: String(event.date || "");
 
-		item.createEl("div", {
+		// A leading emoji in the text stands in for the type emoji.
+		const lead = splitLeadingEmoji(event.text);
+		const badge = lead ? lead.emoji : type ? type.emoji : "";
+
+		const dateEl = item.createEl("div", {
 			cls: "contact-timeline-date",
-			text: type ? `${type.emoji} ${dateLabel}` : dateLabel,
+			text: badge ? `${badge} ${dateLabel}` : dateLabel,
 		});
+		if (upcoming) {
+			dateEl.createSpan({
+				cls: "contact-timeline-upcoming-tag",
+				text: " • Upcoming",
+			});
+		}
 
 		const textEl = item.createEl("div", {
 			cls: "contact-timeline-text",
-			text: event.text,
+			text: lead ? lead.rest : event.text,
 		});
 
 		// Where it happened, as a bullet after the text
@@ -143,18 +205,14 @@ export class EventTimeline {
 
 		// Provenance badge: this event came from a diary entry
 		if (event.source) {
-			const badge = textEl.createEl("span", {
+			const badgeEl = textEl.createEl("span", {
 				cls: "contact-timeline-source",
 				text: " 📖",
 				attr: { "aria-label": "Open diary entry" },
 			});
-			badge.addEventListener("click", (e) => {
+			badgeEl.addEventListener("click", (e) => {
 				e.stopPropagation();
-				this.view.app.workspace.openLinkText(
-					event.source!,
-					"",
-					true
-				);
+				this.view.app.workspace.openLinkText(event.source!, "", true);
 			});
 		}
 

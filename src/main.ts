@@ -7,7 +7,7 @@ import {
 	ViewState,
 } from "obsidian";
 import { FriendTrackerSettings, DEFAULT_SETTINGS, SomedayInfo } from "./types";
-import { IdeaCategory, somedayTimeframe, formatSomedayDays } from "@/constants";
+import { IdeaCategory, formatSomedaySeasons, formatSomedayDays } from "@/constants";
 import {
 	CaptureTargetModal,
 	CaptureTarget,
@@ -18,6 +18,7 @@ import { QuickNoteModal } from "@/modals/QuickNoteModal";
 import { PlanItemModal } from "@/modals/PlanItemModal";
 import { PlanOperations } from "@/services/PlanOperations";
 import { SomedayOperations } from "@/services/SomedayOperations";
+import { ReminderOperations } from "@/services/ReminderOperations";
 import {
 	FriendTrackerView,
 	VIEW_TYPE_FRIEND_TRACKER,
@@ -40,6 +41,7 @@ import { IdeaSearchModal } from "@/modals/IdeaSearchModal";
 import { MergeFriendsModal } from "@/modals/MergeFriendsModal";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
+import { ReminderModal } from "@/modals/ReminderModal";
 import { parseFlexDate } from "@/utils/flexdate";
 
 export default class FriendTracker extends Plugin {
@@ -48,6 +50,7 @@ export default class FriendTracker extends Plugin {
 	public diaryOperations: DiaryOperations;
 	public planOperations: PlanOperations;
 	public somedayOperations: SomedayOperations;
+	public reminderOperations: ReminderOperations;
 	public lastQuickIdeaCategory: IdeaCategory = "gift";
 	private statusBarEl: HTMLElement | null = null;
 
@@ -57,6 +60,7 @@ export default class FriendTracker extends Plugin {
 		this.diaryOperations = new DiaryOperations(this);
 		this.planOperations = new PlanOperations(this);
 		this.somedayOperations = new SomedayOperations(this);
+		this.reminderOperations = new ReminderOperations(this);
 
 		// On mobile, we should wait for layout-ready
 		this.app.workspace.onLayoutReady(() => {
@@ -101,6 +105,9 @@ export default class FriendTracker extends Plugin {
 			this.addRibbonIcon("sparkles", "Open somedays", () =>
 				this.activateSomedays()
 			);
+			this.addRibbonIcon("bell", "New reminder", () =>
+				this.openReminderModal()
+			);
 
 			// Commands
 			this.addCommand({
@@ -137,6 +144,11 @@ export default class FriendTracker extends Plugin {
 				id: "add-someday",
 				name: "New someday",
 				callback: () => this.openSomedayModal(),
+			});
+			this.addCommand({
+				id: "add-reminder",
+				name: "New reminder",
+				callback: () => this.openReminderModal(),
 			});
 			this.addCommand({
 				id: "quick-note",
@@ -648,7 +660,7 @@ export default class FriendTracker extends Plugin {
 		const plan = await this.planOperations.createPlan(
 			someday.name,
 			someday.date,
-			someday.location
+			""
 		);
 		// Sub-ideas become the plan's idea menu
 		for (const sub of someday.subIdeas) {
@@ -661,10 +673,8 @@ export default class FriendTracker extends Plugin {
 		// Fuzzy fields (timeframe, days, budget, notes) don't fit a plan's
 		// concrete model — seed them into the plan's notes as a starting brief.
 		const seed: string[] = [];
-		if (someday.timeframe) {
-			const tf = somedayTimeframe(someday.timeframe);
-			seed.push(`Timeframe: ${tf ? tf.label : someday.timeframe}`);
-		}
+		const seasonLabel = formatSomedaySeasons(someday.seasons);
+		if (seasonLabel) seed.push(`Season: ${seasonLabel}`);
 		const daysLabel = formatSomedayDays(someday.days);
 		if (daysLabel) seed.push(`Good days: ${daysLabel}`);
 		if (someday.cost !== null) seed.push(`Rough budget: ~$${someday.cost}`);
@@ -683,6 +693,22 @@ export default class FriendTracker extends Plugin {
 			}
 			await this.openContactPage(plan);
 		}).open();
+	}
+
+	/** Create a reminder, then refresh any open dashboards. */
+	public openReminderModal() {
+		new ReminderModal(this.app, this, null, () =>
+			this.refreshDashboards()
+		).open();
+	}
+
+	public refreshDashboards() {
+		for (const leaf of this.app.workspace.getLeavesOfType(
+			VIEW_TYPE_DASHBOARD
+		)) {
+			const view = leaf.view;
+			if (view instanceof DashboardView) view.refresh();
+		}
 	}
 
 	private diarySyncTimers = new Map<string, number>();
@@ -951,6 +977,92 @@ export default class FriendTracker extends Plugin {
 		new Notice(
 			`📅 Saved "${path}" to your vault root (${eventCount} events — everyone's next birthday).\n\nOpen it in Finder and double-click to add to Apple Calendar — pick an iCloud calendar to get iPhone alerts too. Re-run and re-import yearly to top up.`,
 			15000
+		);
+	}
+
+	/**
+	 * Export a plan as one all-day calendar block spanning its dates, so the
+	 * whole time is reserved in Apple Calendar. The itinerary itself stays in
+	 * Callander — this just marks off the days.
+	 */
+	public async exportPlanCalendar(metadata: any, name: string) {
+		const start = parseFlexDate(metadata?.date);
+		if (
+			!start ||
+			start.year === null ||
+			start.month === null ||
+			start.day === null
+		) {
+			new Notice(
+				"Add an exact start date to export this plan to calendar."
+			);
+			return;
+		}
+
+		const pad = (n: number) => String(n).padStart(2, "0");
+		const asDate = (d: Date) =>
+			`${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+
+		// An all-day DTEND is exclusive, so cover through the day after the last.
+		const endFlex = parseFlexDate(metadata?.endDate);
+		const last =
+			endFlex &&
+			endFlex.year !== null &&
+			endFlex.month !== null &&
+			endFlex.day !== null
+				? new Date(endFlex.year, endFlex.month - 1, endFlex.day)
+				: new Date(start.year, start.month - 1, start.day);
+		last.setHours(0, 0, 0, 0);
+		const endExclusive = new Date(last);
+		endExclusive.setDate(endExclusive.getDate() + 1);
+
+		const now = new Date();
+		const stamp =
+			now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+		const escape = (s: string) =>
+			s
+				.replace(/\\/g, "\\\\")
+				.replace(/[,;]/g, (m) => "\\" + m)
+				.replace(/\n/g, "\\n");
+
+		const members = PlanOperations.membersOf(metadata);
+		const headcount =
+			members.length > 0
+				? `${members.length} ${
+						members.length === 1 ? "person" : "people"
+				  }. `
+				: "";
+		const uidBase = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+		const lines: string[] = [
+			"BEGIN:VCALENDAR",
+			"VERSION:2.0",
+			"PRODID:-//Callander//Plans//EN",
+			"CALSCALE:GREGORIAN",
+			"BEGIN:VEVENT",
+			`UID:callander-plan-${uidBase}@callander`,
+			`DTSTAMP:${stamp}`,
+			`DTSTART;VALUE=DATE:${asDate(
+				new Date(start.year, start.month - 1, start.day)
+			)}`,
+			`DTEND;VALUE=DATE:${asDate(endExclusive)}`,
+			`SUMMARY:${escape("🗺️ " + name)}`,
+			`DESCRIPTION:${escape(
+				`${headcount}Open Callander for the itinerary.`
+			)}`,
+		];
+		if (metadata?.location) {
+			lines.push(`LOCATION:${escape(String(metadata.location))}`);
+		}
+		lines.push("END:VEVENT", "END:VCALENDAR");
+
+		const safe =
+			name.replace(/[\\/:*?"<>|#^[\]]/g, "-").trim() || "Plan";
+		const path = `${safe}.ics`;
+		await this.app.vault.adapter.write(path, lines.join("\r\n"));
+		new Notice(
+			`📅 Saved "${path}" to your vault root.\n\nOpen it (double-click on desktop, or tap on iPhone) and add it to an iCloud calendar to block off the time.`,
+			12000
 		);
 	}
 

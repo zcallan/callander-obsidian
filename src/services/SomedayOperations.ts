@@ -1,18 +1,18 @@
 import { TFile, TFolder, normalizePath } from "obsidian";
 import type FriendTracker from "@/main";
-import type { SomedayDay } from "@/constants";
-import { SOMEDAY_DAYS } from "@/constants";
+import type { SomedayCompany, SomedayDay } from "@/constants";
+import { SOMEDAY_DAYS, SOMEDAY_SEASONS } from "@/constants";
 import type { SomedayInfo, SomedaySubIdea } from "@/types";
 
 /** The editable fields of a Someday — used for both create and update. */
 export interface SomedayFields {
 	name: string;
 	date?: string;
-	timeframe?: string;
+	seasons?: string[];
 	days?: SomedayDay[];
 	cost?: number | null;
-	location?: string;
 	notes?: string;
+	company?: SomedayCompany | "";
 }
 
 const VALID_DAYS = new Set<string>(SOMEDAY_DAYS.map((d) => d.id));
@@ -51,6 +51,19 @@ export class SomedayOperations {
 			.filter((d: string): d is SomedayDay => VALID_DAYS.has(d));
 	}
 
+	/** Chosen seasons; folds a legacy single `timeframe` season id. */
+	static seasonsOf(metadata: any): string[] {
+		const valid = new Set<string>(SOMEDAY_SEASONS.map((s) => s.id));
+		const raw = Array.isArray(metadata?.seasons) ? metadata.seasons : [];
+		const seasons = raw
+			.map((s: any) => String(s).toLowerCase())
+			.filter((s: string) => valid.has(s));
+		if (seasons.length === 0 && valid.has(String(metadata?.timeframe))) {
+			return [String(metadata.timeframe)];
+		}
+		return seasons;
+	}
+
 	/** Sub-ideas; legacy plain strings read as unchecked children. */
 	static subIdeasOf(metadata: any): SomedaySubIdea[] {
 		if (!Array.isArray(metadata?.subIdeas)) return [];
@@ -74,14 +87,17 @@ export class SomedayOperations {
 			file,
 			name: fm?.name ? String(fm.name) : file.basename,
 			date: fm?.date ? String(fm.date) : "",
-			timeframe: fm?.timeframe ? String(fm.timeframe) : "",
+			seasons: SomedayOperations.seasonsOf(fm),
 			days: SomedayOperations.daysOf(fm),
 			cost: SomedayOperations.costOf(fm),
-			location: fm?.location ? String(fm.location) : "",
 			notes: fm?.notes ? String(fm.notes) : "",
 			subIdeas: SomedayOperations.subIdeasOf(fm),
 			status: fm?.status ? String(fm.status) : "open",
 			convertedTo: fm?.convertedTo ? String(fm.convertedTo) : "",
+			company:
+				fm?.company === "solo" || fm?.company === "group"
+					? fm.company
+					: "",
 		};
 	}
 
@@ -142,14 +158,17 @@ export class SomedayOperations {
 			};
 			if (patch.name !== undefined) fm.name = patch.name;
 			if (patch.date !== undefined) set("date", patch.date);
-			if (patch.timeframe !== undefined) set("timeframe", patch.timeframe);
+			if (patch.seasons !== undefined) {
+				set("seasons", patch.seasons.length ? patch.seasons : undefined);
+				delete fm.timeframe; // retire the legacy single-season key
+			}
 			if (patch.days !== undefined)
 				set("days", patch.days.length ? patch.days : undefined);
 			// cost: a numeric 0 is a legitimate "free" estimate, so keep it
 			if (patch.cost !== undefined)
 				set("cost", patch.cost === null ? undefined : patch.cost);
-			if (patch.location !== undefined) set("location", patch.location);
 			if (patch.notes !== undefined) set("notes", patch.notes);
+			if (patch.company !== undefined) set("company", patch.company);
 		});
 	}
 

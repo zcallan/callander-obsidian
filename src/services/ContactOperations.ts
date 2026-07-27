@@ -8,6 +8,7 @@ import type {
 	Idea,
 } from "@/types";
 import type { EventType, IdeaCategory } from "@/constants";
+import { REMINDERS_BASENAME } from "@/constants";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 
 export const INBOX_BASENAME = "Idea Inbox";
@@ -519,8 +520,13 @@ export class ContactOperations {
 
 		for (const file of files) {
 			if (!(file instanceof TFile)) continue;
-			// The idea inbox lives beside contacts but isn't a friend
-			if (file.basename === INBOX_BASENAME) continue;
+			// The idea inbox / reminders store live beside contacts, not friends
+			if (
+				file.basename === INBOX_BASENAME ||
+				file.basename === REMINDERS_BASENAME
+			) {
+				continue;
+			}
 
 			try {
 				// The metadata cache already holds parsed frontmatter —
