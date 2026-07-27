@@ -13,7 +13,8 @@ export class PlanDetailsModal extends FormModal {
 	constructor(
 		app: App,
 		private current: PlanDetails,
-		private onSubmit: (details: PlanDetails) => Promise<void>
+		private onSubmit: (details: PlanDetails) => Promise<void>,
+		private onDelete?: () => void
 	) {
 		super(app);
 	}
@@ -73,6 +74,16 @@ export class PlanDetailsModal extends FormModal {
 		const buttons = contentEl.createEl("div", {
 			cls: "friend-tracker-modal-buttons",
 		});
+		if (this.onDelete) {
+			const deleteButton = buttons.createEl("button", {
+				text: "Delete plan",
+				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+			});
+			deleteButton.addEventListener("click", () => {
+				this.close();
+				this.onDelete!();
+			});
+		}
 		const saveButton = buttons.createEl("button", {
 			text: "Save",
 			cls: "friend-tracker-modal-button mod-cta",

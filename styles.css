@@ -284,6 +284,16 @@ If your plugin does not need CSS, delete this file.
 	background: var(--interactive-accent);
 }
 
+/* Upcoming (future-dated) events: a purple "Upcoming" tag + hollow purple dots */
+.contact-timeline-upcoming-tag {
+	color: var(--color-purple);
+	font-weight: 500;
+}
+.contact-timeline-item.upcoming .contact-timeline-dot {
+	background: var(--background-primary);
+	border-color: var(--color-purple);
+}
+
 .contact-timeline-date {
 	color: var(--text-muted);
 	font-size: 0.85em;
@@ -2812,6 +2822,12 @@ If your plugin does not need CSS, delete this file.
 	);
 }
 
+/* Phones are narrow — reclaim the wide side padding for the list */
+.is-phone .friend-list-container {
+	padding-left: 10px;
+	padding-right: 10px;
+}
+
 /* All friends header: labeled add button with breathing room */
 .friend-list-add-button {
 	display: inline-flex;
@@ -2838,6 +2854,19 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 	font-size: 0.8em;
 	font-weight: 400;
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+/* Glance is icon-only on phones */
+.is-phone .friend-list-glance-label {
+	display: none;
+}
+/* Long names truncate rather than shove the group tag onto a new line */
+.friend-list-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
 }
 
 .friend-list-group-tag .group-dot {
@@ -3274,6 +3303,11 @@ If your plugin does not need CSS, delete this file.
 	padding: 3px 9px;
 	font-size: 0.8em;
 }
+.contact-stack-header .plan-timeline-cal {
+	margin-top: 0;
+	padding: 3px 9px;
+	font-size: 0.8em;
+}
 
 .plan-timeline-footer {
 	display: flex;
@@ -3421,22 +3455,102 @@ If your plugin does not need CSS, delete this file.
 	margin-top: 2px;
 }
 
-/* ---- Somedays: wishlist cards + editor chips ---- */
-.someday-card {
+/* ---- Somedays: filter bar + wishlist rows + editor chips ---- */
+.someday-filters {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 10px 0 4px;
+}
+.someday-filter-row {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	align-items: flex-start;
+}
+.someday-filter-label {
+	font-size: 0.8em;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+.someday-filter-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+}
+.someday-filter-pill {
 	border: 1px solid var(--background-modifier-border);
-	border-radius: 8px;
-	padding: 12px 14px;
-	margin-bottom: 12px;
-	background: var(--background-primary);
+	border-radius: 999px;
+	padding: 4px 12px;
+	font-size: 0.85em;
+	background: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+}
+.someday-filter-pill.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+.someday-filter-select {
+	font-size: 0.85em;
+	max-width: 160px;
+}
+.someday-card {
+	padding: 12px 2px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+.someday-list .someday-card:last-child {
+	border-bottom: none;
 }
 .someday-inactive {
 	opacity: 0.55;
 }
-.someday-card-head {
+.someday-card-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+}
+.someday-card-headtext {
+	flex: 1;
+	min-width: 0;
+}
+.someday-card-titleline {
 	display: flex;
 	align-items: baseline;
 	gap: 8px;
 	flex-wrap: wrap;
+}
+.someday-card-subline {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-top: 2px;
+}
+.someday-header-location {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+.someday-card-chevron {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	color: var(--text-muted);
+	transition: transform 0.15s ease;
+}
+.someday-card.is-open .someday-card-chevron {
+	transform: rotate(180deg);
+}
+.someday-card-body {
+	display: none;
+	margin-top: 10px;
+}
+.someday-card.is-open .someday-card-body {
+	display: block;
 }
 .someday-title {
 	font-weight: 600;
@@ -3484,9 +3598,8 @@ If your plugin does not need CSS, delete this file.
 	text-decoration: line-through;
 	color: var(--text-muted);
 }
-.someday-subidea-add {
-	margin-top: 6px;
-	margin-bottom: 0;
+.someday-subidea-addbtn {
+	margin-top: 8px;
 }
 .someday-actions {
 	display: flex;
@@ -3496,10 +3609,22 @@ If your plugin does not need CSS, delete this file.
 }
 .someday-action {
 	margin-top: 0;
+	height: 34px;
+	box-sizing: border-box;
+}
+.someday-action.button-icon {
+	width: 40px;
+	height: 40px;
+	padding: 0;
+	justify-content: center;
+	--icon-size: 20px;
+}
+.someday-icon-actions {
+	margin-top: 8px;
 }
 .someday-card.is-focused {
-	border-color: var(--interactive-accent);
-	box-shadow: 0 0 0 1px var(--interactive-accent);
+	background: var(--background-modifier-hover);
+	border-radius: 6px;
 }
 /* Editor: timeframe + day chips */
 .friend-tracker-modal-sublabel {
@@ -3512,6 +3637,13 @@ If your plugin does not need CSS, delete this file.
 	flex-wrap: wrap;
 	gap: 6px;
 	margin-bottom: 6px;
+}
+.someday-when-slot {
+	margin-top: 6px;
+}
+.someday-when-date {
+	-webkit-appearance: none;
+	appearance: none;
 }
 .someday-timeframe-free {
 	margin-top: 4px;
@@ -3551,4 +3683,102 @@ If your plugin does not need CSS, delete this file.
 }
 .someday-day-presets .friend-tracker-button {
 	margin-top: 0;
+}
+
+/* Someday rows are clickable → open the view modal */
+.someday-card.someday-row {
+	cursor: pointer;
+}
+.someday-card.someday-row:hover {
+	background: var(--background-modifier-hover);
+	border-radius: 6px;
+}
+.someday-footer-note {
+	margin-top: 16px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Someday view modal */
+.someday-view-meta {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin-bottom: 4px;
+}
+.someday-view-cost {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+.someday-view-notes {
+	margin-top: 8px;
+	white-space: pre-wrap;
+}
+.someday-view-subideas {
+	margin-top: 10px;
+}
+.someday-view-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 14px;
+}
+.someday-view-actions .friend-tracker-button {
+	margin-top: 0;
+}
+
+/* Event "Link" row: input + Open button */
+.event-link-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+.event-link-row .friend-tracker-modal-input {
+	flex: 1;
+	min-width: 0;
+}
+.event-link-open {
+	flex: 0 0 auto;
+	margin-top: 0;
+}
+
+/* Dashboard: Upcoming — two-line rows (date + name•suffix, countdown right) */
+.dashboard-upcoming-section .dashboard-section-header {
+	margin-bottom: 8px;
+}
+.reminder-view-linkrow {
+	margin-top: 6px;
+}
+.reminder-view-link {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+.dashboard-upcoming-row {
+	align-items: center;
+}
+.dashboard-upcoming-main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.dashboard-upcoming-when {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+.dashboard-upcoming-person {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+.dashboard-upcoming-rel {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	flex-shrink: 0;
+	white-space: nowrap;
+	align-self: center;
 }

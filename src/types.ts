@@ -5,6 +5,7 @@ import type {
 	InterestCategory,
 	PlanIdeaCategory,
 	PlanPriority,
+	SomedayCompany,
 	SomedayDay,
 	TravelType,
 } from "./constants";
@@ -190,6 +191,8 @@ export interface FriendEvent {
 	type?: EventType;
 	/** Optional where it happened, shown after the text on the timeline */
 	location?: string;
+	/** Optional external URL (opened from the edit modal, not shown inline) */
+	link?: string;
 	/** Path of the diary entry this event was logged from, if any —
 	 * used to update instead of duplicate when re-logging */
 	source?: string;
@@ -231,19 +234,20 @@ export interface SomedayInfo {
 	name: string;
 	/** FlexDate string ("2026" | "2026-10" | "2026-10-18"), or "" */
 	date: string;
-	/** Season/preset id or free text ("fall"), or "" */
-	timeframe: string;
+	/** Chosen seasons (spring/summer/fall/winter) — an alternative to a date */
+	seasons: string[];
 	/** Candidate weekdays it could happen on */
 	days: SomedayDay[];
-	/** Ballpark estimate, or null when unset */
+	/** Estimated cost, or null when unset */
 	cost: number | null;
-	location: string;
 	notes: string;
 	subIdeas: SomedaySubIdea[];
 	/** open | done (done = did it / archived) */
 	status: string;
 	/** Path of the Plan this became once converted; "" otherwise */
 	convertedTo: string;
+	/** Solo or group activity; "" when unset */
+	company: SomedayCompany | "";
 }
 
 export interface DiaryEntry {
@@ -252,6 +256,23 @@ export interface DiaryEntry {
 	date: string; // the date the entry is ABOUT (YYYY-MM-DD)
 	created: string; // when it was written (YYYY-MM-DD)
 	body: string; // markdown body (without frontmatter)
+}
+
+/**
+ * A lightweight scheduled reminder — "Laura's birthday" — surfaced on the
+ * dashboard's Upcoming section. Stored together in a single Reminders.md file.
+ */
+export interface Reminder {
+	id: string;
+	name: string;
+	/** FlexDate string; absent for an undated reminder */
+	date?: string;
+	/** 24-hour "HH:MM" */
+	time?: string;
+	location?: string;
+	link?: string;
+	status?: "open" | "done";
+	created?: string;
 }
 
 export const DEFAULT_SETTINGS: FriendTrackerSettings = {

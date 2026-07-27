@@ -1,12 +1,24 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
 import type FriendTracker from "@/main";
-import type { ContactWithCountdown, Draft, Idea, SomedayInfo } from "@/types";
+import type {
+	ContactWithCountdown,
+	Draft,
+	FriendEvent,
+	Idea,
+	Reminder,
+	SomedayInfo,
+} from "@/types";
 import {
 	IDEA_CATEGORIES,
+	EVENT_TYPES,
 	formatSomedayDays,
-	somedayTimeframe,
+	formatSomedaySeasons,
 } from "@/constants";
 import { SomedayModal } from "@/modals/SomedayModal";
+import { SomedayViewModal } from "@/modals/SomedayViewModal";
+import { ReminderModal } from "@/modals/ReminderModal";
+import { ReminderViewModal } from "@/modals/ReminderViewModal";
+import { splitLeadingEmoji } from "@/components/EventTimeline";
 import {
 	CaptureTargetModal,
 	ContactSuggestModal,
@@ -18,6 +30,7 @@ import {
 	parseFlexDate,
 	formatFlexDate,
 	flexSortKey,
+	isFlexUpcoming,
 } from "@/utils/flexdate";
 import { PlanModal } from "@/modals/PlanModal";
 import { PlanOperations } from "@/services/PlanOperations";
@@ -27,6 +40,7 @@ export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 export class DashboardView extends ItemView {
 	private contacts: ContactWithCountdown[] = [];
 	private searchQuery = "";
+	private showAllUpcomingEvents = false;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -145,6 +159,12 @@ export class DashboardView extends ItemView {
 		upcomingSection.createEl("h3", { text: "🎂 Upcoming birthdays" });
 		this.renderUpcomingBirthdays(upcomingSection);
 		this.renderMissedBirthdays(container);
+
+		// Future-dated events + reminders coming up
+		this.renderUpcoming(container);
+
+		// Anniversaries — events from this same day in past years
+		this.renderOnThisDay(container);
 
 		// Upcoming plans
 		this.renderPlans(container);
@@ -395,6 +415,278 @@ export class DashboardView extends ItemView {
 		}
 	}
 
+	/** Future events + reminders, merged and sorted; soonest (and undated) first. */
+	private renderUpcoming(container: HTMLElement) {
+		const now = new Date();
+		type Item =
+			| {
+					kind: "event";
+					contact: ContactWithCountdown;
+					event: FriendEvent;
+					key: number;
+			  }
+			| { kind: "reminder"; reminder: Reminder; key: number };
+		const items: Item[] = [];
+
+		for (const c of this.contacts) {
+			for (const event of c.events) {
+				const p = parseFlexDate(event.date);
+				if (p && isFlexUpcoming(p, now)) {
+					items.push({
+						kind: "event",
+						contact: c,
+						event,
+						key: flexSortKey(p),
+					});
+				}
+			}
+		}
+		for (const r of this.plugin.reminderOperations.getReminders()) {
+			if (r.status === "done") continue;
+			const p = parseFlexDate(r.date);
+			if (!p || p.year === null) {
+				items.push({ kind: "reminder", reminder: r, key: 0 });
+				continue;
+			}
+			if (isFlexUpcoming(p, now)) {
+				items.push({
+					kind: "reminder",
+					reminder: r,
+					key: flexSortKey(p),
+				});
+				continue;
+			}
+			// Recently passed (≤7 days) so it can still be dismissed
+			if (p.month !== null && p.day !== null) {
+				const target = new Date(p.year, p.month - 1, p.day);
+				target.setHours(0, 0, 0, 0);
+				const today = new Date(now);
+				today.setHours(0, 0, 0, 0);
+				const passed = Math.round(
+					(today.getTime() - target.getTime()) / 86400000
+				);
+				if (passed >= 0 && passed <= 7) {
+					items.push({
+						kind: "reminder",
+						reminder: r,
+						key: flexSortKey(p),
+					});
+				}
+			}
+		}
+		items.sort((a, b) => a.key - b.key);
+
+		const section = container.createEl("div", {
+			cls: "dashboard-section dashboard-upcoming-section",
+		});
+		const header = section.createEl("div", {
+			cls: "dashboard-section-header",
+		});
+		header.createEl("h3", { text: "📌 Upcoming" });
+		const addButton = header.createEl("button", {
+			cls: "friend-tracker-button",
+			text: "Add reminder",
+		});
+		addButton.addEventListener("click", () => {
+			new ReminderModal(this.app, this.plugin, null, () =>
+				this.refresh()
+			).open();
+		});
+
+		if (items.length === 0) {
+			section.createEl("div", {
+				cls: "section-helper-text",
+				text: "Nothing coming up. Add a reminder — a birthday, a booking, anything worth keeping in view.",
+			});
+			return;
+		}
+
+		const shown = this.showAllUpcomingEvents ? items : items.slice(0, 3);
+		for (const item of shown) {
+			if (item.kind === "event") {
+				const lead = splitLeadingEmoji(item.event.text);
+				const type = EVENT_TYPES.find((t) => t.id === item.event.type);
+				const { date, relative } = this.upcomingWhen(
+					item.event.date,
+					now
+				);
+				this.renderUpcomingRow(section, {
+					icon: lead ? lead.emoji : type ? type.emoji : "",
+					date,
+					name: lead ? lead.rest : item.event.text,
+					suffix: item.contact.displayName,
+					relative,
+					onClick: () => this.openContact(item.contact.file),
+				});
+			} else {
+				const r = item.reminder;
+				const lead = splitLeadingEmoji(r.name);
+				const { date, relative } = this.upcomingWhen(r.date ?? "", now);
+				this.renderUpcomingRow(section, {
+					icon: lead ? lead.emoji : "⏰",
+					date: date || "Anytime",
+					time: r.time ? this.formatReminderTime(r.time) : "",
+					name: lead ? lead.rest : r.name,
+					suffix: r.location ?? "",
+					relative,
+					onClick: () =>
+						new ReminderViewModal(
+							this.app,
+							this.plugin,
+							r,
+							() => this.refresh()
+						).open(),
+				});
+			}
+		}
+
+		if (items.length > 3) {
+			const toggle = section.createEl("button", {
+				cls: "friend-tracker-button",
+				text: this.showAllUpcomingEvents
+					? "Show fewer"
+					: `Show all (${items.length})`,
+			});
+			toggle.addEventListener("click", () => {
+				this.showAllUpcomingEvents = !this.showAllUpcomingEvents;
+				this.render();
+			});
+		}
+	}
+
+	private renderUpcomingRow(
+		section: HTMLElement,
+		opts: {
+			icon: string;
+			date: string;
+			time?: string;
+			name: string;
+			suffix: string;
+			relative: string;
+			onClick: () => void;
+		}
+	) {
+		const row = section.createEl("div", {
+			cls: "dashboard-row dashboard-row-clickable dashboard-upcoming-row",
+		});
+		const mainCol = row.createEl("div", { cls: "dashboard-upcoming-main" });
+		mainCol.createEl("div", {
+			cls: "dashboard-upcoming-when",
+			text: `${opts.icon ? opts.icon + " " : ""}${opts.date}${
+				opts.time ? " · " + opts.time : ""
+			}`,
+		});
+		const nameEl = mainCol.createEl("div", {
+			cls: "dashboard-upcoming-name",
+		});
+		nameEl.createSpan({ text: opts.name });
+		if (opts.suffix) {
+			nameEl.createSpan({
+				cls: "dashboard-upcoming-person",
+				text: ` • ${opts.suffix}`,
+			});
+		}
+		if (opts.relative) {
+			row.createSpan({
+				cls: "dashboard-upcoming-rel",
+				text: opts.relative,
+			});
+		}
+		row.addEventListener("click", opts.onClick);
+	}
+
+	private formatReminderTime(t: string): string {
+		const [h, m] = t.split(":").map(Number);
+		if (Number.isNaN(h)) return t;
+		const period = h < 12 ? "AM" : "PM";
+		const hr = h % 12 === 0 ? 12 : h % 12;
+		return `${hr}:${String(m || 0).padStart(2, "0")} ${period}`;
+	}
+
+	/** Split "when" into a date ("Friday Aug 21") and a relative ("in 25 days"). */
+	private upcomingWhen(
+		dateStr: string,
+		now: Date
+	): { date: string; relative: string } {
+		const p = parseFlexDate(dateStr);
+		if (!p) return { date: "", relative: "" };
+		if (p.year !== null && p.month !== null && p.day !== null) {
+			const target = new Date(p.year, p.month - 1, p.day);
+			target.setHours(0, 0, 0, 0);
+			const today = new Date(now);
+			today.setHours(0, 0, 0, 0);
+			const days = Math.round(
+				(target.getTime() - today.getTime()) / 86400000
+			);
+			const date = target
+				.toLocaleDateString("en-US", {
+					weekday: "long",
+					month: "short",
+					day: "numeric",
+					...(p.year !== now.getFullYear() && { year: "numeric" }),
+				})
+				.replace(/,/g, "");
+			let relative: string;
+			if (days === 0) relative = "today";
+			else if (days === 1) relative = "tomorrow";
+			else if (days === -1) relative = "yesterday";
+			else if (days < 0) relative = `${-days} days ago`;
+			else if (days <= 90) relative = `in ${days} days`;
+			else relative = `in ${Math.round(days / 30)} months`;
+			return { date, relative };
+		}
+		return { date: formatFlexDate(p), relative: "" };
+	}
+
+	/** Events from this same calendar day in earlier years — a warm callback. */
+	private renderOnThisDay(container: HTMLElement) {
+		const now = new Date();
+		const month = now.getMonth() + 1;
+		const day = now.getDate();
+		const thisYear = now.getFullYear();
+
+		const hits: Array<{
+			contact: ContactWithCountdown;
+			text: string;
+			yearsAgo: number;
+		}> = [];
+		for (const c of this.contacts) {
+			for (const event of c.events) {
+				const p = parseFlexDate(event.date);
+				if (p?.year == null || p.month == null || p.day == null) {
+					continue;
+				}
+				if (p.month === month && p.day === day && p.year < thisYear) {
+					hits.push({
+						contact: c,
+						text: event.text,
+						yearsAgo: thisYear - p.year,
+					});
+				}
+			}
+		}
+		if (hits.length === 0) return;
+		hits.sort((a, b) => a.yearsAgo - b.yearsAgo);
+
+		const section = container.createEl("div", { cls: "dashboard-section" });
+		section.createEl("h3", { text: "🕰️ On this day" });
+		for (const hit of hits) {
+			const row = section.createEl("div", {
+				cls: "dashboard-row dashboard-row-clickable",
+			});
+			row.createSpan({ text: hit.text });
+			row.createSpan({
+				cls: "dashboard-row-meta",
+				text: `${hit.yearsAgo} year${
+					hit.yearsAgo === 1 ? "" : "s"
+				} ago · ${hit.contact.displayName}`,
+			});
+			row.addEventListener("click", () =>
+				this.openContact(hit.contact.file)
+			);
+		}
+	}
+
 	private renderPlans(container: HTMLElement) {
 		const plans = this.plugin.planOperations
 			.getPlans()
@@ -591,9 +883,14 @@ export class DashboardView extends ItemView {
 					text: metaParts.join(" · "),
 				});
 			}
-			row.addEventListener("click", () =>
-				this.plugin.activateSomedays(s.file.path)
-			);
+			row.addEventListener("click", () => {
+				new SomedayViewModal(
+					this.app,
+					this.plugin,
+					s,
+					() => this.refresh()
+				).open();
+			});
 		}
 		if (somedays.length > 5) {
 			const more = section.createEl("div", {
@@ -609,11 +906,7 @@ export class DashboardView extends ItemView {
 	private somedayWhen(s: SomedayInfo): string {
 		const f = parseFlexDate(s.date);
 		if (f) return formatFlexDate(f);
-		if (s.timeframe) {
-			const tf = somedayTimeframe(s.timeframe);
-			return tf ? `${tf.emoji} ${tf.label}` : s.timeframe;
-		}
-		return "";
+		return formatSomedaySeasons(s.seasons);
 	}
 
 	private renderDiary(container: HTMLElement) {

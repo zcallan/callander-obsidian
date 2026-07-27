@@ -176,35 +176,69 @@ export const SOMEDAY_DAY_PRESETS = [
 	{ id: "weekday", label: "Weekday", days: ["mon", "tue", "wed", "thu", "fri"] },
 ] as const;
 
-// Fuzzy, non-calendar timing — for "Maine in fall" or a plain "someday".
-// Free text is also allowed; these are just the quick chips.
-export const SOMEDAY_TIMEFRAMES = [
+// The four seasons — a rough, non-calendar "when" for a someday ("Maine in
+// fall"). More than one can apply, e.g. Summer & Fall.
+export const SOMEDAY_SEASONS = [
 	{ id: "spring", label: "Spring", emoji: "🌸" },
 	{ id: "summer", label: "Summer", emoji: "☀️" },
 	{ id: "fall", label: "Fall", emoji: "🍂" },
 	{ id: "winter", label: "Winter", emoji: "❄️" },
-	{ id: "someday", label: "Someday", emoji: "💭" },
 ] as const;
 
-export type SomedayTimeframe = (typeof SOMEDAY_TIMEFRAMES)[number]["id"];
+export type SomedaySeason = (typeof SOMEDAY_SEASONS)[number]["id"];
 
-/** Look up a timeframe preset for its emoji/label; undefined for free text. */
-export function somedayTimeframe(id: string | undefined | null) {
-	return id ? SOMEDAY_TIMEFRAMES.find((t) => t.id === id) : undefined;
+/** Look up a season for its emoji/label. */
+export function somedaySeason(id: string | undefined | null) {
+	return id ? SOMEDAY_SEASONS.find((s) => s.id === id) : undefined;
 }
 
-/** Human summary of candidate days: "Weekends" | "Weekdays" | "Mon, Tue" | "Thu". */
+/** Human summary of chosen seasons: "Any season" | "Summer / Fall" | "". */
+export function formatSomedaySeasons(ids: readonly string[]): string {
+	if (!ids || ids.length === 0) return "";
+	const found = SOMEDAY_SEASONS.filter((s) => ids.includes(s.id));
+	if (found.length === 0) return "";
+	if (found.length === 4) return "Any season";
+	return found.map((s) => s.label).join(" / ");
+}
+
+// Is this a solo thing, a group thing, or either? "Either" leads (it's the
+// default for a new someday). Optional; also a filter.
+export const SOMEDAY_COMPANY = [
+	{ id: "either", label: "Either", emoji: "🔀" },
+	{ id: "solo", label: "Solo", emoji: "🧍" },
+	{ id: "group", label: "Group", emoji: "👥" },
+] as const;
+
+export type SomedayCompany = (typeof SOMEDAY_COMPANY)[number]["id"];
+
+/** Look up the solo/group option for its emoji/label; undefined when unset. */
+export function somedayCompany(id: string | undefined | null) {
+	return id ? SOMEDAY_COMPANY.find((c) => c.id === id) : undefined;
+}
+
+/**
+ * Human summary of candidate days: "Any day" | "Weekends" | "Weekdays" |
+ * "Any day but Tue or Wed" (when only 1–2 are excluded) | "Mon, Tue".
+ */
 export function formatSomedayDays(days: readonly string[]): string {
 	if (!days || days.length === 0) return "";
 	const set = new Set(days);
+	const present = SOMEDAY_DAYS.filter((d) => set.has(d.id));
+	if (present.length === 7) return "Any day";
 	if (set.size === 2 && set.has("sat") && set.has("sun")) return "Weekends";
 	const weekdays = ["mon", "tue", "wed", "thu", "fri"];
 	if (set.size === 5 && weekdays.every((d) => set.has(d))) return "Weekdays";
+	// Mostly selected — name the 1–2 exceptions instead
+	const missing = SOMEDAY_DAYS.filter((d) => !set.has(d.id));
+	if (missing.length <= 2) {
+		return `Any day but ${missing.map((d) => d.label).join(" or ")}`;
+	}
 	// Canonical Mon→Sun order regardless of how they were stored
-	return SOMEDAY_DAYS.filter((d) => set.has(d.id))
-		.map((d) => d.label)
-		.join(", ");
+	return present.map((d) => d.label).join(", ");
 }
+
+// Reserved single-file store that lives beside contacts but isn't a friend
+export const REMINDERS_BASENAME = "Reminders";
 
 // Fixed palette for group color dots — no color picker, keep it minimal
 export const GROUP_COLORS = [
