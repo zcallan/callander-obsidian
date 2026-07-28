@@ -31,7 +31,7 @@ export class GroupEventModal extends FormModal {
 		);
 		if (groupNames.length > 0) {
 			const groupRow = contentEl.createEl("div", {
-				cls: "friend-tracker-modal-field",
+				cls: "callander-modal-field",
 			});
 			groupRow.createEl("label", { text: "Check a whole group" });
 			const select = groupRow.createEl("select", { cls: "dropdown" });
@@ -75,7 +75,7 @@ export class GroupEventModal extends FormModal {
 
 		let dateValue = new Date().toISOString().split("T")[0];
 		const dateField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "When" });
 		createFlexDateInput(
@@ -84,7 +84,7 @@ export class GroupEventModal extends FormModal {
 			(v) => {
 				dateValue = v;
 			},
-			{ inputClass: "friend-tracker-modal-input", defaultPrecision: "day" }
+			{ inputClass: "callander-modal-input", defaultPrecision: "day" }
 		);
 
 		const textInput = contentEl.createEl("textarea", {
@@ -93,11 +93,11 @@ export class GroupEventModal extends FormModal {
 		});
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttons.createEl("button", {
 			text: "Log for selected",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		saveButton.addEventListener("click", async () => {
 			const text = textInput.value.trim();

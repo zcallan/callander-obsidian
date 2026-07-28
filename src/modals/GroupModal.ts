@@ -30,11 +30,11 @@ export class GroupModal extends FormModal {
 		});
 
 		const nameField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		nameField.createEl("label", { text: "Name" });
 		const nameInput = nameField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Basketball" },
 		});
 		if (this.existing) {
@@ -44,7 +44,7 @@ export class GroupModal extends FormModal {
 		// Color: fixed palette of swatches
 		let color = this.existing?.color ?? GROUP_COLORS[0];
 		const colorField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		colorField.createEl("label", { text: "Color" });
 		const swatchRow = colorField.createEl("div", {
@@ -67,13 +67,13 @@ export class GroupModal extends FormModal {
 		}
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 
 		if (this.existing) {
 			const deleteButton = buttons.createEl("button", {
 				text: "Delete",
-				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			deleteButton.addEventListener("click", async () => {
 				if (!this.deleteArmed) {
@@ -94,7 +94,7 @@ export class GroupModal extends FormModal {
 
 		const saveButton = buttons.createEl("button", {
 			text: this.existing ? "Save" : "Create",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		saveButton.addEventListener("click", async () => {
 			const name = nameInput.value.trim().toLowerCase();

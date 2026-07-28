@@ -24,11 +24,11 @@ export class NoteInputModal extends FormModal {
 		});
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttons.createEl("button", {
 			text: "Save draft",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		const submit = async () => {
 			const text = input.value.trim();

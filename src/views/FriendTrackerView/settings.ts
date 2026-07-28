@@ -78,7 +78,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Belated birthday window")
 			.setDesc(
-				"For this many days after a birthday, show \"birthday was X days ago\" so you can still send a belated message"
+				'For this many days after a birthday, show "birthday was X days ago" so you can still send a belated message'
 			)
 			.addText((text) => {
 				text.inputEl.type = "number";
@@ -101,7 +101,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Your name")
 			.setDesc(
-				"Included automatically in shared plan messages (\"Copy as message\"), so you don't have to add yourself as a guest"
+				'Included automatically in shared plan messages ("Copy as message"), so you don\'t have to add yourself as a guest'
 			)
 			.addText((text) => {
 				text.setPlaceholder("e.g. Callan")
@@ -189,7 +189,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			});
 
 		const headerContainer = containerEl.createEl("div", {
-			cls: "friend-tracker-relationship-header",
+			cls: "callander-relationship-header",
 		});
 
 		headerContainer.createEl("h3", { text: "Relationship types" });
@@ -201,7 +201,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				tempInput.type = "text";
 				tempInput.placeholder = "Enter relationship type";
 				tempInput.className =
-					"friend-tracker-modal-input relationship-type-input";
+					"callander-modal-input relationship-type-input";
 
 				// Replace button with input temporarily
 				button.buttonEl.replaceWith(tempInput);
@@ -249,7 +249,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		);
 
 		const relationshipContainer = containerEl.createEl("div", {
-			cls: "friend-tracker-relationship-types",
+			cls: "callander-relationship-types",
 		});
 
 		this.plugin.settings.relationshipTypes.forEach((type) => {

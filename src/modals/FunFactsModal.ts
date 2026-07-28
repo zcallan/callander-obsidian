@@ -1,13 +1,12 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 
-/** Edit a friend's "fun facts" — a line or two worth remembering. */
+/** Add a single fun fact about a friend — one line worth remembering. */
 export class FunFactsModal extends FormModal {
 	constructor(
 		app: App,
 		private name: string,
-		private initial: string,
-		private onSubmit: (text: string) => Promise<void>
+		private onSubmit: (fact: string) => Promise<void>
 	) {
 		super(app);
 	}
@@ -15,33 +14,32 @@ export class FunFactsModal extends FormModal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl("h2", { text: `Fun facts — ${this.name}` });
+		contentEl.createEl("h2", { text: `Fun fact — ${this.name}` });
 
-		const input = contentEl.createEl("textarea", {
-			cls: "note-input-textarea",
+		const input = contentEl.createEl("input", {
+			cls: "callander-modal-input",
 			attr: {
-				placeholder:
-					"e.g. Allergic to peanuts · does triathlons · makes a mean lasagne",
-				rows: "4",
+				type: "text",
+				placeholder: "e.g. Allergic to peanuts",
 			},
 		});
-		input.value = this.initial;
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttons.createEl("button", {
-			text: "Save",
-			cls: "friend-tracker-modal-button mod-cta",
+			text: "Add",
+			cls: "callander-modal-button mod-cta",
 		});
 		const submit = async () => {
-			await this.onSubmit(input.value.trim());
+			const fact = input.value.trim();
+			if (!fact) return;
+			await this.onSubmit(fact);
 			this.close();
 		};
 		saveButton.addEventListener("click", submit);
-		// Cmd/Ctrl+Enter saves; plain Enter makes a newline
 		input.addEventListener("keydown", (e) => {
-			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+			if (e.key === "Enter") {
 				e.preventDefault();
 				submit();
 			}

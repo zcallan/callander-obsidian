@@ -76,7 +76,10 @@ export class QuickIdeaModal extends FormModal {
 		app: App,
 		private contactName: string,
 		initialCategory: IdeaCategory,
-		private onSubmit: (category: IdeaCategory, text: string) => Promise<void>,
+		private onSubmit: (
+			category: IdeaCategory,
+			text: string
+		) => Promise<void>,
 		private initialText = ""
 	) {
 		super(app);
@@ -126,11 +129,11 @@ export class QuickIdeaModal extends FormModal {
 		textInput.value = this.initialText;
 
 		const buttonContainer = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttonContainer.createEl("button", {
 			text: "Save",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 
 		const submit = async () => {

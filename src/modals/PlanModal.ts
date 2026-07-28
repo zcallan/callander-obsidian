@@ -19,17 +19,17 @@ export class PlanModal extends FormModal {
 		contentEl.createEl("h2", { text: "New plan" });
 
 		const nameField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		nameField.createEl("label", { text: "What's the plan?" });
 		const nameInput = nameField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Weekend in Maine" },
 		});
 
 		let dateValue = "";
 		const dateField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "When (as rough as you like)" });
 		createFlexDateInput(
@@ -39,26 +39,43 @@ export class PlanModal extends FormModal {
 				dateValue = v;
 			},
 			{
-				inputClass: "friend-tracker-modal-input",
+				inputClass: "callander-modal-input",
 				defaultPrecision: "month",
 			}
 		);
 
+		let endDateValue = "";
+		const endDateField = contentEl.createEl("div", {
+			cls: "callander-modal-field",
+		});
+		endDateField.createEl("label", { text: "Until (optional)" });
+		createFlexDateInput(
+			endDateField,
+			"",
+			(v) => {
+				endDateValue = v;
+			},
+			{
+				inputClass: "callander-modal-input",
+				defaultPrecision: "day",
+			}
+		);
+
 		const locationField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		locationField.createEl("label", { text: "Where (optional)" });
 		const locationInput = locationField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Providence, RI" },
 		});
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const createButton = buttons.createEl("button", {
 			text: "Create plan",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 
 		const submit = async () => {
@@ -67,7 +84,8 @@ export class PlanModal extends FormModal {
 			const file = await this.plugin.planOperations.createPlan(
 				name,
 				dateValue,
-				locationInput.value
+				locationInput.value,
+				endDateValue
 			);
 			this.close();
 			this.onCreated(file);

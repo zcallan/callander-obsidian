@@ -383,6 +383,71 @@ export class ContactOperations {
 		});
 	}
 
+	/** Update an event on a friend/group file, matched by deep equality */
+	async updateEventInFile(
+		file: TFile,
+		original: FriendEvent,
+		updated: {
+			date: string;
+			text: string;
+			type: EventType;
+			location?: string;
+			link?: string;
+		}
+	): Promise<void> {
+		await this.app.fileManager.processFrontMatter(file, (fm) => {
+			const events = ContactOperations.eventsOf(fm);
+			const index = events.findIndex(
+				(e) => JSON.stringify(e) === JSON.stringify(original)
+			);
+			if (index === -1) return;
+			events[index] = {
+				...events[index],
+				date: updated.date,
+				text: updated.text,
+				type: updated.type,
+			};
+			if (updated.location) events[index].location = updated.location;
+			else delete events[index].location;
+			if (updated.link) events[index].link = updated.link;
+			else delete events[index].link;
+			delete fm.interactions;
+			fm.events = events;
+		});
+	}
+
+	/** Delete an event from a friend/group file, matched by deep equality */
+	async deleteEventFromFile(file: TFile, target: FriendEvent): Promise<void> {
+		await this.app.fileManager.processFrontMatter(file, (fm) => {
+			const events = ContactOperations.eventsOf(fm);
+			const kept = events.filter(
+				(e) => JSON.stringify(e) !== JSON.stringify(target)
+			);
+			if (kept.length !== events.length) {
+				delete fm.interactions;
+				if (kept.length > 0) fm.events = kept;
+				else delete fm.events;
+			}
+		});
+	}
+
+	/**
+	 * Hide an event from the dashboard's Upcoming section only — the
+	 * timeline on the person's page is unaffected. Matched by deep equality.
+	 */
+	async hideEventFromUpcoming(file: TFile, target: FriendEvent): Promise<void> {
+		await this.app.fileManager.processFrontMatter(file, (fm) => {
+			const events = ContactOperations.eventsOf(fm);
+			const index = events.findIndex(
+				(e) => JSON.stringify(e) === JSON.stringify(target)
+			);
+			if (index === -1) return;
+			events[index] = { ...events[index], hiddenFromUpcoming: true };
+			delete fm.interactions;
+			fm.events = events;
+		});
+	}
+
 	/** A diary entry was renamed — keep event source links pointing at it */
 	async retargetDiarySource(
 		oldPath: string,

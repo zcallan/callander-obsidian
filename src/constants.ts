@@ -62,17 +62,93 @@ export type IdeaCategory = (typeof IDEA_CATEGORIES)[number]["id"];
 
 // What a friend is into — factual, never evaluative. Helps with gifts,
 // conversations, and plans. Grouped on the friend page like ideas.
+// Each has a second, optional "detail" field whose label/placeholder vary by
+// category (an author for a book, an artist for a song, etc.).
 export const INTEREST_CATEGORIES = [
-	{ id: "hobbies", label: "Hobby", emoji: "🎨" },
-	{ id: "books", label: "Book", emoji: "📚" },
-	{ id: "music", label: "Music", emoji: "🎵" },
-	{ id: "screen", label: "Movie & TV", emoji: "🎬" },
-	{ id: "games", label: "Game", emoji: "🎮" },
-	{ id: "sports", label: "Sport", emoji: "⚽" },
-	{ id: "teams", label: "Team", emoji: "🏟️" },
-	{ id: "foods", label: "Food", emoji: "🍔" },
-	{ id: "drinks", label: "Drink", emoji: "🍹" },
-	{ id: "other", label: "Other", emoji: "✨" },
+	{
+		id: "hobbies",
+		label: "Hobby",
+		emoji: "🎨",
+		detailLabel: "Details (optional)",
+		detailPlaceholder: "Optional details",
+	},
+	{
+		id: "books",
+		label: "Book",
+		emoji: "📚",
+		detailLabel: "Author",
+		detailPlaceholder: "e.g. Brandon Sanderson",
+	},
+	{
+		id: "music",
+		label: "Song",
+		emoji: "🎵",
+		detailLabel: "Artist",
+		detailPlaceholder: "e.g. Fleetwood Mac",
+	},
+	{
+		id: "musicgenre",
+		label: "Music Genre",
+		emoji: "🎶",
+		detailLabel: "Details (optional)",
+		detailPlaceholder: "Optional details",
+	},
+	{
+		id: "movie",
+		label: "Movie",
+		emoji: "🎬",
+		detailLabel: "Details (optional)",
+		detailPlaceholder: "Optional details",
+	},
+	{
+		id: "tv",
+		label: "TV Show",
+		emoji: "📺",
+		detailLabel: "Details (optional)",
+		detailPlaceholder: "Optional details",
+	},
+	{
+		id: "games",
+		label: "Game",
+		emoji: "🎮",
+		detailLabel: "Details (optional)",
+		detailPlaceholder: "Optional details",
+	},
+	{
+		id: "sports",
+		label: "Sport",
+		emoji: "⚽",
+		detailLabel: "Details (optional)",
+		detailPlaceholder: "Optional details",
+	},
+	{
+		id: "teams",
+		label: "Team",
+		emoji: "🏟️",
+		detailLabel: "Sport/League",
+		detailPlaceholder: "e.g. NBA, Premier League",
+	},
+	{
+		id: "foods",
+		label: "Food",
+		emoji: "🍔",
+		detailLabel: "Restaurant",
+		detailPlaceholder: "e.g. where they get it",
+	},
+	{
+		id: "drinks",
+		label: "Drink",
+		emoji: "🍹",
+		detailLabel: "Bar",
+		detailPlaceholder: "e.g. their local",
+	},
+	{
+		id: "other",
+		label: "Other",
+		emoji: "✨",
+		detailLabel: "Details (optional)",
+		detailPlaceholder: "Optional details",
+	},
 ] as const;
 
 export type InterestCategory = (typeof INTEREST_CATEGORIES)[number]["id"];

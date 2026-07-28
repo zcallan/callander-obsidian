@@ -27,7 +27,7 @@ export class PlanDetailsModal extends FormModal {
 		const details = { ...this.current };
 
 		const dateField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "When" });
 		createFlexDateInput(
@@ -37,13 +37,13 @@ export class PlanDetailsModal extends FormModal {
 				details.date = v;
 			},
 			{
-				inputClass: "friend-tracker-modal-input",
+				inputClass: "callander-modal-input",
 				defaultPrecision: "month",
 			}
 		);
 
 		const endField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		endField.createEl("label", { text: "Until (optional)" });
 		createFlexDateInput(
@@ -53,17 +53,17 @@ export class PlanDetailsModal extends FormModal {
 				details.endDate = v;
 			},
 			{
-				inputClass: "friend-tracker-modal-input",
+				inputClass: "callander-modal-input",
 				defaultPrecision: "day",
 			}
 		);
 
 		const locationField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		locationField.createEl("label", { text: "Location" });
 		const locationInput = locationField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Portland, Maine" },
 		});
 		locationInput.value = details.location;
@@ -72,12 +72,12 @@ export class PlanDetailsModal extends FormModal {
 		});
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		if (this.onDelete) {
 			const deleteButton = buttons.createEl("button", {
 				text: "Delete plan",
-				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			deleteButton.addEventListener("click", () => {
 				this.close();
@@ -86,7 +86,7 @@ export class PlanDetailsModal extends FormModal {
 		}
 		const saveButton = buttons.createEl("button", {
 			text: "Save",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		saveButton.addEventListener("click", async () => {
 			await this.onSubmit({

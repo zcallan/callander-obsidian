@@ -196,6 +196,9 @@ export interface FriendEvent {
 	/** Path of the diary entry this event was logged from, if any —
 	 * used to update instead of duplicate when re-logging */
 	source?: string;
+	/** Hidden from the dashboard's Upcoming section only — the timeline
+	 * on the person's page still shows it */
+	hiddenFromUpcoming?: boolean;
 }
 
 export interface Idea {
@@ -210,6 +213,8 @@ export interface Idea {
 export interface Interest {
 	category: InterestCategory;
 	text: string;
+	/** Optional second field; meaning varies by category (author, artist, …) */
+	detail?: string;
 }
 
 /** A memorable thing a friend said, with optional context (when/where). */

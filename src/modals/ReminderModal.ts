@@ -27,11 +27,11 @@ export class ReminderModal extends FormModal {
 
 		// ---- Name ----
 		const nameField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		nameField.createEl("label", { text: "What is it?" });
 		const nameInput = nameField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Laura's birthday" },
 		});
 		nameInput.value = this.existing?.name ?? "";
@@ -39,7 +39,7 @@ export class ReminderModal extends FormModal {
 		// ---- Date ----
 		let dateValue = this.existing?.date ?? "";
 		const dateField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "Date (optional)" });
 		createFlexDateInput(
@@ -49,7 +49,7 @@ export class ReminderModal extends FormModal {
 				dateValue = v;
 			},
 			{
-				inputClass: "friend-tracker-modal-input",
+				inputClass: "callander-modal-input",
 				defaultPrecision: "day",
 				allowFuture: true,
 			}
@@ -57,39 +57,39 @@ export class ReminderModal extends FormModal {
 
 		// ---- Time ----
 		const timeField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		timeField.createEl("label", { text: "Time (optional)" });
 		const timeInput = timeField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "time" },
 		});
 		timeInput.value = this.existing?.time ?? "";
 
 		// ---- Location ----
 		const locField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		locField.createEl("label", { text: "Location (optional)" });
 		const locInput = locField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. The Fox & Hounds" },
 		});
 		locInput.value = this.existing?.location ?? "";
 
 		// ---- Link ----
 		const linkField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		linkField.createEl("label", { text: "Link (optional)" });
 		const linkRow = linkField.createEl("div", { cls: "event-link-row" });
 		const linkInput = linkRow.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "https://…" },
 		});
 		linkInput.value = this.existing?.link ?? "";
 		const openButton = linkRow.createEl("button", {
-			cls: "friend-tracker-button event-link-open",
+			cls: "callander-button event-link-open",
 			text: "Open",
 			attr: { type: "button" },
 		});
@@ -104,12 +104,12 @@ export class ReminderModal extends FormModal {
 
 		// ---- Buttons ----
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		if (this.existing) {
 			const deleteBtn = buttons.createEl("button", {
 				text: "Delete",
-				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			deleteBtn.addEventListener("click", () => {
 				const existing = this.existing!;
@@ -130,7 +130,7 @@ export class ReminderModal extends FormModal {
 		}
 		const saveBtn = buttons.createEl("button", {
 			text: "Save",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 
 		const submit = async () => {

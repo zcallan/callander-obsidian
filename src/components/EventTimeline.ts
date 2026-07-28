@@ -222,7 +222,7 @@ export class EventTimeline {
 		});
 
 		const editBtn = actions.createEl("button", {
-			cls: "friend-tracker-button button-icon",
+			cls: "callander-button button-icon",
 			attr: { "aria-label": "Edit event" },
 		});
 		setIcon(editBtn, "pencil");
@@ -232,7 +232,7 @@ export class EventTimeline {
 		});
 
 		const deleteBtn = actions.createEl("button", {
-			cls: "friend-tracker-button button-icon button-danger",
+			cls: "callander-button button-icon button-danger",
 			attr: { "aria-label": "Delete event" },
 		});
 		setIcon(deleteBtn, "trash");

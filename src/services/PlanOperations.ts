@@ -211,7 +211,8 @@ export class PlanOperations {
 	async createPlan(
 		name: string,
 		date: string,
-		location = ""
+		location = "",
+		endDate = ""
 	): Promise<TFile> {
 		const folderPath = this.getPlansFolderPath();
 		if (!this.app.vault.getAbstractFileByPath(folderPath)) {
@@ -226,9 +227,10 @@ export class PlanOperations {
 		const loc = location.trim()
 			? `location: ${JSON.stringify(location.trim())}\n`
 			: "";
+		const end = endDate.trim() ? `endDate: ${endDate.trim()}\n` : "";
 		return await this.app.vault.create(
 			path,
-			`---\nname: ${JSON.stringify(name)}\ndate: ${date}\n${loc}status: planning\n---\n`
+			`---\nname: ${JSON.stringify(name)}\ndate: ${date}\n${end}${loc}status: planning\n---\n`
 		);
 	}
 

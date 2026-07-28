@@ -29,9 +29,7 @@ export class PlanCostModal extends FormModal {
 		if (initial?.split.mode === "percent") this.percents = { ...sh };
 		// Included: whoever the saved split names, else just you by default
 		if (Object.keys(sh).length > 0) {
-			this.included = new Set(
-				this.participants.filter((p) => sh[p])
-			);
+			this.included = new Set(this.participants.filter((p) => sh[p]));
 		} else {
 			const you =
 				defaultParticipant &&
@@ -74,21 +72,21 @@ export class PlanCostModal extends FormModal {
 		});
 
 		const labelField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		labelField.createEl("label", { text: "What" });
 		const labelInput = labelField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Airbnb" },
 		});
 		labelInput.value = this.initial?.label ?? "";
 
 		const amountField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		amountField.createEl("label", { text: "Total amount ($)" });
 		const amountInput = amountField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "number", min: "0", placeholder: "0" },
 		});
 		if (this.initial) amountInput.value = String(this.initial.amount);
@@ -204,10 +202,9 @@ export class PlanCostModal extends FormModal {
 					? "Tick who's in; weights divide the cost (e.g. nights, drinks)."
 					: "Tick who's splitting this evenly.",
 			});
-			const allChecked =
-				this.included.size === this.participants.length;
+			const allChecked = this.included.size === this.participants.length;
 			const checkAllBtn = head.createEl("button", {
-				cls: "friend-tracker-button plan-cost-checkall",
+				cls: "callander-button plan-cost-checkall",
 				text: allChecked ? "Uncheck all" : "Check all",
 			});
 			checkAllBtn.addEventListener("click", () => {
@@ -322,7 +319,7 @@ export class PlanCostModal extends FormModal {
 				rebalancePercents();
 
 				const evenBtn = sharesWrap.createEl("button", {
-					cls: "friend-tracker-button",
+					cls: "callander-button",
 					text: "Distribute evenly",
 				});
 				evenBtn.addEventListener("click", () => {
@@ -340,12 +337,12 @@ export class PlanCostModal extends FormModal {
 		renderShares();
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		if (this.initial && this.onDelete) {
 			const del = buttons.createEl("button", {
 				text: "Delete",
-				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			del.addEventListener("click", async () => {
 				await this.onDelete!();
@@ -354,7 +351,7 @@ export class PlanCostModal extends FormModal {
 		}
 		const saveButton = buttons.createEl("button", {
 			text: this.initial ? "Save" : "Add",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		saveButton.addEventListener("click", async () => {
 			const label = labelInput.value.trim();

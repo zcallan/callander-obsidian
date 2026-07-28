@@ -19,11 +19,11 @@ export class AddContactModal extends FormModal {
 		contentEl.createEl("h2", { text: "Add a friend" });
 
 		const form = contentEl.createEl("form", {
-			cls: "friend-tracker-add-contact-form",
+			cls: "callander-add-contact-form",
 		});
 
 		// Name field (required)
-		const nameField = form.createDiv({ cls: "friend-tracker-modal-field" });
+		const nameField = form.createDiv({ cls: "callander-modal-field" });
 		nameField.createEl("label", { text: "Name *" });
 		const nameInput = nameField.createEl("input", {
 			attr: {
@@ -32,13 +32,13 @@ export class AddContactModal extends FormModal {
 				required: true,
 				placeholder: "A first name is enough",
 			},
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 		});
 		nameInput.focus();
 
 		// Display name (optional) — used everywhere instead of name when set
 		const displayField = form.createDiv({
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		displayField.createEl("label", { text: "Display name (optional)" });
 		const displayInput = displayField.createEl("input", {
@@ -47,12 +47,12 @@ export class AddContactModal extends FormModal {
 				name: "displayName",
 				placeholder: "What you call them, e.g. Mum",
 			},
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 		});
 
 		// Birthday field (honest imprecision: exact / month+year / month+day)
 		const birthdayField = form.createDiv({
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		birthdayField.createEl("label", { text: "Birthday" });
 		let birthdayValue = "";
@@ -62,12 +62,12 @@ export class AddContactModal extends FormModal {
 			(value) => {
 				birthdayValue = value;
 			},
-			{ inputClass: "friend-tracker-modal-input" }
+			{ inputClass: "callander-modal-input" }
 		);
 
 		// When you met (as precisely as you remember)
 		const metField = form.createDiv({
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		metField.createEl("label", { text: "When you met" });
 		let metValue = "";
@@ -77,12 +77,12 @@ export class AddContactModal extends FormModal {
 			(value) => {
 				metValue = value;
 			},
-			{ inputClass: "friend-tracker-modal-input" }
+			{ inputClass: "callander-modal-input" }
 		);
 
 		// Relationship field
 		const relationshipField = form.createDiv({
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		relationshipField.createEl("label", { text: "Relationship" });
 		const relationshipInput = createRelationshipInput(
@@ -92,7 +92,7 @@ export class AddContactModal extends FormModal {
 
 		// Groups: toggle chips of known groups + a quick new-group input
 		const groupsField = form.createDiv({
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		groupsField.createEl("label", { text: "Groups" });
 		const ops = this.plugin.contactOperations;
@@ -135,7 +135,7 @@ export class AddContactModal extends FormModal {
 		form.createEl("button", {
 			text: "Add friend",
 			attr: { type: "submit" },
-			cls: "friend-tracker-button button-primary",
+			cls: "callander-button button-primary",
 		});
 
 		form.addEventListener("submit", (e) => {

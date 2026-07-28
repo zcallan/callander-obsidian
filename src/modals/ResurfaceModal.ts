@@ -27,7 +27,7 @@ export class ResurfaceModal extends FormModal {
 
 		let value = this.currentValue ?? "";
 		const field = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		createFlexDateInput(
 			field,
@@ -36,17 +36,17 @@ export class ResurfaceModal extends FormModal {
 				value = v;
 			},
 			{
-				inputClass: "friend-tracker-modal-input",
+				inputClass: "callander-modal-input",
 				defaultPrecision: "month",
 			}
 		);
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const clearButton = buttons.createEl("button", {
 			text: "Clear",
-			cls: "friend-tracker-modal-button",
+			cls: "callander-modal-button",
 		});
 		clearButton.addEventListener("click", async () => {
 			await this.onSubmit("");
@@ -54,7 +54,7 @@ export class ResurfaceModal extends FormModal {
 		});
 		const saveButton = buttons.createEl("button", {
 			text: "Save",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		saveButton.addEventListener("click", async () => {
 			await this.onSubmit(value);

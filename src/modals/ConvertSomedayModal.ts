@@ -24,11 +24,11 @@ export class ConvertSomedayModal extends Modal {
 		});
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const removeBtn = buttons.createEl("button", {
 			text: "Remove someday",
-			cls: "friend-tracker-modal-button",
+			cls: "callander-modal-button",
 		});
 		removeBtn.addEventListener("click", async () => {
 			await this.onChoice(false);
@@ -36,7 +36,7 @@ export class ConvertSomedayModal extends Modal {
 		});
 		const keepBtn = buttons.createEl("button", {
 			text: "Keep it",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		keepBtn.addEventListener("click", async () => {
 			await this.onChoice(true);
