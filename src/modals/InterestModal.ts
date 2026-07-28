@@ -1,9 +1,10 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import { INTEREST_CATEGORIES, InterestCategory } from "@/constants";
 
 /**
- * Capture a friend's interest: pick a category, type the thing. Enter saves.
+ * Capture a friend's interest: pick a category, type the thing, and an optional
+ * second detail whose label follows the category (author, artist, restaurant…).
  * Deliberately factual — what they're into, never a rating.
  */
 export class InterestModal extends FormModal {
@@ -15,9 +16,11 @@ export class InterestModal extends FormModal {
 		initialCategory: InterestCategory,
 		private onSubmit: (
 			category: InterestCategory,
-			text: string
+			text: string,
+			detail: string
 		) => Promise<void>,
-		private initialText = ""
+		private initialText = "",
+		private initialDetail = ""
 	) {
 		super(app);
 		this.category = initialCategory;
@@ -26,14 +29,39 @@ export class InterestModal extends FormModal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl("h2", {
-			text: `What's ${this.contactName} into?`,
-		});
+		contentEl.createEl("h2", { text: `What's ${this.contactName} into?` });
 
-		// Category picker: a wrapping row of emoji buttons
+		// Category picker — buttons are added after the inputs exist so their
+		// handlers can update the detail field.
 		const categoryRow = contentEl.createEl("div", {
 			cls: "quick-idea-categories",
 		});
+
+		const textInput = contentEl.createEl("input", {
+			cls: "quick-idea-input",
+			attr: {
+				type: "text",
+				placeholder: "e.g. Dune, cricket, spicy ramen…",
+			},
+		});
+		textInput.value = this.initialText;
+
+		// Second, optional field — its label/placeholder follow the category
+		const detailLabel = contentEl.createEl("div", {
+			cls: "interest-detail-label",
+		});
+		const detailInput = contentEl.createEl("input", {
+			cls: "quick-idea-input interest-detail-input",
+			attr: { type: "text" },
+		});
+		detailInput.value = this.initialDetail;
+		const syncDetail = () => {
+			const cat = INTEREST_CATEGORIES.find((c) => c.id === this.category);
+			detailLabel.setText(cat?.detailLabel ?? "Details (optional)");
+			detailInput.placeholder =
+				cat?.detailPlaceholder ?? "Optional details";
+		};
+
 		const categoryButtons = new Map<InterestCategory, HTMLButtonElement>();
 		INTEREST_CATEGORIES.forEach((cat) => {
 			const button = categoryRow.createEl("button", {
@@ -52,42 +80,37 @@ export class InterestModal extends FormModal {
 				categoryButtons.forEach((el, id) =>
 					el.toggleClass("selected", id === cat.id)
 				);
+				syncDetail();
 				textInput.focus();
 			});
 			categoryButtons.set(cat.id, button);
 		});
-
-		const textInput = contentEl.createEl("input", {
-			cls: "quick-idea-input",
-			attr: {
-				type: "text",
-				placeholder: "e.g. Dune, cricket, spicy ramen…",
-			},
-		});
-		textInput.value = this.initialText;
+		syncDetail();
 
 		const buttonContainer = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttonContainer.createEl("button", {
 			text: this.initialText ? "Save" : "Add",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 
 		const submit = async () => {
 			const text = textInput.value.trim();
 			if (!text) return;
-			await this.onSubmit(this.category, text);
+			await this.onSubmit(this.category, text, detailInput.value.trim());
 			this.close();
 		};
 
 		saveButton.addEventListener("click", submit);
-		textInput.addEventListener("keydown", (event) => {
+		const onEnter = (event: KeyboardEvent) => {
 			if (event.key === "Enter") {
 				event.preventDefault();
 				submit();
 			}
-		});
+		};
+		textInput.addEventListener("keydown", onEnter);
+		detailInput.addEventListener("keydown", onEnter);
 
 		setTimeout(() => textInput.focus(), 0);
 	}

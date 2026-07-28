@@ -42,11 +42,11 @@ export class SomedayModal extends FormModal {
 
 		// ---- Name ----
 		const nameField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		nameField.createEl("label", { text: "What is it?" });
 		const nameInput = nameField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: {
 				type: "text",
 				placeholder: "e.g. Trip to Maine, Fox & Hounds bar",
@@ -56,7 +56,7 @@ export class SomedayModal extends FormModal {
 
 		// ---- When: a rough/exact date, or one or more seasons ----
 		const whenField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		whenField.createEl("label", { text: "When (as rough as you like)" });
 
@@ -89,7 +89,9 @@ export class SomedayModal extends FormModal {
 		);
 		modeSelect.value = whenMode;
 
-		const whenSlot = whenField.createEl("div", { cls: "someday-when-slot" });
+		const whenSlot = whenField.createEl("div", {
+			cls: "someday-when-slot",
+		});
 		const pad = (n: number) => String(n).padStart(2, "0");
 
 		const renderWhenSlot = () => {
@@ -129,7 +131,7 @@ export class SomedayModal extends FormModal {
 			} else {
 				seasons.clear();
 				const input = whenSlot.createEl("input", {
-					cls: "friend-tracker-modal-input someday-when-date",
+					cls: "callander-modal-input someday-when-date",
 				});
 				const parsed = parseFlexDate(dateValue);
 				if (whenMode === "year") {
@@ -145,9 +147,9 @@ export class SomedayModal extends FormModal {
 				} else {
 					input.type = "date";
 					if (parsed?.year && parsed?.month && parsed?.day) {
-						input.value = `${parsed.year}-${pad(parsed.month)}-${pad(
-							parsed.day
-						)}`;
+						input.value = `${parsed.year}-${pad(
+							parsed.month
+						)}-${pad(parsed.day)}`;
 					}
 				}
 				input.addEventListener("change", () => {
@@ -185,14 +187,16 @@ export class SomedayModal extends FormModal {
 
 		// ---- Best days ----
 		const daysField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		daysField.createEl("label", { text: "Best days (optional)" });
 		const days = new Set<SomedayDay>(this.existing?.days ?? []);
 		const dayRow = daysField.createEl("div", { cls: "someday-day-chips" });
 		const dayButtons = new Map<SomedayDay, HTMLButtonElement>();
 		const refreshDays = () =>
-			dayButtons.forEach((el, id) => el.toggleClass("is-on", days.has(id)));
+			dayButtons.forEach((el, id) =>
+				el.toggleClass("is-on", days.has(id))
+			);
 		SOMEDAY_DAYS.forEach((d) => {
 			const btn = dayRow.createEl("button", {
 				cls: "someday-day-chip",
@@ -210,7 +214,7 @@ export class SomedayModal extends FormModal {
 		});
 		SOMEDAY_DAY_PRESETS.forEach((preset) => {
 			const btn = presetRow.createEl("button", {
-				cls: "friend-tracker-button",
+				cls: "callander-button",
 				text: preset.label,
 				attr: { type: "button" },
 			});
@@ -221,7 +225,7 @@ export class SomedayModal extends FormModal {
 			});
 		});
 		const allBtn = presetRow.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "All days",
 			attr: { type: "button" },
 		});
@@ -230,7 +234,7 @@ export class SomedayModal extends FormModal {
 			refreshDays();
 		});
 		const clearBtn = presetRow.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "Clear",
 			attr: { type: "button" },
 		});
@@ -242,11 +246,11 @@ export class SomedayModal extends FormModal {
 
 		// ---- Estimated cost ----
 		const costField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		costField.createEl("label", { text: "Estimated cost (optional)" });
 		const costInput = costField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: {
 				type: "number",
 				inputmode: "decimal",
@@ -260,7 +264,7 @@ export class SomedayModal extends FormModal {
 
 		// ---- Solo or group ----
 		const companyField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		companyField.createEl("label", { text: "Solo or group?" });
 		// Required — defaults to "Either" (an edit keeps whatever was saved).
@@ -293,7 +297,7 @@ export class SomedayModal extends FormModal {
 
 		// ---- Notes ----
 		const notesField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		notesField.createEl("label", { text: "Notes (optional)" });
 		const notesInput = notesField.createEl("textarea", {
@@ -307,12 +311,12 @@ export class SomedayModal extends FormModal {
 
 		// ---- Buttons ----
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		if (this.existing) {
 			const deleteBtn = buttons.createEl("button", {
 				text: "Delete",
-				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			deleteBtn.addEventListener("click", () => {
 				const existing = this.existing!;
@@ -333,7 +337,7 @@ export class SomedayModal extends FormModal {
 		}
 		const saveBtn = buttons.createEl("button", {
 			text: "Save",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 
 		const submit = async () => {

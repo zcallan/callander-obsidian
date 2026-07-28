@@ -62,7 +62,7 @@ export class ReminderViewModal extends Modal {
 			});
 			linkRow.createSpan({ cls: "reminder-view-link", text: r.link });
 			const openBtn = linkRow.createEl("button", {
-				cls: "friend-tracker-button event-link-open",
+				cls: "callander-button event-link-open",
 				text: "Open",
 				attr: { type: "button" },
 			});
@@ -75,7 +75,7 @@ export class ReminderViewModal extends Modal {
 		});
 		const button = (icon: string, label: string, onClick: () => void) => {
 			const btn = actions.createEl("button", {
-				cls: "friend-tracker-button",
+				cls: "callander-button",
 			});
 			setIcon(btn, icon);
 			btn.createSpan({ text: label });
@@ -98,7 +98,7 @@ export class ReminderViewModal extends Modal {
 			).open();
 		});
 		const del = actions.createEl("button", {
-			cls: "friend-tracker-button button-danger",
+			cls: "callander-button button-danger",
 		});
 		setIcon(del, "trash");
 		del.createSpan({ text: "Delete" });

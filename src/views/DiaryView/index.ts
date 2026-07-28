@@ -4,7 +4,7 @@ import type { DiaryEntry } from "@/types";
 import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
 import { DeleteDiaryEntryModal } from "@/modals/DeleteDiaryEntryModal";
 
-export const VIEW_TYPE_DIARY = "friend-tracker-diary-view";
+export const VIEW_TYPE_DIARY = "callander-diary-view";
 
 export class DiaryView extends ItemView {
 	private entries: DiaryEntry[] = [];
@@ -64,7 +64,7 @@ export class DiaryView extends ItemView {
 		const header = container.createEl("div", { cls: "diary-header" });
 		header.createEl("h2", { text: "Diary" });
 		const newButton = header.createEl("button", {
-			cls: "friend-tracker-button button-primary",
+			cls: "callander-button button-primary",
 			text: "New entry",
 		});
 		newButton.addEventListener("click", () => this.openNewEntryModal());
@@ -193,7 +193,7 @@ export class DiaryView extends ItemView {
 		const toolbar = card.createEl("div", { cls: "diary-entry-toolbar" });
 
 		const editButton = toolbar.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 		});
 		setIcon(editButton, "pencil");
 		editButton.createSpan({ text: "Edit" });
@@ -201,7 +201,7 @@ export class DiaryView extends ItemView {
 
 		// Put this entry on the timeline of every [[linked]] friend
 		const logButton = toolbar.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 		});
 		setIcon(logButton, "milestone");
 		logButton.createSpan({ text: "Log to timelines" });
@@ -213,7 +213,7 @@ export class DiaryView extends ItemView {
 
 		// Edit metadata (title / about-date)
 		const metaButton = toolbar.createEl("button", {
-			cls: "friend-tracker-button button-icon",
+			cls: "callander-button button-icon",
 			attr: { "aria-label": "Edit title and date" },
 		});
 		setIcon(metaButton, "settings-2");
@@ -235,7 +235,7 @@ export class DiaryView extends ItemView {
 
 		// Delete
 		const deleteButton = toolbar.createEl("button", {
-			cls: "friend-tracker-button button-icon button-danger",
+			cls: "callander-button button-icon button-danger",
 			attr: { "aria-label": "Delete entry" },
 		});
 		setIcon(deleteButton, "trash");

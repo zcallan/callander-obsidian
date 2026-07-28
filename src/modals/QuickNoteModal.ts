@@ -33,11 +33,11 @@ export class QuickNoteModal extends FormModal {
 		});
 
 		const friendField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field quick-note-friend-field",
+			cls: "callander-modal-field quick-note-friend-field",
 		});
 		friendField.createEl("label", { text: "Friend (optional)" });
 		const friendInput = friendField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: {
 				type: "text",
 				placeholder: "Leave blank to file later",
@@ -52,11 +52,11 @@ export class QuickNoteModal extends FormModal {
 		});
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttons.createEl("button", {
 			text: "Save draft",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 
 		const submit = async () => {

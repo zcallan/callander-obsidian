@@ -19,17 +19,17 @@ export class ConfirmModal extends Modal {
 		contentEl.createEl("p", { text: this.message });
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const cancel = buttons.createEl("button", {
 			text: "Cancel",
-			cls: "friend-tracker-modal-button",
+			cls: "callander-modal-button",
 		});
 		cancel.addEventListener("click", () => this.close());
 
 		const confirm = buttons.createEl("button", {
 			text: this.confirmLabel,
-			cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+			cls: "callander-modal-button callander-modal-button-danger",
 		});
 		confirm.addEventListener("click", async () => {
 			await this.onConfirm();

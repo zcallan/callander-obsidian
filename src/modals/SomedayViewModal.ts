@@ -93,7 +93,9 @@ export class SomedayViewModal extends Modal {
 
 	private renderSubIdeas(container: HTMLElement) {
 		const ops = this.plugin.somedayOperations;
-		const wrap = container.createEl("div", { cls: "someday-view-subideas" });
+		const wrap = container.createEl("div", {
+			cls: "someday-view-subideas",
+		});
 
 		this.subIdeas.forEach((sub, index) => {
 			const row = wrap.createEl("div", {
@@ -111,7 +113,7 @@ export class SomedayViewModal extends Modal {
 			});
 			row.createSpan({ cls: "someday-subidea-text", text: sub.text });
 			const del = row.createEl("button", {
-				cls: "friend-tracker-button button-icon button-danger",
+				cls: "callander-button button-icon button-danger",
 				attr: { "aria-label": "Remove sub-idea" },
 			});
 			setIcon(del, "trash");
@@ -124,7 +126,7 @@ export class SomedayViewModal extends Modal {
 		});
 
 		const addBtn = wrap.createEl("button", {
-			cls: "friend-tracker-button someday-subidea-addbtn",
+			cls: "callander-button someday-subidea-addbtn",
 		});
 		setIcon(addBtn, "plus");
 		addBtn.createSpan({ text: "Add sub-idea" });
@@ -150,7 +152,7 @@ export class SomedayViewModal extends Modal {
 		});
 		const button = (icon: string, label: string, onClick: () => void) => {
 			const btn = actions.createEl("button", {
-				cls: "friend-tracker-button",
+				cls: "callander-button",
 			});
 			setIcon(btn, icon);
 			btn.createSpan({ text: label });
@@ -175,20 +177,24 @@ export class SomedayViewModal extends Modal {
 			).open();
 		});
 		const isDone = this.status === "done";
-		button(isDone ? "rotate-ccw" : "check", isDone ? "Reopen" : "Done", async () => {
-			this.status = isDone ? "open" : "done";
-			this.someday.status = this.status;
-			await ops.setStatus(s.file, this.status as "open" | "done");
-			await this.onChange();
-			this.render();
-		});
+		button(
+			isDone ? "rotate-ccw" : "check",
+			isDone ? "Reopen" : "Done",
+			async () => {
+				this.status = isDone ? "open" : "done";
+				this.someday.status = this.status;
+				await ops.setStatus(s.file, this.status as "open" | "done");
+				await this.onChange();
+				this.render();
+			}
+		);
 		button("copy", "Copy", async () => {
 			await navigator.clipboard.writeText(this.buildText());
 			new Notice("📋 Copied");
 		});
 
 		const del = actions.createEl("button", {
-			cls: "friend-tracker-button button-danger",
+			cls: "callander-button button-danger",
 		});
 		setIcon(del, "trash");
 		del.createSpan({ text: "Delete" });

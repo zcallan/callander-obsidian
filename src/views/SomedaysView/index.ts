@@ -3,11 +3,7 @@ import type FriendTracker from "@/main";
 import type { SomedayInfo } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
-import {
-	parseFlexDate,
-	formatFlexDate,
-	flexSortKey,
-} from "@/utils/flexdate";
+import { parseFlexDate, formatFlexDate, flexSortKey } from "@/utils/flexdate";
 import {
 	formatSomedayDays,
 	formatSomedaySeasons,
@@ -222,7 +218,7 @@ export class SomedaysView extends ItemView {
 		header.createEl("h2", { text: "Somedays" });
 		const actions = header.createEl("div", { cls: "dashboard-actions" });
 		const newBtn = actions.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 		});
 		setIcon(newBtn, "plus");
 		newBtn.createSpan({ text: "New someday" });
@@ -230,7 +226,7 @@ export class SomedaysView extends ItemView {
 
 		if (this.openCandidates().length >= 2) {
 			const surpriseBtn = actions.createEl("button", {
-				cls: "friend-tracker-button",
+				cls: "callander-button",
 			});
 			setIcon(surpriseBtn, "dices");
 			surpriseBtn.createSpan({ text: "Surprise me" });
@@ -402,11 +398,8 @@ export class SomedaysView extends ItemView {
 	}
 
 	private openViewModal(someday: SomedayInfo) {
-		new SomedayViewModal(
-			this.app,
-			this.plugin,
-			someday,
-			() => this.refresh()
+		new SomedayViewModal(this.app, this.plugin, someday, () =>
+			this.refresh()
 		).open();
 	}
 

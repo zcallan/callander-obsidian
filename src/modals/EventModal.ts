@@ -76,7 +76,7 @@ export class EventModal extends FormModal {
 		let dateValue =
 			this.event?.date || new Date().toISOString().split("T")[0];
 		const dateField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "When" });
 		createFlexDateInput(
@@ -86,7 +86,7 @@ export class EventModal extends FormModal {
 				dateValue = value;
 			},
 			{
-				inputClass: "friend-tracker-modal-input",
+				inputClass: "callander-modal-input",
 				defaultPrecision: "day",
 				allowFuture: true,
 			}
@@ -102,28 +102,28 @@ export class EventModal extends FormModal {
 		textInput.value = this.event?.text || "";
 
 		const locationField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		locationField.createEl("label", { text: "Location (optional)" });
 		const locationInput = locationField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Providence, RI" },
 		});
 		locationInput.value = this.event?.location || "";
 
 		// Link — a plain URL with an Open button to the right
 		const linkField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		linkField.createEl("label", { text: "Link (optional)" });
 		const linkRow = linkField.createEl("div", { cls: "event-link-row" });
 		const linkInput = linkRow.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "https://…" },
 		});
 		linkInput.value = this.event?.link || "";
 		const openButton = linkRow.createEl("button", {
-			cls: "friend-tracker-button event-link-open",
+			cls: "callander-button event-link-open",
 			text: "Open",
 			attr: { type: "button" },
 		});
@@ -137,13 +137,13 @@ export class EventModal extends FormModal {
 		});
 
 		const buttonContainer = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 
 		if (this.event && this.onDelete) {
 			const deleteButton = buttonContainer.createEl("button", {
 				text: "Delete",
-				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			deleteButton.addEventListener("click", () => {
 				const preview =
@@ -166,7 +166,7 @@ export class EventModal extends FormModal {
 		if (this.event && this.onCopy) {
 			const copyButton = buttonContainer.createEl("button", {
 				text: "Copy to…",
-				cls: "friend-tracker-modal-button",
+				cls: "callander-modal-button",
 			});
 			copyButton.addEventListener("click", () => {
 				this.onCopy!();
@@ -176,7 +176,7 @@ export class EventModal extends FormModal {
 
 		const saveButton = buttonContainer.createEl("button", {
 			text: this.event ? "Save changes" : "Add event",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 
 		const submit = () => {

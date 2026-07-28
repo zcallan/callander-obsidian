@@ -17,7 +17,7 @@ export class SomedaySubIdeaModal extends FormModal {
 		contentEl.createEl("h2", { text: `Add to ${this.somedayName}` });
 
 		const input = contentEl.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: {
 				type: "text",
 				placeholder: "e.g. Beth's Bakery, sunset at the point…",
@@ -25,11 +25,11 @@ export class SomedaySubIdeaModal extends FormModal {
 		});
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttons.createEl("button", {
 			text: "Add",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		const submit = async () => {
 			const text = input.value.trim();

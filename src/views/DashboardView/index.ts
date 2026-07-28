@@ -18,6 +18,7 @@ import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
 import { ReminderModal } from "@/modals/ReminderModal";
 import { ReminderViewModal } from "@/modals/ReminderViewModal";
+import { EventViewModal } from "@/modals/EventViewModal";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
 import {
 	CaptureTargetModal,
@@ -105,13 +106,9 @@ export class DashboardView extends ItemView {
 		const header = container.createEl("div", { cls: "dashboard-header" });
 		header.createEl("h2", { text: "Callander" });
 		const actions = header.createEl("div", { cls: "dashboard-actions" });
-		const action = (
-			icon: string,
-			label: string,
-			onClick: () => void
-		) => {
+		const action = (icon: string, label: string, onClick: () => void) => {
 			const btn = actions.createEl("button", {
-				cls: "friend-tracker-button",
+				cls: "callander-button",
 			});
 			setIcon(btn, icon);
 			btn.createSpan({ text: label });
@@ -123,9 +120,7 @@ export class DashboardView extends ItemView {
 		action("lightbulb", "Add idea", () =>
 			this.plugin.openQuickIdeaCapture()
 		);
-		action("pencil-line", "Quick note", () =>
-			this.plugin.openQuickNote()
-		);
+		action("pencil-line", "Quick note", () => this.plugin.openQuickNote());
 		action("table", "All friends", () =>
 			this.plugin.activateFriendTracker()
 		);
@@ -189,9 +184,7 @@ export class DashboardView extends ItemView {
 				const row = section.createEl("div", {
 					cls: "dashboard-row dashboard-row-clickable",
 				});
-				const cat = IDEA_CATEGORIES.find(
-					(c) => c.id === idea.category
-				);
+				const cat = IDEA_CATEGORIES.find((c) => c.id === idea.category);
 				row.createSpan({
 					text: `${cat?.emoji ?? "✨"} ${idea.text}`,
 				});
@@ -299,9 +292,7 @@ export class DashboardView extends ItemView {
 		for (const item of all) {
 			const row = section.createEl("div", { cls: "dashboard-row" });
 			const label = row.createSpan({
-				cls: item.contact
-					? "dashboard-row-clickable-label"
-					: undefined,
+				cls: item.contact ? "dashboard-row-clickable-label" : undefined,
 				text: item.draft.text,
 			});
 			label.createSpan({
@@ -316,15 +307,20 @@ export class DashboardView extends ItemView {
 			}
 
 			const ideaButton = row.createEl("button", {
-				cls: "friend-tracker-button dashboard-row-action",
+				cls: "callander-button dashboard-row-action",
 				text: "Make idea",
 			});
 			ideaButton.addEventListener("click", () =>
-				this.categorizeDraft(item.holder, item.index, item.draft, item.contact)
+				this.categorizeDraft(
+					item.holder,
+					item.index,
+					item.draft,
+					item.contact
+				)
 			);
 
 			const deleteButton = row.createEl("button", {
-				cls: "friend-tracker-button button-icon button-danger dashboard-row-action dashboard-draft-delete",
+				cls: "callander-button button-icon button-danger dashboard-row-action dashboard-draft-delete",
 				attr: { "aria-label": "Discard draft" },
 			});
 			setIcon(deleteButton, "trash");
@@ -340,9 +336,7 @@ export class DashboardView extends ItemView {
 					"Discard",
 					async () => {
 						await ops.removeDraft(item.holder, item.index);
-						await this.plugin.refreshOpenContactPages(
-							item.holder
-						);
+						await this.plugin.refreshOpenContactPages(item.holder);
 						await this.refresh();
 					}
 				).open();
@@ -430,6 +424,7 @@ export class DashboardView extends ItemView {
 
 		for (const c of this.contacts) {
 			for (const event of c.events) {
+				if (event.hiddenFromUpcoming) continue;
 				const p = parseFlexDate(event.date);
 				if (p && isFlexUpcoming(p, now)) {
 					items.push({
@@ -484,7 +479,7 @@ export class DashboardView extends ItemView {
 		});
 		header.createEl("h3", { text: "📌 Upcoming" });
 		const addButton = header.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "Add reminder",
 		});
 		addButton.addEventListener("click", () => {
@@ -501,7 +496,7 @@ export class DashboardView extends ItemView {
 			return;
 		}
 
-		const shown = this.showAllUpcomingEvents ? items : items.slice(0, 3);
+		const shown = this.showAllUpcomingEvents ? items : items.slice(0, 10);
 		for (const item of shown) {
 			if (item.kind === "event") {
 				const lead = splitLeadingEmoji(item.event.text);
@@ -516,7 +511,14 @@ export class DashboardView extends ItemView {
 					name: lead ? lead.rest : item.event.text,
 					suffix: item.contact.displayName,
 					relative,
-					onClick: () => this.openContact(item.contact.file),
+					onClick: () =>
+						new EventViewModal(
+							this.app,
+							this.plugin,
+							item.contact,
+							item.event,
+							() => this.render()
+						).open(),
 				});
 			} else {
 				const r = item.reminder;
@@ -530,19 +532,16 @@ export class DashboardView extends ItemView {
 					suffix: r.location ?? "",
 					relative,
 					onClick: () =>
-						new ReminderViewModal(
-							this.app,
-							this.plugin,
-							r,
-							() => this.refresh()
+						new ReminderViewModal(this.app, this.plugin, r, () =>
+							this.refresh()
 						).open(),
 				});
 			}
 		}
 
-		if (items.length > 3) {
+		if (items.length > 10) {
 			const toggle = section.createEl("button", {
-				cls: "friend-tracker-button",
+				cls: "callander-button",
 				text: this.showAllUpcomingEvents
 					? "Show fewer"
 					: `Show all (${items.length})`,
@@ -710,7 +709,7 @@ export class DashboardView extends ItemView {
 		});
 		header.createEl("h3", { text: "🗺️ Plans" });
 		const newButton = header.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "New plan",
 		});
 		newButton.addEventListener("click", () => {
@@ -746,8 +745,7 @@ export class DashboardView extends ItemView {
 					});
 				let when = formatFlexDate(dateFlex);
 				if (dateFlex.month !== null && dateFlex.day !== null) {
-					const year =
-						dateFlex.year ?? new Date().getFullYear();
+					const year = dateFlex.year ?? new Date().getFullYear();
 					when = fmtDay(year, dateFlex.month, dateFlex.day);
 					const endFlex = parseFlexDate(plan.endDate);
 					if (
@@ -806,9 +804,7 @@ export class DashboardView extends ItemView {
 				});
 			}
 
-			row.addEventListener("click", () =>
-				this.openContact(plan.file)
-			);
+			row.addEventListener("click", () => this.openContact(plan.file));
 		}
 	}
 
@@ -842,7 +838,7 @@ export class DashboardView extends ItemView {
 			cls: "dashboard-section-buttons",
 		});
 		const newButton = buttons.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "New someday",
 		});
 		newButton.addEventListener("click", () => {
@@ -851,7 +847,7 @@ export class DashboardView extends ItemView {
 			}).open();
 		});
 		const allButton = buttons.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "See all",
 		});
 		allButton.addEventListener("click", () =>
@@ -884,11 +880,8 @@ export class DashboardView extends ItemView {
 				});
 			}
 			row.addEventListener("click", () => {
-				new SomedayViewModal(
-					this.app,
-					this.plugin,
-					s,
-					() => this.refresh()
+				new SomedayViewModal(this.app, this.plugin, s, () =>
+					this.refresh()
 				).open();
 			});
 		}
@@ -921,14 +914,14 @@ export class DashboardView extends ItemView {
 			cls: "dashboard-section-buttons",
 		});
 		const newButton = buttons.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "New entry",
 		});
 		newButton.addEventListener("click", () =>
 			this.plugin.openNewDiaryEntry()
 		);
 		const openButton = buttons.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "Open diary",
 		});
 		openButton.addEventListener("click", () =>
@@ -1004,7 +997,7 @@ export class DashboardView extends ItemView {
 		});
 		header.createEl("h3", { text: "👥 Groups" });
 		const newButton = header.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "New group",
 		});
 		newButton.addEventListener("click", () => {
@@ -1045,7 +1038,7 @@ export class DashboardView extends ItemView {
 			});
 
 			const manageButton = row.createEl("button", {
-				cls: "friend-tracker-button button-icon dashboard-row-action",
+				cls: "callander-button button-icon dashboard-row-action",
 				attr: { "aria-label": "Manage group" },
 			});
 			setIcon(manageButton, "settings-2");
@@ -1103,7 +1096,9 @@ export class DashboardView extends ItemView {
 				cls: "dashboard-row-meta",
 				text:
 					giftCount > 0
-						? `🎁 ${giftCount} idea${giftCount > 1 ? "s" : ""} saved`
+						? `🎁 ${giftCount} idea${
+								giftCount > 1 ? "s" : ""
+						  } saved`
 						: "no gift ideas yet",
 			});
 			row.addEventListener("click", () => this.openContact(c.file));
@@ -1172,7 +1167,7 @@ export class DashboardView extends ItemView {
 			label.addEventListener("click", () => this.openContact(c.file));
 
 			const wishedButton = row.createEl("button", {
-				cls: "friend-tracker-button dashboard-row-action",
+				cls: "callander-button dashboard-row-action",
 				attr: { "aria-label": "Mark as wished" },
 			});
 			setIcon(wishedButton, "check");
@@ -1215,8 +1210,7 @@ export class DashboardView extends ItemView {
 	}
 
 	private async renderInbox(container: HTMLElement) {
-		const inboxIdeas =
-			await this.plugin.contactOperations.getInboxIdeas();
+		const inboxIdeas = await this.plugin.contactOperations.getInboxIdeas();
 		const open = inboxIdeas
 			.map((idea, index) => ({ idea, index }))
 			.filter(({ idea }) => !idea.done);
@@ -1235,7 +1229,7 @@ export class DashboardView extends ItemView {
 			const cat = IDEA_CATEGORIES.find((c) => c.id === idea.category);
 			row.createSpan({ text: `${cat?.emoji ?? "✨"} ${idea.text}` });
 			const fileButton = row.createEl("button", {
-				cls: "friend-tracker-button dashboard-row-action",
+				cls: "callander-button dashboard-row-action",
 				text: "File to friend…",
 			});
 			fileButton.addEventListener("click", () => {
@@ -1249,9 +1243,7 @@ export class DashboardView extends ItemView {
 								contact.file
 							);
 						if (moved) {
-							new Notice(
-								`Filed to ${contact.displayName}`
-							);
+							new Notice(`Filed to ${contact.displayName}`);
 							await this.refresh();
 						}
 					},

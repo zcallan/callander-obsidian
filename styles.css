@@ -7,7 +7,7 @@ If your plugin does not need CSS, delete this file.
 
 */
 
-.friend-tracker-header {
+.callander-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -24,7 +24,7 @@ If your plugin does not need CSS, delete this file.
 	flex-shrink: 0;
 }
 
-.friend-tracker-header h2 {
+.callander-header h2 {
 	font-size: 0.75em;
 	font-weight: 700;
 	text-transform: uppercase;
@@ -33,52 +33,52 @@ If your plugin does not need CSS, delete this file.
 	margin: 0;
 }
 
-.friend-tracker-header select {
+.callander-header select {
 	padding: var(--size-4-1) var(--size-4-2);
 	box-shadow: none !important;
 	border: 1px solid var(--background-modifier-border);
 	background-color: var(--background-modifier-form-field);
 }
 
-.friend-tracker-header select:hover {
+.callander-header select:hover {
 	border-color: var(--background-modifier-border-hover);
 }
 
-.friend-tracker-header select:focus {
+.callander-header select:focus {
 	outline: none;
 }
 
-.friend-tracker-add-button {
+.callander-add-button {
 	/* Remove all styles */
 }
 
-.friend-tracker-empty-state {
+.callander-empty-state {
 	text-align: center;
 	padding: 40px 20px;
 	color: var(--text-muted);
 }
 
-.friend-tracker-view table {
+.callander-view table {
 	border-collapse: collapse;
 	width: 100%;
 	margin: 0;
 }
 
-.friend-tracker-view tr {
+.callander-view tr {
 	cursor: default;
 }
 
-.friend-tracker-view tr:hover {
+.callander-view tr:hover {
 	background-color: var(--background-modifier-hover);
 }
 
-.friend-tracker-view th,
-.friend-tracker-view td {
+.callander-view th,
+.callander-view td {
 	padding: 8px 12px;
 	text-align: left;
 }
 
-.friend-tracker-sort-button {
+.callander-sort-button {
 	background: transparent !important;
 	border: none;
 	margin: 0;
@@ -98,47 +98,47 @@ If your plugin does not need CSS, delete this file.
 	gap: 4px;
 }
 
-.friend-tracker-sort-button:hover {
+.callander-sort-button:hover {
 	color: var(--text-normal);
 	background: transparent !important;
 }
 
-.friend-tracker-sort-button:active,
-.friend-tracker-sort-button:focus {
+.callander-sort-button:active,
+.callander-sort-button:focus {
 	background: transparent !important;
 	box-shadow: none !important;
 	outline: none !important;
 }
 
-.friend-tracker-sort-button .sort-indicator {
+.callander-sort-button .sort-indicator {
 	font-size: 0.8em;
 	opacity: 0.5;
 	margin-left: 0;
 }
 
-.friend-tracker-sort-button:hover .sort-indicator {
+.callander-sort-button:hover .sort-indicator {
 	opacity: 0.8;
 }
 
-.friend-tracker-sort-button:active {
+.callander-sort-button:active {
 	box-shadow: none;
 	background: none;
 }
 
-.friend-tracker-sort-button:focus {
+.callander-sort-button:focus {
 	box-shadow: none;
 }
 
-.friend-tracker-sort-button:focus-visible {
+.callander-sort-button:focus-visible {
 	outline: none;
 }
 
-.friend-tracker-actions {
+.callander-actions {
 	text-align: right;
 	padding-right: 16px;
 }
 
-.friend-tracker-delete-button {
+.callander-delete-button {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -150,28 +150,28 @@ If your plugin does not need CSS, delete this file.
 	cursor: pointer;
 }
 
-.friend-tracker-delete-button:hover {
+.callander-delete-button:hover {
 	color: var(--text-error);
 	background-color: var(--background-modifier-error-hover);
 }
 
-.friend-tracker-delete-button svg {
+.callander-delete-button svg {
 	width: 16px;
 	height: 16px;
 }
 
-.friend-tracker-delete-modal-buttons {
+.callander-delete-modal-buttons {
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
 	margin-top: 20px;
 }
 
-.friend-tracker-button-secondary {
+.callander-button-secondary {
 	background-color: var(--background-modifier-hover);
 }
 
-.friend-tracker-button-danger {
+.callander-button-danger {
 	background-color: var(--background-modifier-error);
 	color: var(--text-on-accent);
 }
@@ -631,7 +631,7 @@ If your plugin does not need CSS, delete this file.
 	height: 0 !important;
 }
 
-.friend-tracker-name-cell {
+.callander-name-cell {
 	cursor: pointer;
 	position: relative;
 }
@@ -654,18 +654,18 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Modal Styles */
-.friend-tracker-modal-field {
+.callander-modal-field {
 	margin-bottom: 16px;
 }
 
-.friend-tracker-modal-field label {
+.callander-modal-field label {
 	display: block;
 	margin-bottom: 4px;
 	color: var(--text-muted);
 	font-size: 0.9em;
 }
 
-.friend-tracker-modal-input {
+.callander-modal-input {
 	width: 100%;
 	padding: 8px;
 	background: var(--background-modifier-form-field);
@@ -673,45 +673,45 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 4px;
 	color: var(--text-normal);
 }
-.friend-tracker-modal-input.relationship-type-input {
+.callander-modal-input.relationship-type-input {
 	width: 200px;
 }
-.friend-tracker-modal-input:focus {
+.callander-modal-input:focus {
 	border-color: var(--interactive-accent);
 	outline: none;
 }
 
-.friend-tracker-modal-buttons {
+.callander-modal-buttons {
 	margin-top: 24px;
 	display: flex;
 	justify-content: flex-end;
 }
 
 /* Destructive modal action — reads as danger even on mobile (no hover) */
-.friend-tracker-modal-button-danger {
+.callander-modal-button-danger {
 	color: var(--text-error);
 	margin-right: auto;
 }
 
-.friend-tracker-modal-button-danger:hover {
+.callander-modal-button-danger:hover {
 	background-color: var(--background-modifier-error);
 	color: var(--text-on-accent);
 }
 
 /* Update modal button styles */
-.modal .friend-tracker-button {
+.modal .callander-button {
 	margin-top: 16px;
 }
 
-.modal .friend-tracker-button.button-primary {
+.modal .callander-button.button-primary {
 	width: 100%; /* Make modal submit buttons full width */
 }
 
-.friend-tracker-add-contact-form {
+.callander-add-contact-form {
 	margin-top: 16px;
 }
 
-.friend-tracker-view {
+.callander-view {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
@@ -720,7 +720,7 @@ If your plugin does not need CSS, delete this file.
 	min-height: -webkit-fill-available;
 }
 
-.friend-tracker-content {
+.callander-content {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
@@ -730,7 +730,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Table styles */
-.friend-tracker-table {
+.callander-table {
 	width: 100%;
 	min-width: 600px;
 	border-collapse: collapse;
@@ -739,8 +739,8 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Base styles for all cells */
-.friend-tracker-table th,
-.friend-tracker-table td {
+.callander-table th,
+.callander-table td {
 	padding: 8px 12px;
 	text-align: left;
 	white-space: nowrap;
@@ -780,7 +780,7 @@ If your plugin does not need CSS, delete this file.
 	background-color: var(--color-green);
 }
 
-.friend-tracker-table-container {
+.callander-table-container {
 	flex: 1;
 	padding: 0 16px;
 	min-width: 100%;
@@ -788,34 +788,34 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Style for relationship type settings */
-.friend-tracker-relationship-header {
+.callander-relationship-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 	margin-bottom: 12px;
 }
 
-.friend-tracker-relationship-header h3 {
+.callander-relationship-header h3 {
 	margin: 0;
 }
 
 /* Remove default Setting styles in header */
-.friend-tracker-relationship-header .setting-item {
+.callander-relationship-header .setting-item {
 	border: none;
 	padding: 0;
 }
 
-.friend-tracker-relationship-header .setting-item-control {
+.callander-relationship-header .setting-item-control {
 	padding: 0;
 }
 
-.friend-tracker-relationship-types {
+.callander-relationship-types {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 	gap: 12px;
 }
 
-.friend-tracker-relationship-types .setting-item {
+.callander-relationship-types .setting-item {
 	border: none;
 	padding: 8px;
 	margin: 0;
@@ -823,23 +823,23 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 4px;
 }
 
-.friend-tracker-relationship-types .setting-item-info {
+.callander-relationship-types .setting-item-info {
 	display: none;
 }
 
-.friend-tracker-relationship-types .setting-item-control {
+.callander-relationship-types .setting-item-control {
 	flex: 1;
 	justify-content: space-between;
 	padding: 0;
 }
 
-.friend-tracker-relationship-types .setting-item-control input {
+.callander-relationship-types .setting-item-control input {
 	text-align: left;
 	text-transform: capitalize;
 }
 
 /* Capitalize relationship values in table */
-.friend-tracker-relationship-cell {
+.callander-relationship-cell {
 	text-transform: capitalize;
 }
 
@@ -1058,8 +1058,8 @@ If your plugin does not need CSS, delete this file.
 		text-align: center;
 	}
 
-	.contact-events-header .friend-tracker-button,
-	.contact-extras-header .friend-tracker-button {
+	.contact-events-header .callander-button,
+	.contact-extras-header .callander-button {
 		width: 100%;
 		justify-content: center;
 	}
@@ -1081,7 +1081,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Base button styles */
-.friend-tracker-button {
+.callander-button {
 	background: none !important;
 	border: 1px solid var(--background-modifier-border) !important;
 	color: var(--text-muted);
@@ -1100,26 +1100,26 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Button hover state */
-.friend-tracker-button:hover {
+.callander-button:hover {
 	background: var(--background-modifier-hover) !important;
 	color: var(--text-normal);
 	border-color: var(--text-muted) !important;
 }
 
 /* Primary/accent button variant - override the border */
-.friend-tracker-button.button-primary {
+.callander-button.button-primary {
 	background-color: var(--interactive-accent) !important;
 	color: var(--text-on-accent) !important;
 	border: none !important;
 }
 
 /* Remove the button-outlined class since all buttons now have borders by default */
-.friend-tracker-button.button-outlined {
+.callander-button.button-outlined {
 	/* Remove this class */
 }
 
 /* Icon-only button variant */
-.friend-tracker-button.button-icon {
+.callander-button.button-icon {
 	padding: 4px;
 	height: 28px;
 	width: 28px;
@@ -1127,19 +1127,19 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Icon size for icon buttons */
-.friend-tracker-button.button-icon svg {
+.callander-button.button-icon svg {
 	width: 16px;
 	height: 16px;
 }
 
 /* Danger button variant */
-.friend-tracker-button.button-danger:hover {
+.callander-button.button-danger:hover {
 	color: var(--text-error);
 	background: var(--background-modifier-error-hover) !important;
 }
 
 /* Full width variant */
-.friend-tracker-button.button-full-width {
+.callander-button.button-full-width {
 	width: 100%;
 }
 
@@ -1157,7 +1157,7 @@ If your plugin does not need CSS, delete this file.
 .contact-info-done-button,
 .contact-extras-edit,
 .contact-name-edit,
-.friend-tracker-add-button,
+.callander-add-button,
 .contact-interaction-submit,
 .contact-add-field-submit {
 	/* Remove all styles */
@@ -1405,7 +1405,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .contact-birthday-belated,
-.friend-tracker-belated-cell {
+.callander-belated-cell {
 	color: var(--text-muted);
 	font-style: italic;
 }
@@ -1451,7 +1451,7 @@ If your plugin does not need CSS, delete this file.
 	flex-wrap: wrap;
 }
 
-.dashboard-actions .friend-tracker-button {
+.dashboard-actions .callander-button {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
@@ -1535,7 +1535,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Group filter + shared event modal */
-.friend-tracker-group-filter {
+.callander-group-filter {
 	margin-left: auto;
 	margin-right: 8px;
 }
@@ -2138,11 +2138,35 @@ If your plugin does not need CSS, delete this file.
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
-	padding: 3px 6px 3px 11px;
+	padding: 5px 9px 5px 14px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 999px;
-	background: var(--background-primary);
+	background: var(--background-secondary);
+	font-size: 0.95em;
+}
+.contact-interest-chip-detail {
+	color: var(--text-muted);
+}
+/* Interest modal: the second (detail) field's label */
+.interest-detail-label {
+	color: var(--text-muted);
 	font-size: 0.85em;
+	margin: 10px 0 2px;
+}
+/* Fun facts as a list */
+.contact-funfacts-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin-bottom: 8px;
+}
+.contact-funfact-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.contact-funfact-text {
+	flex: 1;
 }
 
 .contact-interest-chip-remove {
@@ -2321,9 +2345,9 @@ If your plugin does not need CSS, delete this file.
 	margin: 0;
 }
 
-.contact-ideas-add-row .friend-tracker-button,
-.contact-groups-add-row .friend-tracker-button,
-.plan-member-add-row .friend-tracker-button {
+.contact-ideas-add-row .callander-button,
+.contact-groups-add-row .callander-button,
+.plan-member-add-row .callander-button {
 	display: inline-flex;
 	align-items: center;
 	height: auto;
@@ -2340,10 +2364,12 @@ If your plugin does not need CSS, delete this file.
    on desktop and while not typing. */
 .is-mobile .modal {
 	overflow-y: auto;
+	min-height: 0;
 }
 
 .is-mobile .modal-content {
 	overflow-y: auto;
+	min-height: 0;
 	padding-bottom: var(--callander-keyboard-inset, 0px);
 }
 
@@ -2353,7 +2379,7 @@ If your plugin does not need CSS, delete this file.
 
 /* Modals must never scroll horizontally: box-sizing the 100%-wide
    inputs, and letting flex-row children actually shrink */
-.modal .friend-tracker-modal-input,
+.modal .callander-modal-input,
 .modal .contact-field-input,
 .modal .quick-idea-input {
 	box-sizing: border-box;
@@ -2411,7 +2437,7 @@ If your plugin does not need CSS, delete this file.
 
 /* Mobile modals: flexdate controls stack full-width — iOS date inputs
    have intrinsic widths that refuse to shrink in flex rows */
-.is-mobile .modal .friend-tracker-modal-field {
+.is-mobile .modal .callander-modal-field {
 	max-width: 100%;
 	min-width: 0;
 }
@@ -2520,7 +2546,7 @@ If your plugin does not need CSS, delete this file.
 
 /* Info-section buttons size to their content (the flex column was
    stretching them full width); the deliberate full-width Done stays */
-.contact-fields-container > .friend-tracker-button:not(.button-full-width) {
+.contact-fields-container > .callander-button:not(.button-full-width) {
 	align-self: flex-start;
 	padding-left: 16px;
 	padding-right: 16px;
@@ -2730,7 +2756,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Horizontal button rows always breathe */
-.friend-tracker-modal-buttons {
+.callander-modal-buttons {
 	gap: 8px;
 	flex-wrap: wrap;
 }
@@ -3009,7 +3035,7 @@ If your plugin does not need CSS, delete this file.
 	margin-top: 18px;
 }
 
-.plan-cost-footer .friend-tracker-button {
+.plan-cost-footer .callander-button {
 	margin-top: 0;
 }
 
@@ -3251,7 +3277,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Group/plan member add rows and quick-action rows wrap cleanly */
-.is-phone .friend-tracker-header {
+.is-phone .callander-header {
 	flex-wrap: wrap;
 	gap: 8px;
 }
@@ -3317,7 +3343,7 @@ If your plugin does not need CSS, delete this file.
 	gap: 8px;
 }
 
-.plan-timeline-footer .friend-tracker-button {
+.plan-timeline-footer .callander-button {
 	margin-top: 0;
 }
 
@@ -3325,7 +3351,7 @@ If your plugin does not need CSS, delete this file.
 	flex-direction: row;
 	align-items: stretch;
 }
-.is-phone .plan-timeline-footer .friend-tracker-button {
+.is-phone .plan-timeline-footer .callander-button {
 	flex: 1 1 0;
 	justify-content: center;
 }
@@ -3354,6 +3380,16 @@ If your plugin does not need CSS, delete this file.
 
 .plan-accordion.is-open .plan-accordion-body {
 	display: block;
+}
+
+/* General accordion: the page header already provides the divider above, so
+   drop this section's own top border; balance the heading's spacing when collapsed. */
+.contact-general-accordion {
+	border-top: none;
+	margin-top: 0;
+}
+.contact-general-accordion:not(.is-open) .plan-accordion-header {
+	padding-bottom: 22px;
 }
 
 /* ── Fun facts (person page) ── */
@@ -3627,7 +3663,7 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 6px;
 }
 /* Editor: timeframe + day chips */
-.friend-tracker-modal-sublabel {
+.callander-modal-sublabel {
 	color: var(--text-muted);
 	font-size: 0.85em;
 	margin: 8px 0 4px;
@@ -3681,7 +3717,7 @@ If your plugin does not need CSS, delete this file.
 	gap: 6px;
 	margin-top: 8px;
 }
-.someday-day-presets .friend-tracker-button {
+.someday-day-presets .callander-button {
 	margin-top: 0;
 }
 
@@ -3722,7 +3758,7 @@ If your plugin does not need CSS, delete this file.
 	gap: 8px;
 	margin-top: 14px;
 }
-.someday-view-actions .friend-tracker-button {
+.someday-view-actions .callander-button {
 	margin-top: 0;
 }
 
@@ -3732,7 +3768,7 @@ If your plugin does not need CSS, delete this file.
 	gap: 8px;
 	align-items: center;
 }
-.event-link-row .friend-tracker-modal-input {
+.event-link-row .callander-modal-input {
 	flex: 1;
 	min-width: 0;
 }

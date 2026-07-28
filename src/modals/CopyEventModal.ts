@@ -29,9 +29,7 @@ export class CopyEventModal extends FormModal {
 			text: `${type ? type.emoji + " " : ""}${this.event.text}`,
 		});
 
-		const contacts = (
-			await this.plugin.contactOperations.getContacts()
-		)
+		const contacts = (await this.plugin.contactOperations.getContacts())
 			.filter((c) => c.file.path !== this.excludePath)
 			.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
@@ -82,11 +80,11 @@ export class CopyEventModal extends FormModal {
 		renderList();
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		const copyButton = buttons.createEl("button", {
 			text: "Copy",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		copyButton.addEventListener("click", async () => {
 			const targets = contacts.filter((c) => checked.has(c.file.path));

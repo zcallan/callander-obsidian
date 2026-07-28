@@ -40,7 +40,7 @@ export class TableView {
 		});
 		header.createEl("h2", { text: "All friends" });
 		const addButton = header.createEl("button", {
-			cls: "friend-tracker-button friend-list-add-button",
+			cls: "callander-button friend-list-add-button",
 		});
 		setIcon(addButton, "user-plus");
 		addButton.createSpan({ text: "Add friend" });
@@ -80,9 +80,7 @@ export class TableView {
 				chip.createSpan({ text: ops.prettyGroupName(info.name) });
 				chip.addEventListener("click", () => {
 					this.view.groupFilter =
-						this.view.groupFilter === info.name
-							? ""
-							: info.name;
+						this.view.groupFilter === info.name ? "" : info.name;
 					pills
 						.findAll(".contact-group-chip")
 						.forEach((el) => el.removeClass("selected"));
@@ -108,9 +106,7 @@ export class TableView {
 		);
 		select.value = this.view.settings.friendListSort;
 		select.addEventListener("change", async () => {
-			await this.view.setFriendListSort(
-				select.value as FriendListSort
-			);
+			await this.view.setFriendListSort(select.value as FriendListSort);
 			this.renderList();
 		});
 
@@ -165,14 +161,10 @@ export class TableView {
 				list.sort((a, b) => b.file.stat.mtime - a.file.stat.mtime);
 				break;
 			case "alphabeticalDesc":
-				list.sort((a, b) =>
-					b.displayName.localeCompare(a.displayName)
-				);
+				list.sort((a, b) => b.displayName.localeCompare(a.displayName));
 				break;
 			default:
-				list.sort((a, b) =>
-					a.displayName.localeCompare(b.displayName)
-				);
+				list.sort((a, b) => a.displayName.localeCompare(b.displayName));
 		}
 		return list;
 	}
@@ -236,7 +228,7 @@ export class TableView {
 
 			// Quick overview without leaving the list
 			const glanceButton = row.createEl("button", {
-				cls: "friend-tracker-button friend-list-glance",
+				cls: "callander-button friend-list-glance",
 			});
 			setIcon(glanceButton, "eye");
 			glanceButton.createSpan({

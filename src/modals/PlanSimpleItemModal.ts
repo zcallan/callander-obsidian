@@ -149,7 +149,7 @@ export class PlanSimpleItemModal extends FormModal {
 		}
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 
 		// Delete lives here so it's reachable on mobile, where the item is
@@ -157,7 +157,7 @@ export class PlanSimpleItemModal extends FormModal {
 		if (this.initial && this.onDelete) {
 			const deleteButton = buttons.createEl("button", {
 				text: "Delete",
-				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			deleteButton.addEventListener("click", () => {
 				const preview =
@@ -179,7 +179,7 @@ export class PlanSimpleItemModal extends FormModal {
 
 		const saveButton = buttons.createEl("button", {
 			text: this.initial ? "Save" : "Add",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		const submit = async () => {
 			const text = textInput.value.trim();

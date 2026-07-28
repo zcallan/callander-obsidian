@@ -145,13 +145,13 @@ export class PlanItemModal extends FormModal {
 		});
 
 		const buttonRow = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 
 		if (this.initial && this.onDelete) {
 			const deleteButton = buttonRow.createEl("button", {
 				text: "Delete",
-				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			deleteButton.addEventListener("click", () => {
 				const preview =
@@ -173,7 +173,7 @@ export class PlanItemModal extends FormModal {
 
 		const saveButton = buttonRow.createEl("button", {
 			text: this.initial ? "Save" : "Add",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 
 		const submit = async () => {

@@ -6,7 +6,7 @@ import type { ContactWithCountdown, FriendListSort } from "@/types";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { DeleteContactModal } from "@/modals/DeleteContactModal";
 
-export const VIEW_TYPE_FRIEND_TRACKER = "friend-tracker-view";
+export const VIEW_TYPE_FRIEND_TRACKER = "callander-view";
 
 export class FriendTrackerView extends ItemView {
 	public groupFilter = "";

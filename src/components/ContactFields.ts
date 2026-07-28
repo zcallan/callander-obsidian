@@ -9,7 +9,7 @@ export function createRelationshipInput(
 	onChange?: (value: string) => void
 ) {
 	const input = container.createEl("input", {
-		cls: "friend-tracker-modal-input",
+		cls: "callander-modal-input",
 		attr: {
 			type: "text",
 			value: value || "",

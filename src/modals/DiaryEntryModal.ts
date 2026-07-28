@@ -52,18 +52,18 @@ export class DiaryEntryModal extends FormModal {
 			});
 
 		const buttonContainer = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 
 		const cancelButton = buttonContainer.createEl("button", {
 			text: "Cancel",
-			cls: "friend-tracker-modal-button",
+			cls: "callander-modal-button",
 		});
 		cancelButton.addEventListener("click", () => this.close());
 
 		const saveButton = buttonContainer.createEl("button", {
 			text: "Save",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 		saveButton.addEventListener("click", () => this.submit());
 

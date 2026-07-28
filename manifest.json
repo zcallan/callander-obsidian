@@ -1,10 +1,10 @@
 {
-	"id": "friend-tracker",
+	"id": "callander",
 	"name": "Callander",
-	"version": "2.0.0",
+	"version": "1.0.0",
 	"minAppVersion": "1.4.14",
 	"description": "A private secondary memory for your friendships. Jot gift ideas, conversation threads, and things to do together — Callander resurfaces them when they matter. Never a CRM, never creepy.",
-	"author": "Callan Delbridge (built on Friend Tracker by Dan Au)",
-	"authorUrl": "https://dausign.com",
+	"author": "zcallan",
+	"authorUrl": "",
 	"isDesktopOnly": false
 }

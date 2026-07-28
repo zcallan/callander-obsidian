@@ -17,10 +17,7 @@ import { createFlexDateInput } from "@/components/FlexDateInput";
 import { EventModal } from "@/modals/EventModal";
 import { ResurfaceModal } from "@/modals/ResurfaceModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
-import {
-	ContactSuggestModal,
-	QuickIdeaModal,
-} from "@/modals/QuickIdeaModal";
+import { ContactSuggestModal, QuickIdeaModal } from "@/modals/QuickIdeaModal";
 import { VIEW_TYPE_FRIEND_TRACKER } from "@/views/FriendTrackerView";
 import { FriendTrackerView } from "@/views/FriendTrackerView";
 import {
@@ -62,6 +59,7 @@ import {
 	formatFlexDate,
 	formatTimeSince,
 	flexSortKey,
+	monthName,
 } from "@/utils/flexdate";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
@@ -76,6 +74,8 @@ export class ContactPageView extends ItemView {
 	private lastInterestCategory: InterestCategory = "hobbies";
 	// Which collapsible plan sections are expanded (persists across re-renders)
 	private expandedPlanSections = new Set<string>();
+	// The friend "General" info accordion — collapsed by default
+	private expandedInfoSection = false;
 	/** Guards against reacting to our own writes */
 	private writingUntil = 0;
 
@@ -219,7 +219,7 @@ export class ContactPageView extends ItemView {
 				cls: "contact-header-actions plan-page-actions",
 			});
 			const noteButton = actions.createEl("button", {
-				cls: "friend-tracker-button contact-header-action",
+				cls: "callander-button contact-header-action",
 				attr: { "aria-label": "Quick note" },
 			});
 			setIcon(noteButton, "pencil-line");
@@ -240,19 +240,15 @@ export class ContactPageView extends ItemView {
 				onClick: () => void
 			) => {
 				const btn = actions.createEl("button", {
-					cls: "friend-tracker-button contact-header-action",
+					cls: "callander-button contact-header-action",
 				});
 				setIcon(btn, icon);
 				btn.createSpan({ text: label });
 				btn.addEventListener("click", onClick);
 			};
 			action("lightbulb", "Add idea", () => this.openAddIdeaModal());
-			action("milestone", "Add event", () =>
-				this.openAddEventModal()
-			);
-			action("pencil-line", "Quick note", () =>
-				this.openQuickNote()
-			);
+			action("milestone", "Add event", () => this.openAddEventModal());
+			action("pencil-line", "Quick note", () => this.openQuickNote());
 		}
 
 		// Plans are their own page shape: members, buckets, notes
@@ -303,10 +299,7 @@ export class ContactPageView extends ItemView {
 				const body = wrap.createEl("div", {
 					cls: "plan-accordion-body",
 				});
-				wrap.toggleClass(
-					"is-open",
-					this.expandedPlanSections.has(key)
-				);
+				wrap.toggleClass("is-open", this.expandedPlanSections.has(key));
 				header.addEventListener("click", () => {
 					const nowOpen = !this.expandedPlanSections.has(key);
 					if (nowOpen) this.expandedPlanSections.add(key);
@@ -320,21 +313,13 @@ export class ContactPageView extends ItemView {
 				planSection("users", `Who's in (${this.planMemberCount()})`)
 			);
 			this.renderPlanTimeline(planSection("calendar-clock", "Timeline"));
-			this.renderPlanIdeas(planAccordion("lightbulb", "Ideas", "ideas"));
-			this.renderPlanSimpleList(
-				planAccordion("plane", "Travel", "travel"),
-				"travel",
-				"Add travel"
-			);
 			this.renderPlanSimpleList(
 				planSection("bed", "Accommodation"),
 				"accommodation",
 				"Add accommodation"
 			);
 			this.renderPlanBring(planSection("backpack", "What to bring"));
-			this.renderPlanCosts(
-				planSection("dollar-sign", "Cost breakdown")
-			);
+			this.renderPlanCosts(planSection("dollar-sign", "Cost breakdown"));
 			this.renderNotesSection(planSection("pencil", "Notes"));
 			this.renderExtrasSection(
 				planSection("document", "Links & details")
@@ -349,10 +334,37 @@ export class ContactPageView extends ItemView {
 			});
 			this.renderGroupMembers(membersSection);
 		} else {
-			const infoSection = container.createEl("div", {
+			// "General" — a collapsed accordion of the attribute fields
+			const infoWrap = container.createEl("div", {
+				cls: "contact-stack-section plan-accordion contact-general-accordion",
+			});
+			const infoHeader = infoWrap.createEl("div", {
+				cls: "contact-stack-header plan-accordion-header",
+			});
+			setIcon(
+				infoHeader.createSpan({ cls: "contact-stack-header-icon" }),
+				"user"
+			);
+			infoHeader.createSpan({
+				cls: "plan-accordion-label",
+				text: "About",
+			});
+			setIcon(
+				infoHeader.createSpan({ cls: "plan-accordion-chevron" }),
+				"chevron-down"
+			);
+			const infoBody = infoWrap.createEl("div", {
+				cls: "plan-accordion-body",
+			});
+			const infoSection = infoBody.createEl("div", {
 				cls: "contact-info-section",
 			});
 			this.renderInfoSection(infoSection);
+			infoWrap.toggleClass("is-open", this.expandedInfoSection);
+			infoHeader.addEventListener("click", () => {
+				this.expandedInfoSection = !this.expandedInfoSection;
+				infoWrap.toggleClass("is-open", this.expandedInfoSection);
+			});
 		}
 
 		// Drafts awaiting triage sit above everything — they're unfinished
@@ -420,7 +432,7 @@ export class ContactPageView extends ItemView {
 		});
 
 		const editButton = editContainer.createEl("button", {
-			cls: "friend-tracker-button button-icon contact-name-edit",
+			cls: "callander-button button-icon contact-name-edit",
 		});
 		setIcon(editButton, "pencil");
 
@@ -443,13 +455,54 @@ export class ContactPageView extends ItemView {
 				}
 			}
 
-			// Countdown sits directly under the age
-			const countdownContainer = nameDisplay.createEl("div", {
-				cls: "contact-birthday-countdown",
+			// Birthday, at whatever precision is recorded (en-AU: day month year).
+			// When the exact day is known, a relative countdown joins the same line.
+			const birthdayText =
+				day !== null && year !== null
+					? `${day} ${monthName(month)} ${year}`
+					: day !== null
+					? `${day} ${monthName(month)}`
+					: year !== null
+					? `${monthName(month)} ${year}`
+					: monthName(month);
+
+			let relativeText: string | null = null;
+			if (day !== null) {
+				const daysUntil = this.calculateDaysUntilBirthday(
+					this.contactData.birthday
+				);
+				const daysSince =
+					this.plugin.contactOperations.calculateDaysSinceBirthday(
+						this.contactData.birthday
+					);
+
+				if (daysUntil === 0) {
+					relativeText = "today 🎂";
+				} else if (
+					daysSince !== null &&
+					daysSince > 0 &&
+					daysSince <= 30
+				) {
+					relativeText =
+						daysSince === 1 ? "1 day ago" : `${daysSince} days ago`;
+				} else if (daysUntil !== null) {
+					relativeText =
+						daysUntil === 1 ? "in 1 day" : `in ${daysUntil} days`;
+				}
+			}
+
+			nameDisplay.createEl("span", {
+				text: relativeText
+					? `Birthday: ${birthdayText} • ${relativeText}`
+					: `Birthday: ${birthdayText}`,
+				cls: "contact-age-display",
 			});
 
+			// Day unknown: keep a lightweight month-level countdown, only when near
 			if (day === null) {
-				// Day unknown: month-level countdown, only when near
+				const countdownContainer = nameDisplay.createEl("div", {
+					cls: "contact-birthday-countdown",
+				});
 				const nowMonth = new Date().getMonth() + 1;
 				const monthsAway = (month - nowMonth + 12) % 12;
 				if (monthsAway > 3) {
@@ -465,78 +518,6 @@ export class ContactPageView extends ItemView {
 										day: null,
 								  })}`,
 					});
-				}
-			} else {
-				const daysUntil = this.calculateDaysUntilBirthday(
-					this.contactData.birthday
-				);
-				const daysSince =
-					this.plugin.contactOperations.calculateDaysSinceBirthday(
-						this.contactData.birthday
-					);
-				const belatedWindow = this.plugin.settings.belatedBirthdayDays;
-
-				if (daysUntil === null) {
-					countdownContainer.remove();
-				} else if (daysUntil === 0) {
-					// Birthday today - show cake
-					countdownContainer.createEl("div", {
-						cls: "table-birthday-indicator birthday-today",
-						text: "🎂",
-					});
-					countdownContainer.createSpan({
-						text: "Birthday today!",
-					});
-				} else if (
-					daysSince !== null &&
-					daysSince > 0 &&
-					daysSince <= belatedWindow
-				) {
-					// Recently passed — it's not too late for a belated message
-					const belatedText =
-						daysSince === 1
-							? "Birthday was yesterday"
-							: `Birthday was ${daysSince} days ago`;
-					countdownContainer.createSpan({
-						cls: "contact-birthday-belated",
-						text: belatedText,
-					});
-				} else if (daysUntil > 90) {
-					// Far-off birthdays don't need a countdown
-					countdownContainer.remove();
-				} else {
-					// Show dot if within a week
-					if (daysUntil <= 7) {
-						const dotContainer = countdownContainer.createEl(
-							"div",
-							{
-								cls: "birthday-status-dot",
-							}
-						);
-						dotContainer.createEl("div", {
-							cls: "birthday-status-dot-inner",
-						});
-					}
-
-					const daysText =
-						daysUntil === 1
-							? "Birthday tomorrow!"
-							: `${daysUntil} days until birthday`;
-
-					// Within 90 days — show which weekday it falls on (only
-					// when the exact day is known).
-					let text = daysText;
-					if (day !== null) {
-						const target = new Date();
-						target.setHours(0, 0, 0, 0);
-						target.setDate(target.getDate() + daysUntil);
-						const weekday = target.toLocaleDateString("en-AU", {
-							weekday: "long",
-						});
-						text = `${daysText} (${weekday})`;
-					}
-
-					countdownContainer.createSpan({ text });
 				}
 			}
 
@@ -850,7 +831,7 @@ export class ContactPageView extends ItemView {
 
 			// Add edit button at the bottom
 			const editButton = fieldsContainer.createEl("button", {
-				cls: "friend-tracker-button",
+				cls: "callander-button",
 				text: "Edit",
 			});
 
@@ -897,7 +878,7 @@ export class ContactPageView extends ItemView {
 
 			// Add custom field button
 			const addFieldButton = fieldsContainer.createEl("button", {
-				cls: "friend-tracker-button button-outlined",
+				cls: "callander-button button-outlined",
 				text: "Add custom field",
 			});
 			addFieldButton.addEventListener("click", () => {
@@ -906,7 +887,7 @@ export class ContactPageView extends ItemView {
 
 			// Add done button
 			const doneButton = fieldsContainer.createEl("button", {
-				cls: "friend-tracker-button button-primary button-full-width",
+				cls: "callander-button button-primary button-full-width",
 				text: "Done",
 			});
 
@@ -970,7 +951,9 @@ export class ContactPageView extends ItemView {
 		const chipsRow = wrap.createEl("div", { cls: "contact-group-chips" });
 
 		const member = new Set<string>(
-			Array.isArray(this.contactData.groups) ? this.contactData.groups : []
+			Array.isArray(this.contactData.groups)
+				? this.contactData.groups
+				: []
 		);
 		const infos = ops.getGroupInfos();
 		const colorOf = new Map(infos.map((i) => [i.name, i.color]));
@@ -1054,7 +1037,7 @@ export class ContactPageView extends ItemView {
 		const fragment = document.createDocumentFragment();
 		fragment.createSpan({ text: "Idea done! " });
 		const logButton = fragment.createEl("button", {
-			cls: "friend-tracker-button contact-log-event-button",
+			cls: "callander-button contact-log-event-button",
 			text: "Log on timeline",
 		});
 
@@ -1137,7 +1120,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-section-footer",
 		});
 		const addButton = footer.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "Add event",
 		});
 		addButton.addEventListener("click", () => {
@@ -1169,7 +1152,7 @@ export class ContactPageView extends ItemView {
 			});
 
 			const ideaButton = row.createEl("button", {
-				cls: "friend-tracker-button",
+				cls: "callander-button",
 				text: "Make idea",
 			});
 			ideaButton.addEventListener("click", () => {
@@ -1199,7 +1182,7 @@ export class ContactPageView extends ItemView {
 			});
 
 			const deleteButton = row.createEl("button", {
-				cls: "friend-tracker-button button-icon button-danger",
+				cls: "callander-button button-icon button-danger",
 				attr: { "aria-label": "Discard draft" },
 			});
 			setIcon(deleteButton, "trash");
@@ -1280,7 +1263,7 @@ export class ContactPageView extends ItemView {
 
 		// Edit date/end-date/location — sits just below the location line.
 		const editBtn = container.createEl("button", {
-			cls: "friend-tracker-button plan-edit-details",
+			cls: "callander-button plan-edit-details",
 			attr: { "aria-label": "Edit plan details" },
 		});
 		setIcon(editBtn, "pencil");
@@ -1344,10 +1327,12 @@ export class ContactPageView extends ItemView {
 	private createPlanDoneButton(container: HTMLElement) {
 		const isDone = this.contactData.status === "done";
 		const doneButton = container.createEl("button", {
-			cls: "friend-tracker-button contact-header-action",
+			cls: "callander-button contact-header-action",
 		});
 		setIcon(doneButton, isDone ? "rotate-ccw" : "check");
-		doneButton.createSpan({ text: isDone ? "Reopen plan" : "Mark as done" });
+		doneButton.createSpan({
+			text: isDone ? "Reopen plan" : "Mark as done",
+		});
 		doneButton.addEventListener("click", () => {
 			if (this.contactData.status === "done") {
 				this.contactData.status = "planning";
@@ -1438,8 +1423,8 @@ export class ContactPageView extends ItemView {
 				: null;
 			return dest
 				? String(
-						this.app.metadataCache.getFileCache(dest)
-							?.frontmatter?.displayName ?? dest.basename
+						this.app.metadataCache.getFileCache(dest)?.frontmatter
+							?.displayName ?? dest.basename
 				  )
 				: linktext;
 		});
@@ -1461,9 +1446,7 @@ export class ContactPageView extends ItemView {
 		const memberNames = this.planMemberDisplays().filter(
 			(n) => !yourName || n.toLowerCase() !== yourName.toLowerCase()
 		);
-		const fullNames = yourName
-			? [yourName, ...memberNames]
-			: memberNames;
+		const fullNames = yourName ? [yourName, ...memberNames] : memberNames;
 		const unconfirmedFulls = this.planMemberDisplays(
 			Array.isArray(this.contactData.unconfirmedMembers)
 				? this.contactData.unconfirmedMembers
@@ -1519,9 +1502,7 @@ export class ContactPageView extends ItemView {
 				(i) => (i.priority ?? "maybe") !== "must"
 			);
 			musts.forEach((i) => lines.push(`- ${i.text}`));
-			maybes.forEach((i) =>
-				lines.push(`- ${i.text} (if there's time)`)
-			);
+			maybes.forEach((i) => lines.push(`- ${i.text} (if there's time)`));
 		}
 
 		// Checked state stays personal — the message lists everything
@@ -1582,8 +1563,9 @@ export class ContactPageView extends ItemView {
 		const others = members.filter(
 			(raw) =>
 				!yourName ||
-				String(raw).replace(/^\[\[|\]\]$/g, "").toLowerCase() !==
-					yourName.toLowerCase()
+				String(raw)
+					.replace(/^\[\[|\]\]$/g, "")
+					.toLowerCase() !== yourName.toLowerCase()
 		).length;
 		return others + (yourName ? 1 : 0);
 	}
@@ -1639,8 +1621,8 @@ export class ContactPageView extends ItemView {
 			);
 			const display = dest
 				? String(
-						this.app.metadataCache.getFileCache(dest)
-							?.frontmatter?.displayName ?? dest.basename
+						this.app.metadataCache.getFileCache(dest)?.frontmatter
+							?.displayName ?? dest.basename
 				  )
 				: linktext;
 
@@ -1740,7 +1722,7 @@ export class ContactPageView extends ItemView {
 			cls: "plan-member-add-row",
 		});
 		const addButton = addRow.createEl("button", {
-			cls: "friend-tracker-button button-outlined",
+			cls: "callander-button button-outlined",
 		});
 		setIcon(addButton, "plus");
 		addButton.createSpan({ text: "Add person" });
@@ -1797,7 +1779,7 @@ export class ContactPageView extends ItemView {
 			row.createSpan({ cls: "contact-draft-text", text });
 
 			const ideaButton = row.createEl("button", {
-				cls: "friend-tracker-button",
+				cls: "callander-button",
 				text: "Make idea",
 			});
 			ideaButton.addEventListener("click", () => {
@@ -1821,7 +1803,7 @@ export class ContactPageView extends ItemView {
 			});
 
 			const deleteBtn = row.createEl("button", {
-				cls: "friend-tracker-button button-icon button-danger",
+				cls: "callander-button button-icon button-danger",
 				attr: { "aria-label": "Discard draft" },
 			});
 			setIcon(deleteBtn, "trash");
@@ -1913,7 +1895,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-section-footer",
 		});
 		const addButton = footer.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 		});
 		setIcon(addButton, "plus");
 		addButton.createSpan({ text: "Add idea" });
@@ -1993,7 +1975,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-section-footer",
 		});
 		const addButton = footer.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 		});
 		setIcon(addButton, "plus");
 		addButton.createSpan({ text: addLabel });
@@ -2105,32 +2087,14 @@ export class ContactPageView extends ItemView {
 		) as HTMLElement | null;
 		if (header) {
 			const copyButton = header.createEl("button", {
-				cls: "friend-tracker-button plan-timeline-copy",
+				cls: "callander-button plan-timeline-copy",
 			});
 			setIcon(copyButton, "copy");
 			copyButton.createSpan({ text: "Copy as text" });
 			copyButton.addEventListener("click", async () => {
-				await navigator.clipboard.writeText(
-					this.buildPlanShareText()
-				);
+				await navigator.clipboard.writeText(this.buildPlanShareText());
 				new Notice("📋 Copied — ready to paste as text");
 			});
-
-			const calButton = header.createEl("button", {
-				cls: "friend-tracker-button plan-timeline-cal",
-			});
-			setIcon(calButton, "calendar-plus");
-			calButton.createSpan({ text: "Add to calendar" });
-			calButton.addEventListener("click", () =>
-				this.plugin.exportPlanCalendar(
-					this.contactData,
-					String(
-						this.contactData.name ||
-							this._file?.basename ||
-							"Plan"
-					)
-				)
-			);
 		}
 
 		// Quick-add at the bottom of the itinerary
@@ -2138,7 +2102,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-section-footer plan-timeline-footer",
 		});
 		const addIdeaBtn = footer.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 		});
 		setIcon(addIdeaBtn, "plus");
 		addIdeaBtn.createSpan({ text: "Add idea" });
@@ -2147,7 +2111,7 @@ export class ContactPageView extends ItemView {
 		);
 
 		const addTravelBtn = footer.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 		});
 		setIcon(addTravelBtn, "plus");
 		addTravelBtn.createSpan({ text: "Add travel" });
@@ -2181,8 +2145,7 @@ export class ContactPageView extends ItemView {
 
 		// Line 2: emoji + detail (+ duration/cost). Skip the type emoji when
 		// the name already starts with one.
-		const showEmoji =
-			entry.emoji && !this.startsWithEmoji(entry.text);
+		const showEmoji = entry.emoji && !this.startsWithEmoji(entry.text);
 		const textEl = row.createEl("div", {
 			cls: "contact-timeline-text",
 			text: showEmoji ? `${entry.emoji} ${entry.text}` : entry.text,
@@ -2289,7 +2252,10 @@ export class ContactPageView extends ItemView {
 		return opts;
 	}
 
-	private openPlanTravelModal(index: number | null, item: PlanSimpleItem | null) {
+	private openPlanTravelModal(
+		index: number | null,
+		item: PlanSimpleItem | null
+	) {
 		new PlanSimpleItemModal(
 			this.app,
 			index === null ? "Add travel" : "Edit travel",
@@ -2454,7 +2420,7 @@ export class ContactPageView extends ItemView {
 				text: item.text,
 			});
 			const deleteBtn = row.createEl("button", {
-				cls: "friend-tracker-button button-icon button-danger",
+				cls: "callander-button button-icon button-danger",
 				attr: { "aria-label": "Remove item" },
 			});
 			setIcon(deleteBtn, "trash");
@@ -2476,7 +2442,7 @@ export class ContactPageView extends ItemView {
 			attr: { type: "text", placeholder: "Add something to bring..." },
 		});
 		const addButton = addRow.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 		});
 		setIcon(addButton, "plus");
 		addButton.createSpan({ text: "Add" });
@@ -2499,7 +2465,10 @@ export class ContactPageView extends ItemView {
 	private planParticipants(): string[] {
 		const names = this.planMemberDisplays();
 		const yourName = this.plugin.settings.yourName;
-		if (yourName && !names.some((n) => n.toLowerCase() === yourName.toLowerCase())) {
+		if (
+			yourName &&
+			!names.some((n) => n.toLowerCase() === yourName.toLowerCase())
+		) {
 			return [yourName, ...names];
 		}
 		return names;
@@ -2554,7 +2523,10 @@ export class ContactPageView extends ItemView {
 			).open();
 		};
 
-		const openCredit = (index: number | null, credit: PlanCredit | null) => {
+		const openCredit = (
+			index: number | null,
+			credit: PlanCredit | null
+		) => {
 			new PlanCreditModal(
 				this.app,
 				creditPeople,
@@ -2631,7 +2603,10 @@ export class ContactPageView extends ItemView {
 
 		// Per-person summary — a collapsible accordion; tick each person once
 		// they've paid. Amounts are net of any credits.
-		if ((costs.length > 0 || credits.length > 0) && participants.length > 0) {
+		if (
+			(costs.length > 0 || credits.length > 0) &&
+			participants.length > 0
+		) {
 			const paid: string[] = Array.isArray(this.contactData.costsPaid)
 				? this.contactData.costsPaid.map(String)
 				: [];
@@ -2711,7 +2686,7 @@ export class ContactPageView extends ItemView {
 				// Per-person breakdown — always shown, disabled when they're
 				// not part of any expense.
 				const breakdownBtn = rowEl.createEl("button", {
-					cls: "friend-tracker-button plan-breakdown-btn",
+					cls: "callander-button plan-breakdown-btn",
 					text: "Breakdown",
 				});
 				if (owedGross > 0) {
@@ -2737,7 +2712,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-section-footer plan-cost-footer",
 		});
 		const addButton = footer.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 		});
 		setIcon(addButton, "plus");
 		addButton.createSpan({ text: "Add expense" });
@@ -2760,7 +2735,7 @@ export class ContactPageView extends ItemView {
 
 		if (creditPeople.length > 0) {
 			const creditButton = footer.createEl("button", {
-				cls: "friend-tracker-button",
+				cls: "callander-button",
 			});
 			setIcon(creditButton, "plus");
 			creditButton.createSpan({ text: "Add credit" });
@@ -2809,7 +2784,7 @@ export class ContactPageView extends ItemView {
 			});
 
 			const removeBtn = row.createEl("button", {
-				cls: "friend-tracker-button button-icon button-danger",
+				cls: "callander-button button-icon button-danger",
 				attr: { "aria-label": "Remove from group" },
 			});
 			setIcon(removeBtn, "x");
@@ -2820,7 +2795,7 @@ export class ContactPageView extends ItemView {
 		}
 
 		const addButton = container.createEl("button", {
-			cls: "friend-tracker-button button-outlined",
+			cls: "callander-button button-outlined",
 			text: "Add member",
 		});
 		addButton.addEventListener("click", async () => {
@@ -2864,11 +2839,7 @@ export class ContactPageView extends ItemView {
 			});
 			row.addEventListener("click", (e) => {
 				e.preventDefault();
-				this.app.workspace.openLinkText(
-					entry.file.path,
-					"",
-					true
-				);
+				this.app.workspace.openLinkText(entry.file.path, "", true);
 			});
 		}
 	}
@@ -3022,7 +2993,7 @@ export class ContactPageView extends ItemView {
 				}
 
 				const resurfaceBtn = item.createEl("button", {
-					cls: "friend-tracker-button button-icon",
+					cls: "callander-button button-icon",
 					attr: { "aria-label": "Resurface this idea later" },
 				});
 				setIcon(resurfaceBtn, "alarm-clock");
@@ -3036,8 +3007,7 @@ export class ContactPageView extends ItemView {
 								this.contactData.ideas[index].resurface =
 									resurface;
 							} else {
-								delete this.contactData.ideas[index]
-									.resurface;
+								delete this.contactData.ideas[index].resurface;
 							}
 							await this.saveContactData();
 							this.render();
@@ -3046,7 +3016,7 @@ export class ContactPageView extends ItemView {
 				});
 
 				const deleteBtn = item.createEl("button", {
-					cls: "friend-tracker-button button-icon button-danger",
+					cls: "callander-button button-icon button-danger",
 					attr: { "aria-label": "Delete idea" },
 				});
 				setIcon(deleteBtn, "trash");
@@ -3063,7 +3033,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-section-footer",
 		});
 		const addButton = footer.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "Add idea",
 		});
 		addButton.addEventListener("click", () => this.openAddIdeaModal());
@@ -3110,43 +3080,79 @@ export class ContactPageView extends ItemView {
 
 	/** Unknown/removed categories fall back to "other" so nothing is orphaned. */
 	private normalizeInterestCategory(interest: Interest): InterestCategory {
-		return INTEREST_CATEGORIES.some((c) => c.id === interest.category)
-			? interest.category
-			: "other";
+		if (INTEREST_CATEGORIES.some((c) => c.id === interest.category)) {
+			return interest.category;
+		}
+		// Legacy "Movie & TV" → Movie
+		if (String(interest.category) === "screen") return "movie";
+		return "other";
+	}
+
+	/** Fun facts as a list (a legacy multi-line string splits into items). */
+	private funFactsOf(): string[] {
+		const raw = this.contactData.funFacts;
+		if (Array.isArray(raw)) {
+			return raw.map((f) => String(f).trim()).filter(Boolean);
+		}
+		if (typeof raw === "string") {
+			// Legacy single field: split on newlines or the " · " separator
+			return raw
+				.split(/\r?\n|\s·\s/)
+				.map((l) => l.trim())
+				.filter(Boolean);
+		}
+		return [];
 	}
 
 	private renderFunFactsSection(container: HTMLElement) {
 		const section = container.createEl("div", {
 			cls: "contact-funfacts-section",
 		});
-		const text =
-			typeof this.contactData.funFacts === "string"
-				? this.contactData.funFacts.trim()
-				: "";
+		const facts = this.funFactsOf();
 
-		if (text) {
-			section.createEl("div", { cls: "contact-funfacts-text", text });
-		} else {
+		if (facts.length === 0) {
 			section.createEl("div", {
 				cls: "section-helper-text",
 				text: "A line or two worth remembering — where you met, an inside joke, what they're into.",
+			});
+		} else {
+			const list = section.createEl("div", {
+				cls: "contact-funfacts-list",
+			});
+			facts.forEach((fact, index) => {
+				const row = list.createEl("div", {
+					cls: "contact-funfact-item",
+				});
+				row.createSpan({ cls: "contact-funfact-text", text: fact });
+				const del = row.createEl("button", {
+					cls: "callander-button button-icon button-danger",
+					attr: { "aria-label": "Remove fun fact" },
+				});
+				setIcon(del, "trash");
+				del.addEventListener("click", async () => {
+					const arr = this.funFactsOf();
+					arr.splice(index, 1);
+					if (arr.length > 0) this.contactData.funFacts = arr;
+					else delete this.contactData.funFacts;
+					await this.saveContactData();
+					this.render();
+				});
 			});
 		}
 
 		const footer = section.createEl("div", {
 			cls: "contact-section-footer",
 		});
-		const btn = footer.createEl("button", { cls: "friend-tracker-button" });
-		setIcon(btn, "pencil");
-		btn.createSpan({ text: text ? "Edit fun facts" : "Add fun facts" });
+		const btn = footer.createEl("button", { cls: "callander-button" });
+		setIcon(btn, "plus");
+		btn.createSpan({ text: "Add fun fact" });
 		btn.addEventListener("click", () => {
 			new FunFactsModal(
 				this.app,
 				this.contactData.displayName || this.contactData.name,
-				text,
-				async (value) => {
-					if (value) this.contactData.funFacts = value;
-					else delete this.contactData.funFacts;
+				async (fact) => {
+					if (!fact) return;
+					this.contactData.funFacts = [...this.funFactsOf(), fact];
 					await this.saveContactData();
 					this.render();
 				}
@@ -3204,7 +3210,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-section-footer",
 		});
 		const addBtn = footer.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 		});
 		setIcon(addBtn, "plus");
 		addBtn.createSpan({ text: "Add quote" });
@@ -3280,6 +3286,12 @@ export class ContactPageView extends ItemView {
 					cls: "contact-interest-chip",
 				});
 				chip.createSpan({ text: interest.text });
+				if (interest.detail) {
+					chip.createSpan({
+						cls: "contact-interest-chip-detail",
+						text: ` · ${interest.detail}`,
+					});
+				}
 
 				const removeBtn = chip.createEl("button", {
 					cls: "contact-interest-chip-remove",
@@ -3302,7 +3314,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-section-footer",
 		});
 		const addButton = footer.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "Add interest",
 		});
 		addButton.addEventListener("click", () => this.openAddInterestModal());
@@ -3313,12 +3325,16 @@ export class ContactPageView extends ItemView {
 			this.app,
 			this.contactData.displayName || this.contactData.name,
 			this.lastInterestCategory,
-			async (category, text) => {
+			async (category, text, detail) => {
 				this.lastInterestCategory = category;
 				if (!Array.isArray(this.contactData.interests)) {
 					this.contactData.interests = [];
 				}
-				this.contactData.interests.push({ category, text });
+				this.contactData.interests.push({
+					category,
+					text,
+					...(detail && { detail }),
+				});
 				await this.saveContactData();
 				this.render();
 			}
@@ -3401,7 +3417,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-section-footer",
 		});
 		const editButton = footer.createEl("button", {
-			cls: "friend-tracker-button",
+			cls: "callander-button",
 			text: "Edit markdown",
 		});
 		editButton.addEventListener("click", () => {
@@ -3429,19 +3445,17 @@ export class ContactPageView extends ItemView {
 		// Sort events by date in descending order (newest first),
 		// respecting flexible-precision dates
 		if (Array.isArray(this.contactData.events)) {
-			this.contactData.events.sort(
-				(a: FriendEvent, b: FriendEvent) => {
-					const emptyFlex = {
-						year: null,
-						month: null,
-						day: null,
-					};
-					return (
-						flexSortKey(parseFlexDate(b.date) ?? emptyFlex) -
-						flexSortKey(parseFlexDate(a.date) ?? emptyFlex)
-					);
-				}
-			);
+			this.contactData.events.sort((a: FriendEvent, b: FriendEvent) => {
+				const emptyFlex = {
+					year: null,
+					month: null,
+					day: null,
+				};
+				return (
+					flexSortKey(parseFlexDate(b.date) ?? emptyFlex) -
+					flexSortKey(parseFlexDate(a.date) ?? emptyFlex)
+				);
+			});
 		}
 
 		await this.app.fileManager.processFrontMatter(

@@ -26,7 +26,7 @@ export class PlanCreditModal extends FormModal {
 		});
 
 		const personField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		personField.createEl("label", { text: "Who paid / transferred" });
 		const personSelect = personField.createEl("select", {
@@ -38,32 +38,32 @@ export class PlanCreditModal extends FormModal {
 		}
 
 		const amountField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		amountField.createEl("label", { text: "Amount ($)" });
 		const amountInput = amountField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "number", min: "0", placeholder: "0" },
 		});
 		if (this.initial) amountInput.value = String(this.initial.amount);
 
 		const noteField = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-field",
+			cls: "callander-modal-field",
 		});
 		noteField.createEl("label", { text: "Note (optional)" });
 		const noteInput = noteField.createEl("input", {
-			cls: "friend-tracker-modal-input",
+			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Venmo, covered petrol" },
 		});
 		noteInput.value = this.initial?.note ?? "";
 
 		const buttons = contentEl.createEl("div", {
-			cls: "friend-tracker-modal-buttons",
+			cls: "callander-modal-buttons",
 		});
 		if (this.initial && this.onDelete) {
 			const del = buttons.createEl("button", {
 				text: "Delete",
-				cls: "friend-tracker-modal-button friend-tracker-modal-button-danger",
+				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			del.addEventListener("click", async () => {
 				await this.onDelete!();
@@ -72,7 +72,7 @@ export class PlanCreditModal extends FormModal {
 		}
 		const saveButton = buttons.createEl("button", {
 			text: this.initial ? "Save" : "Add",
-			cls: "friend-tracker-modal-button mod-cta",
+			cls: "callander-modal-button mod-cta",
 		});
 
 		const submit = async () => {
