@@ -26,7 +26,7 @@ export function createRelationshipInput(
 		"relationship-types"
 	) as HTMLDataListElement;
 	if (!datalist) {
-		datalist = document.createElement("datalist");
+		datalist = createEl("datalist");
 		datalist.id = "relationship-types";
 		document.body.appendChild(datalist);
 	}
@@ -90,7 +90,7 @@ export class ContactFields {
 	}
 
 	createInfoField(container: HTMLElement, label: string, value: string) {
-		const field = container.createEl("div", { cls: "contact-field" });
+		const field = container.createDiv({ cls: "contact-field" });
 		field.createEl("label", { text: label });
 
 		if (label.toLowerCase() === STANDARD_FIELDS.BIRTHDAY) {

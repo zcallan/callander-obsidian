@@ -31,7 +31,7 @@ export class MergeFriendsModal extends FormModal {
 			text: `${this.duplicate.displayName}'s note is moved to your trash`,
 		});
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const cancel = buttons.createEl("button", {

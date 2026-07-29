@@ -42,12 +42,12 @@ export class ReminderViewModal extends Modal {
 		const r = this.reminder;
 
 		contentEl.createEl("h2", { text: r.name });
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "someday-view-meta",
 			text: this.whenLabel(),
 		});
 		if (r.location) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "someday-view-cost",
 				text: `📍 ${r.location}`,
 			});
@@ -57,7 +57,7 @@ export class ReminderViewModal extends Modal {
 			const url = /^[a-z][a-z0-9+.-]*:\/\//i.test(r.link)
 				? r.link
 				: `https://${r.link}`;
-			const linkRow = contentEl.createEl("div", {
+			const linkRow = contentEl.createDiv({
 				cls: "event-link-row reminder-view-linkrow",
 			});
 			linkRow.createSpan({ cls: "reminder-view-link", text: r.link });
@@ -70,7 +70,7 @@ export class ReminderViewModal extends Modal {
 		}
 
 		// Actions
-		const actions = contentEl.createEl("div", {
+		const actions = contentEl.createDiv({
 			cls: "someday-view-actions",
 		});
 		const button = (icon: string, label: string, onClick: () => void) => {

@@ -26,7 +26,7 @@ export class ResurfaceModal extends FormModal {
 		});
 
 		let value = this.currentValue ?? "";
-		const field = contentEl.createEl("div", {
+		const field = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		createFlexDateInput(
@@ -41,7 +41,7 @@ export class ResurfaceModal extends FormModal {
 			}
 		);
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const clearButton = buttons.createEl("button", {

@@ -30,7 +30,7 @@ export class GroupEventModal extends FormModal {
 			this.contacts
 		);
 		if (groupNames.length > 0) {
-			const groupRow = contentEl.createEl("div", {
+			const groupRow = contentEl.createDiv({
 				cls: "callander-modal-field",
 			});
 			groupRow.createEl("label", { text: "Check a whole group" });
@@ -54,7 +54,7 @@ export class GroupEventModal extends FormModal {
 			});
 		}
 
-		const listEl = contentEl.createEl("div", {
+		const listEl = contentEl.createDiv({
 			cls: "group-event-friend-list",
 		});
 		this.contacts.forEach((c) => {
@@ -74,7 +74,7 @@ export class GroupEventModal extends FormModal {
 		});
 
 		let dateValue = new Date().toISOString().split("T")[0];
-		const dateField = contentEl.createEl("div", {
+		const dateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "When" });
@@ -92,7 +92,7 @@ export class GroupEventModal extends FormModal {
 			cls: "contact-event-text-input",
 		});
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttons.createEl("button", {

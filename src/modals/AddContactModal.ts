@@ -110,7 +110,7 @@ export class AddContactModal extends FormModal {
 				cls: "contact-group-chip",
 				attr: { type: "button" },
 			});
-			const dot = chip.createEl("span", { cls: "group-dot" });
+			const dot = chip.createSpan({ cls: "group-dot" });
 			dot.style.backgroundColor =
 				colorOf.get(name) ?? "var(--background-modifier-border)";
 			chip.createSpan({ text: ops.prettyGroupName(name) });
@@ -125,7 +125,7 @@ export class AddContactModal extends FormModal {
 		// Group creation lives on the dashboard — here you only toggle
 		// membership of existing groups
 		if (infos.length === 0) {
-			groupsWrap.createEl("div", {
+			groupsWrap.createDiv({
 				cls: "section-helper-text",
 				text: "No groups yet — create them from the dashboard.",
 			});
@@ -197,7 +197,7 @@ export class AddContactModal extends FormModal {
 			const file = await this.app.vault.create(filePath, fileContent);
 
 			// Wait a moment for the file to be indexed
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			await new Promise((resolve) => window.setTimeout(resolve, 300));
 
 			// Refresh the Friend Tracker view
 			const friendTrackerLeaves = this.app.workspace.getLeavesOfType(

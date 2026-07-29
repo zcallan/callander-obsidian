@@ -168,7 +168,7 @@ export default class FriendTracker extends Plugin {
 					const ok =
 						!!file && this.diaryOperations.isDiaryFile(file.path);
 					if (!checking && ok) {
-						this.logDiaryEntryToTimelines(file!);
+						this.logDiaryEntryToTimelines(file);
 					}
 					return ok;
 				},
@@ -391,7 +391,7 @@ export default class FriendTracker extends Plugin {
 						...viewState,
 						type: VIEW_TYPE_SOMEDAYS,
 						state: { focusPath: path },
-					} as ViewState,
+					},
 					eventState
 				);
 			}
@@ -407,7 +407,7 @@ export default class FriendTracker extends Plugin {
 						...viewState,
 						type: VIEW_TYPE_CONTACT_PAGE,
 						state: { filePath: path },
-					} as ViewState,
+					},
 					eventState
 				);
 			}
@@ -463,7 +463,7 @@ export default class FriendTracker extends Plugin {
 		if (!path) return;
 		this.markdownBypass.add(path);
 		// The bypass is per-navigation, not permanent
-		setTimeout(() => this.markdownBypass.delete(path), 1000);
+		window.setTimeout(() => this.markdownBypass.delete(path), 1000);
 		this.app.workspace.openLinkText(path, "", true);
 	}
 

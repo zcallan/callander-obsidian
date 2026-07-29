@@ -34,7 +34,7 @@ export function createFlexDateInput(
 		onChange(value);
 	};
 
-	const controls = container.createEl("div", {
+	const controls = container.createDiv({
 		cls: "contact-met-controls",
 	});
 

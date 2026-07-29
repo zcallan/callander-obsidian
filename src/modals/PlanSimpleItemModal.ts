@@ -62,11 +62,11 @@ export class PlanSimpleItemModal extends FormModal {
 
 		// Transport-type picker (travel only). Optional — tap again to clear.
 		if (this.types) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "modal-section-label",
 				text: "Type",
 			});
-			const typeRow = contentEl.createEl("div", {
+			const typeRow = contentEl.createDiv({
 				cls: "quick-idea-categories",
 			});
 			const typeButtons = new Map<TravelType, HTMLButtonElement>();
@@ -106,7 +106,7 @@ export class PlanSimpleItemModal extends FormModal {
 			  )
 			: null;
 
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "modal-section-label",
 			text: "Detail",
 		});
@@ -116,7 +116,7 @@ export class PlanSimpleItemModal extends FormModal {
 		});
 		textInput.value = this.initial?.text ?? "";
 
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "modal-section-label",
 			text: "Duration (optional)",
 		});
@@ -126,11 +126,11 @@ export class PlanSimpleItemModal extends FormModal {
 		});
 		durationInput.value = this.initial?.duration ?? "";
 
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "modal-section-label",
 			text: "Cost (0 = free, blank if unknown)",
 		});
-		const costWrap = contentEl.createEl("div", {
+		const costWrap = contentEl.createDiv({
 			cls: "plan-cost-input-wrap",
 		});
 		costWrap.createSpan({ cls: "plan-cost-input-prefix", text: "$" });
@@ -148,7 +148,7 @@ export class PlanSimpleItemModal extends FormModal {
 			costInput.value = String(this.initial.cost);
 		}
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 
@@ -212,7 +212,7 @@ export class PlanSimpleItemModal extends FormModal {
 				}
 			});
 		}
-		setTimeout(() => textInput.focus(), 0);
+		window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

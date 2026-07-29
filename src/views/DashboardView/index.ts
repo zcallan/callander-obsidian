@@ -103,9 +103,9 @@ export class DashboardView extends ItemView {
 		container.addClass("dashboard-container");
 
 		// Header + quick actions
-		const header = container.createEl("div", { cls: "dashboard-header" });
+		const header = container.createDiv({ cls: "dashboard-header" });
 		header.createEl("h2", { text: "Callander" });
-		const actions = header.createEl("div", { cls: "dashboard-actions" });
+		const actions = header.createDiv({ cls: "dashboard-actions" });
 		const action = (icon: string, label: string, onClick: () => void) => {
 			const btn = actions.createEl("button", {
 				cls: "callander-button",
@@ -126,7 +126,7 @@ export class DashboardView extends ItemView {
 		);
 
 		// Search
-		const searchWrap = container.createEl("div", {
+		const searchWrap = container.createDiv({
 			cls: "dashboard-search",
 		});
 		const searchInput = searchWrap.createEl("input", {
@@ -139,7 +139,7 @@ export class DashboardView extends ItemView {
 			this.renderFriendList(friendList);
 		});
 
-		const friendList = container.createEl("div", {
+		const friendList = container.createDiv({
 			cls: "dashboard-friend-list",
 		});
 		this.renderFriendList(friendList);
@@ -148,7 +148,7 @@ export class DashboardView extends ItemView {
 		await this.renderDrafts(container);
 
 		// Birthdays: upcoming + missed (not yet wished)
-		const upcomingSection = container.createEl("div", {
+		const upcomingSection = container.createDiv({
 			cls: "dashboard-section",
 		});
 		upcomingSection.createEl("h3", { text: "🎂 Upcoming birthdays" });
@@ -176,12 +176,12 @@ export class DashboardView extends ItemView {
 		// Resurfacing ideas
 		const due = this.dueResurfacedIdeas();
 		if (due.length > 0) {
-			const section = container.createEl("div", {
+			const section = container.createDiv({
 				cls: "dashboard-section",
 			});
 			section.createEl("h3", { text: "⏰ Resurfacing now" });
 			for (const { contact, idea } of due) {
-				const row = section.createEl("div", {
+				const row = section.createDiv({
 					cls: "dashboard-row dashboard-row-clickable",
 				});
 				const cat = IDEA_CATEGORIES.find((c) => c.id === idea.category);
@@ -242,7 +242,7 @@ export class DashboardView extends ItemView {
 			);
 		}
 		if (matches.length === 0) {
-			listEl.createEl("div", {
+			listEl.createDiv({
 				cls: "section-helper-text",
 				text: q ? "No friends match." : "No friends yet.",
 			});
@@ -284,13 +284,13 @@ export class DashboardView extends ItemView {
 
 		if (all.length === 0) return;
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
 		section.createEl("h3", { text: "✏️ Drafts" });
 
 		for (const item of all) {
-			const row = section.createEl("div", { cls: "dashboard-row" });
+			const row = section.createDiv({ cls: "dashboard-row" });
 			const label = row.createSpan({
 				cls: item.contact ? "dashboard-row-clickable-label" : undefined,
 				text: item.draft.text,
@@ -471,10 +471,10 @@ export class DashboardView extends ItemView {
 		}
 		items.sort((a, b) => a.key - b.key);
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section dashboard-upcoming-section",
 		});
-		const header = section.createEl("div", {
+		const header = section.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "📌 Upcoming" });
@@ -489,7 +489,7 @@ export class DashboardView extends ItemView {
 		});
 
 		if (items.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Nothing coming up. Add a reminder — a birthday, a booking, anything worth keeping in view.",
 			});
@@ -565,17 +565,17 @@ export class DashboardView extends ItemView {
 			onClick: () => void;
 		}
 	) {
-		const row = section.createEl("div", {
+		const row = section.createDiv({
 			cls: "dashboard-row dashboard-row-clickable dashboard-upcoming-row",
 		});
-		const mainCol = row.createEl("div", { cls: "dashboard-upcoming-main" });
-		mainCol.createEl("div", {
+		const mainCol = row.createDiv({ cls: "dashboard-upcoming-main" });
+		mainCol.createDiv({
 			cls: "dashboard-upcoming-when",
 			text: `${opts.icon ? opts.icon + " " : ""}${opts.date}${
 				opts.time ? " · " + opts.time : ""
 			}`,
 		});
-		const nameEl = mainCol.createEl("div", {
+		const nameEl = mainCol.createDiv({
 			cls: "dashboard-upcoming-name",
 		});
 		nameEl.createSpan({ text: opts.name });
@@ -667,10 +667,10 @@ export class DashboardView extends ItemView {
 		if (hits.length === 0) return;
 		hits.sort((a, b) => a.yearsAgo - b.yearsAgo);
 
-		const section = container.createEl("div", { cls: "dashboard-section" });
+		const section = container.createDiv({ cls: "dashboard-section" });
 		section.createEl("h3", { text: "🕰️ On this day" });
 		for (const hit of hits) {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable",
 			});
 			row.createSpan({ text: hit.text });
@@ -701,10 +701,10 @@ export class DashboardView extends ItemView {
 				return keyA - keyB;
 			});
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
-		const header = section.createEl("div", {
+		const header = section.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "🗺️ Plans" });
@@ -719,7 +719,7 @@ export class DashboardView extends ItemView {
 		});
 
 		if (plans.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Something brewing? A weekend away, a dinner — plan it with the people it's for.",
 			});
@@ -727,10 +727,10 @@ export class DashboardView extends ItemView {
 		}
 
 		for (const plan of plans) {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable dashboard-diary-row dashboard-plan-row",
 			});
-			const main = row.createEl("div", {
+			const main = row.createDiv({
 				cls: "dashboard-diary-main",
 			});
 			main.createSpan({ text: plan.name });
@@ -798,7 +798,7 @@ export class DashboardView extends ItemView {
 			});
 			if (est > 0) detailParts.push(`~$${est}`);
 			if (detailParts.length > 0) {
-				row.createEl("div", {
+				row.createDiv({
 					cls: "dashboard-diary-tagged",
 					text: detailParts.join(" · "),
 				});
@@ -827,14 +827,14 @@ export class DashboardView extends ItemView {
 				return a.name.localeCompare(b.name);
 			});
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
-		const header = section.createEl("div", {
+		const header = section.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "💭 Somedays" });
-		const buttons = header.createEl("div", {
+		const buttons = header.createDiv({
 			cls: "dashboard-section-buttons",
 		});
 		const newButton = buttons.createEl("button", {
@@ -855,7 +855,7 @@ export class DashboardView extends ItemView {
 		);
 
 		if (somedays.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "A park to visit, a bar to try, a trip you keep meaning to take — jot it before it slips.",
 			});
@@ -863,7 +863,7 @@ export class DashboardView extends ItemView {
 		}
 
 		for (const s of somedays.slice(0, 5)) {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable",
 			});
 			row.createSpan({ text: s.name });
@@ -886,7 +886,7 @@ export class DashboardView extends ItemView {
 			});
 		}
 		if (somedays.length > 5) {
-			const more = section.createEl("div", {
+			const more = section.createDiv({
 				cls: "section-helper-text dashboard-row-clickable",
 				text: `+${somedays.length - 5} more on the Somedays page`,
 			});
@@ -903,14 +903,14 @@ export class DashboardView extends ItemView {
 	}
 
 	private renderDiary(container: HTMLElement) {
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
-		const header = section.createEl("div", {
+		const header = section.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "📖 Diary" });
-		const buttons = header.createEl("div", {
+		const buttons = header.createDiv({
 			cls: "dashboard-section-buttons",
 		});
 		const newButton = buttons.createEl("button", {
@@ -932,7 +932,7 @@ export class DashboardView extends ItemView {
 			.getEntriesMeta()
 			.slice(0, 3);
 		if (entries.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "No entries yet — each one files under the date it's about.",
 			});
@@ -941,10 +941,10 @@ export class DashboardView extends ItemView {
 
 		const resolvedLinks = this.app.metadataCache.resolvedLinks;
 		for (const entry of entries) {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable dashboard-diary-row",
 			});
-			const main = row.createEl("div", {
+			const main = row.createDiv({
 				cls: "dashboard-diary-main",
 			});
 			main.createSpan({ text: entry.title });
@@ -961,7 +961,7 @@ export class DashboardView extends ItemView {
 			const dateLabel = this.formatEntryDate(entry.date);
 			if (dateLabel) detailParts.push(dateLabel);
 			if (detailParts.length > 0) {
-				row.createEl("div", {
+				row.createDiv({
 					cls: "dashboard-diary-tagged",
 					text: detailParts.join(" · "),
 				});
@@ -989,10 +989,10 @@ export class DashboardView extends ItemView {
 		const ops = this.plugin.contactOperations;
 		const infos = ops.getGroupInfos(this.contacts);
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
-		const header = section.createEl("div", {
+		const header = section.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "👥 Groups" });
@@ -1007,7 +1007,7 @@ export class DashboardView extends ItemView {
 		});
 
 		if (infos.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Sort friends into circles — Family, Basketball… Groups can hold their own ideas too.",
 			});
@@ -1018,12 +1018,12 @@ export class DashboardView extends ItemView {
 			const count = this.contacts.filter((c) =>
 				c.groups.includes(info.name)
 			).length;
-			const row = section.createEl("div", { cls: "dashboard-row" });
+			const row = section.createDiv({ cls: "dashboard-row" });
 
 			const label = row.createSpan({
 				cls: "dashboard-row-clickable-label dashboard-group-label",
 			});
-			const dot = label.createEl("span", { cls: "group-dot" });
+			const dot = label.createSpan({ cls: "group-dot" });
 			dot.style.backgroundColor =
 				info.color ?? "var(--background-modifier-border)";
 			label.createSpan({ text: ops.prettyGroupName(info.name) });
@@ -1062,7 +1062,7 @@ export class DashboardView extends ItemView {
 			.sort((a, b) => a.daysUntilBirthday! - b.daysUntilBirthday!);
 
 		if (upcoming.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: `Nothing in the next ${HORIZON} days.`,
 			});
@@ -1070,7 +1070,7 @@ export class DashboardView extends ItemView {
 		}
 
 		for (const c of upcoming) {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable",
 			});
 			const days = c.daysUntilBirthday!;
@@ -1145,13 +1145,13 @@ export class DashboardView extends ItemView {
 
 		if (missed.length === 0) return;
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section dashboard-missed-section",
 		});
 		section.createEl("h3", { text: "🕯️ Missed birthdays" });
 
 		for (const c of missed) {
-			const row = section.createEl("div", { cls: "dashboard-row" });
+			const row = section.createDiv({ cls: "dashboard-row" });
 			const label = row.createSpan({
 				cls: "dashboard-row-clickable-label",
 				text: `${c.displayName} — was ${
@@ -1216,16 +1216,16 @@ export class DashboardView extends ItemView {
 			.filter(({ idea }) => !idea.done);
 		if (open.length === 0) return;
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
 		section.createEl("h3", { text: "📥 Idea inbox" });
-		section.createEl("div", {
+		section.createDiv({
 			cls: "section-helper-text",
 			text: "Ideas you captured without picking a friend — file them when you know who they're for.",
 		});
 		for (const { idea, index } of open) {
-			const row = section.createEl("div", { cls: "dashboard-row" });
+			const row = section.createDiv({ cls: "dashboard-row" });
 			const cat = IDEA_CATEGORIES.find((c) => c.id === idea.category);
 			row.createSpan({ text: `${cat?.emoji ?? "✨"} ${idea.text}` });
 			const fileButton = row.createEl("button", {

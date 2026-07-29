@@ -18,7 +18,7 @@ export class ConfirmModal extends Modal {
 		contentEl.createEl("h2", { text: this.title });
 		contentEl.createEl("p", { text: this.message });
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const cancel = buttons.createEl("button", {

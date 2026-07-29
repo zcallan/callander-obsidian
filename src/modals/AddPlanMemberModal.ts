@@ -42,7 +42,7 @@ export class AddPlanMemberModal extends FormModal {
 
 		// Group filter pills
 		if (this.groups.length > 0) {
-			const pills = contentEl.createEl("div", {
+			const pills = contentEl.createDiv({
 				cls: "contact-group-chips plan-member-groups",
 			});
 			for (const g of this.groups) {
@@ -51,7 +51,7 @@ export class AddPlanMemberModal extends FormModal {
 						this.groupFilter === g.name ? "selected" : ""
 					}`,
 				});
-				const dot = chip.createEl("span", { cls: "group-dot" });
+				const dot = chip.createSpan({ cls: "group-dot" });
 				dot.style.backgroundColor =
 					g.color ?? "var(--background-modifier-border)";
 				chip.createSpan({ text: g.label });
@@ -75,7 +75,7 @@ export class AddPlanMemberModal extends FormModal {
 		});
 		checkRow.createSpan({ text: "Unconfirmed (not sure they're in yet)" });
 
-		const listEl = contentEl.createEl("div", {
+		const listEl = contentEl.createDiv({
 			cls: "plan-member-search-list",
 		});
 
@@ -106,18 +106,18 @@ export class AddPlanMemberModal extends FormModal {
 				.sort((a, b) => b.file.stat.mtime - a.file.stat.mtime);
 
 		const contactRow = (c: ContactWithCountdown) => {
-			const el = listEl.createEl("div", {
+			const el = listEl.createDiv({
 				cls: "friend-list-row plan-member-result",
 			});
 			el.addEventListener("click", () => add(c, c.displayName));
-			const info = el.createEl("div", { cls: "friend-list-info" });
-			const main = info.createEl("div", { cls: "friend-list-main" });
+			const info = el.createDiv({ cls: "friend-list-info" });
+			const main = info.createDiv({ cls: "friend-list-main" });
 			main.createSpan({ cls: "friend-list-name", text: c.displayName });
 			for (const g of c.groups) {
-				const tag = main.createEl("span", {
+				const tag = main.createSpan({
 					cls: "friend-list-group-tag",
 				});
-				const dot = tag.createEl("span", { cls: "group-dot" });
+				const dot = tag.createSpan({ cls: "group-dot" });
 				dot.style.backgroundColor =
 					colorOf.get(g) ?? "var(--background-modifier-border)";
 				tag.createSpan({ text: labelOf.get(g) ?? g });
@@ -139,20 +139,20 @@ export class AddPlanMemberModal extends FormModal {
 					c.name.toLowerCase() === q
 			);
 			if (raw && !exact) {
-				const el = listEl.createEl("div", {
+				const el = listEl.createDiv({
 					cls: "friend-list-row plan-member-result plan-member-guest",
 				});
 				el.addEventListener("click", () => add(null, raw));
-				el.createEl("div", {
+				el.createDiv({
 					cls: "friend-list-info",
-				}).createEl("div", {
+				}).createDiv({
 					cls: "friend-list-name",
 					text: `Add “${raw}” as guest`,
 				});
 			}
 
 			if (matches.length === 0 && !raw) {
-				listEl.createEl("div", {
+				listEl.createDiv({
 					cls: "section-helper-text",
 					text: "No one to add — type a name to add a guest.",
 				});
@@ -170,7 +170,7 @@ export class AddPlanMemberModal extends FormModal {
 		});
 
 		renderResults();
-		setTimeout(() => searchInput.focus(), 0);
+		window.setTimeout(() => searchInput.focus(), 0);
 	}
 
 	onClose() {

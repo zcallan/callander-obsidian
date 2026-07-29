@@ -24,7 +24,7 @@ export class FunFactsModal extends FormModal {
 			},
 		});
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttons.createEl("button", {
@@ -44,7 +44,7 @@ export class FunFactsModal extends FormModal {
 				submit();
 			}
 		});
-		setTimeout(() => input.focus(), 0);
+		window.setTimeout(() => input.focus(), 0);
 	}
 
 	onClose() {
