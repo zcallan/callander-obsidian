@@ -10,6 +10,7 @@ import type {
 import type { EventType, IdeaCategory } from "@/constants";
 import { REMINDERS_BASENAME } from "@/constants";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
+import { asArray, fieldOf, isRecord } from "@/utils/fm";
 
 export const INBOX_BASENAME = "Idea Inbox";
 
@@ -21,62 +22,75 @@ export class ContactOperations {
 	}
 
 	/** Merge modern + legacy idea keys into one normalized list */
-	static ideasOf(metadata: any): Idea[] {
-		const ideas: Idea[] = Array.isArray(metadata?.ideas)
-			? metadata.ideas.filter((i: any) => i && typeof i.text === "string")
-			: [];
-		const legacy: Idea[] = Array.isArray(metadata?.giftIdeas)
-			? metadata.giftIdeas.map((g: any) => ({
+	static ideasOf(metadata: unknown): Idea[] {
+		// Modern ideas pass through by reference so extra keys survive edits
+		const ideas = asArray(fieldOf(metadata, "ideas")).filter(
+			(i): i is Idea => isRecord(i) && typeof i.text === "string"
+		);
+		const legacy = asArray(fieldOf(metadata, "giftIdeas")).map(
+			(g): Idea => {
+				const text = fieldOf(g, "text");
+				return {
 					category: "gift" as const,
-					text: g?.text ?? String(g),
-					done: !!g?.done,
-			  }))
-			: [];
+					text: text == null ? String(g) : String(text),
+					done: !!fieldOf(g, "done"),
+				};
+			}
+		);
 		return [...ideas, ...legacy];
 	}
 
 	/** Merge modern + legacy event keys into one normalized list */
-	static eventsOf(metadata: any): FriendEvent[] {
-		const events: FriendEvent[] = Array.isArray(metadata?.events)
-			? metadata.events
-			: [];
-		const legacy: FriendEvent[] = Array.isArray(metadata?.interactions)
-			? metadata.interactions
-			: [];
+	static eventsOf(metadata: unknown): FriendEvent[] {
+		// Events pass through by reference — extra keys (source, link,
+		// hiddenFromUpcoming) must survive frontmatter round-trips untouched
+		const events = asArray(fieldOf(metadata, "events")) as FriendEvent[];
+		const legacy = asArray(
+			fieldOf(metadata, "interactions")
+		) as FriendEvent[];
 		return [...events, ...legacy];
 	}
 
-	static draftsOf(metadata: any): Draft[] {
-		if (!Array.isArray(metadata?.drafts)) return [];
-		return metadata.drafts
-			.map((d: any) =>
-				typeof d === "string"
-					? { text: d, created: "" }
-					: { text: d?.text ?? "", created: d?.created ?? "" }
-			)
-			.filter((d: Draft) => d.text.length > 0);
+	static draftsOf(metadata: unknown): Draft[] {
+		return asArray(fieldOf(metadata, "drafts"))
+			.map((d): Draft => {
+				if (typeof d === "string") return { text: d, created: "" };
+				const text = fieldOf(d, "text");
+				const created = fieldOf(d, "created");
+				return {
+					text: typeof text === "string" ? text : "",
+					created: typeof created === "string" ? created : "",
+				};
+			})
+			.filter((d) => d.text.length > 0);
 	}
 
 	/** Capture a raw thought onto a friend (or the inbox) for later triage */
 	async addDraft(file: TFile, text: string): Promise<void> {
 		const created = new Date().toISOString().split("T")[0];
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.drafts = [
-				...ContactOperations.draftsOf(fm),
-				{ text, created },
-			];
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.drafts = [
+					...ContactOperations.draftsOf(fm),
+					{ text, created },
+				];
+			}
+		);
 	}
 
 	async removeDraft(file: TFile, index: number): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const drafts = ContactOperations.draftsOf(fm);
-			if (index >= 0 && index < drafts.length) {
-				drafts.splice(index, 1);
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const drafts = ContactOperations.draftsOf(fm);
+				if (index >= 0 && index < drafts.length) {
+					drafts.splice(index, 1);
+				}
+				if (drafts.length > 0) fm.drafts = drafts;
+				else delete fm.drafts;
 			}
-			if (drafts.length > 0) fm.drafts = drafts;
-			else delete fm.drafts;
-		});
+		);
 	}
 
 	async getInboxDrafts(): Promise<Draft[]> {
@@ -87,14 +101,14 @@ export class ContactOperations {
 		return ContactOperations.draftsOf(metadata);
 	}
 
-	static groupsOf(metadata: any): string[] {
-		const raw = metadata?.groups;
-		const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+	static groupsOf(metadata: unknown): string[] {
+		const raw = fieldOf(metadata, "groups");
+		const list = Array.isArray(raw) ? (raw as unknown[]) : raw ? [raw] : [];
 		return [
 			...new Set(
 				list
-					.map((g: any) => String(g).trim().toLowerCase())
-					.filter((g: string) => g.length > 0)
+					.map((g) => String(g).trim().toLowerCase())
+					.filter((g) => g.length > 0)
 			),
 		];
 	}
@@ -164,9 +178,12 @@ export class ContactOperations {
 
 	async setGroupColor(name: string, color: string): Promise<TFile> {
 		const file = await this.ensureGroupFile(name);
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.color = color;
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.color = color;
+			}
+		);
 		return file;
 	}
 
@@ -175,7 +192,7 @@ export class ContactOperations {
 		const normalized = newName.trim().toLowerCase();
 		if (!normalized || normalized === oldName) return;
 
-		await this.forEachContactFile(async (file, fm) => {
+		await this.forEachContactFile((file, fm) => {
 			const groups = ContactOperations.groupsOf(fm);
 			if (groups.includes(oldName)) {
 				fm.groups = [
@@ -199,9 +216,12 @@ export class ContactOperations {
 			)}.md`
 		);
 		if (oldFile instanceof TFile) {
-			await this.app.fileManager.processFrontMatter(oldFile, (fm) => {
-				fm.name = this.prettyGroupName(normalized);
-			});
+			await this.app.fileManager.processFrontMatter(
+				oldFile,
+				(fm: Record<string, unknown>) => {
+					fm.name = this.prettyGroupName(normalized);
+				}
+			);
 			if (oldFile.path !== newPath) {
 				await this.app.fileManager.renameFile(oldFile, newPath);
 			}
@@ -210,11 +230,12 @@ export class ContactOperations {
 
 	/** Remove the group from every member and trash its page */
 	async deleteGroup(name: string): Promise<void> {
-		await this.forEachContactFile(async (file, fm) => {
+		await this.forEachContactFile((file, fm) => {
 			const groups = ContactOperations.groupsOf(fm);
 			if (groups.includes(name)) {
-				fm.groups = groups.filter((g) => g !== name);
-				if (fm.groups.length === 0) delete fm.groups;
+				const kept = groups.filter((g) => g !== name);
+				if (kept.length > 0) fm.groups = kept;
+				else delete fm.groups;
 			}
 		});
 		const file = this.app.vault.getAbstractFileByPath(
@@ -230,25 +251,31 @@ export class ContactOperations {
 	}
 
 	async addFriendToGroup(file: TFile, group: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.groups = [
-				...new Set([...ContactOperations.groupsOf(fm), group]),
-			];
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.groups = [
+					...new Set([...ContactOperations.groupsOf(fm), group]),
+				];
+			}
+		);
 	}
 
 	async removeFriendFromGroup(file: TFile, group: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const groups = ContactOperations.groupsOf(fm).filter(
-				(g) => g !== group
-			);
-			if (groups.length > 0) fm.groups = groups;
-			else delete fm.groups;
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const groups = ContactOperations.groupsOf(fm).filter(
+					(g) => g !== group
+				);
+				if (groups.length > 0) fm.groups = groups;
+				else delete fm.groups;
+			}
+		);
 	}
 
 	private async forEachContactFile(
-		fn: (file: TFile, frontmatter: any) => Promise<void> | void
+		fn: (file: TFile, frontmatter: Record<string, unknown>) => void
 	): Promise<void> {
 		const folder = this.app.vault.getFolderByPath(
 			this.plugin.settings.contactsFolder
@@ -256,9 +283,12 @@ export class ContactOperations {
 		if (!folder) return;
 		for (const file of folder.children) {
 			if (!(file instanceof TFile) || file.extension !== "md") continue;
-			await this.app.fileManager.processFrontMatter(file, (fm) => {
-				fn(file, fm);
-			});
+			await this.app.fileManager.processFrontMatter(
+				file,
+				(fm: Record<string, unknown>) => {
+					fn(file, fm);
+				}
+			);
 		}
 	}
 
@@ -308,20 +338,26 @@ export class ContactOperations {
 		const inbox = this.app.vault.getAbstractFileByPath(this.getInboxPath());
 		if (!(inbox instanceof TFile)) return null;
 		let moved: Idea | null = null;
-		await this.app.fileManager.processFrontMatter(inbox, (fm) => {
-			const ideas = ContactOperations.ideasOf(fm);
-			if (index >= 0 && index < ideas.length) {
-				moved = ideas.splice(index, 1)[0];
-			}
-			delete fm.giftIdeas;
-			fm.ideas = ideas;
-		});
-		if (moved) {
-			await this.app.fileManager.processFrontMatter(target, (fm) => {
+		await this.app.fileManager.processFrontMatter(
+			inbox,
+			(fm: Record<string, unknown>) => {
 				const ideas = ContactOperations.ideasOf(fm);
+				if (index >= 0 && index < ideas.length) {
+					moved = ideas.splice(index, 1)[0];
+				}
 				delete fm.giftIdeas;
-				fm.ideas = [...ideas, moved];
-			});
+				fm.ideas = ideas;
+			}
+		);
+		if (moved) {
+			await this.app.fileManager.processFrontMatter(
+				target,
+				(fm: Record<string, unknown>) => {
+					const ideas = ContactOperations.ideasOf(fm);
+					delete fm.giftIdeas;
+					fm.ideas = [...ideas, moved];
+				}
+			);
 		}
 		return moved;
 	}
@@ -336,14 +372,17 @@ export class ContactOperations {
 		type: EventType = "hangout",
 		location?: string
 	): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const events = ContactOperations.eventsOf(fm);
-			delete fm.interactions;
-			fm.events = [
-				...events,
-				{ date, text, type, ...(location && { location }) },
-			];
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const events = ContactOperations.eventsOf(fm);
+				delete fm.interactions;
+				fm.events = [
+					...events,
+					{ date, text, type, ...(location && { location }) },
+				];
+			}
+		);
 	}
 
 	/**
@@ -356,31 +395,37 @@ export class ContactOperations {
 		date: string,
 		text: string
 	): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const events = ContactOperations.eventsOf(fm);
-			const existing = events.findIndex((e) => e.source === source);
-			if (existing >= 0) {
-				// Update in place; a manually adjusted type is preserved
-				events[existing] = { ...events[existing], date, text };
-			} else {
-				events.push({ date, text, type: "hangout", source });
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const events = ContactOperations.eventsOf(fm);
+				const existing = events.findIndex((e) => e.source === source);
+				if (existing >= 0) {
+					// Update in place; a manually adjusted type is preserved
+					events[existing] = { ...events[existing], date, text };
+				} else {
+					events.push({ date, text, type: "hangout", source });
+				}
+				delete fm.interactions;
+				fm.events = events;
 			}
-			delete fm.interactions;
-			fm.events = events;
-		});
+		);
 	}
 
 	/** Remove the event that came from a given diary entry, if present */
 	async removeDiaryEvent(file: TFile, source: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const events = ContactOperations.eventsOf(fm);
-			const kept = events.filter((e) => e.source !== source);
-			if (kept.length !== events.length) {
-				delete fm.interactions;
-				if (kept.length > 0) fm.events = kept;
-				else delete fm.events;
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const events = ContactOperations.eventsOf(fm);
+				const kept = events.filter((e) => e.source !== source);
+				if (kept.length !== events.length) {
+					delete fm.interactions;
+					if (kept.length > 0) fm.events = kept;
+					else delete fm.events;
+				}
 			}
-		});
+		);
 	}
 
 	/** Update an event on a friend/group file, matched by deep equality */
@@ -395,40 +440,46 @@ export class ContactOperations {
 			link?: string;
 		}
 	): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const events = ContactOperations.eventsOf(fm);
-			const index = events.findIndex(
-				(e) => JSON.stringify(e) === JSON.stringify(original)
-			);
-			if (index === -1) return;
-			events[index] = {
-				...events[index],
-				date: updated.date,
-				text: updated.text,
-				type: updated.type,
-			};
-			if (updated.location) events[index].location = updated.location;
-			else delete events[index].location;
-			if (updated.link) events[index].link = updated.link;
-			else delete events[index].link;
-			delete fm.interactions;
-			fm.events = events;
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const events = ContactOperations.eventsOf(fm);
+				const index = events.findIndex(
+					(e) => JSON.stringify(e) === JSON.stringify(original)
+				);
+				if (index === -1) return;
+				events[index] = {
+					...events[index],
+					date: updated.date,
+					text: updated.text,
+					type: updated.type,
+				};
+				if (updated.location) events[index].location = updated.location;
+				else delete events[index].location;
+				if (updated.link) events[index].link = updated.link;
+				else delete events[index].link;
+				delete fm.interactions;
+				fm.events = events;
+			}
+		);
 	}
 
 	/** Delete an event from a friend/group file, matched by deep equality */
 	async deleteEventFromFile(file: TFile, target: FriendEvent): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const events = ContactOperations.eventsOf(fm);
-			const kept = events.filter(
-				(e) => JSON.stringify(e) !== JSON.stringify(target)
-			);
-			if (kept.length !== events.length) {
-				delete fm.interactions;
-				if (kept.length > 0) fm.events = kept;
-				else delete fm.events;
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const events = ContactOperations.eventsOf(fm);
+				const kept = events.filter(
+					(e) => JSON.stringify(e) !== JSON.stringify(target)
+				);
+				if (kept.length !== events.length) {
+					delete fm.interactions;
+					if (kept.length > 0) fm.events = kept;
+					else delete fm.events;
+				}
 			}
-		});
+		);
 	}
 
 	/**
@@ -436,16 +487,19 @@ export class ContactOperations {
 	 * timeline on the person's page is unaffected. Matched by deep equality.
 	 */
 	async hideEventFromUpcoming(file: TFile, target: FriendEvent): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const events = ContactOperations.eventsOf(fm);
-			const index = events.findIndex(
-				(e) => JSON.stringify(e) === JSON.stringify(target)
-			);
-			if (index === -1) return;
-			events[index] = { ...events[index], hiddenFromUpcoming: true };
-			delete fm.interactions;
-			fm.events = events;
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const events = ContactOperations.eventsOf(fm);
+				const index = events.findIndex(
+					(e) => JSON.stringify(e) === JSON.stringify(target)
+				);
+				if (index === -1) return;
+				events[index] = { ...events[index], hiddenFromUpcoming: true };
+				delete fm.interactions;
+				fm.events = events;
+			}
+		);
 	}
 
 	/** A diary entry was renamed — keep event source links pointing at it */
@@ -453,7 +507,7 @@ export class ContactOperations {
 		oldPath: string,
 		newPath: string
 	): Promise<void> {
-		await this.forEachContactFile(async (file, fm) => {
+		await this.forEachContactFile((file, fm) => {
 			const events = ContactOperations.eventsOf(fm);
 			if (events.some((e) => e.source === oldPath)) {
 				delete fm.interactions;
@@ -466,9 +520,12 @@ export class ContactOperations {
 
 	/** Record that this year's birthday wish was sent (dashboard "Missed") */
 	async markBirthdayWished(file: TFile, occurrence: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.birthdayWished = occurrence;
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.birthdayWished = occurrence;
+			}
+		);
 	}
 
 	// ---- Merge duplicates ----
@@ -481,40 +538,43 @@ export class ContactOperations {
 			.replace(/^---\n[\s\S]*?\n---\n?/, "")
 			.trim();
 
-		await this.app.fileManager.processFrontMatter(keep, (fm) => {
-			// Fill scalar gaps only — the kept friend always wins conflicts
-			for (const [key, value] of Object.entries(dupMeta)) {
-				if (
-					value != null &&
-					value !== "" &&
-					!Array.isArray(value) &&
-					(fm[key] == null || fm[key] === "") &&
-					key !== "name"
-				) {
-					fm[key] = value;
+		await this.app.fileManager.processFrontMatter(
+			keep,
+			(fm: Record<string, unknown>) => {
+				// Fill scalar gaps only — the kept friend always wins conflicts
+				for (const [key, value] of Object.entries(dupMeta)) {
+					if (
+						value != null &&
+						value !== "" &&
+						!Array.isArray(value) &&
+						(fm[key] == null || fm[key] === "") &&
+						key !== "name"
+					) {
+						fm[key] = value;
+					}
+				}
+				fm.ideas = [
+					...ContactOperations.ideasOf(fm),
+					...ContactOperations.ideasOf(dupMeta),
+				];
+				fm.events = [
+					...ContactOperations.eventsOf(fm),
+					...ContactOperations.eventsOf(dupMeta),
+				];
+				delete fm.giftIdeas;
+				delete fm.interactions;
+				const groups = [
+					...ContactOperations.groupsOf(fm),
+					...ContactOperations.groupsOf(dupMeta),
+				];
+				if (groups.length > 0) fm.groups = [...new Set(groups)];
+				if (dupMeta.notes) {
+					fm.notes = fm.notes
+						? `${String(fm.notes)}\n\n${String(dupMeta.notes)}`
+						: dupMeta.notes;
 				}
 			}
-			fm.ideas = [
-				...ContactOperations.ideasOf(fm),
-				...ContactOperations.ideasOf(dupMeta),
-			];
-			fm.events = [
-				...ContactOperations.eventsOf(fm),
-				...ContactOperations.eventsOf(dupMeta),
-			];
-			delete fm.giftIdeas;
-			delete fm.interactions;
-			const groups = [
-				...ContactOperations.groupsOf(fm),
-				...ContactOperations.groupsOf(dupMeta),
-			];
-			if (groups.length > 0) fm.groups = [...new Set(groups)];
-			if (dupMeta.notes) {
-				fm.notes = fm.notes
-					? `${fm.notes}\n\n${dupMeta.notes}`
-					: dupMeta.notes;
-			}
-		});
+		);
 
 		if (dupBody) {
 			const keepContent = await this.app.vault.read(keep);
@@ -527,11 +587,15 @@ export class ContactOperations {
 		await this.app.fileManager.trashFile(duplicate);
 	}
 
-	private async readFrontmatter(file: TFile): Promise<any> {
+	private async readFrontmatter(
+		file: TFile
+	): Promise<Record<string, unknown>> {
 		try {
 			const content = await this.app.vault.read(file);
 			const match = content.match(/^---\n([\s\S]*?)\n---/);
-			return match ? parseYaml(match[1]) ?? {} : {};
+			if (!match) return {};
+			const parsed: unknown = parseYaml(match[1]);
+			return isRecord(parsed) ? parsed : {};
 		} catch {
 			return {};
 		}
@@ -548,19 +612,20 @@ export class ContactOperations {
 	): Promise<void> {
 		await this.plugin.app.fileManager.processFrontMatter(
 			file,
-			(frontmatter) => {
-				const ideas: Idea[] = Array.isArray(frontmatter.ideas)
-					? frontmatter.ideas
-					: [];
-				if (Array.isArray(frontmatter.giftIdeas)) {
-					ideas.push(
-						...frontmatter.giftIdeas.map((g: any) => ({
+			(frontmatter: Record<string, unknown>) => {
+				// Existing entries pass through untouched (unlike ideasOf, no
+				// filtering — malformed rows are left exactly as they were)
+				const ideas = asArray(frontmatter.ideas) as Idea[];
+				ideas.push(
+					...asArray(frontmatter.giftIdeas).map((g): Idea => {
+						const t = fieldOf(g, "text");
+						return {
 							category: "gift" as const,
-							text: g?.text ?? String(g),
-							done: !!g?.done,
-						}))
-					);
-				}
+							text: t == null ? String(g) : String(t),
+							done: !!fieldOf(g, "done"),
+						};
+					})
+				);
 				delete frontmatter.giftIdeas;
 				ideas.push({ category, text, done: false });
 				frontmatter.ideas = ideas;
@@ -597,49 +662,47 @@ export class ContactOperations {
 				// The metadata cache already holds parsed frontmatter —
 				// no file I/O (critical on cloud-synced vaults, where a
 				// cold read can mean a network download)
-				const metadata =
+				const metadata: unknown =
 					this.app.metadataCache.getFileCache(file)?.frontmatter;
 
-				if (metadata) {
+				if (isRecord(metadata)) {
+					const str = (key: string): string => {
+						const v = metadata[key];
+						return v ? String(v) : "";
+					};
 
 					// Events are stored newest-first; fall back to the legacy
 					// interactions key for contacts not yet migrated
 					const latest =
-						(Array.isArray(metadata.events) &&
-							metadata.events[0]) ||
-						(Array.isArray(metadata.interactions) &&
-							metadata.interactions[0]) ||
+						asArray(metadata.events)[0] ??
+						asArray(metadata.interactions)[0] ??
 						null;
 					const lastInteraction = latest
-						? this.formatDaysAgo(latest.date)
+						? this.formatDaysAgo(
+								String(fieldOf(latest, "date") ?? "")
+						  )
 						: null;
 
 					const ideas = ContactOperations.ideasOf(metadata);
 					const openIdeas = ideas.filter((i) => !i.done).length;
+					const birthday = str("birthday");
 
 					contacts.push({
-						name: metadata.name || "Unknown",
-						displayName: String(
-							metadata.displayName || metadata.name || "Unknown"
-						),
-						birthday: metadata.birthday || "",
-						formattedBirthday: this.formatBirthday(
-							metadata.birthday
-						),
-						relationship: metadata.relationship || "",
-						age: this.calculateAge(metadata.birthday),
-						daysUntilBirthday: this.calculateDaysUntilBirthday(
-							metadata.birthday
-						),
-						daysSinceBirthday: this.calculateDaysSinceBirthday(
-							metadata.birthday
-						),
+						name: str("name") || "Unknown",
+						displayName:
+							str("displayName") || str("name") || "Unknown",
+						birthday,
+						formattedBirthday: this.formatBirthday(birthday),
+						relationship: str("relationship"),
+						age: this.calculateAge(birthday),
+						daysUntilBirthday:
+							this.calculateDaysUntilBirthday(birthday),
+						daysSinceBirthday:
+							this.calculateDaysSinceBirthday(birthday),
 						lastInteraction,
-						met: metadata.met ? String(metadata.met) : "",
+						met: str("met"),
 						openIdeas,
-						birthdayWished: metadata.birthdayWished
-							? String(metadata.birthdayWished)
-							: "",
+						birthdayWished: str("birthdayWished"),
 						groups: ContactOperations.groupsOf(metadata),
 						ideas,
 						events: ContactOperations.eventsOf(metadata),
