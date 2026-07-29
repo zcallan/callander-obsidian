@@ -787,28 +787,6 @@ If your plugin does not need CSS, delete this file.
 	-webkit-overflow-scrolling: touch;
 }
 
-/* Style for relationship type settings */
-.callander-relationship-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 12px;
-}
-
-.callander-relationship-header h3 {
-	margin: 0;
-}
-
-/* Remove default Setting styles in header */
-.callander-relationship-header .setting-item {
-	border: none;
-	padding: 0;
-}
-
-.callander-relationship-header .setting-item-control {
-	padding: 0;
-}
-
 .callander-relationship-types {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
