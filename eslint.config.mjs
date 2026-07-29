@@ -6,7 +6,16 @@ import { defineConfig } from "eslint/config";
 export default defineConfig([
 	// main.js is the esbuild bundle; the .mjs files are Node build scripts
 	// that never run inside Obsidian (the review bot doesn't lint them).
-	{ ignores: ["main.js", "esbuild.config.mjs", "version-bump.mjs"] },
+	// The vaults contain deployed plugin copies and Obsidian's own config.
+	{
+		ignores: [
+			"main.js",
+			"esbuild.config.mjs",
+			"version-bump.mjs",
+			"vault/",
+			"examples/",
+		],
+	},
 	...obsidianmd.configs.recommended,
 	{
 		files: ["**/*.ts"],
