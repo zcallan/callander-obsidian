@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { TravelType } from "@/constants";
 import { ConfirmModal } from "@/modals/ConfirmModal";

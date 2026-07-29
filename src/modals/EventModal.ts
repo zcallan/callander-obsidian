@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { FriendEvent } from "@/types";
 import { EVENT_TYPES, EventType } from "@/constants";

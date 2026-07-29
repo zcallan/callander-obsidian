@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Setting } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 interface DiaryEntryModalValues {
 	title: string;

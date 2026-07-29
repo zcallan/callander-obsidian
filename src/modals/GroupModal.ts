@@ -1,4 +1,4 @@
-import { App, Modal, Notice } from "obsidian";
+import { App, Notice } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import type { GroupInfo } from "@/types";
