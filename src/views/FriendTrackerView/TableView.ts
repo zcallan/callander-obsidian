@@ -45,7 +45,7 @@ export class TableView {
 		setIcon(addButton, "user-plus");
 		addButton.createSpan({ text: "Add friend" });
 		addButton.addEventListener("click", () =>
-			this.view.openAddContactModal()
+			void this.view.openAddContactModal()
 		);
 
 		// Search
@@ -105,10 +105,11 @@ export class TableView {
 			select.createEl("option", { value: o.id, text: o.label })
 		);
 		select.value = this.view.settings.friendListSort;
-		select.addEventListener("change", async () => {
+		const handleSortChange = async () => {
 			await this.view.setFriendListSort(select.value as FriendListSort);
 			this.renderList();
-		});
+		};
+		select.addEventListener("change", () => void handleSortChange());
 
 		this.listEl = wrap.createDiv({ cls: "friend-list" });
 		this.renderList();
@@ -190,7 +191,7 @@ export class TableView {
 				cls: "friend-list-row",
 			});
 			row.addEventListener("click", () =>
-				this.view.openContact(contact.file)
+				void this.view.openContact(contact.file)
 			);
 
 			const info = row.createDiv({ cls: "friend-list-info" });

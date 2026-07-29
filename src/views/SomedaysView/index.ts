@@ -69,22 +69,22 @@ export class SomedaysView extends ItemView {
 			path === folder || path.startsWith(folder + "/");
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("delete", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("rename", (file, oldPath) => {
-				if (inScope(file.path) || inScope(oldPath)) this.refresh();
+				if (inScope(file.path) || inScope(oldPath)) void this.refresh();
 			})
 		);
 		await this.refresh();
