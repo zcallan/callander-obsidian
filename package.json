@@ -1,6 +1,6 @@
 {
 	"name": "callander-obsidian",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"description": "Callander — a private secondary memory for your friendships, as an Obsidian plugin.",
 	"main": "main.js",
 	"scripts": {
