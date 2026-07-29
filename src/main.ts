@@ -7,6 +7,7 @@ import {
 	ViewState,
 } from "obsidian";
 import { FriendTrackerSettings, DEFAULT_SETTINGS, SomedayInfo } from "./types";
+import { fieldOf, isRecord } from "@/utils/fm";
 import { IdeaCategory, formatSomedaySeasons, formatSomedayDays } from "@/constants";
 import {
 	CaptureTargetModal,
@@ -28,6 +29,58 @@ import {
 	VIEW_TYPE_CONTACT_PAGE,
 } from "@/views/ContactPageView";
 import { FriendTrackerSettingTab } from "./views/FriendTrackerView/settings";
+
+/**
+ * The markdown-view intercept: contact/someday notes navigated to as
+ * markdown (file explorer, quick switcher, links, graph) open in their
+ * Callander views instead. Installed on WorkspaceLeaf.prototype so every
+ * navigation path goes through it; the plugin uninstalls it on unload.
+ */
+function createSetViewStateOverride(
+	plugin: FriendTracker,
+	original: WorkspaceLeaf["setViewState"]
+): WorkspaceLeaf["setViewState"] {
+	return function (
+		this: WorkspaceLeaf,
+		viewState: ViewState,
+		eventState?: unknown
+	) {
+		const path = fieldOf(viewState.state, "file");
+		if (
+			plugin.settings.openContactsInCallanderView &&
+			viewState.type === "markdown" &&
+			typeof path === "string" &&
+			plugin.shouldOpenAsSomeday(path)
+		) {
+			return original.call(
+				this,
+				{
+					...viewState,
+					type: VIEW_TYPE_SOMEDAYS,
+					state: { focusPath: path },
+				},
+				eventState
+			);
+		}
+		if (
+			plugin.settings.openContactsInCallanderView &&
+			viewState.type === "markdown" &&
+			typeof path === "string" &&
+			plugin.shouldOpenAsContact(path)
+		) {
+			return original.call(
+				this,
+				{
+					...viewState,
+					type: VIEW_TYPE_CONTACT_PAGE,
+					state: { filePath: path },
+				},
+				eventState
+			);
+		}
+		return original.call(this, viewState, eventState);
+	};
+}
 import { ContactOperations } from "@/services/ContactOperations";
 import { DiaryOperations } from "@/services/DiaryOperations";
 import { DiaryView, VIEW_TYPE_DIARY } from "@/views/DiaryView";
@@ -261,7 +314,9 @@ export default class FriendTracker extends Plugin {
 			);
 		} catch (error) {
 			console.error("Callander failed to load:", error);
-			new Notice("Callander failed to load: " + error.message);
+			const message =
+				error instanceof Error ? error.message : String(error);
+			new Notice("Callander failed to load: " + message);
 		}
 	}
 
@@ -294,7 +349,10 @@ export default class FriendTracker extends Plugin {
 		// Capacitor; on iOS the webview often does NOT resize for the
 		// keyboard, so visualViewport alone sees nothing)
 		const onShow = (event: Event) => {
-			const height = Number((event as any)?.keyboardHeight);
+			// Capacitor's keyboard event carries the height; not in DOM typings
+			const height = Number(
+				(event as Event & { keyboardHeight?: unknown }).keyboardHeight
+			);
 			setInset(
 				Number.isFinite(height) && height > 0
 					? height
@@ -376,53 +434,18 @@ export default class FriendTracker extends Plugin {
 	private markdownBypass = new Set<string>();
 
 	private installContactViewIntercept() {
-		const plugin = this;
+		// eslint-disable-next-line @typescript-eslint/unbound-method -- captured so the override can delegate via .call(this)
 		const original = WorkspaceLeaf.prototype.setViewState;
-		WorkspaceLeaf.prototype.setViewState = function (
-			viewState: ViewState,
-			eventState?: unknown
-		) {
-			const path = (viewState.state as any)?.file;
-			if (
-				plugin.settings.openContactsInCallanderView &&
-				viewState.type === "markdown" &&
-				typeof path === "string" &&
-				plugin.shouldOpenAsSomeday(path)
-			) {
-				return original.call(
-					this,
-					{
-						...viewState,
-						type: VIEW_TYPE_SOMEDAYS,
-						state: { focusPath: path },
-					},
-					eventState
-				);
-			}
-			if (
-				plugin.settings.openContactsInCallanderView &&
-				viewState.type === "markdown" &&
-				typeof path === "string" &&
-				plugin.shouldOpenAsContact(path)
-			) {
-				return original.call(
-					this,
-					{
-						...viewState,
-						type: VIEW_TYPE_CONTACT_PAGE,
-						state: { filePath: path },
-					},
-					eventState
-				);
-			}
-			return original.call(this, viewState, eventState);
-		};
+		WorkspaceLeaf.prototype.setViewState = createSetViewStateOverride(
+			this,
+			original
+		);
 		this.register(() => {
 			WorkspaceLeaf.prototype.setViewState = original;
 		});
 	}
 
-	private shouldOpenAsContact(path: string): boolean {
+	public shouldOpenAsContact(path: string): boolean {
 		if (this.markdownBypass.has(path)) return false;
 		const folder = this.settings.contactsFolder + "/";
 		if (!path.startsWith(folder) || !path.endsWith(".md")) return false;
@@ -457,7 +480,7 @@ export default class FriendTracker extends Plugin {
 	}
 
 	/** Someday files route to the Somedays list view, not a contact page. */
-	private shouldOpenAsSomeday(path: string): boolean {
+	public shouldOpenAsSomeday(path: string): boolean {
 		if (this.markdownBypass.has(path)) return false;
 		return this.somedayOperations.isSomedayFile(path);
 	}
@@ -684,9 +707,12 @@ export default class FriendTracker extends Plugin {
 		if (someday.cost !== null) seed.push(`Rough budget: ~$${someday.cost}`);
 		if (someday.notes) seed.push(someday.notes);
 		if (seed.length > 0) {
-			await this.app.fileManager.processFrontMatter(plan, (fm) => {
-				fm.notes = seed.join("\n");
-			});
+			await this.app.fileManager.processFrontMatter(
+				plan,
+				(fm: Record<string, unknown>) => {
+					fm.notes = seed.join("\n");
+				}
+			);
 		}
 		// Link the someday to the plan it became — a breadcrumb if kept.
 		await this.somedayOperations.markConverted(someday.file, plan.path);
@@ -989,8 +1015,11 @@ export default class FriendTracker extends Plugin {
 	 * whole time is reserved in Apple Calendar. The itinerary itself stays in
 	 * Callander — this just marks off the days.
 	 */
-	public async exportPlanCalendar(metadata: any, name: string) {
-		const start = parseFlexDate(metadata?.date);
+	public async exportPlanCalendar(metadata: unknown, name: string) {
+		const dateRaw = fieldOf(metadata, "date");
+		const start = parseFlexDate(
+			typeof dateRaw === "string" ? dateRaw : undefined
+		);
 		if (
 			!start ||
 			start.year === null ||
@@ -1008,7 +1037,10 @@ export default class FriendTracker extends Plugin {
 			`${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
 
 		// An all-day DTEND is exclusive, so cover through the day after the last.
-		const endFlex = parseFlexDate(metadata?.endDate);
+		const endRaw = fieldOf(metadata, "endDate");
+		const endFlex = parseFlexDate(
+			typeof endRaw === "string" ? endRaw : undefined
+		);
 		const last =
 			endFlex &&
 			endFlex.year !== null &&
@@ -1055,8 +1087,9 @@ export default class FriendTracker extends Plugin {
 				`${headcount}Open Callander for the itinerary.`
 			)}`,
 		];
-		if (metadata?.location) {
-			lines.push(`LOCATION:${escape(String(metadata.location))}`);
+		const location = fieldOf(metadata, "location");
+		if (location) {
+			lines.push(`LOCATION:${escape(String(location))}`);
 		}
 		lines.push("END:VEVENT", "END:VCALENDAR");
 
@@ -1184,11 +1217,12 @@ export default class FriendTracker extends Plugin {
 			if (!(child instanceof TFile) || child.extension !== "md") {
 				continue;
 			}
-			const fm = this.app.metadataCache.getFileCache(child)?.frontmatter;
-			if (fm?.birthplace && !fm?.hometown) {
+			const fm: unknown =
+				this.app.metadataCache.getFileCache(child)?.frontmatter;
+			if (fieldOf(fm, "birthplace") && !fieldOf(fm, "hometown")) {
 				await this.app.fileManager.processFrontMatter(
 					child,
-					(frontmatter) => {
+					(frontmatter: Record<string, unknown>) => {
 						if (
 							frontmatter.birthplace &&
 							!frontmatter.hometown
@@ -1309,16 +1343,17 @@ export default class FriendTracker extends Plugin {
 	// ---- Settings ----
 
 	async loadSettings() {
-		const data = await this.loadData();
+		const raw: unknown = await this.loadData();
+		const data: Record<string, unknown> = isRecord(raw) ? raw : {};
 		// Legacy tab ids: "gifts" became "ideas", "interactions" became "events"
-		if (data?.defaultActiveTab === "gifts") {
+		if (data.defaultActiveTab === "gifts") {
 			data.defaultActiveTab = "ideas";
 		}
-		if (data?.defaultActiveTab === "interactions") {
+		if (data.defaultActiveTab === "interactions") {
 			data.defaultActiveTab = "events";
 		}
 		// "age" sort split into youngest/eldest
-		if (data?.friendListSort === "age") {
+		if (data.friendListSort === "age") {
 			data.friendListSort = "youngest";
 		}
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);

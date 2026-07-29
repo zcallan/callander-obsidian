@@ -20,7 +20,7 @@ export function splitLeadingEmoji(
 	const trimmed = text.trimStart();
 	// base pictographic + any joiners/variation-selectors/skin-tones that follow
 	const match = trimmed.match(
-		/^(\p{Extended_Pictographic}(?:\u200d\p{Extended_Pictographic}|[\uFE00-\uFE0F\u{1F3FB}-\u{1F3FF}])*)/u
+		/^(\p{Extended_Pictographic}(?:\u200d\p{Extended_Pictographic}|[\uFE00-\uFE0F]|[\u{1F3FB}-\u{1F3FF}])*)/u
 	);
 	if (!match) return null;
 	const emoji = match[1];
