@@ -779,6 +779,36 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Capitalize relationship values in table */
+/* Relationship-type rows in the pre-1.13 settings fallback (display()) */
+.callander-relationship-types {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 12px;
+}
+
+.callander-relationship-types .setting-item {
+	border: none;
+	padding: 8px;
+	margin: 0;
+	background: var(--background-modifier-form-field);
+	border-radius: 4px;
+}
+
+.callander-relationship-types .setting-item-info {
+	display: none;
+}
+
+.callander-relationship-types .setting-item-control {
+	flex: 1;
+	justify-content: space-between;
+	padding: 0;
+}
+
+.callander-relationship-types .setting-item-control input {
+	text-align: left;
+	text-transform: capitalize;
+}
+
 .callander-relationship-cell {
 	text-transform: capitalize;
 }

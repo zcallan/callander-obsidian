@@ -25,3 +25,6 @@ data.json
 .vault-plugin-path
 
 examples/example-vault/.obsidian
+
+# Local dev vault (wired via .vault-plugin-path)
+vault/
