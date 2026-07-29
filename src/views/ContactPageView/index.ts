@@ -10,7 +10,13 @@ import {
 import type FriendTracker from "@/main";
 import { ContactFields } from "@/components/ContactFields";
 import { EventTimeline } from "@/components/EventTimeline";
-import type { FriendEvent, Idea, Interest, Quote } from "@/types";
+import type {
+	ContactWithCountdown,
+	FriendEvent,
+	Idea,
+	Interest,
+	Quote,
+} from "@/types";
 import { AddFieldModal } from "@/modals/AddFieldModal";
 import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
@@ -115,7 +121,7 @@ export class ContactPageView extends ItemView {
 					Date.now() > this.writingUntil &&
 					!this.isEditingInView()
 				) {
-					this.setFile(this._file);
+					void this.setFile(this._file);
 				}
 			})
 		);
@@ -237,14 +243,14 @@ export class ContactPageView extends ItemView {
 			const action = (
 				icon: string,
 				label: string,
-				onClick: () => void
+				onClick: () => void | Promise<void>
 			) => {
 				const btn = actions.createEl("button", {
 					cls: "callander-button contact-header-action",
 				});
 				setIcon(btn, icon);
 				btn.createSpan({ text: label });
-				btn.addEventListener("click", onClick);
+				btn.addEventListener("click", () => void onClick());
 			};
 			action("lightbulb", "Add idea", () => this.openAddIdeaModal());
 			action("milestone", "Add event", () => this.openAddEventModal());
@@ -309,7 +315,7 @@ export class ContactPageView extends ItemView {
 				return body;
 			};
 
-			this.renderPlanMembers(
+			void this.renderPlanMembers(
 				planSection("users", `Who's in (${this.planMemberCount()})`)
 			);
 			this.renderPlanTimeline(planSection("calendar-clock", "Timeline"));
@@ -321,7 +327,7 @@ export class ContactPageView extends ItemView {
 			this.renderPlanBring(planSection("backpack", "What to bring"));
 			this.renderPlanCosts(planSection("dollar-sign", "Cost breakdown"));
 			this.renderNotesSection(planSection("pencil", "Notes"));
-			this.renderExtrasSection(
+			void this.renderExtrasSection(
 				planSection("document", "Links & details")
 			);
 			return;
@@ -332,7 +338,7 @@ export class ContactPageView extends ItemView {
 			const membersSection = container.createDiv({
 				cls: "contact-info-section",
 			});
-			this.renderGroupMembers(membersSection);
+			void this.renderGroupMembers(membersSection);
 		} else {
 			// "General" — a collapsed accordion of the attribute fields
 			const infoWrap = container.createDiv({
@@ -401,7 +407,7 @@ export class ContactPageView extends ItemView {
 			this.renderQuotesSection(section("quote", "Quotes"));
 		}
 		this.renderNotesSection(section("pencil", "Notes"));
-		this.renderExtrasSection(section("document", "Markdown"));
+		void this.renderExtrasSection(section("document", "Markdown"));
 	}
 
 	private renderNameSection(container: HTMLElement) {
@@ -595,7 +601,7 @@ export class ContactPageView extends ItemView {
 				setIcon(editButton, "checkmark");
 				nameInput.focus();
 			} else {
-				saveNameChange();
+				void saveNameChange();
 			}
 		});
 
@@ -622,7 +628,7 @@ export class ContactPageView extends ItemView {
 								VIEW_TYPE_FRIEND_TRACKER
 							);
 						for (const leaf of friendTrackerLeaves) {
-							const view = await leaf.view;
+							const view = leaf.view;
 							if (view instanceof FriendTrackerView) {
 								await view.refresh();
 								break;
@@ -639,7 +645,7 @@ export class ContactPageView extends ItemView {
 			setIcon(editButton, "pencil");
 		};
 
-		nameInput.addEventListener("change", saveNameChange);
+		nameInput.addEventListener("change", () => void saveNameChange());
 	}
 
 	private calculateDaysUntilBirthday(birthday: string): number | null {
@@ -882,7 +888,7 @@ export class ContactPageView extends ItemView {
 				text: "Add custom field",
 			});
 			addFieldButton.addEventListener("click", () => {
-				this.openAddFieldModal();
+				void this.openAddFieldModal();
 			});
 
 			// Add done button
@@ -891,10 +897,11 @@ export class ContactPageView extends ItemView {
 				text: "Done",
 			});
 
-			doneButton.addEventListener("click", async () => {
+			const handleDone = async () => {
 				await this.saveContactData();
 				renderViewMode();
-			});
+			};
+			doneButton.addEventListener("click", () => void handleDone());
 		};
 
 		// Initial render in view mode
@@ -913,7 +920,7 @@ export class ContactPageView extends ItemView {
 		fieldContainer.createEl("label", { text: "met" });
 
 		createFlexDateInput(fieldContainer, this.contactData.met, (value) => {
-			this.updateContactData("met", value);
+			void this.updateContactData("met", value);
 		});
 	}
 
@@ -932,7 +939,7 @@ export class ContactPageView extends ItemView {
 			fieldContainer,
 			this.contactData.birthday,
 			(value) => {
-				this.updateContactData("birthday", value);
+				void this.updateContactData("birthday", value);
 			}
 		);
 	}
@@ -962,7 +969,7 @@ export class ContactPageView extends ItemView {
 		].sort();
 
 		const save = () => {
-			this.updateContactData("groups", [...member].sort());
+			void this.updateContactData("groups", [...member].sort());
 		};
 
 		const addChip = (name: string) => {
@@ -1016,7 +1023,7 @@ export class ContactPageView extends ItemView {
 		});
 
 		input.addEventListener("change", () => {
-			this.updateContactData(field, input.value);
+			void this.updateContactData(field, input.value);
 		});
 	}
 
@@ -1042,7 +1049,7 @@ export class ContactPageView extends ItemView {
 		});
 
 		const notice = new Notice(fragment, 8000);
-		logButton.addEventListener("click", async () => {
+		const logIdeaAsEvent = async () => {
 			notice.hide();
 			const today = new Date().toISOString().split("T")[0];
 			// Gifts given get their own type; everything else was time spent
@@ -1050,7 +1057,8 @@ export class ContactPageView extends ItemView {
 				this.normalizeCategory(idea) === "gift" ? "given" : "hangout";
 			await this.addEvent(today, eventText, type);
 			new Notice("Added to timeline");
-		});
+		};
+		logButton.addEventListener("click", () => void logIdeaAsEvent());
 	}
 
 	private renderNotesSection(container: HTMLElement) {
@@ -1079,10 +1087,10 @@ export class ContactPageView extends ItemView {
 			this.adjustTextareaHeight(notesInput);
 		}, 0);
 
-		notesInput.addEventListener("change", async () => {
+		notesInput.addEventListener("change", () => {
 			if (!this._file) return;
 			this.contactData.notes = notesInput.value;
-			await this.saveContactData();
+			void this.saveContactData();
 		});
 	}
 
@@ -1124,10 +1132,10 @@ export class ContactPageView extends ItemView {
 			text: "Add event",
 		});
 		addButton.addEventListener("click", () => {
-			this.openAddEventModal();
+			void this.openAddEventModal();
 		});
 
-		this.renderDiaryMentions(eventsSection);
+		void this.renderDiaryMentions(eventsSection);
 	}
 
 	private renderDraftsStrip(container: HTMLElement) {
@@ -1336,7 +1344,7 @@ export class ContactPageView extends ItemView {
 		doneButton.addEventListener("click", () => {
 			if (this.contactData.status === "done") {
 				this.contactData.status = "planning";
-				this.saveContactData().then(() => this.render());
+				void this.saveContactData().then(() => this.render());
 				return;
 			}
 			const memberFiles = this.resolvePlanMembers();
@@ -1635,7 +1643,7 @@ export class ContactPageView extends ItemView {
 			});
 			if (dest) {
 				nameEl.addEventListener("click", () =>
-					this.app.workspace.openLinkText(dest.path, "", false)
+					void this.app.workspace.openLinkText(dest.path, "", false)
 				);
 			}
 			const removeEl = chip.createSpan({
@@ -1643,7 +1651,7 @@ export class ContactPageView extends ItemView {
 				text: "✕",
 				attr: { "aria-label": "Remove from plan" },
 			});
-			removeEl.addEventListener("click", () => removeMember(index));
+			removeEl.addEventListener("click", () => void removeMember(index));
 		}
 
 		// Unconfirmed people, in their own section (only when there are any)
@@ -1682,7 +1690,11 @@ export class ContactPageView extends ItemView {
 				});
 				if (dest) {
 					nameEl.addEventListener("click", () =>
-						this.app.workspace.openLinkText(dest.path, "", false)
+						void this.app.workspace.openLinkText(
+							dest.path,
+							"",
+							false
+						)
 					);
 				}
 				const confirmEl = chip.createSpan({
@@ -1690,7 +1702,7 @@ export class ContactPageView extends ItemView {
 					text: "✓",
 					attr: { "aria-label": "Confirm — they're in" },
 				});
-				confirmEl.addEventListener("click", async () => {
+				const confirmMember = async () => {
 					this.contactData.unconfirmedMembers.splice(index, 1);
 					if (this.contactData.unconfirmedMembers.length === 0) {
 						delete this.contactData.unconfirmedMembers;
@@ -1701,20 +1713,26 @@ export class ContactPageView extends ItemView {
 					this.contactData.members.push(raw);
 					await this.saveContactData();
 					this.render();
-				});
+				};
+				confirmEl.addEventListener("click", () =>
+					void confirmMember()
+				);
 				const removeEl = chip.createSpan({
 					cls: "contact-member-remove",
 					text: "✕",
 					attr: { "aria-label": "Remove" },
 				});
-				removeEl.addEventListener("click", async () => {
+				const removeUnconfirmed = async () => {
 					this.contactData.unconfirmedMembers.splice(index, 1);
 					if (this.contactData.unconfirmedMembers.length === 0) {
 						delete this.contactData.unconfirmedMembers;
 					}
 					await this.saveContactData();
 					this.render();
-				});
+				};
+				removeEl.addEventListener("click", () =>
+					void removeUnconfirmed()
+				);
 			});
 		}
 
@@ -1726,7 +1744,7 @@ export class ContactPageView extends ItemView {
 		});
 		setIcon(addButton, "plus");
 		addButton.createSpan({ text: "Add person" });
-		addButton.addEventListener("click", async () => {
+		const openAddMember = async () => {
 			const ops = this.plugin.contactOperations;
 			const contacts = await ops.getContacts();
 			const existing = new Set(
@@ -1756,7 +1774,8 @@ export class ContactPageView extends ItemView {
 					this.render();
 				}
 			).open();
-		});
+		};
+		addButton.addEventListener("click", () => void openAddMember());
 	}
 
 	private renderPlanDrafts(container: HTMLElement) {
@@ -2091,10 +2110,11 @@ export class ContactPageView extends ItemView {
 			});
 			setIcon(copyButton, "copy");
 			copyButton.createSpan({ text: "Copy as text" });
-			copyButton.addEventListener("click", async () => {
+			const copyShareText = async () => {
 				await navigator.clipboard.writeText(this.buildPlanShareText());
 				new Notice("📋 Copied — ready to paste as text");
-			});
+			};
+			copyButton.addEventListener("click", () => void copyShareText());
 		}
 
 		// Quick-add at the bottom of the itinerary
@@ -2408,13 +2428,14 @@ export class ContactPageView extends ItemView {
 				},
 			});
 			checkbox.checked = item.done;
-			checkbox.addEventListener("change", async () => {
+			const toggleBringDone = async () => {
 				const list = PlanOperations.bringOf(this.contactData);
 				list[index] = { ...list[index], done: checkbox.checked };
 				this.contactData.bring = list;
 				await this.saveContactData();
 				this.render();
-			});
+			};
+			checkbox.addEventListener("change", () => void toggleBringDone());
 			row.createDiv({
 				cls: "contact-idea-text",
 				text: item.text,
@@ -2424,14 +2445,15 @@ export class ContactPageView extends ItemView {
 				attr: { "aria-label": "Remove item" },
 			});
 			setIcon(deleteBtn, "trash");
-			deleteBtn.addEventListener("click", async () => {
+			const removeBringItem = async () => {
 				const list = PlanOperations.bringOf(this.contactData);
 				list.splice(index, 1);
 				if (list.length > 0) this.contactData.bring = list;
 				else delete this.contactData.bring;
 				await this.saveContactData();
 				this.render();
-			});
+			};
+			deleteBtn.addEventListener("click", () => void removeBringItem());
 		});
 
 		const addRow = section.createDiv({
@@ -2456,9 +2478,9 @@ export class ContactPageView extends ItemView {
 			await this.saveContactData();
 			this.render();
 		};
-		addButton.addEventListener("click", addItem);
+		addButton.addEventListener("click", () => void addItem());
 		input.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") addItem();
+			if (e.key === "Enter") void addItem();
 		});
 	}
 
@@ -2656,7 +2678,7 @@ export class ContactPageView extends ItemView {
 				checkbox.checked = paid.includes(p);
 				// You can't owe yourself — leave your own row un-tickable.
 				checkbox.disabled = isYou(p);
-				checkbox.addEventListener("change", async () => {
+				const togglePaid = async () => {
 					const current: string[] = Array.isArray(
 						this.contactData.costsPaid
 					)
@@ -2672,7 +2694,8 @@ export class ContactPageView extends ItemView {
 					rowEl.toggleClass("paid", checkbox.checked);
 					refreshTotal();
 					await this.saveContactData();
-				});
+				};
+				checkbox.addEventListener("change", () => void togglePaid());
 				check.createSpan({ cls: "plan-cost-owed-name", text: p });
 
 				const owedGross = owedTotals[p] ?? 0;
@@ -2780,7 +2803,7 @@ export class ContactPageView extends ItemView {
 				});
 			}
 			info.addEventListener("click", () => {
-				this.app.workspace.openLinkText(m.file.path, "", false);
+				void this.app.workspace.openLinkText(m.file.path, "", false);
 			});
 
 			const removeBtn = row.createEl("button", {
@@ -2788,27 +2811,29 @@ export class ContactPageView extends ItemView {
 				attr: { "aria-label": "Remove from group" },
 			});
 			setIcon(removeBtn, "x");
-			removeBtn.addEventListener("click", async () => {
+			const removeFromGroup = async () => {
 				await ops.removeFriendFromGroup(m.file, groupName);
 				this.render();
-			});
+			};
+			removeBtn.addEventListener("click", () => void removeFromGroup());
 		}
 
 		const addButton = container.createEl("button", {
 			cls: "callander-button button-outlined",
 			text: "Add member",
 		});
-		addButton.addEventListener("click", async () => {
+		addButton.addEventListener("click", () => {
 			const candidates = contacts.filter(
 				(c) => !c.groups.includes(groupName)
 			);
+			const addToGroup = async (contact: ContactWithCountdown) => {
+				await ops.addFriendToGroup(contact.file, groupName);
+				this.render();
+			};
 			new ContactSuggestModal(
 				this.app,
 				candidates,
-				async (contact) => {
-					await ops.addFriendToGroup(contact.file, groupName);
-					this.render();
-				},
+				(contact) => void addToGroup(contact),
 				`Add to ${ops.prettyGroupName(groupName)}…`
 			).open();
 		});
@@ -2839,7 +2864,7 @@ export class ContactPageView extends ItemView {
 			});
 			row.addEventListener("click", (e) => {
 				e.preventDefault();
-				this.app.workspace.openLinkText(entry.file.path, "", true);
+				void this.app.workspace.openLinkText(entry.file.path, "", true);
 			});
 		}
 	}
@@ -2969,14 +2994,17 @@ export class ContactPageView extends ItemView {
 					},
 				});
 				checkbox.checked = !!idea.done;
-				checkbox.addEventListener("change", async () => {
+				const toggleIdeaDone = async () => {
 					this.contactData.ideas[index].done = checkbox.checked;
 					await this.saveContactData();
 					this.render();
 					if (checkbox.checked) {
 						this.offerLogAsEvent(idea);
 					}
-				});
+				};
+				checkbox.addEventListener("change", () =>
+					void toggleIdeaDone()
+				);
 
 				const textEl = item.createDiv({
 					cls: "contact-idea-text",
@@ -3020,11 +3048,12 @@ export class ContactPageView extends ItemView {
 					attr: { "aria-label": "Delete idea" },
 				});
 				setIcon(deleteBtn, "trash");
-				deleteBtn.addEventListener("click", async () => {
+				const deleteIdea = async () => {
 					this.contactData.ideas.splice(index, 1);
 					await this.saveContactData();
 					this.render();
-				});
+				};
+				deleteBtn.addEventListener("click", () => void deleteIdea());
 			}
 		}
 
@@ -3129,14 +3158,15 @@ export class ContactPageView extends ItemView {
 					attr: { "aria-label": "Remove fun fact" },
 				});
 				setIcon(del, "trash");
-				del.addEventListener("click", async () => {
+				const deleteFunFact = async () => {
 					const arr = this.funFactsOf();
 					arr.splice(index, 1);
 					if (arr.length > 0) this.contactData.funFacts = arr;
 					else delete this.contactData.funFacts;
 					await this.saveContactData();
 					this.render();
-				});
+				};
+				del.addEventListener("click", () => void deleteFunFact());
 			});
 		}
 
@@ -3298,14 +3328,17 @@ export class ContactPageView extends ItemView {
 					attr: { "aria-label": `Remove ${interest.text}` },
 				});
 				setIcon(removeBtn, "x");
-				removeBtn.addEventListener("click", async () => {
+				const removeInterest = async () => {
 					this.contactData.interests.splice(index, 1);
 					if (this.contactData.interests.length === 0) {
 						delete this.contactData.interests;
 					}
 					await this.saveContactData();
 					this.render();
-				});
+				};
+				removeBtn.addEventListener("click", () =>
+					void removeInterest()
+				);
 			}
 		}
 
@@ -3396,7 +3429,7 @@ export class ContactPageView extends ItemView {
 						} else if (!href?.startsWith("http")) {
 							// Handle internal Obsidian links
 							event.preventDefault();
-							this.app.workspace.openLinkText(
+							void this.app.workspace.openLinkText(
 								href || "",
 								this._file?.path || "",
 								event.ctrlKey || event.metaKey
