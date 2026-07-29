@@ -17,7 +17,7 @@ export class DeleteDiaryEntryModal extends Modal {
 			text: `Are you sure you want to delete "${this.entryTitle}"? It will be moved to your trash.`,
 		});
 
-		const buttonContainer = contentEl.createEl("div", {
+		const buttonContainer = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 

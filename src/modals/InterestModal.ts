@@ -33,7 +33,7 @@ export class InterestModal extends FormModal {
 
 		// Category picker — buttons are added after the inputs exist so their
 		// handlers can update the detail field.
-		const categoryRow = contentEl.createEl("div", {
+		const categoryRow = contentEl.createDiv({
 			cls: "quick-idea-categories",
 		});
 
@@ -47,7 +47,7 @@ export class InterestModal extends FormModal {
 		textInput.value = this.initialText;
 
 		// Second, optional field — its label/placeholder follow the category
-		const detailLabel = contentEl.createEl("div", {
+		const detailLabel = contentEl.createDiv({
 			cls: "interest-detail-label",
 		});
 		const detailInput = contentEl.createEl("input", {
@@ -87,7 +87,7 @@ export class InterestModal extends FormModal {
 		});
 		syncDetail();
 
-		const buttonContainer = contentEl.createEl("div", {
+		const buttonContainer = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttonContainer.createEl("button", {
@@ -112,7 +112,7 @@ export class InterestModal extends FormModal {
 		textInput.addEventListener("keydown", onEnter);
 		detailInput.addEventListener("keydown", onEnter);
 
-		setTimeout(() => textInput.focus(), 0);
+		window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

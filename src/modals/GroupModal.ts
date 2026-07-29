@@ -29,7 +29,7 @@ export class GroupModal extends FormModal {
 				: "New group",
 		});
 
-		const nameField = contentEl.createEl("div", {
+		const nameField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		nameField.createEl("label", { text: "Name" });
@@ -43,11 +43,11 @@ export class GroupModal extends FormModal {
 
 		// Color: fixed palette of swatches
 		let color = this.existing?.color ?? GROUP_COLORS[0];
-		const colorField = contentEl.createEl("div", {
+		const colorField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		colorField.createEl("label", { text: "Color" });
-		const swatchRow = colorField.createEl("div", {
+		const swatchRow = colorField.createDiv({
 			cls: "group-color-swatches",
 		});
 		const swatches = new Map<string, HTMLElement>();
@@ -66,7 +66,7 @@ export class GroupModal extends FormModal {
 			swatches.set(c, swatch);
 		}
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 

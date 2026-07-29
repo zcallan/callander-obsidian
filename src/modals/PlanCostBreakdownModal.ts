@@ -20,36 +20,36 @@ export class PlanCostBreakdownModal extends Modal {
 		contentEl.createEl("h2", { text: `${this.person}’s share` });
 
 		if (this.rows.length === 0) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "section-helper-text",
 				text: "Nothing owed.",
 			});
 			return;
 		}
 
-		const list = contentEl.createEl("div", { cls: "plan-breakdown-list" });
+		const list = contentEl.createDiv({ cls: "plan-breakdown-list" });
 		let total = 0;
 		for (const r of this.rows) {
 			total += r.amount;
-			const row = list.createEl("div", { cls: "plan-breakdown-row" });
-			row.createEl("span", {
+			const row = list.createDiv({ cls: "plan-breakdown-row" });
+			row.createSpan({
 				cls: "plan-breakdown-label",
 				text: `${r.label} · ${r.descriptor}`,
 			});
-			row.createEl("span", {
+			row.createSpan({
 				cls: "plan-breakdown-amount",
 				text: `$${r.amount.toFixed(2)}`,
 			});
 		}
 
-		const totalRow = list.createEl("div", {
+		const totalRow = list.createDiv({
 			cls: "plan-breakdown-row plan-breakdown-total",
 		});
-		totalRow.createEl("span", {
+		totalRow.createSpan({
 			cls: "plan-breakdown-label",
 			text: "Total",
 		});
-		totalRow.createEl("span", {
+		totalRow.createSpan({
 			cls: "plan-breakdown-amount",
 			text: `$${total.toFixed(2)}`,
 		});

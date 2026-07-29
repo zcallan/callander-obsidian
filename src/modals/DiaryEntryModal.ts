@@ -51,7 +51,7 @@ export class DiaryEntryModal extends FormModal {
 				});
 			});
 
-		const buttonContainer = contentEl.createEl("div", {
+		const buttonContainer = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 
@@ -74,7 +74,7 @@ export class DiaryEntryModal extends FormModal {
 				this.submit();
 			}
 		});
-		setTimeout(() => titleInput!.focus(), 0);
+		window.setTimeout(() => titleInput!.focus(), 0);
 	}
 
 	private async submit() {

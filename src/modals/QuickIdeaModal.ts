@@ -92,7 +92,7 @@ export class QuickIdeaModal extends FormModal {
 		contentEl.createEl("h2", { text: `Idea for ${this.contactName}` });
 
 		// Category picker: one row of emoji buttons
-		const categoryRow = contentEl.createEl("div", {
+		const categoryRow = contentEl.createDiv({
 			cls: "quick-idea-categories",
 		});
 
@@ -128,7 +128,7 @@ export class QuickIdeaModal extends FormModal {
 		});
 		textInput.value = this.initialText;
 
-		const buttonContainer = contentEl.createEl("div", {
+		const buttonContainer = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttonContainer.createEl("button", {
@@ -151,7 +151,7 @@ export class QuickIdeaModal extends FormModal {
 			}
 		});
 
-		setTimeout(() => textInput.focus(), 0);
+		window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

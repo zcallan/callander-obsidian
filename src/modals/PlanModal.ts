@@ -18,7 +18,7 @@ export class PlanModal extends FormModal {
 		contentEl.empty();
 		contentEl.createEl("h2", { text: "New plan" });
 
-		const nameField = contentEl.createEl("div", {
+		const nameField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		nameField.createEl("label", { text: "What's the plan?" });
@@ -28,7 +28,7 @@ export class PlanModal extends FormModal {
 		});
 
 		let dateValue = "";
-		const dateField = contentEl.createEl("div", {
+		const dateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "When (as rough as you like)" });
@@ -45,7 +45,7 @@ export class PlanModal extends FormModal {
 		);
 
 		let endDateValue = "";
-		const endDateField = contentEl.createEl("div", {
+		const endDateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		endDateField.createEl("label", { text: "Until (optional)" });
@@ -61,7 +61,7 @@ export class PlanModal extends FormModal {
 			}
 		);
 
-		const locationField = contentEl.createEl("div", {
+		const locationField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		locationField.createEl("label", { text: "Where (optional)" });
@@ -70,7 +70,7 @@ export class PlanModal extends FormModal {
 			attr: { type: "text", placeholder: "e.g. Providence, RI" },
 		});
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const createButton = buttons.createEl("button", {
@@ -97,7 +97,7 @@ export class PlanModal extends FormModal {
 				submit();
 			}
 		});
-		setTimeout(() => nameInput.focus(), 0);
+		window.setTimeout(() => nameInput.focus(), 0);
 	}
 
 	onClose() {

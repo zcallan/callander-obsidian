@@ -24,7 +24,7 @@ export class CopyEventModal extends FormModal {
 		contentEl.createEl("h2", { text: "Copy event to…" });
 
 		const type = EVENT_TYPES.find((t) => t.id === this.event.type);
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "section-helper-text",
 			text: `${type ? type.emoji + " " : ""}${this.event.text}`,
 		});
@@ -41,7 +41,7 @@ export class CopyEventModal extends FormModal {
 			attr: { type: "text", placeholder: "Search friends…" },
 		});
 
-		const listEl = contentEl.createEl("div", {
+		const listEl = contentEl.createDiv({
 			cls: "group-event-friend-list",
 		});
 
@@ -70,7 +70,7 @@ export class CopyEventModal extends FormModal {
 				row.createSpan({ text: c.displayName });
 			}
 			if (matches.length === 0) {
-				listEl.createEl("div", {
+				listEl.createDiv({
 					cls: "section-helper-text",
 					text: "No friends match.",
 				});
@@ -79,7 +79,7 @@ export class CopyEventModal extends FormModal {
 		searchInput.addEventListener("input", renderList);
 		renderList();
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const copyButton = buttons.createEl("button", {

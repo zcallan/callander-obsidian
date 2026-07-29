@@ -23,7 +23,7 @@ export class ConvertSomedayModal extends Modal {
 			text: `"${this.somedayName}" is now a plan. Keep the someday as a reminder, or remove it?`,
 		});
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const removeBtn = buttons.createEl("button", {
