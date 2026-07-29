@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 export class AddFieldModal extends FormModal {
 	private onSubmit: (fieldName: string) => void | Promise<void>;

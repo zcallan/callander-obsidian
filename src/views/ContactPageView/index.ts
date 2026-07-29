@@ -380,42 +380,6 @@ export class ContactPageView extends ItemView {
 				return wrap;
 			};
 
-			// A collapsible section — click the header to expand; the body
-			// (returned) holds the content. Open state persists across renders,
-			// so adding/editing an item won't snap it shut.
-			const planAccordion = (
-				icon: string,
-				label: string,
-				key: string
-			) => {
-				const wrap = planContent.createDiv({
-					cls: "contact-stack-section plan-accordion",
-				});
-				const header = wrap.createDiv({
-					cls: "contact-stack-header plan-accordion-header",
-				});
-				setIcon(
-					header.createSpan({ cls: "contact-stack-header-icon" }),
-					icon
-				);
-				header.createSpan({ cls: "plan-accordion-label", text: label });
-				setIcon(
-					header.createSpan({ cls: "plan-accordion-chevron" }),
-					"chevron-down"
-				);
-				const body = wrap.createDiv({
-					cls: "plan-accordion-body",
-				});
-				wrap.toggleClass("is-open", this.expandedPlanSections.has(key));
-				header.addEventListener("click", () => {
-					const nowOpen = !this.expandedPlanSections.has(key);
-					if (nowOpen) this.expandedPlanSections.add(key);
-					else this.expandedPlanSections.delete(key);
-					wrap.toggleClass("is-open", nowOpen);
-				});
-				return body;
-			};
-
 			void this.renderPlanMembers(
 				planSection("users", `Who's in (${this.planMemberCount()})`)
 			);
@@ -3443,7 +3407,8 @@ export class ContactPageView extends ItemView {
 					cls: "contact-extras-content",
 				});
 
-				await MarkdownRenderer.renderMarkdown(
+				await MarkdownRenderer.render(
+					this.app,
 					extrasContent,
 					contentDiv,
 					this._file.path,

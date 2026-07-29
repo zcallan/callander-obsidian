@@ -697,7 +697,6 @@ export class DashboardView extends ItemView {
 			.getPlans()
 			.filter((p) => p.status !== "done")
 			.sort((a, b) => {
-				const empty = { year: null, month: null, day: null };
 				const keyA = parseFlexDate(a.date)
 					? flexSortKey(parseFlexDate(a.date)!)
 					: Number.MAX_SAFE_INTEGER;

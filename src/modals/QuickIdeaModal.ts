@@ -1,4 +1,4 @@
-import { App, FuzzySuggestModal, Modal, TFile } from "obsidian";
+import { App, FuzzySuggestModal, TFile } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown } from "@/types";
 import { IDEA_CATEGORIES, IdeaCategory } from "@/constants";

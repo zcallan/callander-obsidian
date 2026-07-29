@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 /** One text field — a quick draft note about a known friend or plan. */
 export class NoteInputModal extends FormModal {

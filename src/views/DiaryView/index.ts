@@ -175,7 +175,8 @@ export class DiaryView extends ItemView {
 		const rendered = container.createDiv({
 			cls: "diary-entry-rendered",
 		});
-		await MarkdownRenderer.renderMarkdown(
+		await MarkdownRenderer.render(
+			this.app,
 			entry.body,
 			rendered,
 			entry.file.path,
