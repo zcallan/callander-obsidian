@@ -787,35 +787,6 @@ If your plugin does not need CSS, delete this file.
 	-webkit-overflow-scrolling: touch;
 }
 
-.callander-relationship-types {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-	gap: 12px;
-}
-
-.callander-relationship-types .setting-item {
-	border: none;
-	padding: 8px;
-	margin: 0;
-	background: var(--background-modifier-form-field);
-	border-radius: 4px;
-}
-
-.callander-relationship-types .setting-item-info {
-	display: none;
-}
-
-.callander-relationship-types .setting-item-control {
-	flex: 1;
-	justify-content: space-between;
-	padding: 0;
-}
-
-.callander-relationship-types .setting-item-control input {
-	text-align: left;
-	text-transform: capitalize;
-}
-
 /* Capitalize relationship values in table */
 .callander-relationship-cell {
 	text-transform: capitalize;
