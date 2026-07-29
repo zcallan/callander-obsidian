@@ -23,3 +23,5 @@ data.json
 
 # Local dev build target (absolute path to a vault plugin folder)
 .vault-plugin-path
+
+examples/example-vault/.obsidian
