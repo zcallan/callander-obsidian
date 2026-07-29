@@ -188,13 +188,10 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				});
 			});
 
-		const headerContainer = containerEl.createEl("div", {
-			cls: "callander-relationship-header",
-		});
-
-		headerContainer.createEl("h3", { text: "Relationship types" });
-
-		new Setting(headerContainer).addButton((button) =>
+		new Setting(containerEl)
+			.setName("Relationship types")
+			.setHeading()
+			.addButton((button) =>
 			button.setButtonText("Add relationship type").onClick(async () => {
 				// Create a temporary input field
 				const tempInput = document.createElement("input");
