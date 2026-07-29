@@ -64,7 +64,7 @@ export default class FriendTracker extends Plugin {
 
 		// On mobile, we should wait for layout-ready
 		this.app.workspace.onLayoutReady(() => {
-			this.initialize();
+			void this.initialize();
 		});
 	}
 
@@ -165,12 +165,13 @@ export default class FriendTracker extends Plugin {
 				name: "Log diary entry to friends' timelines",
 				checkCallback: (checking) => {
 					const file = this.app.workspace.getActiveFile();
-					const ok =
-						!!file && this.diaryOperations.isDiaryFile(file.path);
-					if (!checking && ok) {
-						this.logDiaryEntryToTimelines(file);
+					if (!file || !this.diaryOperations.isDiaryFile(file.path)) {
+						return false;
 					}
-					return ok;
+					if (!checking) {
+						void this.logDiaryEntryToTimelines(file);
+					}
+					return true;
 				},
 			});
 			this.addCommand({
@@ -226,7 +227,7 @@ export default class FriendTracker extends Plugin {
 						file instanceof TFile &&
 						this.diaryOperations.isDiaryFile(file.path)
 					) {
-						this.contactOperations.retargetDiarySource(
+						void this.contactOperations.retargetDiarySource(
 							oldPath,
 							file.path
 						);
@@ -250,7 +251,10 @@ export default class FriendTracker extends Plugin {
 			await this.checkBirthdays();
 			await this.updateStatusBar();
 			this.registerInterval(
-				window.setInterval(() => this.checkBirthdays(), 60 * 60 * 1000)
+				window.setInterval(
+					() => void this.checkBirthdays(),
+					60 * 60 * 1000
+				)
 			);
 			this.registerDomEvent(window, "focus", () =>
 				this.checkBirthdays()
@@ -464,7 +468,7 @@ export default class FriendTracker extends Plugin {
 		this.markdownBypass.add(path);
 		// The bypass is per-navigation, not permanent
 		window.setTimeout(() => this.markdownBypass.delete(path), 1000);
-		this.app.workspace.openLinkText(path, "", true);
+		void this.app.workspace.openLinkText(path, "", true);
 	}
 
 	// ---- View activation ----
@@ -475,15 +479,15 @@ export default class FriendTracker extends Plugin {
 	) {
 		const workspace = this.app.workspace;
 		for (const leaf of workspace.getLeavesOfType(type)) {
-			const view = await leaf.view;
+			const view = leaf.view;
 			if (existing(view)) {
-				workspace.revealLeaf(leaf);
+				await workspace.revealLeaf(leaf);
 				return;
 			}
 		}
 		const leaf = workspace.getLeaf(true);
 		await leaf.setViewState({ type, active: true });
-		workspace.revealLeaf(leaf);
+		await workspace.revealLeaf(leaf);
 	}
 
 	public async activateDashboard() {
@@ -525,9 +529,9 @@ export default class FriendTracker extends Plugin {
 		)) {
 			// Ignore any leftover sidebar-docked copies from the old layout
 			if (leaf.getRoot() !== workspace.rootSplit) continue;
-			const view = await leaf.view;
+			const view = leaf.view;
 			if (view instanceof FriendTrackerView) {
-				workspace.revealLeaf(leaf);
+				await workspace.revealLeaf(leaf);
 				return;
 			}
 		}
@@ -536,7 +540,7 @@ export default class FriendTracker extends Plugin {
 			type: VIEW_TYPE_FRIEND_TRACKER,
 			active: true,
 		});
-		workspace.revealLeaf(leaf);
+		await workspace.revealLeaf(leaf);
 	}
 
 	// ---- Quick actions ----
@@ -707,7 +711,7 @@ export default class FriendTracker extends Plugin {
 			VIEW_TYPE_DASHBOARD
 		)) {
 			const view = leaf.view;
-			if (view instanceof DashboardView) view.refresh();
+			if (view instanceof DashboardView) void view.refresh();
 		}
 	}
 
@@ -721,7 +725,7 @@ export default class FriendTracker extends Plugin {
 			file.path,
 			window.setTimeout(() => {
 				this.diarySyncTimers.delete(file.path);
-				this.syncLoggedDiaryEntry(file);
+				void this.syncLoggedDiaryEntry(file);
 			}, 1500)
 		);
 	}
@@ -837,8 +841,8 @@ export default class FriendTracker extends Plugin {
 
 	private async openIdeaSearch() {
 		const contacts = await this.contactOperations.getContacts();
-		new IdeaSearchModal(this.app, contacts, async (hit) => {
-			await this.openContactPage(hit.contact.file);
+		new IdeaSearchModal(this.app, contacts, (hit) => {
+			void this.openContactPage(hit.contact.file);
 		}).open();
 	}
 
@@ -896,7 +900,7 @@ export default class FriendTracker extends Plugin {
 			});
 		}
 		this.app.workspace.setActiveLeaf(leaf, { focus: true });
-		this.app.workspace.revealLeaf(leaf);
+		await this.app.workspace.revealLeaf(leaf);
 	}
 
 	// ---- Birthday calendar export ----
@@ -1156,7 +1160,7 @@ export default class FriendTracker extends Plugin {
 			VIEW_TYPE_CONTACT_PAGE
 		);
 		for (const leaf of leaves) {
-			const view = await leaf.view;
+			const view = leaf.view;
 			if (
 				view instanceof ContactPageView &&
 				view.file?.path === file.path
@@ -1324,7 +1328,7 @@ export default class FriendTracker extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	async onunload() {
+	onunload() {
 		// Remove the datalist from document.body if it exists
 		const datalist = document.getElementById("relationship-types");
 		if (datalist) {

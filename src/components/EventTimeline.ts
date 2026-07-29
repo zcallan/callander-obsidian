@@ -154,7 +154,7 @@ export class EventTimeline {
 		// Tapping the item opens the edit modal (the only path on mobile,
 		// where the hover action buttons don't exist)
 		item.addEventListener("click", () => {
-			this.view.openEditEventModal(index, event);
+			void this.view.openEditEventModal(index, event);
 		});
 
 		// Typed events get a colored dot; untyped render neutral
@@ -212,7 +212,11 @@ export class EventTimeline {
 			});
 			badgeEl.addEventListener("click", (e) => {
 				e.stopPropagation();
-				this.view.app.workspace.openLinkText(event.source!, "", true);
+				void this.view.app.workspace.openLinkText(
+					event.source!,
+					"",
+					true
+				);
 			});
 		}
 
@@ -228,7 +232,7 @@ export class EventTimeline {
 		setIcon(editBtn, "pencil");
 		editBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
-			this.view.openEditEventModal(index, event);
+			void this.view.openEditEventModal(index, event);
 		});
 
 		const deleteBtn = actions.createEl("button", {
