@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { FriendEvent } from "@/types";
 import { EVENT_TYPES, EventType } from "@/constants";
@@ -14,7 +14,7 @@ export class EventModal extends FormModal {
 		type: EventType,
 		location: string,
 		link: string
-	) => void;
+	) => void | Promise<void>;
 
 	constructor(
 		app: App,
@@ -25,7 +25,7 @@ export class EventModal extends FormModal {
 			type: EventType,
 			location: string,
 			link: string
-		) => void,
+		) => void | Promise<void>,
 		private onDelete?: () => Promise<void>,
 		private onCopy?: () => void
 	) {
@@ -47,7 +47,7 @@ export class EventModal extends FormModal {
 		});
 
 		// Type picker: one row of emoji buttons, hangout is the default
-		const typeRow = contentEl.createEl("div", {
+		const typeRow = contentEl.createDiv({
 			cls: "quick-idea-categories",
 		});
 		const typeButtons = new Map<EventType, HTMLButtonElement>();
@@ -75,7 +75,7 @@ export class EventModal extends FormModal {
 		// Date, as precisely as you remember it ("May 2026" is fine)
 		let dateValue =
 			this.event?.date || new Date().toISOString().split("T")[0];
-		const dateField = contentEl.createEl("div", {
+		const dateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "When" });
@@ -101,7 +101,7 @@ export class EventModal extends FormModal {
 		});
 		textInput.value = this.event?.text || "";
 
-		const locationField = contentEl.createEl("div", {
+		const locationField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		locationField.createEl("label", { text: "Location (optional)" });
@@ -112,11 +112,11 @@ export class EventModal extends FormModal {
 		locationInput.value = this.event?.location || "";
 
 		// Link — a plain URL with an Open button to the right
-		const linkField = contentEl.createEl("div", {
+		const linkField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		linkField.createEl("label", { text: "Link (optional)" });
-		const linkRow = linkField.createEl("div", { cls: "event-link-row" });
+		const linkRow = linkField.createDiv({ cls: "event-link-row" });
 		const linkInput = linkRow.createEl("input", {
 			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "https://…" },
@@ -136,7 +136,7 @@ export class EventModal extends FormModal {
 			window.open(url, "_blank");
 		});
 
-		const buttonContainer = contentEl.createEl("div", {
+		const buttonContainer = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 
@@ -182,7 +182,7 @@ export class EventModal extends FormModal {
 		const submit = () => {
 			const text = textInput.value.trim();
 			if (!text || !dateValue) return;
-			this.onSubmit(
+			void this.onSubmit(
 				dateValue,
 				text,
 				this.type,
@@ -202,7 +202,7 @@ export class EventModal extends FormModal {
 		textInput.addEventListener("keydown", onKeydown);
 		locationInput.addEventListener("keydown", onKeydown);
 
-		setTimeout(() => textInput.focus(), 0);
+		window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

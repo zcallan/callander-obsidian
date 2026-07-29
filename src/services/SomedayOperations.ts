@@ -3,6 +3,7 @@ import type FriendTracker from "@/main";
 import type { SomedayCompany, SomedayDay } from "@/constants";
 import { SOMEDAY_DAYS, SOMEDAY_SEASONS } from "@/constants";
 import type { SomedayInfo, SomedaySubIdea } from "@/types";
+import { asArray, fieldOf, toText } from "@/utils/fm";
 
 /** The editable fields of a Someday — used for both create and update. */
 export interface SomedayFields {
@@ -43,61 +44,65 @@ export class SomedayOperations {
 	}
 
 	/** Candidate weekdays, tolerant of legacy/garbage values. */
-	static daysOf(metadata: any): SomedayDay[] {
-		const raw = metadata?.days;
-		if (!Array.isArray(raw)) return [];
-		return raw
-			.map((d: any) => String(d).toLowerCase())
-			.filter((d: string): d is SomedayDay => VALID_DAYS.has(d));
+	static daysOf(metadata: unknown): SomedayDay[] {
+		return asArray(fieldOf(metadata, "days"))
+			.map((d) => String(d).toLowerCase())
+			.filter((d): d is SomedayDay => VALID_DAYS.has(d));
 	}
 
 	/** Chosen seasons; folds a legacy single `timeframe` season id. */
-	static seasonsOf(metadata: any): string[] {
+	static seasonsOf(metadata: unknown): string[] {
 		const valid = new Set<string>(SOMEDAY_SEASONS.map((s) => s.id));
-		const raw = Array.isArray(metadata?.seasons) ? metadata.seasons : [];
-		const seasons = raw
-			.map((s: any) => String(s).toLowerCase())
-			.filter((s: string) => valid.has(s));
-		if (seasons.length === 0 && valid.has(String(metadata?.timeframe))) {
-			return [String(metadata.timeframe)];
+		const seasons = asArray(fieldOf(metadata, "seasons"))
+			.map((s) => String(s).toLowerCase())
+			.filter((s) => valid.has(s));
+		const timeframe = fieldOf(metadata, "timeframe");
+		if (seasons.length === 0 && valid.has(String(timeframe))) {
+			return [String(timeframe)];
 		}
 		return seasons;
 	}
 
 	/** Sub-ideas; legacy plain strings read as unchecked children. */
-	static subIdeasOf(metadata: any): SomedaySubIdea[] {
-		if (!Array.isArray(metadata?.subIdeas)) return [];
-		return metadata.subIdeas
-			.map((s: any) =>
-				typeof s === "string"
-					? { text: s, done: false }
-					: { text: s?.text ?? "", done: !!s?.done }
-			)
-			.filter((s: SomedaySubIdea) => s.text.length > 0);
+	static subIdeasOf(metadata: unknown): SomedaySubIdea[] {
+		return asArray(fieldOf(metadata, "subIdeas"))
+			.map((s): SomedaySubIdea => {
+				if (typeof s === "string") return { text: s, done: false };
+				const text = fieldOf(s, "text");
+				return {
+					text: typeof text === "string" ? text : "",
+					done: !!fieldOf(s, "done"),
+				};
+			})
+			.filter((s) => s.text.length > 0);
 	}
 
-	static costOf(metadata: any): number | null {
-		return typeof metadata?.cost === "number" ? metadata.cost : null;
+	static costOf(metadata: unknown): number | null {
+		const cost = fieldOf(metadata, "cost");
+		return typeof cost === "number" ? cost : null;
 	}
 
 	/** Build a SomedayInfo from a file's cached frontmatter. */
 	private toInfo(file: TFile): SomedayInfo {
-		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+		const fm: unknown =
+			this.app.metadataCache.getFileCache(file)?.frontmatter;
+		const str = (key: string): string => {
+			const v = fieldOf(fm, key);
+			return v ? toText(v) : "";
+		};
+		const company = fieldOf(fm, "company");
 		return {
 			file,
-			name: fm?.name ? String(fm.name) : file.basename,
-			date: fm?.date ? String(fm.date) : "",
+			name: str("name") || file.basename,
+			date: str("date"),
 			seasons: SomedayOperations.seasonsOf(fm),
 			days: SomedayOperations.daysOf(fm),
 			cost: SomedayOperations.costOf(fm),
-			notes: fm?.notes ? String(fm.notes) : "",
+			notes: str("notes"),
 			subIdeas: SomedayOperations.subIdeasOf(fm),
-			status: fm?.status ? String(fm.status) : "open",
-			convertedTo: fm?.convertedTo ? String(fm.convertedTo) : "",
-			company:
-				fm?.company === "solo" || fm?.company === "group"
-					? fm.company
-					: "",
+			status: str("status") || "open",
+			convertedTo: str("convertedTo"),
+			company: company === "solo" || company === "group" ? company : "",
 		};
 	}
 
@@ -148,71 +153,96 @@ export class SomedayOperations {
 		file: TFile,
 		patch: Partial<SomedayFields>
 	): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const set = (key: string, value: unknown) => {
-				if (value === undefined || value === null || value === "") {
-					delete fm[key];
-				} else {
-					fm[key] = value;
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const set = (key: string, value: unknown) => {
+					if (
+						value === undefined ||
+						value === null ||
+						value === ""
+					) {
+						delete fm[key];
+					} else {
+						fm[key] = value;
+					}
+				};
+				if (patch.name !== undefined) fm.name = patch.name;
+				if (patch.date !== undefined) set("date", patch.date);
+				if (patch.seasons !== undefined) {
+					set(
+						"seasons",
+						patch.seasons.length ? patch.seasons : undefined
+					);
+					delete fm.timeframe; // retire the legacy single-season key
 				}
-			};
-			if (patch.name !== undefined) fm.name = patch.name;
-			if (patch.date !== undefined) set("date", patch.date);
-			if (patch.seasons !== undefined) {
-				set("seasons", patch.seasons.length ? patch.seasons : undefined);
-				delete fm.timeframe; // retire the legacy single-season key
+				if (patch.days !== undefined)
+					set("days", patch.days.length ? patch.days : undefined);
+				// cost: a numeric 0 is a legitimate "free" estimate, so keep it
+				if (patch.cost !== undefined)
+					set("cost", patch.cost === null ? undefined : patch.cost);
+				if (patch.notes !== undefined) set("notes", patch.notes);
+				if (patch.company !== undefined) set("company", patch.company);
 			}
-			if (patch.days !== undefined)
-				set("days", patch.days.length ? patch.days : undefined);
-			// cost: a numeric 0 is a legitimate "free" estimate, so keep it
-			if (patch.cost !== undefined)
-				set("cost", patch.cost === null ? undefined : patch.cost);
-			if (patch.notes !== undefined) set("notes", patch.notes);
-			if (patch.company !== undefined) set("company", patch.company);
-		});
+		);
 	}
 
 	async addSubIdea(file: TFile, text: string): Promise<void> {
 		const trimmed = text.trim();
 		if (!trimmed) return;
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.subIdeas = [
-				...SomedayOperations.subIdeasOf(fm),
-				{ text: trimmed, done: false },
-			];
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.subIdeas = [
+					...SomedayOperations.subIdeasOf(fm),
+					{ text: trimmed, done: false },
+				];
+			}
+		);
 	}
 
 	async toggleSubIdea(file: TFile, index: number): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const list = SomedayOperations.subIdeasOf(fm);
-			if (index >= 0 && index < list.length) {
-				list[index] = { ...list[index], done: !list[index].done };
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const list = SomedayOperations.subIdeasOf(fm);
+				if (index >= 0 && index < list.length) {
+					list[index] = { ...list[index], done: !list[index].done };
+				}
+				fm.subIdeas = list;
 			}
-			fm.subIdeas = list;
-		});
+		);
 	}
 
 	async removeSubIdea(file: TFile, index: number): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			const list = SomedayOperations.subIdeasOf(fm);
-			if (index >= 0 && index < list.length) list.splice(index, 1);
-			if (list.length > 0) fm.subIdeas = list;
-			else delete fm.subIdeas;
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				const list = SomedayOperations.subIdeasOf(fm);
+				if (index >= 0 && index < list.length) list.splice(index, 1);
+				if (list.length > 0) fm.subIdeas = list;
+				else delete fm.subIdeas;
+			}
+		);
 	}
 
 	async setStatus(file: TFile, status: "open" | "done"): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.status = status;
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.status = status;
+			}
+		);
 	}
 
 	/** Record the Plan a Someday became (kept as a breadcrumb when not removed). */
 	async markConverted(file: TFile, planPath: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.convertedTo = planPath;
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.convertedTo = planPath;
+			}
+		);
 	}
 
 	async deleteSomeday(file: TFile): Promise<void> {

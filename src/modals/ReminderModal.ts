@@ -26,7 +26,7 @@ export class ReminderModal extends FormModal {
 		});
 
 		// ---- Name ----
-		const nameField = contentEl.createEl("div", {
+		const nameField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		nameField.createEl("label", { text: "What is it?" });
@@ -38,7 +38,7 @@ export class ReminderModal extends FormModal {
 
 		// ---- Date ----
 		let dateValue = this.existing?.date ?? "";
-		const dateField = contentEl.createEl("div", {
+		const dateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "Date (optional)" });
@@ -56,7 +56,7 @@ export class ReminderModal extends FormModal {
 		);
 
 		// ---- Time ----
-		const timeField = contentEl.createEl("div", {
+		const timeField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		timeField.createEl("label", { text: "Time (optional)" });
@@ -67,7 +67,7 @@ export class ReminderModal extends FormModal {
 		timeInput.value = this.existing?.time ?? "";
 
 		// ---- Location ----
-		const locField = contentEl.createEl("div", {
+		const locField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		locField.createEl("label", { text: "Location (optional)" });
@@ -78,11 +78,11 @@ export class ReminderModal extends FormModal {
 		locInput.value = this.existing?.location ?? "";
 
 		// ---- Link ----
-		const linkField = contentEl.createEl("div", {
+		const linkField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		linkField.createEl("label", { text: "Link (optional)" });
-		const linkRow = linkField.createEl("div", { cls: "event-link-row" });
+		const linkRow = linkField.createDiv({ cls: "event-link-row" });
 		const linkInput = linkRow.createEl("input", {
 			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "https://…" },
@@ -103,7 +103,7 @@ export class ReminderModal extends FormModal {
 		});
 
 		// ---- Buttons ----
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		if (this.existing) {
@@ -155,14 +155,14 @@ export class ReminderModal extends FormModal {
 			await this.onSaved();
 			this.close();
 		};
-		saveBtn.addEventListener("click", submit);
+		saveBtn.addEventListener("click", () => void submit());
 		nameInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
-		setTimeout(() => nameInput.focus(), 0);
+		window.setTimeout(() => nameInput.focus(), 0);
 	}
 
 	onClose() {

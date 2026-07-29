@@ -1,6 +1,7 @@
 import { TFile, TFolder, normalizePath, parseYaml } from "obsidian";
 import type FriendTracker from "@/main";
 import type { DiaryEntry } from "@/types";
+import { fieldOf, isRecord, toText } from "@/utils/fm";
 
 export class DiaryOperations {
 	constructor(private plugin: FriendTracker) {}
@@ -47,11 +48,15 @@ export class DiaryOperations {
 			try {
 				const content = await this.app.vault.cachedRead(file);
 				const { frontmatter, body } = this.splitContent(content);
+				const str = (key: string): string => {
+					const v = frontmatter[key];
+					return v ? toText(v) : "";
+				};
 				entries.push({
 					file,
-					title: frontmatter.title || file.basename,
-					date: frontmatter.date || "",
-					created: frontmatter.created || "",
+					title: str("title") || file.basename,
+					date: str("date"),
+					created: str("created"),
 					body,
 				});
 			} catch (error) {
@@ -83,26 +88,29 @@ export class DiaryOperations {
 				(f): f is TFile => f instanceof TFile && f.extension === "md"
 			)
 			.map((file) => {
-				const fm =
+				const fm: unknown =
 					this.app.metadataCache.getFileCache(file)?.frontmatter;
+				const title = fieldOf(fm, "title");
+				const date = fieldOf(fm, "date");
 				return {
 					file,
-					title: fm?.title || file.basename,
-					date: fm?.date ? String(fm.date) : "",
+					title: title ? toText(title) : file.basename,
+					date: date ? toText(date) : "",
 				};
 			})
 			.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 	}
 
 	splitContent(content: string): {
-		frontmatter: Record<string, any>;
+		frontmatter: Record<string, unknown>;
 		body: string;
 	} {
 		const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
 		if (!match) return { frontmatter: {}, body: content };
-		let frontmatter: Record<string, any> = {};
+		let frontmatter: Record<string, unknown> = {};
 		try {
-			frontmatter = parseYaml(match[1]) || {};
+			const parsed: unknown = parseYaml(match[1]);
+			if (isRecord(parsed)) frontmatter = parsed;
 		} catch (error) {
 			console.error("Error parsing diary frontmatter:", error);
 		}
@@ -124,10 +132,13 @@ export class DiaryOperations {
 		title: string,
 		date: string
 	): Promise<TFile> {
-		await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
-			frontmatter.title = title;
-			frontmatter.date = date;
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(frontmatter: Record<string, unknown>) => {
+				frontmatter.title = title;
+				frontmatter.date = date;
+			}
+		);
 
 		// Keep filename in sync with date + title
 		const newPath = await this.getAvailablePath(date, title, file.path);

@@ -1,4 +1,11 @@
-import { ItemView, WorkspaceLeaf, setIcon, Notice } from "obsidian";
+import {
+	ItemView,
+	WorkspaceLeaf,
+	setIcon,
+	Notice,
+	type ViewStateResult,
+} from "obsidian";
+import { fieldOf } from "@/utils/fm";
 import type FriendTracker from "@/main";
 import type { SomedayInfo } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
@@ -69,30 +76,31 @@ export class SomedaysView extends ItemView {
 			path === folder || path.startsWith(folder + "/");
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("delete", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("rename", (file, oldPath) => {
-				if (inScope(file.path) || inScope(oldPath)) this.refresh();
+				if (inScope(file.path) || inScope(oldPath)) void this.refresh();
 			})
 		);
 		await this.refresh();
 	}
 
 	// Opening a Someday file routes here with its path → open its view modal.
-	async setState(state: any, result: any) {
-		this.focusPath = state?.focusPath ?? null;
+	async setState(state: unknown, result: ViewStateResult) {
+		const focusPath = fieldOf(state, "focusPath");
+		this.focusPath = typeof focusPath === "string" ? focusPath : null;
 		await super.setState(state, result);
 		await this.refresh();
 	}
@@ -214,9 +222,9 @@ export class SomedaysView extends ItemView {
 		container.addClass("dashboard-container", "somedays-container");
 
 		// Header + New someday (+ Surprise me)
-		const header = container.createEl("div", { cls: "dashboard-header" });
+		const header = container.createDiv({ cls: "dashboard-header" });
 		header.createEl("h2", { text: "Somedays" });
-		const actions = header.createEl("div", { cls: "dashboard-actions" });
+		const actions = header.createDiv({ cls: "dashboard-actions" });
 		const newBtn = actions.createEl("button", {
 			cls: "callander-button",
 		});
@@ -237,7 +245,7 @@ export class SomedaysView extends ItemView {
 
 		// Search (only worth showing once there are a few)
 		if (this.somedays.length > 4) {
-			const searchWrap = container.createEl("div", {
+			const searchWrap = container.createDiv({
 				cls: "dashboard-search",
 			});
 			const searchInput = searchWrap.createEl("input", {
@@ -251,11 +259,11 @@ export class SomedaysView extends ItemView {
 			});
 		}
 
-		this.listEl = container.createEl("div", { cls: "someday-list" });
+		this.listEl = container.createDiv({ cls: "someday-list" });
 		this.renderList();
 
 		// Intro/helper text sits at the very bottom, under the list.
-		container.createEl("div", {
+		container.createDiv({
 			cls: "section-helper-text someday-footer-note",
 			text: "Ideas you might do one day — a park, a bar, a trip. Give them a rough when; convert one into a plan when it firms up.",
 		});
@@ -279,12 +287,12 @@ export class SomedaysView extends ItemView {
 	}
 
 	private renderFilters(container: HTMLElement) {
-		const wrap = container.createEl("div", { cls: "someday-filters" });
+		const wrap = container.createDiv({ cls: "someday-filters" });
 
 		// Days — day toggles + a specific-day and a season dropdown (union)
-		const row1 = wrap.createEl("div", { cls: "someday-filter-row" });
+		const row1 = wrap.createDiv({ cls: "someday-filter-row" });
 		row1.createSpan({ cls: "someday-filter-label", text: "Days" });
-		const opts1 = row1.createEl("div", { cls: "someday-filter-options" });
+		const opts1 = row1.createDiv({ cls: "someday-filter-options" });
 		const dayPill = (id: DayFilter, label: string) =>
 			this.filterPill(opts1, label, this.dayFilters.has(id), () => {
 				if (this.dayFilters.has(id)) this.dayFilters.delete(id);
@@ -322,9 +330,9 @@ export class SomedaysView extends ItemView {
 		});
 
 		// Party — solo / group (each a toggle; neither = everyone)
-		const row2 = wrap.createEl("div", { cls: "someday-filter-row" });
+		const row2 = wrap.createDiv({ cls: "someday-filter-row" });
 		row2.createSpan({ cls: "someday-filter-label", text: "Party" });
-		const opts2 = row2.createEl("div", { cls: "someday-filter-options" });
+		const opts2 = row2.createDiv({ cls: "someday-filter-options" });
 		(["solo", "group"] as const).forEach((id) => {
 			const c = SOMEDAY_COMPANY.find((x) => x.id === id)!;
 			this.filterPill(
@@ -346,7 +354,7 @@ export class SomedaysView extends ItemView {
 
 		const list = this.sorted();
 		if (list.length === 0) {
-			listEl.createEl("div", {
+			listEl.createDiv({
 				cls: "section-helper-text",
 				text:
 					this.somedays.length === 0
@@ -374,12 +382,12 @@ export class SomedaysView extends ItemView {
 
 	private renderRow(container: HTMLElement, someday: SomedayInfo) {
 		const inactive = someday.status === "done" || !!someday.convertedTo;
-		const row = container.createEl("div", {
+		const row = container.createDiv({
 			cls: `someday-card someday-row${
 				inactive ? " someday-inactive" : ""
 			}`,
 		});
-		row.createEl("div", { cls: "someday-card-titleline" }).createSpan({
+		row.createDiv({ cls: "someday-card-titleline" }).createSpan({
 			cls: "someday-title",
 			text: someday.name,
 		});
@@ -389,7 +397,7 @@ export class SomedaysView extends ItemView {
 		if (comp) subParts.push(comp.label);
 		const days = formatSomedayDays(someday.days);
 		if (days) subParts.push(days);
-		row.createEl("div", {
+		row.createDiv({
 			cls: "someday-card-subline",
 			text: subParts.filter(Boolean).join(" · "),
 		});

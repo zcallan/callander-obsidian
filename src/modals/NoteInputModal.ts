@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 /** One text field — a quick draft note about a known friend or plan. */
 export class NoteInputModal extends FormModal {
@@ -23,7 +23,7 @@ export class NoteInputModal extends FormModal {
 			},
 		});
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttons.createEl("button", {
@@ -36,15 +36,15 @@ export class NoteInputModal extends FormModal {
 			await this.onSubmit(text);
 			this.close();
 		};
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		// Cmd/Ctrl+Enter saves; plain Enter makes a newline
 		input.addEventListener("keydown", (e) => {
 			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
-		setTimeout(() => input.focus(), 0);
+		window.setTimeout(() => input.focus(), 0);
 	}
 
 	onClose() {

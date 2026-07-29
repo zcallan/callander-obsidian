@@ -35,7 +35,7 @@ If your plugin does not need CSS, delete this file.
 
 .callander-header select {
 	padding: var(--size-4-1) var(--size-4-2);
-	box-shadow: none !important;
+	box-shadow: none;
 	border: 1px solid var(--background-modifier-border);
 	background-color: var(--background-modifier-form-field);
 }
@@ -79,7 +79,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .callander-sort-button {
-	background: transparent !important;
+	background: transparent;
 	border: none;
 	margin: 0;
 	padding: 8px 0;
@@ -91,7 +91,7 @@ If your plugin does not need CSS, delete this file.
 	display: flex;
 	align-items: center;
 	justify-content: flex-start;
-	box-shadow: none !important;
+	box-shadow: none;
 	border-radius: 0;
 	-webkit-appearance: none;
 	font-weight: inherit;
@@ -100,14 +100,14 @@ If your plugin does not need CSS, delete this file.
 
 .callander-sort-button:hover {
 	color: var(--text-normal);
-	background: transparent !important;
+	background: transparent;
 }
 
 .callander-sort-button:active,
 .callander-sort-button:focus {
-	background: transparent !important;
-	box-shadow: none !important;
-	outline: none !important;
+	background: transparent;
+	box-shadow: none;
+	outline: none;
 }
 
 .callander-sort-button .sort-indicator {
@@ -534,8 +534,8 @@ If your plugin does not need CSS, delete this file.
 }
 
 .contact-name-edit {
-	background: none !important;
-	border: none !important;
+	background: none;
+	border: none;
 	padding: 4px;
 	cursor: pointer;
 	color: var(--text-muted);
@@ -556,7 +556,7 @@ If your plugin does not need CSS, delete this file.
 
 .contact-name-edit:hover {
 	color: var(--text-normal);
-	background: var(--background-modifier-hover) !important;
+	background: var(--background-modifier-hover);
 }
 
 .contact-name-section {
@@ -597,11 +597,9 @@ If your plugin does not need CSS, delete this file.
 	font-size: 0.9em;
 	line-height: 1.6;
 	resize: none;
-	transition: border-color 0.15s ease;
 	height: var(--scroll-height, auto);
-	min-height: 100px;
 	overflow: hidden;
-	transition: height 0.1s ease;
+	transition: border-color 0.15s ease, height 0.1s ease;
 	margin-top: 12px;
 }
 
@@ -619,16 +617,10 @@ If your plugin does not need CSS, delete this file.
 	font-style: italic;
 }
 
-.contact-notes-input.adjusting {
-	height: auto !important;
-}
-
-.contact-notes-input[data-height] {
-	height: attr(data-height px);
-}
-
+/* Auto-resize measurement: two classes beat the --scroll-height rule by
+   specificity while the JS reads scrollHeight */
 .contact-notes-input.measuring {
-	height: 0 !important;
+	height: 0;
 }
 
 .callander-name-cell {
@@ -715,7 +707,6 @@ If your plugin does not need CSS, delete this file.
 	display: flex;
 	flex-direction: column;
 	width: 100%;
-	height: 100vh;
 	height: -webkit-fill-available;
 	min-height: -webkit-fill-available;
 }
@@ -785,57 +776,6 @@ If your plugin does not need CSS, delete this file.
 	padding: 0 16px;
 	min-width: 100%;
 	-webkit-overflow-scrolling: touch;
-}
-
-/* Style for relationship type settings */
-.callander-relationship-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 12px;
-}
-
-.callander-relationship-header h3 {
-	margin: 0;
-}
-
-/* Remove default Setting styles in header */
-.callander-relationship-header .setting-item {
-	border: none;
-	padding: 0;
-}
-
-.callander-relationship-header .setting-item-control {
-	padding: 0;
-}
-
-.callander-relationship-types {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-	gap: 12px;
-}
-
-.callander-relationship-types .setting-item {
-	border: none;
-	padding: 8px;
-	margin: 0;
-	background: var(--background-modifier-form-field);
-	border-radius: 4px;
-}
-
-.callander-relationship-types .setting-item-info {
-	display: none;
-}
-
-.callander-relationship-types .setting-item-control {
-	flex: 1;
-	justify-content: space-between;
-	padding: 0;
-}
-
-.callander-relationship-types .setting-item-control input {
-	text-align: left;
-	text-transform: capitalize;
 }
 
 /* Capitalize relationship values in table */
@@ -1002,8 +942,8 @@ If your plugin does not need CSS, delete this file.
 	padding: 8px 2px;
 	color: var(--text-muted);
 	font-size: 14px;
-	background: none !important;
-	box-shadow: none !important;
+	background: none;
+	box-shadow: none;
 	border: none;
 	border-bottom: 2px solid transparent;
 	margin-bottom: -1px;
@@ -1017,19 +957,19 @@ If your plugin does not need CSS, delete this file.
 
 .contact-tab:hover {
 	color: var(--text-normal);
-	background: none !important;
+	background: none;
 }
 
 .contact-tab:focus {
-	outline: none !important;
-	box-shadow: none !important;
-	background: none !important;
+	outline: none;
+	box-shadow: none;
+	background: none;
 }
 
 .contact-tab.active {
 	color: var(--text-accent);
 	border-bottom-color: var(--text-accent);
-	background: none !important;
+	background: none;
 }
 
 /* Remove border-top from sections */
@@ -1082,8 +1022,8 @@ If your plugin does not need CSS, delete this file.
 
 /* Base button styles */
 .callander-button {
-	background: none !important;
-	border: 1px solid var(--background-modifier-border) !important;
+	background: none;
+	border: 1px solid var(--background-modifier-border);
 	color: var(--text-muted);
 	cursor: pointer;
 	padding: 6px 12px;
@@ -1101,16 +1041,16 @@ If your plugin does not need CSS, delete this file.
 
 /* Button hover state */
 .callander-button:hover {
-	background: var(--background-modifier-hover) !important;
+	background: var(--background-modifier-hover);
 	color: var(--text-normal);
-	border-color: var(--text-muted) !important;
+	border-color: var(--text-muted);
 }
 
 /* Primary/accent button variant - override the border */
 .callander-button.button-primary {
-	background-color: var(--interactive-accent) !important;
-	color: var(--text-on-accent) !important;
-	border: none !important;
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border: none;
 }
 
 /* Remove the button-outlined class since all buttons now have borders by default */
@@ -1135,7 +1075,7 @@ If your plugin does not need CSS, delete this file.
 /* Danger button variant */
 .callander-button.button-danger:hover {
 	color: var(--text-error);
-	background: var(--background-modifier-error-hover) !important;
+	background: var(--background-modifier-error-hover);
 }
 
 /* Full width variant */
@@ -1172,8 +1112,8 @@ If your plugin does not need CSS, delete this file.
 	padding: 8px 2px;
 	color: var(--text-muted);
 	font-size: 14px;
-	background: none !important;
-	box-shadow: none !important;
+	background: none;
+	box-shadow: none;
 	border: none;
 	border-bottom: 2px solid transparent;
 	margin-bottom: -1px;
@@ -1228,11 +1168,13 @@ If your plugin does not need CSS, delete this file.
 	align-items: center;
 	gap: 10px;
 	padding: 7px 0;
-	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.contact-idea-item:last-child {
-	border-bottom: none;
+/* Separators only between consecutive items — never after the last one
+   (plan sections append an add-row/footer sibling that must not get a
+   divider above it) */
+.contact-idea-item + .contact-idea-item {
+	border-top: 1px solid var(--background-modifier-border);
 }
 
 .contact-idea-item input[type="checkbox"] {
@@ -1952,12 +1894,6 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-muted);
 }
 
-/* Plan sections already sit inside a bordered stack section — no
-   second divider, and no trailing separator above the add button */
-.contact-idea-item:has(+ .contact-section-footer),
-.contact-idea-item:has(+ .contact-ideas-add-row) {
-	border-bottom: none;
-}
 
 .plan-item-cost {
 	color: var(--text-muted);
@@ -2468,7 +2404,7 @@ If your plugin does not need CSS, delete this file.
 .is-mobile .modal input[type="month"] {
 	-webkit-appearance: none;
 	appearance: none;
-	width: 100% !important;
+	width: 100%;
 	max-width: 100%;
 	display: block;
 	min-height: var(--input-height, 40px);
@@ -2992,7 +2928,7 @@ If your plugin does not need CSS, delete this file.
 	cursor: not-allowed;
 }
 
-.plan-cost-owed-check:has(input:disabled) {
+.plan-cost-owed-check.is-disabled {
 	cursor: default;
 }
 

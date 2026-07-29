@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import {
 	PLAN_IDEA_CATEGORIES,
@@ -51,7 +51,7 @@ export class PlanItemModal extends FormModal {
 		});
 
 		// Idea text first — the one thing you always fill in.
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "modal-section-label",
 			text: "Idea",
 		});
@@ -62,11 +62,11 @@ export class PlanItemModal extends FormModal {
 		textInput.value = this.initial?.text ?? "";
 
 		// Category picker
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "modal-section-label",
 			text: "Category",
 		});
-		const catRow = contentEl.createEl("div", {
+		const catRow = contentEl.createDiv({
 			cls: "quick-idea-categories",
 		});
 		const catButtons = new Map<PlanIdeaCategory, HTMLButtonElement>();
@@ -101,11 +101,11 @@ export class PlanItemModal extends FormModal {
 			this.scheduleOptions
 		);
 
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "modal-section-label",
 			text: "Approx. cost (optional)",
 		});
-		const costWrap = contentEl.createEl("div", {
+		const costWrap = contentEl.createDiv({
 			cls: "plan-cost-input-wrap",
 		});
 		costWrap.createSpan({ cls: "plan-cost-input-prefix", text: "$" });
@@ -116,11 +116,11 @@ export class PlanItemModal extends FormModal {
 		if (this.initial?.cost) costInput.value = String(this.initial.cost);
 
 		// Priority picker — at the bottom, above the buttons
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "modal-section-label",
 			text: "Priority",
 		});
-		const priRow = contentEl.createEl("div", {
+		const priRow = contentEl.createDiv({
 			cls: "quick-idea-categories plan-priority-row",
 		});
 		const priButtons = new Map<PlanPriority, HTMLButtonElement>();
@@ -144,7 +144,7 @@ export class PlanItemModal extends FormModal {
 			priButtons.set(p.id, button);
 		});
 
-		const buttonRow = contentEl.createEl("div", {
+		const buttonRow = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 
@@ -189,16 +189,16 @@ export class PlanItemModal extends FormModal {
 			});
 			this.close();
 		};
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		for (const input of [textInput, costInput, ...schedule.inputs]) {
 			input.addEventListener("keydown", (e) => {
 				if (e.key === "Enter") {
 					e.preventDefault();
-					submit();
+					void submit();
 				}
 			});
 		}
-		setTimeout(() => textInput.focus(), 0);
+		window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

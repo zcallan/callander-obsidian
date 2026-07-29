@@ -22,7 +22,7 @@ export class QuoteModal extends FormModal {
 			text: this.initial ? "Edit quote" : `Quote — ${this.name}`,
 		});
 
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "modal-section-label",
 			text: "Quote",
 		});
@@ -32,7 +32,7 @@ export class QuoteModal extends FormModal {
 		});
 		textInput.value = this.initial?.text ?? "";
 
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "modal-section-label",
 			text: "Context (optional)",
 		});
@@ -42,7 +42,7 @@ export class QuoteModal extends FormModal {
 		});
 		contextInput.value = this.initial?.context ?? "";
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		if (this.initial && this.onDelete) {
@@ -75,20 +75,20 @@ export class QuoteModal extends FormModal {
 			await this.onSubmit({ text, ...(context && { context }) });
 			this.close();
 		};
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		contextInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
 		textInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
-		setTimeout(() => textInput.focus(), 0);
+		window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

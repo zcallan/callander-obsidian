@@ -47,7 +47,7 @@ export class DiaryView extends ItemView {
 
 	private onVaultChange(path: string) {
 		if (!this.plugin.diaryOperations.isDiaryFile(path)) return;
-		this.refresh();
+		void this.refresh();
 	}
 
 	async refresh() {
@@ -61,7 +61,7 @@ export class DiaryView extends ItemView {
 		container.addClass("diary-view-container");
 
 		// Header
-		const header = container.createEl("div", { cls: "diary-header" });
+		const header = container.createDiv({ cls: "diary-header" });
 		header.createEl("h2", { text: "Diary" });
 		const newButton = header.createEl("button", {
 			cls: "callander-button button-primary",
@@ -70,7 +70,7 @@ export class DiaryView extends ItemView {
 		newButton.addEventListener("click", () => this.openNewEntryModal());
 
 		if (this.entries.length === 0) {
-			container.createEl("div", {
+			container.createDiv({
 				cls: "section-helper-text diary-empty-state",
 				text: "Your private journal. Each entry is filed under the date it's about — so you can backfill Tuesday's entry on Friday.",
 			});
@@ -85,9 +85,9 @@ export class DiaryView extends ItemView {
 			groups.get(key)!.push(entry);
 		}
 
-		const list = container.createEl("div", { cls: "diary-list" });
+		const list = container.createDiv({ cls: "diary-list" });
 		for (const [month, monthEntries] of groups) {
-			list.createEl("div", { cls: "diary-month-header", text: month });
+			list.createDiv({ cls: "diary-month-header", text: month });
 			for (const entry of monthEntries) {
 				this.renderEntryCard(list, entry);
 			}
@@ -118,17 +118,17 @@ export class DiaryView extends ItemView {
 	private renderEntryCard(container: HTMLElement, entry: DiaryEntry) {
 		const isExpanded = this.expandedPath === entry.file.path;
 
-		const card = container.createEl("div", {
+		const card = container.createDiv({
 			cls: `diary-entry-card ${isExpanded ? "expanded" : ""}`,
 		});
 
 		// Card header (always visible, click to expand/collapse)
-		const cardHeader = card.createEl("div", { cls: "diary-entry-header" });
-		cardHeader.createEl("div", {
+		const cardHeader = card.createDiv({ cls: "diary-entry-header" });
+		cardHeader.createDiv({
 			cls: "diary-entry-date",
 			text: this.formatDate(entry.date),
 		});
-		cardHeader.createEl("div", {
+		cardHeader.createDiv({
 			cls: "diary-entry-title",
 			text: entry.title,
 		});
@@ -136,7 +136,7 @@ export class DiaryView extends ItemView {
 		if (!isExpanded) {
 			const snippet = this.plainSnippet(entry.body);
 			if (snippet) {
-				cardHeader.createEl("div", {
+				cardHeader.createDiv({
 					cls: "diary-entry-snippet",
 					text: snippet,
 				});
@@ -151,8 +151,8 @@ export class DiaryView extends ItemView {
 		if (!isExpanded) return;
 
 		// Expanded: rendered body + toolbar
-		const bodyContainer = card.createEl("div", { cls: "diary-entry-body" });
-		this.renderReadingView(bodyContainer, entry);
+		const bodyContainer = card.createDiv({ cls: "diary-entry-body" });
+		void this.renderReadingView(bodyContainer, entry);
 		this.renderToolbar(card, entry);
 	}
 
@@ -166,16 +166,17 @@ export class DiaryView extends ItemView {
 
 	private async renderReadingView(container: HTMLElement, entry: DiaryEntry) {
 		if (!entry.body.trim()) {
-			container.createEl("div", {
+			container.createDiv({
 				cls: "section-helper-text",
 				text: "No content yet — click Edit to write.",
 			});
 			return;
 		}
-		const rendered = container.createEl("div", {
+		const rendered = container.createDiv({
 			cls: "diary-entry-rendered",
 		});
-		await MarkdownRenderer.renderMarkdown(
+		await MarkdownRenderer.render(
+			this.app,
 			entry.body,
 			rendered,
 			entry.file.path,
@@ -190,14 +191,16 @@ export class DiaryView extends ItemView {
 	}
 
 	private renderToolbar(card: HTMLElement, entry: DiaryEntry) {
-		const toolbar = card.createEl("div", { cls: "diary-entry-toolbar" });
+		const toolbar = card.createDiv({ cls: "diary-entry-toolbar" });
 
 		const editButton = toolbar.createEl("button", {
 			cls: "callander-button",
 		});
 		setIcon(editButton, "pencil");
 		editButton.createSpan({ text: "Edit" });
-		editButton.addEventListener("click", () => this.openInEditor(entry));
+		editButton.addEventListener("click", () =>
+			void this.openInEditor(entry)
+		);
 
 		// Put this entry on the timeline of every [[linked]] friend
 		const logButton = toolbar.createEl("button", {
@@ -206,10 +209,10 @@ export class DiaryView extends ItemView {
 		setIcon(logButton, "milestone");
 		logButton.createSpan({ text: "Log to timelines" });
 		logButton.addEventListener("click", () =>
-			this.plugin.logDiaryEntryToTimelines(entry.file)
+			void this.plugin.logDiaryEntryToTimelines(entry.file)
 		);
 
-		toolbar.createEl("div", { cls: "diary-toolbar-spacer" });
+		toolbar.createDiv({ cls: "diary-toolbar-spacer" });
 
 		// Edit metadata (title / about-date)
 		const metaButton = toolbar.createEl("button", {

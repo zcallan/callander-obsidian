@@ -23,25 +23,27 @@ export class ConvertSomedayModal extends Modal {
 			text: `"${this.somedayName}" is now a plan. Keep the someday as a reminder, or remove it?`,
 		});
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const removeBtn = buttons.createEl("button", {
 			text: "Remove someday",
 			cls: "callander-modal-button",
 		});
-		removeBtn.addEventListener("click", async () => {
+		const handleRemove = async () => {
 			await this.onChoice(false);
 			this.close();
-		});
+		};
+		removeBtn.addEventListener("click", () => void handleRemove());
 		const keepBtn = buttons.createEl("button", {
 			text: "Keep it",
 			cls: "callander-modal-button mod-cta",
 		});
-		keepBtn.addEventListener("click", async () => {
+		const handleKeep = async () => {
 			await this.onChoice(true);
 			this.close();
-		});
+		};
+		keepBtn.addEventListener("click", () => void handleKeep());
 	}
 
 	onClose() {

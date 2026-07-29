@@ -34,7 +34,7 @@ export function createBirthdayPrecisionInput(
 		else if (initialFlex.year === null) precision = "monthDay";
 	}
 
-	const controls = container.createEl("div", {
+	const controls = container.createDiv({
 		cls: "contact-met-controls",
 	});
 
@@ -53,7 +53,7 @@ export function createBirthdayPrecisionInput(
 	});
 	precisionSelect.value = precision;
 
-	const inputWrap = controls.createEl("div", {
+	const inputWrap = controls.createDiv({
 		cls: "contact-bday-inputs",
 	});
 

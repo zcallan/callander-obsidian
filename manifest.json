@@ -1,8 +1,8 @@
 {
 	"id": "callander",
 	"name": "Callander",
-	"version": "1.0.0",
-	"minAppVersion": "1.4.14",
+	"version": "1.1.0",
+	"minAppVersion": "1.13.0",
 	"description": "A private secondary memory for your friendships. Jot gift ideas, conversation threads, and things to do together — Callander resurfaces them when they matter. Never a CRM, never creepy.",
 	"author": "zcallan",
 	"authorUrl": "",

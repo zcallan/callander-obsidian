@@ -40,14 +40,14 @@ export class EventViewModal extends Modal {
 		const badge = lead ? lead.emoji : type ? type.emoji : "";
 
 		contentEl.createEl("h2", { text: lead ? lead.rest : event.text });
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "someday-view-meta",
 			text: `${badge ? badge + " " : ""}${this.whenLabel()}${
 				type ? " · " + type.label : ""
 			} · ${this.contact.displayName}`,
 		});
 		if (event.location) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "someday-view-cost",
 				text: `📍 ${event.location}`,
 			});
@@ -57,7 +57,7 @@ export class EventViewModal extends Modal {
 			const url = /^[a-z][a-z0-9+.-]*:\/\//i.test(event.link)
 				? event.link
 				: `https://${event.link}`;
-			const linkRow = contentEl.createEl("div", {
+			const linkRow = contentEl.createDiv({
 				cls: "event-link-row reminder-view-linkrow",
 			});
 			linkRow.createSpan({ cls: "reminder-view-link", text: event.link });
@@ -70,7 +70,7 @@ export class EventViewModal extends Modal {
 		}
 
 		// Actions
-		const actions = contentEl.createEl("div", {
+		const actions = contentEl.createDiv({
 			cls: "someday-view-actions",
 		});
 		const button = (icon: string, label: string, onClick: () => void) => {
@@ -84,7 +84,7 @@ export class EventViewModal extends Modal {
 
 		button("user", "View person", () => {
 			this.close();
-			this.plugin.openContactPage(this.contact.file);
+			void this.plugin.openContactPage(this.contact.file);
 		});
 
 		button("pencil", "Edit", () => {

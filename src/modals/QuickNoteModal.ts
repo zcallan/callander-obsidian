@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown } from "@/types";
 
@@ -32,7 +32,7 @@ export class QuickNoteModal extends FormModal {
 			},
 		});
 
-		const friendField = contentEl.createEl("div", {
+		const friendField = contentEl.createDiv({
 			cls: "callander-modal-field quick-note-friend-field",
 		});
 		friendField.createEl("label", { text: "Friend (optional)" });
@@ -51,7 +51,7 @@ export class QuickNoteModal extends FormModal {
 			datalist.createEl("option", { value: c.displayName });
 		});
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttons.createEl("button", {
@@ -74,16 +74,16 @@ export class QuickNoteModal extends FormModal {
 			this.close();
 		};
 
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		for (const input of [textInput, friendInput]) {
 			input.addEventListener("keydown", (event) => {
 				if (event.key === "Enter") {
 					event.preventDefault();
-					submit();
+					void submit();
 				}
 			});
 		}
-		setTimeout(() => textInput.focus(), 0);
+		window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

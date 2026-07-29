@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown } from "@/types";
 
@@ -31,7 +31,7 @@ export class MergeFriendsModal extends FormModal {
 			text: `${this.duplicate.displayName}'s note is moved to your trash`,
 		});
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const cancel = buttons.createEl("button", {
@@ -43,10 +43,11 @@ export class MergeFriendsModal extends FormModal {
 			text: "Merge",
 			cls: "callander-modal-button callander-modal-button-danger",
 		});
-		confirm.addEventListener("click", async () => {
+		const handleConfirm = async () => {
 			await this.onConfirm();
 			this.close();
-		});
+		};
+		confirm.addEventListener("click", () => void handleConfirm());
 	}
 
 	onClose() {

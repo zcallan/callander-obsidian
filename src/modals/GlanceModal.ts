@@ -25,7 +25,7 @@ export class GlanceModal extends Modal {
 
 		const met = parseFlexDate(this.contact.met);
 		if (met && met.year !== null) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "glance-met",
 				text: `Met ${formatFlexDate(met)} (${formatTimeSince(met)})`,
 			});
@@ -50,7 +50,7 @@ export class GlanceModal extends Modal {
 			);
 			if (items.length === 0) continue;
 			any = true;
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "glance-section-header",
 				text: `${cat.emoji} ${cat.label}`,
 			});
@@ -58,7 +58,7 @@ export class GlanceModal extends Modal {
 			items.forEach((i) => list.createEl("li", { text: i.text }));
 		}
 		if (!any) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "section-helper-text",
 				text: "No open ideas for them yet.",
 			});
@@ -78,7 +78,7 @@ export class GlanceModal extends Modal {
 			.filter((e) => e.type === "life" || e.type === "milestone")
 			.slice(0, 3);
 		if (lifeEvents.length > 0) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "glance-section-header",
 				text: "🌱 In their life",
 			});
@@ -97,7 +97,7 @@ export class GlanceModal extends Modal {
 			.filter((e) => e.type !== "life" && e.type !== "milestone")
 			.slice(0, 3);
 		if (recent.length > 0) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "glance-section-header",
 				text: "🕘 Recently",
 			});
