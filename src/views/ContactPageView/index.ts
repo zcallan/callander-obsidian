@@ -2700,6 +2700,7 @@ export class ContactPageView extends ItemView {
 				checkbox.checked = paid.includes(p);
 				// You can't owe yourself — leave your own row un-tickable.
 				checkbox.disabled = isYou(p);
+				check.toggleClass("is-disabled", isYou(p));
 				const togglePaid = async () => {
 					const current: string[] = Array.isArray(
 						this.contactData.costsPaid
