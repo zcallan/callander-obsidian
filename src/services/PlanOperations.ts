@@ -14,6 +14,13 @@ import type {
 	PlanSimpleItem,
 	PlanTimelineEntry,
 } from "@/types";
+import { asArray, fieldOf, isRecord } from "@/utils/fm";
+
+/** The named field when it's a non-empty string, else undefined. */
+function strFieldOf(value: unknown, key: string): string | undefined {
+	const v = fieldOf(value, key);
+	return typeof v === "string" && v ? v : undefined;
+}
 
 export class PlanOperations {
 	constructor(private plugin: FriendTracker) {}
@@ -34,53 +41,77 @@ export class PlanOperations {
 	}
 
 	/** Plan ideas — category + priority. Legacy bucket shapes are mapped. */
-	static itemsOf(metadata: any): PlanItem[] {
-		if (!Array.isArray(metadata?.items)) return [];
-		return metadata.items
-			.map((i: any) => {
-				const legacyBucket = i?.bucket;
+	static itemsOf(metadata: unknown): PlanItem[] {
+		return asArray(fieldOf(metadata, "items"))
+			.map((i): PlanItem => {
+				const legacyBucket = fieldOf(i, "bucket");
 				// "food" split into restaurant + cooking; old items → restaurant
-				const rawCat = i?.category === "food" ? "restaurant" : i?.category;
-				const category: PlanIdeaCategory = rawCat ?? "activity";
-				const priority: PlanPriority =
-					i?.priority ??
-					(legacyBucket === "must" ? "must" : "maybe");
+				const rawCat = fieldOf(i, "category");
+				const category =
+					rawCat === "food"
+						? "restaurant"
+						: typeof rawCat === "string" && rawCat
+						? (rawCat as PlanIdeaCategory)
+						: "activity";
+				const rawPriority = fieldOf(i, "priority");
+				const priority =
+					typeof rawPriority === "string" && rawPriority
+						? (rawPriority as PlanPriority)
+						: legacyBucket === "must"
+						? "must"
+						: "maybe";
+				const rawText = fieldOf(i, "text");
+				const cost = fieldOf(i, "cost");
 				return {
-					text: i?.text ?? String(i),
+					text:
+						typeof rawText === "string"
+							? rawText
+							: rawText == null
+							? String(i)
+							: "",
 					category,
 					priority,
-					...(i?.date && { date: i.date }),
-					...(i?.time && { time: i.time }),
-					...(i?.people && { people: i.people }),
-					...(typeof i?.cost === "number" && { cost: i.cost }),
+					...(strFieldOf(i, "date") && { date: strFieldOf(i, "date") }),
+					...(strFieldOf(i, "time") && { time: strFieldOf(i, "time") }),
+					...(strFieldOf(i, "people") && {
+						people: strFieldOf(i, "people"),
+					}),
+					...(typeof cost === "number" && { cost }),
 				};
 			})
-			.filter((i: PlanItem) => i.text.length > 0);
+			.filter((i) => i.text.length > 0);
 	}
 
 	/** Flat list readers (travel, accommodation) */
-	static simpleListOf(metadata: any, key: string): PlanSimpleItem[] {
-		if (!Array.isArray(metadata?.[key])) return [];
-		return metadata[key]
-			.map((i: any) => {
+	static simpleListOf(metadata: unknown, key: string): PlanSimpleItem[] {
+		return asArray(fieldOf(metadata, key))
+			.map((i): PlanSimpleItem => {
 				if (typeof i === "string") return { text: i };
 				// Legacy free-text `day` is dropped; an ISO one is kept as date.
+				const day = strFieldOf(i, "day");
 				const date =
-					i?.date ??
-					(/^\d{4}-\d{2}-\d{2}$/.test(String(i?.day ?? ""))
-						? i.day
+					strFieldOf(i, "date") ??
+					(day && /^\d{4}-\d{2}-\d{2}$/.test(day)
+						? day
 						: undefined);
+				const type = strFieldOf(i, "type");
+				const rawText = fieldOf(i, "text");
+				const cost = fieldOf(i, "cost");
 				return {
-					text: i?.text ?? "",
-					...(i?.type && { type: i.type }),
+					text: typeof rawText === "string" ? rawText : "",
+					...(type && { type: type as PlanSimpleItem["type"] }),
 					...(date && { date }),
-					...(i?.time && { time: i.time }),
-					...(i?.people && { people: i.people }),
-					...(i?.duration && { duration: i.duration }),
-					...(typeof i?.cost === "number" && { cost: i.cost }),
+					...(strFieldOf(i, "time") && { time: strFieldOf(i, "time") }),
+					...(strFieldOf(i, "people") && {
+						people: strFieldOf(i, "people"),
+					}),
+					...(strFieldOf(i, "duration") && {
+						duration: strFieldOf(i, "duration"),
+					}),
+					...(typeof cost === "number" && { cost }),
 				};
 			})
-			.filter((i: PlanSimpleItem) => i.text.length > 0);
+			.filter((i) => i.text.length > 0);
 	}
 
 	/**
@@ -89,7 +120,7 @@ export class PlanOperations {
 	 * stored. `index` is the position in each item's own source list, so the
 	 * caller can route an edit/delete straight back to the one real object.
 	 */
-	static timelineOf(metadata: any): PlanTimelineEntry[] {
+	static timelineOf(metadata: unknown): PlanTimelineEntry[] {
 		const entries: PlanTimelineEntry[] = [];
 
 		PlanOperations.itemsOf(metadata).forEach((item, index) => {
@@ -140,34 +171,42 @@ export class PlanOperations {
 		return entries.sort((a, b) => key(a).localeCompare(key(b)));
 	}
 
-	static costsOf(metadata: any): PlanCost[] {
-		if (!Array.isArray(metadata?.costs)) return [];
-		return metadata.costs
-			.map((c: any) => ({
-				label: c?.label ?? "",
-				amount: Number(c?.amount) || 0,
-				split: {
-					mode: ["shares", "percent"].includes(c?.split?.mode)
-						? c.split.mode
-						: "even",
-					...(c?.split?.shares && {
-						shares: c.split.shares,
-					}),
-				},
-			}))
-			.filter((c: PlanCost) => c.label.length > 0);
+	static costsOf(metadata: unknown): PlanCost[] {
+		return asArray(fieldOf(metadata, "costs"))
+			.map((c): PlanCost => {
+				const label = fieldOf(c, "label");
+				const split = fieldOf(c, "split");
+				const mode = fieldOf(split, "mode");
+				const shares = fieldOf(split, "shares");
+				return {
+					label: typeof label === "string" ? label : "",
+					amount: Number(fieldOf(c, "amount")) || 0,
+					split: {
+						mode:
+							mode === "shares" || mode === "percent"
+								? mode
+								: "even",
+						...(isRecord(shares) && {
+							shares: shares as Record<string, number>,
+						}),
+					},
+				};
+			})
+			.filter((c) => c.label.length > 0);
 	}
 
 	/** Credits (money already handed over), deducted from what a person owes. */
-	static creditsOf(metadata: any): PlanCredit[] {
-		if (!Array.isArray(metadata?.credits)) return [];
-		return metadata.credits
-			.map((c: any) => ({
-				person: String(c?.person ?? ""),
-				amount: Number(c?.amount) || 0,
-				...(c?.note && { note: String(c.note) }),
-			}))
-			.filter((c: PlanCredit) => c.person.length > 0 && c.amount > 0);
+	static creditsOf(metadata: unknown): PlanCredit[] {
+		return asArray(fieldOf(metadata, "credits"))
+			.map((c): PlanCredit => {
+				const note = fieldOf(c, "note");
+				return {
+					person: String(fieldOf(c, "person") ?? ""),
+					amount: Number(fieldOf(c, "amount")) || 0,
+					...(note ? { note: String(note) } : {}),
+				};
+			})
+			.filter((c) => c.person.length > 0 && c.amount > 0);
 	}
 
 	/** Total a person has already been credited. */
@@ -177,9 +216,8 @@ export class PlanOperations {
 			.reduce((s, c) => s + c.amount, 0);
 	}
 
-	static membersOf(metadata: any): string[] {
-		const raw = metadata?.members;
-		return Array.isArray(raw) ? raw.map(String) : [];
+	static membersOf(metadata: unknown): string[] {
+		return asArray(fieldOf(metadata, "members")).map(String);
 	}
 
 	/** All plans, straight from the metadata cache — zero file I/O */
@@ -193,15 +231,19 @@ export class PlanOperations {
 				(f): f is TFile => f instanceof TFile && f.extension === "md"
 			)
 			.map((file) => {
-				const fm =
+				const fm: unknown =
 					this.app.metadataCache.getFileCache(file)?.frontmatter;
+				const str = (key: string): string => {
+					const v = fieldOf(fm, key);
+					return v ? String(v) : "";
+				};
 				return {
 					file,
-					name: fm?.name ? String(fm.name) : file.basename,
-					date: fm?.date ? String(fm.date) : "",
-					endDate: fm?.endDate ? String(fm.endDate) : "",
-					location: fm?.location ? String(fm.location) : "",
-					status: fm?.status ? String(fm.status) : "planning",
+					name: str("name") || file.basename,
+					date: str("date"),
+					endDate: str("endDate"),
+					location: str("location"),
+					status: str("status") || "planning",
 					items: PlanOperations.itemsOf(fm),
 					members: PlanOperations.membersOf(fm),
 				};
@@ -236,35 +278,43 @@ export class PlanOperations {
 
 	/** Quick-capture path: append an idea without opening the plan */
 	async addItem(file: TFile, item: PlanItem): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.items = [...PlanOperations.itemsOf(fm), item];
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.items = [...PlanOperations.itemsOf(fm), item];
+			}
+		);
 	}
 
 	/** Bring items are a checklist; legacy plain strings read as unchecked */
-	static bringOf(metadata: any): Array<{ text: string; done: boolean }> {
-		if (!Array.isArray(metadata?.bring)) return [];
-		return metadata.bring
-			.map((b: any) =>
-				typeof b === "string"
-					? { text: b, done: false }
-					: { text: b?.text ?? "", done: !!b?.done }
-			)
-			.filter((b: { text: string }) => b.text.length > 0);
+	static bringOf(metadata: unknown): Array<{ text: string; done: boolean }> {
+		return asArray(fieldOf(metadata, "bring"))
+			.map((b) => {
+				if (typeof b === "string") return { text: b, done: false };
+				const text = fieldOf(b, "text");
+				return {
+					text: typeof text === "string" ? text : "",
+					done: !!fieldOf(b, "done"),
+				};
+			})
+			.filter((b) => b.text.length > 0);
 	}
 
 	/** Quick-capture path for the bring list */
 	async addBringItem(file: TFile, text: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.bring = [
-				...PlanOperations.bringOf(fm),
-				{ text, done: false },
-			];
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.bring = [
+					...PlanOperations.bringOf(fm),
+					{ text, done: false },
+				];
+			}
+		);
 	}
 
 	/** Sum of per-item costs across ideas, travel and accommodation */
-	static estimate(metadata: any): number {
+	static estimate(metadata: unknown): number {
 		const items = PlanOperations.itemsOf(metadata);
 		const travel = PlanOperations.simpleListOf(metadata, "travel");
 		const stay = PlanOperations.simpleListOf(metadata, "accommodation");
