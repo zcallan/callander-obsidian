@@ -32,8 +32,8 @@ export function appendScheduleFields(
 	options: ScheduleFieldOptions = {}
 ): ScheduleFieldsHandle {
 	// --- Date ---
-	const dateField = container.createEl("div", { cls: "plan-schedule-field" });
-	dateField.createEl("div", { cls: "modal-section-label", text: "Date" });
+	const dateField = container.createDiv({ cls: "plan-schedule-field" });
+	dateField.createDiv({ cls: "modal-section-label", text: "Date" });
 	const initialDate = initial.date ?? "";
 	let dateInput: HTMLInputElement | null = null;
 	let dateSelect: HTMLSelectElement | null = null;
@@ -69,9 +69,9 @@ export function appendScheduleFields(
 	}
 
 	// --- Time: Roughly / Exact ---
-	const timeField = container.createEl("div", { cls: "plan-schedule-field" });
-	timeField.createEl("div", { cls: "modal-section-label", text: "Time" });
-	const timeControls = timeField.createEl("div", {
+	const timeField = container.createDiv({ cls: "plan-schedule-field" });
+	timeField.createDiv({ cls: "modal-section-label", text: "Time" });
+	const timeControls = timeField.createDiv({
 		cls: "plan-time-controls",
 	});
 
@@ -88,7 +88,7 @@ export function appendScheduleFields(
 	precisionSelect.createEl("option", { value: "exact", text: "Exact" });
 	precisionSelect.value = precision;
 
-	const dynamic = timeControls.createEl("div", { cls: "plan-time-dynamic" });
+	const dynamic = timeControls.createDiv({ cls: "plan-time-dynamic" });
 	let roughSelect: HTMLSelectElement | null = null;
 	let hourSelect: HTMLSelectElement | null = null;
 	let minuteSelect: HTMLSelectElement | null = null;
@@ -113,7 +113,7 @@ export function appendScheduleFields(
 			return;
 		}
 
-		const selects = dynamic.createEl("div", { cls: "plan-time-selects" });
+		const selects = dynamic.createDiv({ cls: "plan-time-selects" });
 		hourSelect = selects.createEl("select", {
 			cls: "quick-idea-input plan-time-select",
 		});
@@ -124,7 +124,7 @@ export function appendScheduleFields(
 			const opt = hourSelect.createEl("option", { value: v, text: label });
 			if (v === (initHour || "12")) opt.selected = true;
 		}
-		selects.createEl("span", { cls: "plan-time-colon", text: ":" });
+		selects.createSpan({ cls: "plan-time-colon", text: ":" });
 		minuteSelect = selects.createEl("select", {
 			cls: "quick-idea-input plan-time-select",
 		});
@@ -141,7 +141,7 @@ export function appendScheduleFields(
 	renderTime();
 
 	// --- People ---
-	container.createEl("div", { cls: "modal-section-label", text: "People" });
+	container.createDiv({ cls: "modal-section-label", text: "People" });
 	let peopleInput: HTMLInputElement | null = null;
 	let getPeople: () => string;
 
@@ -152,11 +152,11 @@ export function appendScheduleFields(
 			.map((s) => s.trim())
 			.filter(Boolean);
 
-		const wrap = container.createEl("div", { cls: "plan-people-field" });
+		const wrap = container.createDiv({ cls: "plan-people-field" });
 		const select = wrap.createEl("select", {
 			cls: "quick-idea-input plan-people-select",
 		});
-		const pillsEl = wrap.createEl("div", { cls: "plan-people-pills" });
+		const pillsEl = wrap.createDiv({ cls: "plan-people-pills" });
 
 		const renderSelect = () => {
 			select.empty();
@@ -171,7 +171,7 @@ export function appendScheduleFields(
 		const renderPills = () => {
 			pillsEl.empty();
 			selected.forEach((name, i) => {
-				const pill = pillsEl.createEl("span", {
+				const pill = pillsEl.createSpan({
 					cls: "plan-people-pill",
 				});
 				pill.createSpan({ text: name });

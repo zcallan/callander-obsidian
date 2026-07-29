@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { PlanCost } from "@/types";
 import { PlanOperations } from "@/services/PlanOperations";
@@ -71,7 +71,7 @@ export class PlanCostModal extends FormModal {
 			text: this.initial ? "Edit expense" : "Add expense",
 		});
 
-		const labelField = contentEl.createEl("div", {
+		const labelField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		labelField.createEl("label", { text: "What" });
@@ -81,7 +81,7 @@ export class PlanCostModal extends FormModal {
 		});
 		labelInput.value = this.initial?.label ?? "";
 
-		const amountField = contentEl.createEl("div", {
+		const amountField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		amountField.createEl("label", { text: "Total amount ($)" });
@@ -91,11 +91,11 @@ export class PlanCostModal extends FormModal {
 		});
 		if (this.initial) amountInput.value = String(this.initial.amount);
 
-		const modeRow = contentEl.createEl("div", {
+		const modeRow = contentEl.createDiv({
 			cls: "quick-idea-categories",
 		});
 		const modeButtons = new Map<string, HTMLButtonElement>();
-		const sharesWrap = contentEl.createEl("div", {
+		const sharesWrap = contentEl.createDiv({
 			cls: "plan-cost-shares",
 		});
 		(
@@ -191,10 +191,10 @@ export class PlanCostModal extends FormModal {
 			const isPercent = this.mode === "percent";
 			const isShares = this.mode === "shares";
 
-			const head = sharesWrap.createEl("div", {
+			const head = sharesWrap.createDiv({
 				cls: "plan-cost-shares-head",
 			});
-			head.createEl("div", {
+			head.createDiv({
 				cls: "section-helper-text",
 				text: isPercent
 					? "Tick who's splitting this. Percentages should add up to 100%."
@@ -220,7 +220,7 @@ export class PlanCostModal extends FormModal {
 			});
 
 			const totalEl = isPercent
-				? sharesWrap.createEl("div", { cls: "plan-cost-total" })
+				? sharesWrap.createDiv({ cls: "plan-cost-total" })
 				: null;
 			const refreshTotal = () => {
 				if (!totalEl) return;
@@ -238,7 +238,7 @@ export class PlanCostModal extends FormModal {
 			};
 
 			for (const p of this.participants) {
-				const row = sharesWrap.createEl("div", {
+				const row = sharesWrap.createDiv({
 					cls: "plan-cost-share-row",
 				});
 				const nameLabel = row.createEl("label", {
@@ -254,7 +254,7 @@ export class PlanCostModal extends FormModal {
 					nameLabel.createSpan({ cls: "plan-cost-owed" })
 				);
 
-				const right = row.createEl("div", {
+				const right = row.createDiv({
 					cls: "plan-cost-share-right",
 				});
 				if (isShares || isPercent) {
@@ -336,7 +336,7 @@ export class PlanCostModal extends FormModal {
 		amountInput.addEventListener("input", refreshOwed);
 		renderShares();
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		if (this.initial && this.onDelete) {
@@ -344,16 +344,17 @@ export class PlanCostModal extends FormModal {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
-			del.addEventListener("click", async () => {
+			const handleDelete = async () => {
 				await this.onDelete!();
 				this.close();
-			});
+			};
+			del.addEventListener("click", () => void handleDelete());
 		}
 		const saveButton = buttons.createEl("button", {
 			text: this.initial ? "Save" : "Add",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", async () => {
+		const handleSave = async () => {
 			const label = labelInput.value.trim();
 			const amount = Number(amountInput.value);
 			if (!label || !Number.isFinite(amount) || amount <= 0) return;
@@ -364,7 +365,8 @@ export class PlanCostModal extends FormModal {
 				split: { mode: this.mode, ...(shares && { shares }) },
 			});
 			this.close();
-		});
+		};
+		saveButton.addEventListener("click", () => void handleSave());
 	}
 
 	onClose() {

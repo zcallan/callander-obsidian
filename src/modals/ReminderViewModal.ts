@@ -42,12 +42,12 @@ export class ReminderViewModal extends Modal {
 		const r = this.reminder;
 
 		contentEl.createEl("h2", { text: r.name });
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "someday-view-meta",
 			text: this.whenLabel(),
 		});
 		if (r.location) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "someday-view-cost",
 				text: `📍 ${r.location}`,
 			});
@@ -57,7 +57,7 @@ export class ReminderViewModal extends Modal {
 			const url = /^[a-z][a-z0-9+.-]*:\/\//i.test(r.link)
 				? r.link
 				: `https://${r.link}`;
-			const linkRow = contentEl.createEl("div", {
+			const linkRow = contentEl.createDiv({
 				cls: "event-link-row reminder-view-linkrow",
 			});
 			linkRow.createSpan({ cls: "reminder-view-link", text: r.link });
@@ -70,16 +70,20 @@ export class ReminderViewModal extends Modal {
 		}
 
 		// Actions
-		const actions = contentEl.createEl("div", {
+		const actions = contentEl.createDiv({
 			cls: "someday-view-actions",
 		});
-		const button = (icon: string, label: string, onClick: () => void) => {
+		const button = (
+			icon: string,
+			label: string,
+			onClick: () => void | Promise<void>
+		) => {
 			const btn = actions.createEl("button", {
 				cls: "callander-button",
 			});
 			setIcon(btn, icon);
 			btn.createSpan({ text: label });
-			btn.addEventListener("click", onClick);
+			btn.addEventListener("click", () => void onClick());
 		};
 
 		button("check", "Mark as done", async () => {

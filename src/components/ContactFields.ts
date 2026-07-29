@@ -6,7 +6,7 @@ export function createRelationshipInput(
 	container: HTMLElement,
 	plugin: FriendTracker,
 	value: string = "",
-	onChange?: (value: string) => void
+	onChange?: (value: string) => void | Promise<void>
 ) {
 	const input = container.createEl("input", {
 		cls: "callander-modal-input",
@@ -26,7 +26,7 @@ export function createRelationshipInput(
 		"relationship-types"
 	) as HTMLDataListElement;
 	if (!datalist) {
-		datalist = document.createElement("datalist");
+		datalist = createEl("datalist");
 		datalist.id = "relationship-types";
 		document.body.appendChild(datalist);
 	}
@@ -52,7 +52,7 @@ export function createRelationshipInput(
 
 	if (onChange) {
 		input.addEventListener("change", () => {
-			onChange(input.value);
+			void onChange(input.value);
 		});
 	}
 
@@ -90,7 +90,7 @@ export class ContactFields {
 	}
 
 	createInfoField(container: HTMLElement, label: string, value: string) {
-		const field = container.createEl("div", { cls: "contact-field" });
+		const field = container.createDiv({ cls: "contact-field" });
 		field.createEl("label", { text: label });
 
 		if (label.toLowerCase() === STANDARD_FIELDS.BIRTHDAY) {
@@ -115,10 +115,9 @@ export class ContactFields {
 			},
 		});
 
-		input.addEventListener("change", async () => {
+		input.addEventListener("change", () => {
 			if (!this.view.file) return;
-			const formattedDate = input.value;
-			await this.view.updateContactData("birthday", formattedDate);
+			void this.view.updateContactData("birthday", input.value);
 		});
 	}
 
@@ -138,9 +137,9 @@ export class ContactFields {
 			target.value = target.value.replace(/[^0-9+-]/g, ""); // Keep only numbers, +, and -
 		});
 
-		input.addEventListener("change", async () => {
-			await this.view.updateContactData("phone", input.value);
-		});
+		input.addEventListener("change", () =>
+			void this.view.updateContactData("phone", input.value)
+		);
 	}
 
 	private createTextField(
@@ -157,8 +156,8 @@ export class ContactFields {
 			},
 		});
 
-		input.addEventListener("change", async () => {
-			await this.view.updateContactData(label.toLowerCase(), input.value);
-		});
+		input.addEventListener("change", () =>
+			void this.view.updateContactData(label.toLowerCase(), input.value)
+		);
 	}
 }

@@ -66,22 +66,22 @@ export class DashboardView extends ItemView {
 			path.startsWith(this.plugin.settings.contactsFolder + "/");
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("delete", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("rename", (file, oldPath) => {
-				if (inScope(file.path) || inScope(oldPath)) this.refresh();
+				if (inScope(file.path) || inScope(oldPath)) void this.refresh();
 			})
 		);
 		await this.refresh();
@@ -103,16 +103,20 @@ export class DashboardView extends ItemView {
 		container.addClass("dashboard-container");
 
 		// Header + quick actions
-		const header = container.createEl("div", { cls: "dashboard-header" });
+		const header = container.createDiv({ cls: "dashboard-header" });
 		header.createEl("h2", { text: "Callander" });
-		const actions = header.createEl("div", { cls: "dashboard-actions" });
-		const action = (icon: string, label: string, onClick: () => void) => {
+		const actions = header.createDiv({ cls: "dashboard-actions" });
+		const action = (
+			icon: string,
+			label: string,
+			onClick: () => void | Promise<void>
+		) => {
 			const btn = actions.createEl("button", {
 				cls: "callander-button",
 			});
 			setIcon(btn, icon);
 			btn.createSpan({ text: label });
-			btn.addEventListener("click", onClick);
+			btn.addEventListener("click", () => void onClick());
 		};
 		action("user-plus", "Add friend", () =>
 			this.plugin.openAddContactModal()
@@ -126,7 +130,7 @@ export class DashboardView extends ItemView {
 		);
 
 		// Search
-		const searchWrap = container.createEl("div", {
+		const searchWrap = container.createDiv({
 			cls: "dashboard-search",
 		});
 		const searchInput = searchWrap.createEl("input", {
@@ -139,7 +143,7 @@ export class DashboardView extends ItemView {
 			this.renderFriendList(friendList);
 		});
 
-		const friendList = container.createEl("div", {
+		const friendList = container.createDiv({
 			cls: "dashboard-friend-list",
 		});
 		this.renderFriendList(friendList);
@@ -148,7 +152,7 @@ export class DashboardView extends ItemView {
 		await this.renderDrafts(container);
 
 		// Birthdays: upcoming + missed (not yet wished)
-		const upcomingSection = container.createEl("div", {
+		const upcomingSection = container.createDiv({
 			cls: "dashboard-section",
 		});
 		upcomingSection.createEl("h3", { text: "🎂 Upcoming birthdays" });
@@ -176,12 +180,12 @@ export class DashboardView extends ItemView {
 		// Resurfacing ideas
 		const due = this.dueResurfacedIdeas();
 		if (due.length > 0) {
-			const section = container.createEl("div", {
+			const section = container.createDiv({
 				cls: "dashboard-section",
 			});
 			section.createEl("h3", { text: "⏰ Resurfacing now" });
 			for (const { contact, idea } of due) {
-				const row = section.createEl("div", {
+				const row = section.createDiv({
 					cls: "dashboard-row dashboard-row-clickable",
 				});
 				const cat = IDEA_CATEGORIES.find((c) => c.id === idea.category);
@@ -193,7 +197,7 @@ export class DashboardView extends ItemView {
 					text: contact.displayName,
 				});
 				row.addEventListener("click", () =>
-					this.openContact(contact.file)
+					void this.openContact(contact.file)
 				);
 			}
 		}
@@ -238,11 +242,11 @@ export class DashboardView extends ItemView {
 				});
 			}
 			chip.addEventListener("click", () =>
-				this.openContact(contact.file)
+				void this.openContact(contact.file)
 			);
 		}
 		if (matches.length === 0) {
-			listEl.createEl("div", {
+			listEl.createDiv({
 				cls: "section-helper-text",
 				text: q ? "No friends match." : "No friends yet.",
 			});
@@ -284,13 +288,13 @@ export class DashboardView extends ItemView {
 
 		if (all.length === 0) return;
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
 		section.createEl("h3", { text: "✏️ Drafts" });
 
 		for (const item of all) {
-			const row = section.createEl("div", { cls: "dashboard-row" });
+			const row = section.createDiv({ cls: "dashboard-row" });
 			const label = row.createSpan({
 				cls: item.contact ? "dashboard-row-clickable-label" : undefined,
 				text: item.draft.text,
@@ -303,7 +307,9 @@ export class DashboardView extends ItemView {
 			});
 			if (item.contact) {
 				const file = item.contact.file;
-				label.addEventListener("click", () => this.openContact(file));
+				label.addEventListener("click", () =>
+					void this.openContact(file)
+				);
 			}
 
 			const ideaButton = row.createEl("button", {
@@ -471,10 +477,10 @@ export class DashboardView extends ItemView {
 		}
 		items.sort((a, b) => a.key - b.key);
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section dashboard-upcoming-section",
 		});
-		const header = section.createEl("div", {
+		const header = section.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "📌 Upcoming" });
@@ -489,7 +495,7 @@ export class DashboardView extends ItemView {
 		});
 
 		if (items.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Nothing coming up. Add a reminder — a birthday, a booking, anything worth keeping in view.",
 			});
@@ -548,7 +554,7 @@ export class DashboardView extends ItemView {
 			});
 			toggle.addEventListener("click", () => {
 				this.showAllUpcomingEvents = !this.showAllUpcomingEvents;
-				this.render();
+				void this.render();
 			});
 		}
 	}
@@ -565,17 +571,17 @@ export class DashboardView extends ItemView {
 			onClick: () => void;
 		}
 	) {
-		const row = section.createEl("div", {
+		const row = section.createDiv({
 			cls: "dashboard-row dashboard-row-clickable dashboard-upcoming-row",
 		});
-		const mainCol = row.createEl("div", { cls: "dashboard-upcoming-main" });
-		mainCol.createEl("div", {
+		const mainCol = row.createDiv({ cls: "dashboard-upcoming-main" });
+		mainCol.createDiv({
 			cls: "dashboard-upcoming-when",
 			text: `${opts.icon ? opts.icon + " " : ""}${opts.date}${
 				opts.time ? " · " + opts.time : ""
 			}`,
 		});
-		const nameEl = mainCol.createEl("div", {
+		const nameEl = mainCol.createDiv({
 			cls: "dashboard-upcoming-name",
 		});
 		nameEl.createSpan({ text: opts.name });
@@ -667,10 +673,10 @@ export class DashboardView extends ItemView {
 		if (hits.length === 0) return;
 		hits.sort((a, b) => a.yearsAgo - b.yearsAgo);
 
-		const section = container.createEl("div", { cls: "dashboard-section" });
+		const section = container.createDiv({ cls: "dashboard-section" });
 		section.createEl("h3", { text: "🕰️ On this day" });
 		for (const hit of hits) {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable",
 			});
 			row.createSpan({ text: hit.text });
@@ -681,7 +687,7 @@ export class DashboardView extends ItemView {
 				} ago · ${hit.contact.displayName}`,
 			});
 			row.addEventListener("click", () =>
-				this.openContact(hit.contact.file)
+				void this.openContact(hit.contact.file)
 			);
 		}
 	}
@@ -691,7 +697,6 @@ export class DashboardView extends ItemView {
 			.getPlans()
 			.filter((p) => p.status !== "done")
 			.sort((a, b) => {
-				const empty = { year: null, month: null, day: null };
 				const keyA = parseFlexDate(a.date)
 					? flexSortKey(parseFlexDate(a.date)!)
 					: Number.MAX_SAFE_INTEGER;
@@ -701,10 +706,10 @@ export class DashboardView extends ItemView {
 				return keyA - keyB;
 			});
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
-		const header = section.createEl("div", {
+		const header = section.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "🗺️ Plans" });
@@ -713,13 +718,13 @@ export class DashboardView extends ItemView {
 			text: "New plan",
 		});
 		newButton.addEventListener("click", () => {
-			new PlanModal(this.app, this.plugin, async (file) => {
-				await this.plugin.openContactPage(file);
-			}).open();
+			new PlanModal(this.app, this.plugin, (file) =>
+				void this.plugin.openContactPage(file)
+			).open();
 		});
 
 		if (plans.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Something brewing? A weekend away, a dinner — plan it with the people it's for.",
 			});
@@ -727,10 +732,10 @@ export class DashboardView extends ItemView {
 		}
 
 		for (const plan of plans) {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable dashboard-diary-row dashboard-plan-row",
 			});
-			const main = row.createEl("div", {
+			const main = row.createDiv({
 				cls: "dashboard-diary-main",
 			});
 			main.createSpan({ text: plan.name });
@@ -798,13 +803,15 @@ export class DashboardView extends ItemView {
 			});
 			if (est > 0) detailParts.push(`~$${est}`);
 			if (detailParts.length > 0) {
-				row.createEl("div", {
+				row.createDiv({
 					cls: "dashboard-diary-tagged",
 					text: detailParts.join(" · "),
 				});
 			}
 
-			row.addEventListener("click", () => this.openContact(plan.file));
+			row.addEventListener("click", () =>
+				void this.openContact(plan.file)
+			);
 		}
 	}
 
@@ -827,14 +834,14 @@ export class DashboardView extends ItemView {
 				return a.name.localeCompare(b.name);
 			});
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
-		const header = section.createEl("div", {
+		const header = section.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "💭 Somedays" });
-		const buttons = header.createEl("div", {
+		const buttons = header.createDiv({
 			cls: "dashboard-section-buttons",
 		});
 		const newButton = buttons.createEl("button", {
@@ -851,11 +858,11 @@ export class DashboardView extends ItemView {
 			text: "See all",
 		});
 		allButton.addEventListener("click", () =>
-			this.plugin.activateSomedays()
+			void this.plugin.activateSomedays()
 		);
 
 		if (somedays.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "A park to visit, a bar to try, a trip you keep meaning to take — jot it before it slips.",
 			});
@@ -863,7 +870,7 @@ export class DashboardView extends ItemView {
 		}
 
 		for (const s of somedays.slice(0, 5)) {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable",
 			});
 			row.createSpan({ text: s.name });
@@ -886,12 +893,12 @@ export class DashboardView extends ItemView {
 			});
 		}
 		if (somedays.length > 5) {
-			const more = section.createEl("div", {
+			const more = section.createDiv({
 				cls: "section-helper-text dashboard-row-clickable",
 				text: `+${somedays.length - 5} more on the Somedays page`,
 			});
 			more.addEventListener("click", () =>
-				this.plugin.activateSomedays()
+				void this.plugin.activateSomedays()
 			);
 		}
 	}
@@ -903,14 +910,14 @@ export class DashboardView extends ItemView {
 	}
 
 	private renderDiary(container: HTMLElement) {
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
-		const header = section.createEl("div", {
+		const header = section.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "📖 Diary" });
-		const buttons = header.createEl("div", {
+		const buttons = header.createDiv({
 			cls: "dashboard-section-buttons",
 		});
 		const newButton = buttons.createEl("button", {
@@ -925,14 +932,14 @@ export class DashboardView extends ItemView {
 			text: "Open diary",
 		});
 		openButton.addEventListener("click", () =>
-			this.plugin.activateDiaryView()
+			void this.plugin.activateDiaryView()
 		);
 
 		const entries = this.plugin.diaryOperations
 			.getEntriesMeta()
 			.slice(0, 3);
 		if (entries.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "No entries yet — each one files under the date it's about.",
 			});
@@ -941,10 +948,10 @@ export class DashboardView extends ItemView {
 
 		const resolvedLinks = this.app.metadataCache.resolvedLinks;
 		for (const entry of entries) {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable dashboard-diary-row",
 			});
-			const main = row.createEl("div", {
+			const main = row.createDiv({
 				cls: "dashboard-diary-main",
 			});
 			main.createSpan({ text: entry.title });
@@ -961,15 +968,15 @@ export class DashboardView extends ItemView {
 			const dateLabel = this.formatEntryDate(entry.date);
 			if (dateLabel) detailParts.push(dateLabel);
 			if (detailParts.length > 0) {
-				row.createEl("div", {
+				row.createDiv({
 					cls: "dashboard-diary-tagged",
 					text: detailParts.join(" · "),
 				});
 			}
 
-			row.addEventListener("click", async () => {
-				await this.app.workspace.getLeaf(false).openFile(entry.file);
-			});
+			row.addEventListener("click", () =>
+				void this.app.workspace.getLeaf(false).openFile(entry.file)
+			);
 		}
 	}
 
@@ -989,10 +996,10 @@ export class DashboardView extends ItemView {
 		const ops = this.plugin.contactOperations;
 		const infos = ops.getGroupInfos(this.contacts);
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
-		const header = section.createEl("div", {
+		const header = section.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "👥 Groups" });
@@ -1007,7 +1014,7 @@ export class DashboardView extends ItemView {
 		});
 
 		if (infos.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Sort friends into circles — Family, Basketball… Groups can hold their own ideas too.",
 			});
@@ -1018,12 +1025,12 @@ export class DashboardView extends ItemView {
 			const count = this.contacts.filter((c) =>
 				c.groups.includes(info.name)
 			).length;
-			const row = section.createEl("div", { cls: "dashboard-row" });
+			const row = section.createDiv({ cls: "dashboard-row" });
 
 			const label = row.createSpan({
 				cls: "dashboard-row-clickable-label dashboard-group-label",
 			});
-			const dot = label.createEl("span", { cls: "group-dot" });
+			const dot = label.createSpan({ cls: "group-dot" });
 			dot.style.backgroundColor =
 				info.color ?? "var(--background-modifier-border)";
 			label.createSpan({ text: ops.prettyGroupName(info.name) });
@@ -1031,11 +1038,12 @@ export class DashboardView extends ItemView {
 				cls: "dashboard-row-date",
 				text: ` · ${count} member${count === 1 ? "" : "s"}`,
 			});
-			label.addEventListener("click", async () => {
+			const handleOpenGroup = async () => {
 				const file =
 					info.file ?? (await ops.ensureGroupFile(info.name));
 				await this.openContact(file);
-			});
+			};
+			label.addEventListener("click", () => void handleOpenGroup());
 
 			const manageButton = row.createEl("button", {
 				cls: "callander-button button-icon dashboard-row-action",
@@ -1062,7 +1070,7 @@ export class DashboardView extends ItemView {
 			.sort((a, b) => a.daysUntilBirthday! - b.daysUntilBirthday!);
 
 		if (upcoming.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: `Nothing in the next ${HORIZON} days.`,
 			});
@@ -1070,7 +1078,7 @@ export class DashboardView extends ItemView {
 		}
 
 		for (const c of upcoming) {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable",
 			});
 			const days = c.daysUntilBirthday!;
@@ -1101,7 +1109,7 @@ export class DashboardView extends ItemView {
 						  } saved`
 						: "no gift ideas yet",
 			});
-			row.addEventListener("click", () => this.openContact(c.file));
+			row.addEventListener("click", () => void this.openContact(c.file));
 		}
 	}
 
@@ -1145,13 +1153,13 @@ export class DashboardView extends ItemView {
 
 		if (missed.length === 0) return;
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section dashboard-missed-section",
 		});
 		section.createEl("h3", { text: "🕯️ Missed birthdays" });
 
 		for (const c of missed) {
-			const row = section.createEl("div", { cls: "dashboard-row" });
+			const row = section.createDiv({ cls: "dashboard-row" });
 			const label = row.createSpan({
 				cls: "dashboard-row-clickable-label",
 				text: `${c.displayName} — was ${
@@ -1164,7 +1172,9 @@ export class DashboardView extends ItemView {
 				cls: "dashboard-row-date",
 				text: ` · ${this.formatDayDate(-c.daysSinceBirthday!)}`,
 			});
-			label.addEventListener("click", () => this.openContact(c.file));
+			label.addEventListener("click", () =>
+				void this.openContact(c.file)
+			);
 
 			const wishedButton = row.createEl("button", {
 				cls: "callander-button dashboard-row-action",
@@ -1172,7 +1182,7 @@ export class DashboardView extends ItemView {
 			});
 			setIcon(wishedButton, "check");
 			wishedButton.createSpan({ text: "Done" });
-			wishedButton.addEventListener("click", async (e) => {
+			const handleWished = async (e: MouseEvent) => {
 				e.stopPropagation();
 				await this.plugin.contactOperations.markBirthdayWished(
 					c.file,
@@ -1180,7 +1190,8 @@ export class DashboardView extends ItemView {
 				);
 				new Notice(`🎈 Nice — ${c.displayName} checked off`);
 				await this.refresh();
-			});
+			};
+			wishedButton.addEventListener("click", (e) => void handleWished(e));
 		}
 	}
 
@@ -1216,16 +1227,16 @@ export class DashboardView extends ItemView {
 			.filter(({ idea }) => !idea.done);
 		if (open.length === 0) return;
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "dashboard-section",
 		});
 		section.createEl("h3", { text: "📥 Idea inbox" });
-		section.createEl("div", {
+		section.createDiv({
 			cls: "section-helper-text",
 			text: "Ideas you captured without picking a friend — file them when you know who they're for.",
 		});
 		for (const { idea, index } of open) {
-			const row = section.createEl("div", { cls: "dashboard-row" });
+			const row = section.createDiv({ cls: "dashboard-row" });
 			const cat = IDEA_CATEGORIES.find((c) => c.id === idea.category);
 			row.createSpan({ text: `${cat?.emoji ?? "✨"} ${idea.text}` });
 			const fileButton = row.createEl("button", {
@@ -1233,20 +1244,21 @@ export class DashboardView extends ItemView {
 				text: "File to friend…",
 			});
 			fileButton.addEventListener("click", () => {
+				const handleChoose = async (contact: ContactWithCountdown) => {
+					const moved =
+						await this.plugin.contactOperations.moveInboxIdea(
+							index,
+							contact.file
+						);
+					if (moved) {
+						new Notice(`Filed to ${contact.displayName}`);
+						await this.refresh();
+					}
+				};
 				new ContactSuggestModal(
 					this.app,
 					this.contacts,
-					async (contact) => {
-						const moved =
-							await this.plugin.contactOperations.moveInboxIdea(
-								index,
-								contact.file
-							);
-						if (moved) {
-							new Notice(`Filed to ${contact.displayName}`);
-							await this.refresh();
-						}
-					},
+					(contact) => void handleChoose(contact),
 					"File this idea to…"
 				).open();
 			});

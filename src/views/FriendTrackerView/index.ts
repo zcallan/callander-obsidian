@@ -68,7 +68,7 @@ export class FriendTrackerView extends ItemView {
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
 				if (file instanceof TFile && this.isContactFile(file)) {
-					setTimeout(() => this.refresh(), 100);
+					window.setTimeout(() => void this.refresh(), 100);
 				}
 			})
 		);
@@ -93,12 +93,12 @@ export class FriendTrackerView extends ItemView {
 
 	private handleVisibilityChange = () => {
 		if (document.visibilityState === "visible") {
-			this.refresh();
+			void this.refresh();
 		}
 	};
 
 	private handleWindowFocus = () => {
-		this.refresh();
+		void this.refresh();
 	};
 
 	async refresh() {

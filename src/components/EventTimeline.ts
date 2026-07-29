@@ -20,7 +20,7 @@ export function splitLeadingEmoji(
 	const trimmed = text.trimStart();
 	// base pictographic + any joiners/variation-selectors/skin-tones that follow
 	const match = trimmed.match(
-		/^(\p{Extended_Pictographic}(?:\u200d\p{Extended_Pictographic}|[\uFE00-\uFE0F\u{1F3FB}-\u{1F3FF}])*)/u
+		/^(\p{Extended_Pictographic}(?:\u200d\p{Extended_Pictographic}|[\uFE00-\uFE0F]|[\u{1F3FB}-\u{1F3FF}])*)/u
 	);
 	if (!match) return null;
 	const emoji = match[1];
@@ -40,7 +40,7 @@ export class EventTimeline {
 		events: FriendEvent[],
 		met: string | number | undefined
 	) {
-		const timeline = container.createEl("div", {
+		const timeline = container.createDiv({
 			cls: "contact-timeline",
 		});
 
@@ -113,7 +113,7 @@ export class EventTimeline {
 
 			if (yearLabel !== currentYearLabel) {
 				currentYearLabel = yearLabel;
-				timeline.createEl("div", {
+				timeline.createDiv({
 					cls: "contact-timeline-year",
 					text: yearLabel,
 				});
@@ -128,11 +128,11 @@ export class EventTimeline {
 					false
 				);
 			} else {
-				const origin = timeline.createEl("div", {
+				const origin = timeline.createDiv({
 					cls: "contact-timeline-item contact-timeline-origin",
 				});
-				origin.createEl("div", { cls: "contact-timeline-dot" });
-				origin.createEl("div", {
+				origin.createDiv({ cls: "contact-timeline-dot" });
+				origin.createDiv({
 					cls: "contact-timeline-date",
 					text: `Met — ${formatFlexDate(row.parsed)}`,
 				});
@@ -147,19 +147,19 @@ export class EventTimeline {
 		parsed: ReturnType<typeof parseFlexDate>,
 		upcoming: boolean
 	) {
-		const item = container.createEl("div", {
+		const item = container.createDiv({
 			cls: `contact-timeline-item${upcoming ? " upcoming" : ""}`,
 		});
 
 		// Tapping the item opens the edit modal (the only path on mobile,
 		// where the hover action buttons don't exist)
 		item.addEventListener("click", () => {
-			this.view.openEditEventModal(index, event);
+			void this.view.openEditEventModal(index, event);
 		});
 
 		// Typed events get a colored dot; untyped render neutral
 		const type = EVENT_TYPES.find((t) => t.id === event.type);
-		item.createEl("div", {
+		item.createDiv({
 			cls: `contact-timeline-dot${type ? ` type-${type.id}` : ""}`,
 		});
 
@@ -179,7 +179,7 @@ export class EventTimeline {
 		const lead = splitLeadingEmoji(event.text);
 		const badge = lead ? lead.emoji : type ? type.emoji : "";
 
-		const dateEl = item.createEl("div", {
+		const dateEl = item.createDiv({
 			cls: "contact-timeline-date",
 			text: badge ? `${badge} ${dateLabel}` : dateLabel,
 		});
@@ -190,7 +190,7 @@ export class EventTimeline {
 			});
 		}
 
-		const textEl = item.createEl("div", {
+		const textEl = item.createDiv({
 			cls: "contact-timeline-text",
 			text: lead ? lead.rest : event.text,
 		});
@@ -205,19 +205,23 @@ export class EventTimeline {
 
 		// Provenance badge: this event came from a diary entry
 		if (event.source) {
-			const badgeEl = textEl.createEl("span", {
+			const badgeEl = textEl.createSpan({
 				cls: "contact-timeline-source",
 				text: " 📖",
 				attr: { "aria-label": "Open diary entry" },
 			});
 			badgeEl.addEventListener("click", (e) => {
 				e.stopPropagation();
-				this.view.app.workspace.openLinkText(event.source!, "", true);
+				void this.view.app.workspace.openLinkText(
+					event.source!,
+					"",
+					true
+				);
 			});
 		}
 
 		// Actions
-		const actions = item.createEl("div", {
+		const actions = item.createDiv({
 			cls: "contact-timeline-actions",
 		});
 
@@ -228,7 +232,7 @@ export class EventTimeline {
 		setIcon(editBtn, "pencil");
 		editBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
-			this.view.openEditEventModal(index, event);
+			void this.view.openEditEventModal(index, event);
 		});
 
 		const deleteBtn = actions.createEl("button", {

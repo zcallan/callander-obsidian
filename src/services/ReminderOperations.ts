@@ -2,6 +2,7 @@ import { TFile, normalizePath } from "obsidian";
 import type FriendTracker from "@/main";
 import type { Reminder } from "@/types";
 import { REMINDERS_BASENAME } from "@/constants";
+import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 
 /** The editable fields of a reminder — used for both create and update. */
 export interface ReminderFields {
@@ -40,22 +41,22 @@ export class ReminderOperations {
 		);
 	}
 
-	static remindersOf(metadata: any): Reminder[] {
-		if (!Array.isArray(metadata?.reminders)) return [];
-		return metadata.reminders
-			.map(
-				(r: any): Reminder => ({
-					id: String(r?.id ?? ""),
-					name: String(r?.name ?? ""),
-					...(r?.date && { date: String(r.date) }),
-					...(r?.time && { time: String(r.time) }),
-					...(r?.location && { location: String(r.location) }),
-					...(r?.link && { link: String(r.link) }),
-					status: r?.status === "done" ? "done" : "open",
-					...(r?.created && { created: String(r.created) }),
-				})
-			)
-			.filter((r: Reminder) => r.name.length > 0);
+	static remindersOf(metadata: unknown): Reminder[] {
+		return asArray(fieldOf(metadata, "reminders"))
+			.map((raw): Reminder => {
+				const r = isRecord(raw) ? raw : {};
+				return {
+					id: toText(r.id),
+					name: toText(r.name),
+					...(r.date ? { date: toText(r.date) } : {}),
+					...(r.time ? { time: toText(r.time) } : {}),
+					...(r.location ? { location: toText(r.location) } : {}),
+					...(r.link ? { link: toText(r.link) } : {}),
+					status: r.status === "done" ? "done" : "open",
+					...(r.created ? { created: toText(r.created) } : {}),
+				};
+			})
+			.filter((r) => r.name.length > 0);
 	}
 
 	getReminders(): Reminder[] {
@@ -89,51 +90,63 @@ export class ReminderOperations {
 
 	async addReminder(fields: ReminderFields): Promise<void> {
 		const file = await this.ensureFile();
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.reminders = [
-				...ReminderOperations.remindersOf(fm),
-				{
-					id: this.newId(),
-					...this.fromFields(fields),
-					status: "open",
-					created: this.today(),
-				} as Reminder,
-			];
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.reminders = [
+					...ReminderOperations.remindersOf(fm),
+					{
+						id: this.newId(),
+						...this.fromFields(fields),
+						status: "open",
+						created: this.today(),
+					} as Reminder,
+				];
+			}
+		);
 	}
 
 	/** Rebuild the entry from fields (dropping cleared optionals); keep id/status/created. */
 	async updateReminder(id: string, fields: ReminderFields): Promise<void> {
 		const file = await this.ensureFile();
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.reminders = ReminderOperations.remindersOf(fm).map((r) =>
-				r.id === id
-					? {
-							id: r.id,
-							...this.fromFields(fields),
-							status: r.status ?? "open",
-							...(r.created && { created: r.created }),
-					  }
-					: r
-			);
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.reminders = ReminderOperations.remindersOf(fm).map((r) =>
+					r.id === id
+						? {
+								id: r.id,
+								...this.fromFields(fields),
+								status: r.status ?? "open",
+								...(r.created && { created: r.created }),
+						  }
+						: r
+				);
+			}
+		);
 	}
 
 	async setStatus(id: string, status: "open" | "done"): Promise<void> {
 		const file = await this.ensureFile();
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.reminders = ReminderOperations.remindersOf(fm).map((r) =>
-				r.id === id ? { ...r, status } : r
-			);
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.reminders = ReminderOperations.remindersOf(fm).map((r) =>
+					r.id === id ? { ...r, status } : r
+				);
+			}
+		);
 	}
 
 	async deleteReminder(id: string): Promise<void> {
 		const file = await this.ensureFile();
-		await this.app.fileManager.processFrontMatter(file, (fm) => {
-			fm.reminders = ReminderOperations.remindersOf(fm).filter(
-				(r) => r.id !== id
-			);
-		});
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.reminders = ReminderOperations.remindersOf(fm).filter(
+					(r) => r.id !== id
+				);
+			}
+		);
 	}
 }

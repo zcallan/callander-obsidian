@@ -30,12 +30,12 @@ export class TableView {
 
 	async render(container: HTMLElement, contacts: ContactWithCountdown[]) {
 		this.contacts = contacts;
-		const wrap = container.createEl("div", {
+		const wrap = container.createDiv({
 			cls: "friend-list-container",
 		});
 
 		// Header
-		const header = wrap.createEl("div", {
+		const header = wrap.createDiv({
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h2", { text: "All friends" });
@@ -45,11 +45,11 @@ export class TableView {
 		setIcon(addButton, "user-plus");
 		addButton.createSpan({ text: "Add friend" });
 		addButton.addEventListener("click", () =>
-			this.view.openAddContactModal()
+			void this.view.openAddContactModal()
 		);
 
 		// Search
-		const searchWrap = wrap.createEl("div", { cls: "dashboard-search" });
+		const searchWrap = wrap.createDiv({ cls: "dashboard-search" });
 		const searchInput = searchWrap.createEl("input", {
 			attr: { type: "text", placeholder: "Search friends…" },
 			cls: "contact-field-input",
@@ -65,7 +65,7 @@ export class TableView {
 		const infos = ops.getGroupInfos(contacts);
 		this.groupColors = new Map(infos.map((i) => [i.name, i.color]));
 		if (infos.length > 0) {
-			const pills = wrap.createEl("div", {
+			const pills = wrap.createDiv({
 				cls: "contact-group-chips friend-list-groups",
 			});
 			for (const info of infos) {
@@ -74,7 +74,7 @@ export class TableView {
 						this.view.groupFilter === info.name ? "selected" : ""
 					}`,
 				});
-				const dot = chip.createEl("span", { cls: "group-dot" });
+				const dot = chip.createSpan({ cls: "group-dot" });
 				dot.style.backgroundColor =
 					info.color ?? "var(--background-modifier-border)";
 				chip.createSpan({ text: ops.prettyGroupName(info.name) });
@@ -93,10 +93,10 @@ export class TableView {
 		}
 
 		// Sort
-		const sortRow = wrap.createEl("div", {
+		const sortRow = wrap.createDiv({
 			cls: "friend-list-sort-row",
 		});
-		sortRow.createEl("span", {
+		sortRow.createSpan({
 			cls: "friend-list-sort-label",
 			text: "Sort",
 		});
@@ -105,12 +105,13 @@ export class TableView {
 			select.createEl("option", { value: o.id, text: o.label })
 		);
 		select.value = this.view.settings.friendListSort;
-		select.addEventListener("change", async () => {
+		const handleSortChange = async () => {
 			await this.view.setFriendListSort(select.value as FriendListSort);
 			this.renderList();
-		});
+		};
+		select.addEventListener("change", () => void handleSortChange());
 
-		this.listEl = wrap.createEl("div", { cls: "friend-list" });
+		this.listEl = wrap.createDiv({ cls: "friend-list" });
 		this.renderList();
 	}
 
@@ -175,7 +176,7 @@ export class TableView {
 		const list = this.sortedFiltered();
 
 		if (list.length === 0) {
-			this.listEl.createEl("div", {
+			this.listEl.createDiv({
 				cls: "section-helper-text",
 				text:
 					this.contacts.length === 0
@@ -186,26 +187,26 @@ export class TableView {
 		}
 
 		for (const contact of list) {
-			const row = this.listEl.createEl("div", {
+			const row = this.listEl.createDiv({
 				cls: "friend-list-row",
 			});
 			row.addEventListener("click", () =>
-				this.view.openContact(contact.file)
+				void this.view.openContact(contact.file)
 			);
 
-			const info = row.createEl("div", { cls: "friend-list-info" });
+			const info = row.createDiv({ cls: "friend-list-info" });
 
 			// Line 1: name + group dots
-			const main = info.createEl("div", { cls: "friend-list-main" });
+			const main = info.createDiv({ cls: "friend-list-main" });
 			main.createSpan({
 				cls: "friend-list-name",
 				text: contact.displayName,
 			});
 			for (const g of contact.groups) {
-				const tag = main.createEl("span", {
+				const tag = main.createSpan({
 					cls: "friend-list-group-tag",
 				});
-				const dot = tag.createEl("span", { cls: "group-dot" });
+				const dot = tag.createSpan({ cls: "group-dot" });
 				dot.style.backgroundColor =
 					this.groupColors.get(g) ??
 					"var(--background-modifier-border)";
@@ -220,7 +221,7 @@ export class TableView {
 			if (bday) parts.push(bday);
 			if (contact.age !== null) parts.push(`Age ${contact.age}`);
 			if (parts.length > 0) {
-				info.createEl("div", {
+				info.createDiv({
 					cls: "friend-list-detail",
 					text: parts.join(" • "),
 				});

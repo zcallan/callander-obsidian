@@ -17,7 +17,7 @@ export class DeleteContactModal extends Modal {
 			text: `Are you sure you want to remove ${this.file.basename}? Their note will be moved to your trash.`,
 		});
 
-		const buttonContainer = contentEl.createEl("div", {
+		const buttonContainer = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 
@@ -33,10 +33,11 @@ export class DeleteContactModal extends Modal {
 			text: "Delete",
 			cls: "callander-modal-button callander-modal-button-danger",
 		});
-		deleteButton.addEventListener("click", async () => {
+		const handleDelete = async () => {
 			await this.onDelete();
 			this.close();
-		});
+		};
+		deleteButton.addEventListener("click", () => void handleDelete());
 	}
 
 	onClose() {

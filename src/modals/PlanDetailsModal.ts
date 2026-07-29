@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 
@@ -26,7 +26,7 @@ export class PlanDetailsModal extends FormModal {
 
 		const details = { ...this.current };
 
-		const dateField = contentEl.createEl("div", {
+		const dateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "When" });
@@ -42,7 +42,7 @@ export class PlanDetailsModal extends FormModal {
 			}
 		);
 
-		const endField = contentEl.createEl("div", {
+		const endField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		endField.createEl("label", { text: "Until (optional)" });
@@ -58,7 +58,7 @@ export class PlanDetailsModal extends FormModal {
 			}
 		);
 
-		const locationField = contentEl.createEl("div", {
+		const locationField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		locationField.createEl("label", { text: "Location" });
@@ -71,7 +71,7 @@ export class PlanDetailsModal extends FormModal {
 			details.location = locationInput.value;
 		});
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		if (this.onDelete) {
@@ -88,13 +88,14 @@ export class PlanDetailsModal extends FormModal {
 			text: "Save",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", async () => {
+		const handleSave = async () => {
 			await this.onSubmit({
 				...details,
 				location: details.location.trim(),
 			});
 			this.close();
-		});
+		};
+		saveButton.addEventListener("click", () => void handleSave());
 	}
 
 	onClose() {

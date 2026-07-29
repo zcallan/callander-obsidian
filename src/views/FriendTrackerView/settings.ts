@@ -1,329 +1,205 @@
 import {
 	App,
 	PluginSettingTab,
-	Setting,
-	AbstractInputSuggest,
-	TFolder,
 	normalizePath,
+	type SettingDefinitionItem,
 } from "obsidian";
 import type FriendTracker from "@/main";
-
-class FolderSuggest extends AbstractInputSuggest<string> {
-	inputEl: HTMLInputElement;
-
-	constructor(app: App, inputEl: HTMLInputElement) {
-		super(app, inputEl);
-		this.inputEl = inputEl;
-	}
-
-	getSuggestions(inputStr: string): string[] {
-		const folders = this.app.vault
-			.getAllLoadedFiles()
-			.filter((f) => f instanceof TFolder)
-			.map((f) => f.path);
-		return folders.filter((f) =>
-			f.toLowerCase().includes(inputStr.toLowerCase())
-		);
-	}
-
-	renderSuggestion(value: string, el: HTMLElement): void {
-		el.setText(value);
-	}
-
-	selectSuggestion(value: string): void {
-		this.inputEl.value = value;
-		this.inputEl.trigger("input");
-		this.close();
-	}
-}
 
 export class FriendTrackerSettingTab extends PluginSettingTab {
 	constructor(app: App, private plugin: FriendTracker) {
 		super(app, plugin);
 	}
 
-	display(): void {
-		const { containerEl } = this;
-		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName("Contacts folder")
-			.setDesc("Folder where contact files will be stored")
-			.addText((text) => {
-				new FolderSuggest(this.app, text.inputEl);
-				return text
-					.setPlaceholder("Enter folder name")
-					.setValue(this.plugin.settings.contactsFolder)
-					.onChange(async (value) => {
-						this.plugin.settings.contactsFolder =
-							normalizePath(value);
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName("Diary folder")
-			.setDesc("Folder where diary entries will be stored")
-			.addText((text) => {
-				new FolderSuggest(this.app, text.inputEl);
-				return text
-					.setPlaceholder("Enter folder name")
-					.setValue(this.plugin.settings.diaryFolder)
-					.onChange(async (value) => {
-						this.plugin.settings.diaryFolder = normalizePath(value);
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName("Belated birthday window")
-			.setDesc(
-				'For this many days after a birthday, show "birthday was X days ago" so you can still send a belated message'
-			)
-			.addText((text) => {
-				text.inputEl.type = "number";
-				text.inputEl.min = "0";
-				text.inputEl.max = "60";
-				text.setValue(
-					String(this.plugin.settings.belatedBirthdayDays)
-				).onChange(async (value) => {
-					const parsed = Number(value);
-					if (Number.isFinite(parsed)) {
-						this.plugin.settings.belatedBirthdayDays = Math.min(
-							60,
-							Math.max(0, Math.round(parsed))
-						);
-						await this.plugin.saveSettings();
-					}
-				});
-			});
-
-		new Setting(containerEl)
-			.setName("Your name")
-			.setDesc(
-				'Included automatically in shared plan messages ("Copy as message"), so you don\'t have to add yourself as a guest'
-			)
-			.addText((text) => {
-				text.setPlaceholder("e.g. Callan")
-					.setValue(this.plugin.settings.yourName)
-					.onChange(async (value) => {
-						this.plugin.settings.yourName = value.trim();
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
-			.setName("Open friends in Callander view")
-			.setDesc(
-				"Clicking a friend's note anywhere (file explorer, quick switcher, links, graph) opens their Callander page instead of raw markdown. The Markdown tab still gets you to the underlying note."
-			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings.openContactsInCallanderView)
-					.onChange(async (value) => {
-						this.plugin.settings.openContactsInCallanderView =
-							value;
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl).setName("Birthday trivia").setHeading();
-
-		const trivia: Array<{
-			key:
-				| "showStarSign"
-				| "showChineseZodiac"
-				| "showBirthstone"
-				| "showBirthFlower";
-			name: string;
-		}> = [
-			{ key: "showStarSign", name: "Show star sign" },
-			{ key: "showChineseZodiac", name: "Show Chinese zodiac" },
-			{ key: "showBirthstone", name: "Show birthstone" },
-			{ key: "showBirthFlower", name: "Show birth flower" },
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		return [
+			{
+				name: "Contacts folder",
+				desc: "Folder where contact files will be stored",
+				control: {
+					type: "folder",
+					key: "contactsFolder",
+					placeholder: "Enter folder name",
+				},
+			},
+			{
+				name: "Diary folder",
+				desc: "Folder where diary entries will be stored",
+				control: {
+					type: "folder",
+					key: "diaryFolder",
+					placeholder: "Enter folder name",
+				},
+			},
+			{
+				name: "Belated birthday window",
+				desc: 'For this many days after a birthday, show "birthday was X days ago" so you can still send a belated message',
+				control: {
+					type: "number",
+					key: "belatedBirthdayDays",
+					min: 0,
+					max: 60,
+				},
+			},
+			{
+				name: "Your name",
+				desc: 'Included automatically in shared plan messages ("Copy as message"), so you don\'t have to add yourself as a guest',
+				control: {
+					type: "text",
+					key: "yourName",
+					placeholder: "e.g. Callan",
+				},
+			},
+			{
+				name: "Open friends in Callander view",
+				desc: "Clicking a friend's note anywhere (file explorer, quick switcher, links, graph) opens their Callander page instead of raw markdown. The Markdown tab still gets you to the underlying note.",
+				control: {
+					type: "toggle",
+					key: "openContactsInCallanderView",
+				},
+			},
+			{
+				type: "group",
+				heading: "Birthday trivia",
+				items: [
+					{
+						name: "Show star sign",
+						control: { type: "toggle", key: "showStarSign" },
+					},
+					{
+						name: "Show Chinese zodiac",
+						control: { type: "toggle", key: "showChineseZodiac" },
+					},
+					{
+						name: "Show birthstone",
+						control: { type: "toggle", key: "showBirthstone" },
+					},
+					{
+						name: "Show birth flower",
+						control: { type: "toggle", key: "showBirthFlower" },
+					},
+				],
+			},
+			{
+				name: "Birthday reminders on startup",
+				desc: "Show a notice with today's and upcoming birthdays when Obsidian opens (once per day)",
+				control: {
+					type: "toggle",
+					key: "showBirthdayReminders",
+				},
+			},
+			{
+				name: "Reminder window",
+				desc: "Include birthdays up to this many days away",
+				control: {
+					type: "number",
+					key: "birthdayReminderDays",
+					min: 1,
+					max: 60,
+				},
+			},
+			{
+				type: "list",
+				heading: "Relationship types",
+				emptyState: "No relationship types yet — add one.",
+				addItem: {
+					name: "Add relationship type",
+					action: (el) => this.promptNewRelationshipType(el),
+				},
+				onDelete: (index) => this.deleteRelationshipType(index),
+				// Rows carry user data, not fixed settings — keep them out of
+				// the global settings search
+				items: this.plugin.settings.relationshipTypes.map(
+					(type, index) => ({
+						name: "",
+						searchable: false,
+						control: {
+							type: "text",
+							key: `relationshipTypes.${index}`,
+							placeholder: "Type name",
+						},
+					})
+				),
+			},
 		];
-		for (const { key, name } of trivia) {
-			new Setting(containerEl).setName(name).addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings[key])
-					.onChange(async (value) => {
-						this.plugin.settings[key] = value;
-						await this.plugin.saveSettings();
-					});
-			});
+	}
+
+	getControlValue(key: string): unknown {
+		const row = /^relationshipTypes\.(\d+)$/.exec(key);
+		if (row) {
+			return this.plugin.settings.relationshipTypes[Number(row[1])];
 		}
+		return super.getControlValue(key);
+	}
 
-		new Setting(containerEl)
-			.setName("Birthday reminders on startup")
-			.setDesc(
-				"Show a notice with today's and upcoming birthdays when Obsidian opens (once per day)"
-			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings.showBirthdayReminders)
-					.onChange(async (value) => {
-						this.plugin.settings.showBirthdayReminders = value;
-						await this.plugin.saveSettings();
-					});
-			});
+	setControlValue(key: string, value: unknown): void | Promise<void> {
+		const row = /^relationshipTypes\.(\d+)$/.exec(key);
+		if (row) {
+			return this.renameRelationshipType(Number(row[1]), String(value));
+		}
+		// Folder paths were normalized on entry before; keep that behavior
+		if (key === "contactsFolder" || key === "diaryFolder") {
+			return super.setControlValue(key, normalizePath(String(value)));
+		}
+		return super.setControlValue(key, value);
+	}
 
-		new Setting(containerEl)
-			.setName("Reminder window")
-			.setDesc("Include birthdays up to this many days away")
-			.addText((text) => {
-				text.inputEl.type = "number";
-				text.inputEl.min = "1";
-				text.inputEl.max = "60";
-				text.setValue(
-					String(this.plugin.settings.birthdayReminderDays)
-				).onChange(async (value) => {
-					const parsed = Number(value);
-					if (Number.isFinite(parsed)) {
-						this.plugin.settings.birthdayReminderDays = Math.min(
-							60,
-							Math.max(1, Math.round(parsed))
-						);
-						await this.plugin.saveSettings();
-					}
-				});
-			});
-
-		const headerContainer = containerEl.createEl("div", {
-			cls: "callander-relationship-header",
+	/** Swap the add affordance for an inline input, exactly like before. */
+	private promptNewRelationshipType(el: HTMLElement) {
+		const input = createEl("input", {
+			cls: "callander-modal-input relationship-type-input",
+			attr: { type: "text", placeholder: "Enter relationship type" },
 		});
+		el.replaceWith(input);
+		input.focus();
 
-		headerContainer.createEl("h3", { text: "Relationship types" });
+		// Re-rendering detaches the input mid-event — run exactly once
+		let done = false;
+		const finish = (commit: boolean) => {
+			if (done) return;
+			done = true;
+			const value = input.value.trim().toLowerCase();
+			if (
+				commit &&
+				value &&
+				!this.plugin.settings.relationshipTypes.includes(value)
+			) {
+				this.plugin.settings.relationshipTypes.push(value);
+				void this.plugin.saveSettings();
+			}
+			this.update();
+		};
+		input.addEventListener("keydown", (e) => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				finish(true);
+			} else if (e.key === "Escape") {
+				finish(false);
+			}
+		});
+		input.addEventListener("blur", () => finish(!!input.value.trim()));
+	}
 
-		new Setting(headerContainer).addButton((button) =>
-			button.setButtonText("Add relationship type").onClick(async () => {
-				// Create a temporary input field
-				const tempInput = document.createElement("input");
-				tempInput.type = "text";
-				tempInput.placeholder = "Enter relationship type";
-				tempInput.className =
-					"callander-modal-input relationship-type-input";
-
-				// Replace button with input temporarily
-				button.buttonEl.replaceWith(tempInput);
-				tempInput.focus();
-
-				const handleAdd = async () => {
-					const fullValue = tempInput.value || "";
-					const value = fullValue.trim();
-
-					if (value) {
-						const newType = value.toLowerCase();
-						if (
-							!this.plugin.settings.relationshipTypes.includes(
-								newType
-							)
-						) {
-							this.plugin.settings.relationshipTypes.push(
-								newType
-							);
-							await this.plugin.saveSettings();
-						}
-					}
-					// Schedule the display update after the current event
-					setTimeout(() => this.display(), 0);
-				};
-
-				tempInput.addEventListener("keydown", async (e) => {
-					if (e.key === "Enter") {
-						e.preventDefault();
-						await handleAdd();
-					} else if (e.key === "Escape") {
-						this.display();
-					}
-				});
-
-				// Only handle blur if there's a value
-				tempInput.addEventListener("blur", async () => {
-					if (tempInput.value?.trim()) {
-						await handleAdd();
-					} else {
-						this.display();
-					}
-				});
-			})
+	/** Lowercase on save; a rename that collides absorbs the duplicate. */
+	private async renameRelationshipType(index: number, value: string) {
+		const types = this.plugin.settings.relationshipTypes;
+		if (index < 0 || index >= types.length) return;
+		const newType = value.trim().toLowerCase();
+		if (!newType || newType === types[index]) {
+			this.update();
+			return;
+		}
+		const next = types.map((t, i) => (i === index ? newType : t));
+		this.plugin.settings.relationshipTypes = next.filter(
+			(t, i) => next.indexOf(t) === i
 		);
+		await this.plugin.saveSettings();
+		this.update();
+	}
 
-		const relationshipContainer = containerEl.createEl("div", {
-			cls: "callander-relationship-types",
-		});
-
-		this.plugin.settings.relationshipTypes.forEach((type) => {
-			new Setting(relationshipContainer)
-				.addText((text) =>
-					text
-						.setValue(type)
-						.setPlaceholder("Type name")
-						.then((textComponent) => {
-							// Save on Enter
-							textComponent.inputEl.addEventListener(
-								"keypress",
-								async (e) => {
-									if (e.key === "Enter") {
-										e.preventDefault();
-										textComponent.inputEl.blur();
-									}
-								}
-							);
-
-							// Save on blur
-							textComponent.inputEl.addEventListener(
-								"blur",
-								async () => {
-									const value = textComponent.inputEl.value;
-									const index =
-										this.plugin.settings.relationshipTypes.indexOf(
-											type
-										);
-									if (
-										value.toLowerCase() !== type ||
-										value !== value.toLowerCase()
-									) {
-										const newType = value.toLowerCase();
-										this.plugin.settings.relationshipTypes =
-											[
-												...this.plugin.settings.relationshipTypes.filter(
-													(t, i) =>
-														i === index ||
-														t.toLowerCase() !==
-															newType
-												),
-											];
-										this.plugin.settings.relationshipTypes[
-											index
-										] = newType;
-										await this.plugin.saveSettings();
-										// Schedule the display update after the current event
-										setTimeout(() => this.display(), 0);
-									}
-								}
-							);
-						})
-				)
-				.addExtraButton((button) => {
-					button
-						.setIcon("trash")
-						.setTooltip("Delete relationship type")
-						.onClick(async () => {
-							const index =
-								this.plugin.settings.relationshipTypes.indexOf(
-									type
-								);
-							this.plugin.settings.relationshipTypes.splice(
-								index,
-								1
-							);
-							await this.plugin.saveSettings();
-							this.display();
-						});
-				});
-		});
-
-		// ("Default tab" setting retired 2026-07-22 — the contact page now
-		// stacks Ideas / Timeline / Notes / Markdown instead of tabs.)
+	private deleteRelationshipType(index: number) {
+		this.plugin.settings.relationshipTypes.splice(index, 1);
+		void this.plugin.saveSettings();
+		this.update();
 	}
 }

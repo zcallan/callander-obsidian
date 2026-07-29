@@ -25,7 +25,7 @@ export class PlanCreditModal extends FormModal {
 			text: this.initial ? "Edit credit" : "Add credit",
 		});
 
-		const personField = contentEl.createEl("div", {
+		const personField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		personField.createEl("label", { text: "Who paid / transferred" });
@@ -37,7 +37,7 @@ export class PlanCreditModal extends FormModal {
 			if (this.initial?.person === p) opt.selected = true;
 		}
 
-		const amountField = contentEl.createEl("div", {
+		const amountField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		amountField.createEl("label", { text: "Amount ($)" });
@@ -47,7 +47,7 @@ export class PlanCreditModal extends FormModal {
 		});
 		if (this.initial) amountInput.value = String(this.initial.amount);
 
-		const noteField = contentEl.createEl("div", {
+		const noteField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		noteField.createEl("label", { text: "Note (optional)" });
@@ -57,7 +57,7 @@ export class PlanCreditModal extends FormModal {
 		});
 		noteInput.value = this.initial?.note ?? "";
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		if (this.initial && this.onDelete) {
@@ -65,10 +65,11 @@ export class PlanCreditModal extends FormModal {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
-			del.addEventListener("click", async () => {
+			const handleDelete = async () => {
 				await this.onDelete!();
 				this.close();
-			});
+			};
+			del.addEventListener("click", () => void handleDelete());
 		}
 		const saveButton = buttons.createEl("button", {
 			text: this.initial ? "Save" : "Add",
@@ -83,16 +84,16 @@ export class PlanCreditModal extends FormModal {
 			await this.onSubmit({ person, amount, ...(note && { note }) });
 			this.close();
 		};
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		for (const input of [amountInput, noteInput]) {
 			input.addEventListener("keydown", (e) => {
 				if (e.key === "Enter") {
 					e.preventDefault();
-					submit();
+					void submit();
 				}
 			});
 		}
-		setTimeout(() => amountInput.focus(), 0);
+		window.setTimeout(() => amountInput.focus(), 0);
 	}
 
 	onClose() {

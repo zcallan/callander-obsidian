@@ -1,4 +1,4 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 
@@ -26,7 +26,7 @@ export class ResurfaceModal extends FormModal {
 		});
 
 		let value = this.currentValue ?? "";
-		const field = contentEl.createEl("div", {
+		const field = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		createFlexDateInput(
@@ -41,25 +41,27 @@ export class ResurfaceModal extends FormModal {
 			}
 		);
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const clearButton = buttons.createEl("button", {
 			text: "Clear",
 			cls: "callander-modal-button",
 		});
-		clearButton.addEventListener("click", async () => {
+		const handleClear = async () => {
 			await this.onSubmit("");
 			this.close();
-		});
+		};
+		clearButton.addEventListener("click", () => void handleClear());
 		const saveButton = buttons.createEl("button", {
 			text: "Save",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", async () => {
+		const handleSave = async () => {
 			await this.onSubmit(value);
 			this.close();
-		});
+		};
+		saveButton.addEventListener("click", () => void handleSave());
 	}
 
 	onClose() {

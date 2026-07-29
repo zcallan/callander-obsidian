@@ -6,11 +6,18 @@ import {
 	setIcon,
 	parseYaml,
 	MarkdownRenderer,
+	type ViewStateResult,
 } from "obsidian";
 import type FriendTracker from "@/main";
 import { ContactFields } from "@/components/ContactFields";
 import { EventTimeline } from "@/components/EventTimeline";
-import type { FriendEvent, Idea, Interest, Quote } from "@/types";
+import type {
+	ContactWithCountdown,
+	FriendEvent,
+	Idea,
+	Interest,
+	Quote,
+} from "@/types";
 import { AddFieldModal } from "@/modals/AddFieldModal";
 import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
@@ -61,12 +68,80 @@ import {
 	flexSortKey,
 	monthName,
 } from "@/utils/flexdate";
+import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
+/** Scalar frontmatter keys the page binds directly into string inputs. */
+const SCALAR_FIELDS = [
+	"name",
+	"displayName",
+	"birthday",
+	"relationship",
+	"met",
+	"notes",
+	"date",
+	"endDate",
+	"location",
+	"status",
+] as const;
+
+/**
+ * The parsed YAML of a contact/plan/group page. Scalars the page binds as
+ * strings are typed (coerced once in normalizeFrontmatter); collections stay
+ * `unknown` and flow through the service readers (ideasOf, eventsOf,
+ * itemsOf, ...) that validate their shapes. The index signature carries
+ * user-defined custom fields.
+ */
+interface ContactFrontmatter {
+	name?: string;
+	displayName?: string;
+	birthday?: string;
+	relationship?: string;
+	met?: string;
+	notes?: string;
+	date?: string;
+	endDate?: string;
+	location?: string;
+	status?: string;
+	ideas?: unknown;
+	events?: unknown;
+	drafts?: unknown;
+	items?: unknown;
+	travel?: unknown;
+	accommodation?: unknown;
+	bring?: unknown;
+	costs?: unknown;
+	credits?: unknown;
+	costsPaid?: unknown;
+	members?: unknown;
+	unconfirmedMembers?: unknown;
+	interests?: unknown;
+	quotes?: unknown;
+	funFacts?: unknown;
+	groups?: unknown;
+	/** Legacy keys, folded into ideas/events by the in-memory migrations */
+	giftIdeas?: unknown;
+	interactions?: unknown;
+	[key: string]: unknown;
+}
+
+/** YAML-shaped unknown → ContactFrontmatter, coercing bound scalars once. */
+function toContactFrontmatter(parsed: unknown): ContactFrontmatter {
+	if (!isRecord(parsed)) return {};
+	const data = parsed as ContactFrontmatter;
+	for (const key of SCALAR_FIELDS) {
+		const value = parsed[key];
+		if (value != null && typeof value !== "string") {
+			data[key] = toText(value);
+		}
+	}
+	return data;
+}
+
 export class ContactPageView extends ItemView {
 	private _file: TFile | null = null;
-	private contactData: any = {};
+	private contactData: ContactFrontmatter = {};
 	private contactFields: ContactFields;
 	private eventTimeline: EventTimeline;
 	public plugin: FriendTracker;
@@ -81,6 +156,31 @@ export class ContactPageView extends ItemView {
 
 	public getRelationshipTypes(): string[] {
 		return this.plugin.settings.relationshipTypes;
+	}
+
+	/** In-memory events, post-migration — the same array reference. */
+	private eventsList(): FriendEvent[] {
+		return asArray(this.contactData.events) as FriendEvent[];
+	}
+
+	/** In-memory ideas, post-migration — the same array reference. */
+	private ideasList(): Idea[] {
+		return asArray(this.contactData.ideas) as Idea[];
+	}
+
+	/** Append to a frontmatter list, creating it when absent. */
+	private pushToList(key: string, value: unknown) {
+		const list = asArray(this.contactData[key]);
+		list.push(value);
+		this.contactData[key] = list;
+	}
+
+	/** Splice one entry out of a frontmatter list; empty lists drop the key. */
+	private removeFromList(key: string, index: number) {
+		const list = asArray(this.contactData[key]);
+		list.splice(index, 1);
+		if (list.length === 0) delete this.contactData[key];
+		else this.contactData[key] = list;
 	}
 
 	public async addRelationshipType(
@@ -115,7 +215,7 @@ export class ContactPageView extends ItemView {
 					Date.now() > this.writingUntil &&
 					!this.isEditingInView()
 				) {
-					this.setFile(this._file);
+					void this.setFile(this._file);
 				}
 			})
 		);
@@ -143,8 +243,12 @@ export class ContactPageView extends ItemView {
 		return this._file;
 	}
 
-	async setState(state: any, result: any) {
-		const file = this.app.vault.getFileByPath(state.filePath);
+	async setState(state: unknown, result: ViewStateResult) {
+		const filePath = fieldOf(state, "filePath");
+		const file =
+			typeof filePath === "string"
+				? this.app.vault.getFileByPath(filePath)
+				: null;
 		const fileChanged = !!file && file.path !== this._file?.path;
 		if (file) {
 			await this.setFile(file);
@@ -154,7 +258,9 @@ export class ContactPageView extends ItemView {
 		// reports that its state changed (as FileView does for files).
 		if (fileChanged && result) {
 			result.history = true;
-			result.layout = true;
+			// `layout` isn't in the typed API, but same-type navigation only
+			// lands in tab history when it's set — keep the write.
+			(result as ViewStateResult & { layout?: boolean }).layout = true;
 		}
 		await super.setState(state, result);
 	}
@@ -174,7 +280,8 @@ export class ContactPageView extends ItemView {
 			// Only update if this._file is still the same file
 			if (this._file?.path !== currentFilePath) return;
 			const yamlMatch = content.match(/^---\n([\s\S]*?)\n---/);
-			this.contactData = yamlMatch ? parseYaml(yamlMatch[1]) : {};
+			const parsed: unknown = yamlMatch ? parseYaml(yamlMatch[1]) : {};
+			this.contactData = toContactFrontmatter(parsed);
 			this.migrateLegacyGiftIdeas();
 			this.migrateLegacyInteractions();
 			this.migratePlanStructure();
@@ -193,7 +300,7 @@ export class ContactPageView extends ItemView {
 		container.empty();
 
 		if (!this.contactData || !this.contactData.name) {
-			container.createEl("div", {
+			container.createDiv({
 				text: "No contact data available",
 				cls: "contact-empty-state",
 			});
@@ -201,10 +308,10 @@ export class ContactPageView extends ItemView {
 		}
 
 		// Header with name
-		const header = container.createEl("div", {
+		const header = container.createDiv({
 			cls: "contact-page-header",
 		});
-		const nameContainer = header.createEl("div", {
+		const nameContainer = header.createDiv({
 			cls: "contact-name-container",
 		});
 		this.renderNameSection(nameContainer);
@@ -215,7 +322,7 @@ export class ContactPageView extends ItemView {
 			header.addClass("plan-page-header");
 			this.renderPlanMetaLines(nameContainer);
 
-			const actions = header.createEl("div", {
+			const actions = header.createDiv({
 				cls: "contact-header-actions plan-page-actions",
 			});
 			const noteButton = actions.createEl("button", {
@@ -231,20 +338,20 @@ export class ContactPageView extends ItemView {
 
 		// Quick actions, top-right (friends only)
 		if (!this.isGroupFile() && !this.isPlanFile()) {
-			const actions = header.createEl("div", {
+			const actions = header.createDiv({
 				cls: "contact-header-actions",
 			});
 			const action = (
 				icon: string,
 				label: string,
-				onClick: () => void
+				onClick: () => void | Promise<void>
 			) => {
 				const btn = actions.createEl("button", {
 					cls: "callander-button contact-header-action",
 				});
 				setIcon(btn, icon);
 				btn.createSpan({ text: label });
-				btn.addEventListener("click", onClick);
+				btn.addEventListener("click", () => void onClick());
 			};
 			action("lightbulb", "Add idea", () => this.openAddIdeaModal());
 			action("milestone", "Add event", () => this.openAddEventModal());
@@ -255,14 +362,14 @@ export class ContactPageView extends ItemView {
 		if (this.isPlanFile()) {
 			this.renderPlanDrafts(container);
 
-			const planContent = container.createEl("div", {
+			const planContent = container.createDiv({
 				cls: "contact-content contact-content-stacked",
 			});
 			const planSection = (icon: string, label: string) => {
-				const wrap = planContent.createEl("div", {
+				const wrap = planContent.createDiv({
 					cls: "contact-stack-section",
 				});
-				const header = wrap.createEl("div", {
+				const header = wrap.createDiv({
 					cls: "contact-stack-header",
 				});
 				setIcon(
@@ -273,43 +380,7 @@ export class ContactPageView extends ItemView {
 				return wrap;
 			};
 
-			// A collapsible section — click the header to expand; the body
-			// (returned) holds the content. Open state persists across renders,
-			// so adding/editing an item won't snap it shut.
-			const planAccordion = (
-				icon: string,
-				label: string,
-				key: string
-			) => {
-				const wrap = planContent.createEl("div", {
-					cls: "contact-stack-section plan-accordion",
-				});
-				const header = wrap.createEl("div", {
-					cls: "contact-stack-header plan-accordion-header",
-				});
-				setIcon(
-					header.createSpan({ cls: "contact-stack-header-icon" }),
-					icon
-				);
-				header.createSpan({ cls: "plan-accordion-label", text: label });
-				setIcon(
-					header.createSpan({ cls: "plan-accordion-chevron" }),
-					"chevron-down"
-				);
-				const body = wrap.createEl("div", {
-					cls: "plan-accordion-body",
-				});
-				wrap.toggleClass("is-open", this.expandedPlanSections.has(key));
-				header.addEventListener("click", () => {
-					const nowOpen = !this.expandedPlanSections.has(key);
-					if (nowOpen) this.expandedPlanSections.add(key);
-					else this.expandedPlanSections.delete(key);
-					wrap.toggleClass("is-open", nowOpen);
-				});
-				return body;
-			};
-
-			this.renderPlanMembers(
+			void this.renderPlanMembers(
 				planSection("users", `Who's in (${this.planMemberCount()})`)
 			);
 			this.renderPlanTimeline(planSection("calendar-clock", "Timeline"));
@@ -321,7 +392,7 @@ export class ContactPageView extends ItemView {
 			this.renderPlanBring(planSection("backpack", "What to bring"));
 			this.renderPlanCosts(planSection("dollar-sign", "Cost breakdown"));
 			this.renderNotesSection(planSection("pencil", "Notes"));
-			this.renderExtrasSection(
+			void this.renderExtrasSection(
 				planSection("document", "Links & details")
 			);
 			return;
@@ -329,16 +400,16 @@ export class ContactPageView extends ItemView {
 
 		// Friends get the attribute fields; groups get a members list instead
 		if (this.isGroupFile()) {
-			const membersSection = container.createEl("div", {
+			const membersSection = container.createDiv({
 				cls: "contact-info-section",
 			});
-			this.renderGroupMembers(membersSection);
+			void this.renderGroupMembers(membersSection);
 		} else {
 			// "General" — a collapsed accordion of the attribute fields
-			const infoWrap = container.createEl("div", {
+			const infoWrap = container.createDiv({
 				cls: "contact-stack-section plan-accordion contact-general-accordion",
 			});
-			const infoHeader = infoWrap.createEl("div", {
+			const infoHeader = infoWrap.createDiv({
 				cls: "contact-stack-header plan-accordion-header",
 			});
 			setIcon(
@@ -353,10 +424,10 @@ export class ContactPageView extends ItemView {
 				infoHeader.createSpan({ cls: "plan-accordion-chevron" }),
 				"chevron-down"
 			);
-			const infoBody = infoWrap.createEl("div", {
+			const infoBody = infoWrap.createDiv({
 				cls: "plan-accordion-body",
 			});
-			const infoSection = infoBody.createEl("div", {
+			const infoSection = infoBody.createDiv({
 				cls: "contact-info-section",
 			});
 			this.renderInfoSection(infoSection);
@@ -373,15 +444,15 @@ export class ContactPageView extends ItemView {
 		// Stacked sections: Ideas first, then Timeline, then Notes, then
 		// the raw-markdown extras. (Tabs may return one day — each section
 		// is still its own render method, so flipping back is trivial.)
-		const contentContainer = container.createEl("div", {
+		const contentContainer = container.createDiv({
 			cls: "contact-content contact-content-stacked",
 		});
 
 		const section = (icon: string, label: string) => {
-			const wrap = contentContainer.createEl("div", {
+			const wrap = contentContainer.createDiv({
 				cls: "contact-stack-section",
 			});
-			const header = wrap.createEl("div", {
+			const header = wrap.createDiv({
 				cls: "contact-stack-header",
 			});
 			setIcon(
@@ -401,19 +472,19 @@ export class ContactPageView extends ItemView {
 			this.renderQuotesSection(section("quote", "Quotes"));
 		}
 		this.renderNotesSection(section("pencil", "Notes"));
-		this.renderExtrasSection(section("document", "Markdown"));
+		void this.renderExtrasSection(section("document", "Markdown"));
 	}
 
 	private renderNameSection(container: HTMLElement) {
-		const nameSection = container.createEl("div", {
+		const nameSection = container.createDiv({
 			cls: "contact-name-section",
 		});
 
-		const nameDisplay = nameSection.createEl("div", {
+		const nameDisplay = nameSection.createDiv({
 			cls: "contact-name-display",
 		});
 
-		const editContainer = nameDisplay.createEl("div", {
+		const editContainer = nameDisplay.createDiv({
 			cls: "contact-name-row",
 		});
 
@@ -437,7 +508,8 @@ export class ContactPageView extends ItemView {
 		setIcon(editButton, "pencil");
 
 		// Add birthday-derived details, at whatever precision is recorded
-		const birthdayFlex = parseFlexDate(this.contactData.birthday);
+		const birthdayValue = this.contactData.birthday ?? "";
+		const birthdayFlex = parseFlexDate(birthdayValue);
 		if (birthdayFlex && birthdayFlex.month) {
 			const { year, month, day } = birthdayFlex;
 
@@ -445,10 +517,10 @@ export class ContactPageView extends ItemView {
 			if (year !== null) {
 				const ageText =
 					this.plugin.contactOperations.calculateDetailedAge(
-						this.contactData.birthday
+						birthdayValue
 					);
 				if (ageText) {
-					nameDisplay.createEl("span", {
+					nameDisplay.createSpan({
 						text: ageText,
 						cls: "contact-age-display",
 					});
@@ -469,11 +541,11 @@ export class ContactPageView extends ItemView {
 			let relativeText: string | null = null;
 			if (day !== null) {
 				const daysUntil = this.calculateDaysUntilBirthday(
-					this.contactData.birthday
+					birthdayValue
 				);
 				const daysSince =
 					this.plugin.contactOperations.calculateDaysSinceBirthday(
-						this.contactData.birthday
+						birthdayValue
 					);
 
 				if (daysUntil === 0) {
@@ -491,7 +563,7 @@ export class ContactPageView extends ItemView {
 				}
 			}
 
-			nameDisplay.createEl("span", {
+			nameDisplay.createSpan({
 				text: relativeText
 					? `Birthday: ${birthdayText} • ${relativeText}`
 					: `Birthday: ${birthdayText}`,
@@ -500,7 +572,7 @@ export class ContactPageView extends ItemView {
 
 			// Day unknown: keep a lightweight month-level countdown, only when near
 			if (day === null) {
-				const countdownContainer = nameDisplay.createEl("div", {
+				const countdownContainer = nameDisplay.createDiv({
 					cls: "contact-birthday-countdown",
 				});
 				const nowMonth = new Date().getMonth() + 1;
@@ -524,25 +596,25 @@ export class ContactPageView extends ItemView {
 			// Optional birthday trivia, each behind a setting
 			const s = this.plugin.settings;
 			if (day !== null && s.showStarSign) {
-				nameDisplay.createEl("span", {
+				nameDisplay.createSpan({
 					text: `Star sign: ${this.getZodiacSign(month, day)}`,
 					cls: "contact-age-display",
 				});
 			}
 			if (year !== null && s.showChineseZodiac) {
-				nameDisplay.createEl("span", {
+				nameDisplay.createSpan({
 					text: `Zodiac: ${this.getChineseZodiac(year)}`,
 					cls: "contact-age-display",
 				});
 			}
 			if (s.showBirthstone) {
-				nameDisplay.createEl("span", {
+				nameDisplay.createSpan({
 					text: `Birthstone: ${this.getBirthstone(month)}`,
 					cls: "contact-age-display",
 				});
 			}
 			if (s.showBirthFlower) {
-				nameDisplay.createEl("span", {
+				nameDisplay.createSpan({
 					text: `Birth flower: ${this.getBirthFlower(month)}`,
 					cls: "contact-age-display",
 				});
@@ -554,7 +626,7 @@ export class ContactPageView extends ItemView {
 			this.contactData.displayName &&
 			this.contactData.displayName !== this.contactData.name
 		) {
-			nameDisplay.createEl("span", {
+			nameDisplay.createSpan({
 				text: `Full name: ${this.contactData.name}`,
 				cls: "contact-age-display",
 			});
@@ -582,7 +654,7 @@ export class ContactPageView extends ItemView {
 							month: "long",
 							year: "numeric",
 					  });
-			nameDisplay.createEl("span", {
+			nameDisplay.createSpan({
 				cls: "contact-age-display contact-last-updated",
 				text: `Last updated: ${label}`,
 			});
@@ -595,7 +667,7 @@ export class ContactPageView extends ItemView {
 				setIcon(editButton, "checkmark");
 				nameInput.focus();
 			} else {
-				saveNameChange();
+				void saveNameChange();
 			}
 		});
 
@@ -622,7 +694,7 @@ export class ContactPageView extends ItemView {
 								VIEW_TYPE_FRIEND_TRACKER
 							);
 						for (const leaf of friendTrackerLeaves) {
-							const view = await leaf.view;
+							const view = leaf.view;
 							if (view instanceof FriendTrackerView) {
 								await view.refresh();
 								break;
@@ -639,7 +711,7 @@ export class ContactPageView extends ItemView {
 			setIcon(editButton, "pencil");
 		};
 
-		nameInput.addEventListener("change", saveNameChange);
+		nameInput.addEventListener("change", () => void saveNameChange());
 	}
 
 	private calculateDaysUntilBirthday(birthday: string): number | null {
@@ -731,7 +803,7 @@ export class ContactPageView extends ItemView {
 	private renderInfoSection(container: HTMLElement) {
 		// container is already a .contact-info-section — no second wrapper,
 		// so the fields span the page like every other section
-		const fieldsContainer = container.createEl("div", {
+		const fieldsContainer = container.createDiv({
 			cls: "contact-fields-container",
 		});
 
@@ -763,14 +835,14 @@ export class ContactPageView extends ItemView {
 					if (!value) return; // Skip empty values
 					if (Array.isArray(value) && value.length === 0) return;
 
-					const field = fieldsContainer.createEl("div", {
+					const field = fieldsContainer.createDiv({
 						cls: "contact-field-view",
 						attr: {
 							"data-field": key.toLowerCase(),
 						},
 					});
 
-					field.createEl("div", {
+					field.createDiv({
 						cls: "contact-field-label",
 						text: key,
 					});
@@ -781,14 +853,14 @@ export class ContactPageView extends ItemView {
 						const colorOf = new Map(
 							ops.getGroupInfos().map((i) => [i.name, i.color])
 						);
-						const chips = field.createEl("div", {
+						const chips = field.createDiv({
 							cls: "contact-group-chips",
 						});
 						for (const g of value.map(String)) {
-							const chip = chips.createEl("span", {
+							const chip = chips.createSpan({
 								cls: "contact-group-chip readonly",
 							});
-							const dot = chip.createEl("span", {
+							const dot = chip.createSpan({
 								cls: "group-dot",
 							});
 							dot.style.backgroundColor =
@@ -823,7 +895,7 @@ export class ContactPageView extends ItemView {
 						return value;
 					})();
 
-					field.createEl("div", {
+					field.createDiv({
 						cls: "contact-field-value",
 						text: displayValue as string,
 					});
@@ -858,7 +930,7 @@ export class ContactPageView extends ItemView {
 						this.createInfoField(
 							fieldsContainer,
 							field,
-							this.contactData[field]
+							toText(this.contactData[field])
 						);
 					}
 				});
@@ -882,7 +954,7 @@ export class ContactPageView extends ItemView {
 				text: "Add custom field",
 			});
 			addFieldButton.addEventListener("click", () => {
-				this.openAddFieldModal();
+				void this.openAddFieldModal();
 			});
 
 			// Add done button
@@ -891,10 +963,11 @@ export class ContactPageView extends ItemView {
 				text: "Done",
 			});
 
-			doneButton.addEventListener("click", async () => {
+			const handleDone = async () => {
 				await this.saveContactData();
 				renderViewMode();
-			});
+			};
+			doneButton.addEventListener("click", () => void handleDone());
 		};
 
 		// Initial render in view mode
@@ -906,14 +979,14 @@ export class ContactPageView extends ItemView {
 	 * or the exact day — whatever you actually remember.
 	 */
 	private createMetField(container: HTMLElement) {
-		const fieldContainer = container.createEl("div", {
+		const fieldContainer = container.createDiv({
 			cls: "contact-field",
 		});
 
 		fieldContainer.createEl("label", { text: "met" });
 
 		createFlexDateInput(fieldContainer, this.contactData.met, (value) => {
-			this.updateContactData("met", value);
+			void this.updateContactData("met", value);
 		});
 	}
 
@@ -922,7 +995,7 @@ export class ContactPageView extends ItemView {
 	 * unknown), or month + day (year unknown).
 	 */
 	private createBirthdayField(container: HTMLElement) {
-		const fieldContainer = container.createEl("div", {
+		const fieldContainer = container.createDiv({
 			cls: "contact-field",
 		});
 
@@ -932,7 +1005,7 @@ export class ContactPageView extends ItemView {
 			fieldContainer,
 			this.contactData.birthday,
 			(value) => {
-				this.updateContactData("birthday", value);
+				void this.updateContactData("birthday", value);
 			}
 		);
 	}
@@ -940,15 +1013,15 @@ export class ContactPageView extends ItemView {
 	/** Groups as toggle chips with color dots; new groups via a small input */
 	private createGroupsField(container: HTMLElement) {
 		const ops = this.plugin.contactOperations;
-		const fieldContainer = container.createEl("div", {
+		const fieldContainer = container.createDiv({
 			cls: "contact-field contact-field-groups",
 		});
 		fieldContainer.createEl("label", { text: "groups" });
 
-		const wrap = fieldContainer.createEl("div", {
+		const wrap = fieldContainer.createDiv({
 			cls: "contact-groups-edit",
 		});
-		const chipsRow = wrap.createEl("div", { cls: "contact-group-chips" });
+		const chipsRow = wrap.createDiv({ cls: "contact-group-chips" });
 
 		const member = new Set<string>(
 			Array.isArray(this.contactData.groups)
@@ -962,14 +1035,14 @@ export class ContactPageView extends ItemView {
 		].sort();
 
 		const save = () => {
-			this.updateContactData("groups", [...member].sort());
+			void this.updateContactData("groups", [...member].sort());
 		};
 
 		const addChip = (name: string) => {
 			const chip = chipsRow.createEl("button", {
 				cls: `contact-group-chip ${member.has(name) ? "selected" : ""}`,
 			});
-			const dot = chip.createEl("span", { cls: "group-dot" });
+			const dot = chip.createSpan({ cls: "group-dot" });
 			dot.style.backgroundColor =
 				colorOf.get(name) ?? "var(--background-modifier-border)";
 			chip.createSpan({ text: ops.prettyGroupName(name) });
@@ -983,7 +1056,7 @@ export class ContactPageView extends ItemView {
 
 		// Group creation lives on the dashboard — here you only toggle
 		if (known.length === 0) {
-			wrap.createEl("div", {
+			wrap.createDiv({
 				cls: "section-helper-text",
 				text: "No groups yet — create them from the dashboard.",
 			});
@@ -995,7 +1068,7 @@ export class ContactPageView extends ItemView {
 		field: string,
 		value: string
 	) {
-		const fieldContainer = container.createEl("div", {
+		const fieldContainer = container.createDiv({
 			cls: "contact-field",
 		});
 
@@ -1016,7 +1089,7 @@ export class ContactPageView extends ItemView {
 		});
 
 		input.addEventListener("change", () => {
-			this.updateContactData(field, input.value);
+			void this.updateContactData(field, input.value);
 		});
 	}
 
@@ -1034,7 +1107,7 @@ export class ContactPageView extends ItemView {
 		const verb = verbs[this.normalizeCategory(idea)];
 		const eventText = verb ? `${verb}: ${idea.text}` : idea.text;
 
-		const fragment = document.createDocumentFragment();
+		const fragment = createFragment();
 		fragment.createSpan({ text: "Idea done! " });
 		const logButton = fragment.createEl("button", {
 			cls: "callander-button contact-log-event-button",
@@ -1042,7 +1115,7 @@ export class ContactPageView extends ItemView {
 		});
 
 		const notice = new Notice(fragment, 8000);
-		logButton.addEventListener("click", async () => {
+		const logIdeaAsEvent = async () => {
 			notice.hide();
 			const today = new Date().toISOString().split("T")[0];
 			// Gifts given get their own type; everything else was time spent
@@ -1050,11 +1123,12 @@ export class ContactPageView extends ItemView {
 				this.normalizeCategory(idea) === "gift" ? "given" : "hangout";
 			await this.addEvent(today, eventText, type);
 			new Notice("Added to timeline");
-		});
+		};
+		logButton.addEventListener("click", () => void logIdeaAsEvent());
 	}
 
 	private renderNotesSection(container: HTMLElement) {
-		const notesSection = container.createEl("div", {
+		const notesSection = container.createDiv({
 			cls: "contact-notes-section",
 		});
 
@@ -1075,33 +1149,31 @@ export class ContactPageView extends ItemView {
 			this.adjustTextareaHeight(notesInput);
 		});
 
-		setTimeout(() => {
+		window.setTimeout(() => {
 			this.adjustTextareaHeight(notesInput);
 		}, 0);
 
-		notesInput.addEventListener("change", async () => {
+		notesInput.addEventListener("change", () => {
 			if (!this._file) return;
 			this.contactData.notes = notesInput.value;
-			await this.saveContactData();
+			void this.saveContactData();
 		});
 	}
 
 	private renderEventsSection(container: HTMLElement) {
-		const eventsSection = container.createEl("div", {
+		const eventsSection = container.createDiv({
 			cls: "contact-events-section",
 		});
 
-		const headerContainer = eventsSection.createEl("div", {
+		const headerContainer = eventsSection.createDiv({
 			cls: "contact-events-header",
 		});
 
-		const events: FriendEvent[] = Array.isArray(this.contactData.events)
-			? this.contactData.events
-			: [];
+		const events = this.eventsList();
 
 		// Add helper text if no events yet
 		if (events.length === 0) {
-			headerContainer.createEl("div", {
+			headerContainer.createDiv({
 				cls: "section-helper-text",
 				text: "Log things that happened — meetups, their life events, memorable outings.",
 			});
@@ -1116,7 +1188,7 @@ export class ContactPageView extends ItemView {
 		}
 
 		// Add button sits below the timeline
-		const footer = eventsSection.createEl("div", {
+		const footer = eventsSection.createDiv({
 			cls: "contact-section-footer",
 		});
 		const addButton = footer.createEl("button", {
@@ -1124,31 +1196,33 @@ export class ContactPageView extends ItemView {
 			text: "Add event",
 		});
 		addButton.addEventListener("click", () => {
-			this.openAddEventModal();
+			void this.openAddEventModal();
 		});
 
-		this.renderDiaryMentions(eventsSection);
+		void this.renderDiaryMentions(eventsSection);
 	}
 
 	private renderDraftsStrip(container: HTMLElement) {
-		const drafts = Array.isArray(this.contactData.drafts)
-			? this.contactData.drafts
-			: [];
+		const drafts = asArray(this.contactData.drafts);
 		if (drafts.length === 0) return;
 
-		const strip = container.createEl("div", {
+		const strip = container.createDiv({
 			cls: "contact-drafts-strip",
 		});
-		strip.createEl("div", {
+		strip.createDiv({
 			cls: "contact-idea-group-header",
 			text: "✏️ Drafts to sort",
 		});
 
-		drafts.forEach((draft: any, index: number) => {
-			const row = strip.createEl("div", { cls: "contact-draft-row" });
+		drafts.forEach((draft, index) => {
+			const draftText =
+				typeof draft === "string"
+					? draft
+					: toText(fieldOf(draft, "text"));
+			const row = strip.createDiv({ cls: "contact-draft-row" });
 			row.createSpan({
 				cls: "contact-draft-text",
-				text: typeof draft === "string" ? draft : draft.text,
+				text: draftText,
 			});
 
 			const ideaButton = row.createEl("button", {
@@ -1158,26 +1232,20 @@ export class ContactPageView extends ItemView {
 			ideaButton.addEventListener("click", () => {
 				new QuickIdeaModal(
 					this.app,
-					this.contactData.displayName || this.contactData.name,
+					this.contactData.displayName || this.contactData.name || "",
 					this.lastIdeaCategory,
 					async (category, text) => {
 						this.lastIdeaCategory = category;
-						if (!Array.isArray(this.contactData.ideas)) {
-							this.contactData.ideas = [];
-						}
-						this.contactData.ideas.push({
+						this.pushToList("ideas", {
 							category,
 							text,
 							done: false,
 						});
-						this.contactData.drafts.splice(index, 1);
-						if (this.contactData.drafts.length === 0) {
-							delete this.contactData.drafts;
-						}
+						this.removeFromList("drafts", index);
 						await this.saveContactData();
 						this.render();
 					},
-					typeof draft === "string" ? draft : draft.text
+					draftText
 				).open();
 			});
 
@@ -1187,19 +1255,17 @@ export class ContactPageView extends ItemView {
 			});
 			setIcon(deleteButton, "trash");
 			deleteButton.addEventListener("click", () => {
-				const text = typeof draft === "string" ? draft : draft.text;
 				const preview =
-					text.length > 80 ? text.slice(0, 80) + "…" : text;
+					draftText.length > 80
+						? draftText.slice(0, 80) + "…"
+						: draftText;
 				new ConfirmModal(
 					this.app,
 					"Discard draft",
 					`Discard "${preview}"?`,
 					"Discard",
 					async () => {
-						this.contactData.drafts.splice(index, 1);
-						if (this.contactData.drafts.length === 0) {
-							delete this.contactData.drafts;
-						}
+						this.removeFromList("drafts", index);
 						await this.saveContactData();
 						this.render();
 					}
@@ -1244,17 +1310,17 @@ export class ContactPageView extends ItemView {
 		if (this.contactData.status === "done") parts.push("✅ Done");
 
 		if (parts.length > 0 || this.contactData.location) {
-			const linesWrap = container.createEl("div", {
+			const linesWrap = container.createDiv({
 				cls: "plan-meta-lines",
 			});
 			if (parts.length > 0) {
-				linesWrap.createEl("div", {
+				linesWrap.createDiv({
 					cls: "plan-meta-line",
 					text: parts.join("  ·  "),
 				});
 			}
 			if (this.contactData.location) {
-				linesWrap.createEl("div", {
+				linesWrap.createDiv({
 					cls: "plan-meta-line",
 					text: `📍 ${this.contactData.location}`,
 				});
@@ -1336,7 +1402,7 @@ export class ContactPageView extends ItemView {
 		doneButton.addEventListener("click", () => {
 			if (this.contactData.status === "done") {
 				this.contactData.status = "planning";
-				this.saveContactData().then(() => this.render());
+				void this.saveContactData().then(() => this.render());
 				return;
 			}
 			const memberFiles = this.resolvePlanMembers();
@@ -1355,7 +1421,7 @@ export class ContactPageView extends ItemView {
 						await this.plugin.contactOperations.addEventToFile(
 							file,
 							date,
-							this.contactData.name,
+							this.contactData.name ?? "",
 							"hangout"
 						);
 					}
@@ -1408,11 +1474,8 @@ export class ContactPageView extends ItemView {
 
 	/** Member display names — resolved contacts use displayName, guests as-is */
 	private planMemberDisplays(list?: string[]): string[] {
-		const members: string[] =
-			list ??
-			(Array.isArray(this.contactData.members)
-				? this.contactData.members
-				: []);
+		const members =
+			list ?? asArray(this.contactData.members).map(String);
 		return members.map((raw) => {
 			const linktext = String(raw).replace(/^\[\[|\]\]$/g, "");
 			const dest = this._file
@@ -1488,9 +1551,7 @@ export class ContactPageView extends ItemView {
 		);
 		stay.forEach((a) => lines.push(withDuration(a)));
 
-		const items: PlanItem[] = Array.isArray(this.contactData.items)
-			? this.contactData.items
-			: [];
+		const items = asArray(this.contactData.items) as PlanItem[];
 
 		// Ideas under one "Plans:" heading — must-dos first, maybes marked
 		if (items.length > 0) {
@@ -1539,9 +1600,7 @@ export class ContactPageView extends ItemView {
 	/** Resolve the plan's wikilink members to contact files */
 	private resolvePlanMembers(): TFile[] {
 		if (!this._file) return [];
-		const members: string[] = Array.isArray(this.contactData.members)
-			? this.contactData.members
-			: [];
+		const members = asArray(this.contactData.members).map(String);
 		const files: TFile[] = [];
 		for (const raw of members) {
 			const linktext = String(raw).replace(/^\[\[|\]\]$/g, "");
@@ -1557,9 +1616,7 @@ export class ContactPageView extends ItemView {
 	/** Everyone at the table: guests/contacts + you. */
 	private planMemberCount(): number {
 		const yourName = this.plugin.settings.yourName;
-		const members: string[] = Array.isArray(this.contactData.members)
-			? this.contactData.members
-			: [];
+		const members = asArray(this.contactData.members).map(String);
 		const others = members.filter(
 			(raw) =>
 				!yourName ||
@@ -1573,9 +1630,7 @@ export class ContactPageView extends ItemView {
 	private async renderPlanMembers(container: HTMLElement) {
 		if (!this._file) return;
 		const yourName = this.plugin.settings.yourName;
-		const members: string[] = Array.isArray(this.contactData.members)
-			? this.contactData.members
-			: [];
+		const members = asArray(this.contactData.members).map(String);
 		// You are shown automatically — skip any guest entry duplicating you
 		const visible = members
 			.map((raw: string, index: number) => ({
@@ -1591,22 +1646,19 @@ export class ContactPageView extends ItemView {
 
 		// The count sits in the section header now. Pad the body like every
 		// other section (the stack-section wrap itself has no padding).
-		container = container.createEl("div", { cls: "plan-members-body" });
-		const chips = container.createEl("div", {
+		container = container.createDiv({ cls: "plan-members-body" });
+		const chips = container.createDiv({
 			cls: "contact-group-chips plan-member-chips",
 		});
 
 		const removeMember = async (index: number) => {
-			this.contactData.members.splice(index, 1);
-			if (this.contactData.members.length === 0) {
-				delete this.contactData.members;
-			}
+			this.removeFromList("members", index);
 			await this.saveContactData();
 			this.render();
 		};
 
 		if (yourName) {
-			const chip = chips.createEl("span", {
+			const chip = chips.createSpan({
 				cls: "contact-group-chip readonly plan-member-chip",
 			});
 			chip.createSpan({ text: yourName });
@@ -1626,7 +1678,7 @@ export class ContactPageView extends ItemView {
 				  )
 				: linktext;
 
-			const chip = chips.createEl("span", {
+			const chip = chips.createSpan({
 				cls: "contact-group-chip readonly plan-member-chip",
 			});
 			const nameEl = chip.createSpan({
@@ -1635,7 +1687,7 @@ export class ContactPageView extends ItemView {
 			});
 			if (dest) {
 				nameEl.addEventListener("click", () =>
-					this.app.workspace.openLinkText(dest.path, "", false)
+					void this.app.workspace.openLinkText(dest.path, "", false)
 				);
 			}
 			const removeEl = chip.createSpan({
@@ -1643,21 +1695,19 @@ export class ContactPageView extends ItemView {
 				text: "✕",
 				attr: { "aria-label": "Remove from plan" },
 			});
-			removeEl.addEventListener("click", () => removeMember(index));
+			removeEl.addEventListener("click", () => void removeMember(index));
 		}
 
 		// Unconfirmed people, in their own section (only when there are any)
-		const unconfirmed: string[] = Array.isArray(
+		const unconfirmed = asArray(
 			this.contactData.unconfirmedMembers
-		)
-			? this.contactData.unconfirmedMembers
-			: [];
+		).map(String);
 		if (unconfirmed.length > 0) {
-			container.createEl("div", {
+			container.createDiv({
 				cls: "plan-member-sublabel",
 				text: "Unconfirmed",
 			});
-			const unconfirmedChips = container.createEl("div", {
+			const unconfirmedChips = container.createDiv({
 				cls: "contact-group-chips plan-member-chips",
 			});
 			unconfirmed.forEach((raw: string, index: number) => {
@@ -1673,7 +1723,7 @@ export class ContactPageView extends ItemView {
 					  )
 					: linktext;
 
-				const chip = unconfirmedChips.createEl("span", {
+				const chip = unconfirmedChips.createSpan({
 					cls: "contact-group-chip readonly plan-member-chip plan-member-unconfirmed",
 				});
 				const nameEl = chip.createSpan({
@@ -1682,7 +1732,11 @@ export class ContactPageView extends ItemView {
 				});
 				if (dest) {
 					nameEl.addEventListener("click", () =>
-						this.app.workspace.openLinkText(dest.path, "", false)
+						void this.app.workspace.openLinkText(
+							dest.path,
+							"",
+							false
+						)
 					);
 				}
 				const confirmEl = chip.createSpan({
@@ -1690,35 +1744,32 @@ export class ContactPageView extends ItemView {
 					text: "✓",
 					attr: { "aria-label": "Confirm — they're in" },
 				});
-				confirmEl.addEventListener("click", async () => {
-					this.contactData.unconfirmedMembers.splice(index, 1);
-					if (this.contactData.unconfirmedMembers.length === 0) {
-						delete this.contactData.unconfirmedMembers;
-					}
-					if (!Array.isArray(this.contactData.members)) {
-						this.contactData.members = [];
-					}
-					this.contactData.members.push(raw);
+				const confirmMember = async () => {
+					this.removeFromList("unconfirmedMembers", index);
+					this.pushToList("members", raw);
 					await this.saveContactData();
 					this.render();
-				});
+				};
+				confirmEl.addEventListener("click", () =>
+					void confirmMember()
+				);
 				const removeEl = chip.createSpan({
 					cls: "contact-member-remove",
 					text: "✕",
 					attr: { "aria-label": "Remove" },
 				});
-				removeEl.addEventListener("click", async () => {
-					this.contactData.unconfirmedMembers.splice(index, 1);
-					if (this.contactData.unconfirmedMembers.length === 0) {
-						delete this.contactData.unconfirmedMembers;
-					}
+				const removeUnconfirmed = async () => {
+					this.removeFromList("unconfirmedMembers", index);
 					await this.saveContactData();
 					this.render();
-				});
+				};
+				removeEl.addEventListener("click", () =>
+					void removeUnconfirmed()
+				);
 			});
 		}
 
-		const addRow = container.createEl("div", {
+		const addRow = container.createDiv({
 			cls: "plan-member-add-row",
 		});
 		const addButton = addRow.createEl("button", {
@@ -1726,7 +1777,7 @@ export class ContactPageView extends ItemView {
 		});
 		setIcon(addButton, "plus");
 		addButton.createSpan({ text: "Add person" });
-		addButton.addEventListener("click", async () => {
+		const openAddMember = async () => {
 			const ops = this.plugin.contactOperations;
 			const contacts = await ops.getContacts();
 			const existing = new Set(
@@ -1748,34 +1799,33 @@ export class ContactPageView extends ItemView {
 					const key = isUnconfirmed
 						? "unconfirmedMembers"
 						: "members";
-					if (!Array.isArray(this.contactData[key])) {
-						this.contactData[key] = [];
-					}
-					this.contactData[key].push(entry);
+					this.pushToList(key, entry);
 					await this.saveContactData();
 					this.render();
 				}
 			).open();
-		});
+		};
+		addButton.addEventListener("click", () => void openAddMember());
 	}
 
 	private renderPlanDrafts(container: HTMLElement) {
-		const drafts = Array.isArray(this.contactData.drafts)
-			? this.contactData.drafts
-			: [];
+		const drafts = asArray(this.contactData.drafts);
 		if (drafts.length === 0) return;
 
-		const strip = container.createEl("div", {
+		const strip = container.createDiv({
 			cls: "contact-drafts-strip",
 		});
-		strip.createEl("div", {
+		strip.createDiv({
 			cls: "contact-idea-group-header",
 			text: "✏️ Drafts to sort",
 		});
 
-		drafts.forEach((draft: any, index: number) => {
-			const text = typeof draft === "string" ? draft : draft.text;
-			const row = strip.createEl("div", { cls: "contact-draft-row" });
+		drafts.forEach((draft, index) => {
+			const text =
+				typeof draft === "string"
+					? draft
+					: toText(fieldOf(draft, "text"));
+			const row = strip.createDiv({ cls: "contact-draft-row" });
 			row.createSpan({ cls: "contact-draft-text", text });
 
 			const ideaButton = row.createEl("button", {
@@ -1787,14 +1837,8 @@ export class ContactPageView extends ItemView {
 					this.app,
 					String(this.contactData.name ?? ""),
 					async (value) => {
-						if (!Array.isArray(this.contactData.items)) {
-							this.contactData.items = [];
-						}
-						this.contactData.items.push(value);
-						this.contactData.drafts.splice(index, 1);
-						if (this.contactData.drafts.length === 0) {
-							delete this.contactData.drafts;
-						}
+						this.pushToList("items", value);
+						this.removeFromList("drafts", index);
 						await this.saveContactData();
 						this.render();
 					},
@@ -1816,10 +1860,7 @@ export class ContactPageView extends ItemView {
 					`Discard "${preview}"?`,
 					"Discard",
 					async () => {
-						this.contactData.drafts.splice(index, 1);
-						if (this.contactData.drafts.length === 0) {
-							delete this.contactData.drafts;
-						}
+						this.removeFromList("drafts", index);
 						await this.saveContactData();
 						this.render();
 					}
@@ -1829,14 +1870,14 @@ export class ContactPageView extends ItemView {
 	}
 
 	private renderPlanIdeas(container: HTMLElement) {
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "contact-ideas-section plan-items-section",
 		});
 
 		const items = PlanOperations.itemsOf(this.contactData);
 
 		if (items.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Things to do together — activities, food, sights.",
 			});
@@ -1854,22 +1895,22 @@ export class ContactPageView extends ItemView {
 				);
 			if (catItems.length === 0) continue;
 
-			const group = section.createEl("div", {
+			const group = section.createDiv({
 				cls: "contact-idea-group",
 			});
-			group.createEl("div", {
+			group.createDiv({
 				cls: "contact-idea-group-header",
 				text: `${cat.emoji} ${cat.label}`,
 			});
 			for (const { item, index } of catItems) {
-				const row = group.createEl("div", {
+				const row = group.createDiv({
 					cls: "contact-idea-item plan-clickable-row",
 				});
 				row.addEventListener("click", () =>
 					this.openPlanIdeaModal(index, item)
 				);
 				// No priority icons — a "Maybe" is spelled out inline.
-				const textEl = row.createEl("div", {
+				const textEl = row.createDiv({
 					cls: "contact-idea-text",
 					text:
 						item.priority === "maybe"
@@ -1891,7 +1932,7 @@ export class ContactPageView extends ItemView {
 			}
 		}
 
-		const footer = section.createEl("div", {
+		const footer = section.createDiv({
 			cls: "contact-section-footer",
 		});
 		const addButton = footer.createEl("button", {
@@ -1910,7 +1951,7 @@ export class ContactPageView extends ItemView {
 		key: "travel" | "accommodation",
 		addLabel: string
 	) {
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "contact-ideas-section plan-items-section",
 		});
 		const open = (index: number | null, item: PlanSimpleItem | null) =>
@@ -1923,7 +1964,7 @@ export class ContactPageView extends ItemView {
 		);
 
 		if (rows.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text:
 					key === "travel"
@@ -1933,11 +1974,11 @@ export class ContactPageView extends ItemView {
 		}
 
 		rows.forEach(({ item, index }) => {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "contact-idea-item plan-clickable-row",
 			});
 			row.addEventListener("click", () => open(index, item));
-			const textEl = row.createEl("div", {
+			const textEl = row.createDiv({
 				cls: "contact-idea-text",
 			});
 			if (
@@ -1971,7 +2012,7 @@ export class ContactPageView extends ItemView {
 			}
 		});
 
-		const footer = section.createEl("div", {
+		const footer = section.createDiv({
 			cls: "contact-section-footer",
 		});
 		const addButton = footer.createEl("button", {
@@ -2030,7 +2071,7 @@ export class ContactPageView extends ItemView {
 	 * listed (empty ones show "No plans yet") so it reads day-by-day.
 	 */
 	private renderPlanTimeline(container: HTMLElement) {
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "contact-ideas-section plan-items-section",
 		});
 		const entries = PlanOperations.timelineOf(this.contactData);
@@ -2054,16 +2095,16 @@ export class ContactPageView extends ItemView {
 		const sortedDays = [...days].sort();
 
 		if (sortedDays.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Give an idea, travel leg or stay a date and it lands here in order — your itinerary as it firms up.",
 			});
 		} else {
-			const timeline = section.createEl("div", {
+			const timeline = section.createDiv({
 				cls: "contact-timeline plan-timeline",
 			});
 			for (const day of sortedDays) {
-				timeline.createEl("div", {
+				timeline.createDiv({
 					cls: "contact-timeline-year plan-timeline-day",
 					text: this.formatTimelineDay(day),
 				});
@@ -2073,7 +2114,7 @@ export class ContactPageView extends ItemView {
 						this.renderPlanTimelineEntry(timeline, entry);
 					}
 				} else {
-					timeline.createEl("div", {
+					timeline.createDiv({
 						cls: "contact-timeline-item plan-timeline-empty",
 						text: "No plans yet",
 					});
@@ -2084,21 +2125,22 @@ export class ContactPageView extends ItemView {
 		// Copy button sits top-right in the section header (desktop).
 		const header = container.querySelector(
 			".contact-stack-header"
-		) as HTMLElement | null;
+		);
 		if (header) {
 			const copyButton = header.createEl("button", {
 				cls: "callander-button plan-timeline-copy",
 			});
 			setIcon(copyButton, "copy");
 			copyButton.createSpan({ text: "Copy as text" });
-			copyButton.addEventListener("click", async () => {
+			const copyShareText = async () => {
 				await navigator.clipboard.writeText(this.buildPlanShareText());
 				new Notice("📋 Copied — ready to paste as text");
-			});
+			};
+			copyButton.addEventListener("click", () => void copyShareText());
 		}
 
 		// Quick-add at the bottom of the itinerary
-		const footer = section.createEl("div", {
+		const footer = section.createDiv({
 			cls: "contact-section-footer plan-timeline-footer",
 		});
 		const addIdeaBtn = footer.createEl("button", {
@@ -2125,19 +2167,19 @@ export class ContactPageView extends ItemView {
 		timeline: HTMLElement,
 		entry: PlanTimelineEntry
 	) {
-		const row = timeline.createEl("div", {
+		const row = timeline.createDiv({
 			cls: `contact-timeline-item plan-timeline-item timeline-${entry.source}`,
 		});
 		// Tapping the row edits it — the only path on mobile.
 		row.addEventListener("click", () => this.openTimelineEntry(entry));
 
-		row.createEl("div", {
+		row.createDiv({
 			cls: `contact-timeline-dot timeline-dot-${entry.source}`,
 		});
 
 		// Line 1: the time within the day (the day is the group header).
 		if (entry.time) {
-			row.createEl("div", {
+			row.createDiv({
 				cls: "contact-timeline-date",
 				text: this.formatItemTime(entry.time),
 			});
@@ -2146,7 +2188,7 @@ export class ContactPageView extends ItemView {
 		// Line 2: emoji + detail (+ duration/cost). Skip the type emoji when
 		// the name already starts with one.
 		const showEmoji = entry.emoji && !this.startsWithEmoji(entry.text);
-		const textEl = row.createEl("div", {
+		const textEl = row.createDiv({
 			cls: "contact-timeline-text",
 			text: showEmoji ? `${entry.emoji} ${entry.text}` : entry.text,
 		});
@@ -2162,7 +2204,7 @@ export class ContactPageView extends ItemView {
 		}
 
 		if (entry.people) {
-			row.createEl("div", {
+			row.createDiv({
 				cls: "plan-travel-people",
 				text: entry.people,
 			});
@@ -2384,21 +2426,21 @@ export class ContactPageView extends ItemView {
 	}
 
 	private renderPlanBring(container: HTMLElement) {
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "contact-ideas-section plan-items-section",
 		});
 
 		const bring = PlanOperations.bringOf(this.contactData);
 
 		if (bring.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Trip-specific stuff — swimwear, speakers, meat for the BBQ. Toothbrushes can look after themselves.",
 			});
 		}
 
 		bring.forEach((item, index) => {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: `contact-idea-item ${item.done ? "done" : ""}`,
 			});
 			const checkbox = row.createEl("input", {
@@ -2408,14 +2450,15 @@ export class ContactPageView extends ItemView {
 				},
 			});
 			checkbox.checked = item.done;
-			checkbox.addEventListener("change", async () => {
+			const toggleBringDone = async () => {
 				const list = PlanOperations.bringOf(this.contactData);
 				list[index] = { ...list[index], done: checkbox.checked };
 				this.contactData.bring = list;
 				await this.saveContactData();
 				this.render();
-			});
-			row.createEl("div", {
+			};
+			checkbox.addEventListener("change", () => void toggleBringDone());
+			row.createDiv({
 				cls: "contact-idea-text",
 				text: item.text,
 			});
@@ -2424,17 +2467,18 @@ export class ContactPageView extends ItemView {
 				attr: { "aria-label": "Remove item" },
 			});
 			setIcon(deleteBtn, "trash");
-			deleteBtn.addEventListener("click", async () => {
+			const removeBringItem = async () => {
 				const list = PlanOperations.bringOf(this.contactData);
 				list.splice(index, 1);
 				if (list.length > 0) this.contactData.bring = list;
 				else delete this.contactData.bring;
 				await this.saveContactData();
 				this.render();
-			});
+			};
+			deleteBtn.addEventListener("click", () => void removeBringItem());
 		});
 
-		const addRow = section.createEl("div", {
+		const addRow = section.createDiv({
 			cls: "contact-ideas-add-row plan-bring-add-row",
 		});
 		const input = addRow.createEl("input", {
@@ -2456,9 +2500,9 @@ export class ContactPageView extends ItemView {
 			await this.saveContactData();
 			this.render();
 		};
-		addButton.addEventListener("click", addItem);
+		addButton.addEventListener("click", () => void addItem());
 		input.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") addItem();
+			if (e.key === "Enter") void addItem();
 		});
 	}
 
@@ -2475,7 +2519,7 @@ export class ContactPageView extends ItemView {
 	}
 
 	private renderPlanCosts(container: HTMLElement) {
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "contact-ideas-section plan-items-section",
 		});
 		const costs = PlanOperations.costsOf(this.contactData);
@@ -2491,7 +2535,7 @@ export class ContactPageView extends ItemView {
 			n < 0 ? `-$${Math.abs(n).toFixed(2)}` : `$${n.toFixed(2)}`;
 
 		if (costs.length === 0 && credits.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Split shared expenses — the Airbnb, petrol, groceries. Divide evenly or by shares (nights, drinks…). Add credits for money already handed over.",
 			});
@@ -2556,11 +2600,11 @@ export class ContactPageView extends ItemView {
 		};
 
 		costs.forEach((cost, index) => {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "contact-idea-item plan-cost-row plan-clickable-row",
 			});
 			row.addEventListener("click", () => openCost(index, cost));
-			const textEl = row.createEl("div", { cls: "contact-idea-text" });
+			const textEl = row.createDiv({ cls: "contact-idea-text" });
 			textEl.createSpan({
 				cls: "plan-cost-label",
 				text: cost.label,
@@ -2584,11 +2628,11 @@ export class ContactPageView extends ItemView {
 
 		// Credits — money already handed over, shown after the expenses
 		credits.forEach((credit, index) => {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "contact-idea-item plan-cost-row plan-credit-row plan-clickable-row",
 			});
 			row.addEventListener("click", () => openCredit(index, credit));
-			const textEl = row.createEl("div", { cls: "contact-idea-text" });
+			const textEl = row.createDiv({ cls: "contact-idea-text" });
 			textEl.createSpan({
 				cls: "plan-cost-label",
 				text: `↩ ${credit.person}`,
@@ -2639,11 +2683,11 @@ export class ContactPageView extends ItemView {
 			};
 			refreshTotal();
 
-			const owedList = details.createEl("div", {
+			const owedList = details.createDiv({
 				cls: "plan-cost-owed-list",
 			});
 			for (const p of participants) {
-				const rowEl = owedList.createEl("div", {
+				const rowEl = owedList.createDiv({
 					cls: `plan-cost-owed-row${paid.includes(p) ? " paid" : ""}`,
 				});
 				// Checkbox + name in a label so tapping either toggles "paid".
@@ -2656,7 +2700,8 @@ export class ContactPageView extends ItemView {
 				checkbox.checked = paid.includes(p);
 				// You can't owe yourself — leave your own row un-tickable.
 				checkbox.disabled = isYou(p);
-				checkbox.addEventListener("change", async () => {
+				check.toggleClass("is-disabled", isYou(p));
+				const togglePaid = async () => {
 					const current: string[] = Array.isArray(
 						this.contactData.costsPaid
 					)
@@ -2672,7 +2717,8 @@ export class ContactPageView extends ItemView {
 					rowEl.toggleClass("paid", checkbox.checked);
 					refreshTotal();
 					await this.saveContactData();
-				});
+				};
+				checkbox.addEventListener("change", () => void togglePaid());
 				check.createSpan({ cls: "plan-cost-owed-name", text: p });
 
 				const owedGross = owedTotals[p] ?? 0;
@@ -2708,7 +2754,7 @@ export class ContactPageView extends ItemView {
 			}
 		}
 
-		const footer = section.createEl("div", {
+		const footer = section.createDiv({
 			cls: "contact-section-footer plan-cost-footer",
 		});
 		const addButton = footer.createEl("button", {
@@ -2758,29 +2804,29 @@ export class ContactPageView extends ItemView {
 		const contacts = await ops.getContacts();
 		const members = contacts.filter((c) => c.groups.includes(groupName));
 
-		container.createEl("div", {
+		container.createDiv({
 			cls: "contact-field-label",
 			text: `Members (${members.length})`,
 		});
 
-		const list = container.createEl("div", { cls: "group-member-list" });
+		const list = container.createDiv({ cls: "group-member-list" });
 		for (const m of members) {
-			const row = list.createEl("div", { cls: "group-member-row" });
+			const row = list.createDiv({ cls: "group-member-row" });
 
-			const info = row.createEl("div", { cls: "group-member-info" });
-			info.createEl("div", {
+			const info = row.createDiv({ cls: "group-member-info" });
+			info.createDiv({
 				cls: "group-member-name",
 				text: m.displayName,
 			});
 			const metFlex = parseFlexDate(m.met);
 			if (metFlex && metFlex.year !== null) {
-				info.createEl("div", {
+				info.createDiv({
 					cls: "group-member-met",
 					text: `Met ${formatFlexDate(metFlex)}`,
 				});
 			}
 			info.addEventListener("click", () => {
-				this.app.workspace.openLinkText(m.file.path, "", false);
+				void this.app.workspace.openLinkText(m.file.path, "", false);
 			});
 
 			const removeBtn = row.createEl("button", {
@@ -2788,27 +2834,29 @@ export class ContactPageView extends ItemView {
 				attr: { "aria-label": "Remove from group" },
 			});
 			setIcon(removeBtn, "x");
-			removeBtn.addEventListener("click", async () => {
+			const removeFromGroup = async () => {
 				await ops.removeFriendFromGroup(m.file, groupName);
 				this.render();
-			});
+			};
+			removeBtn.addEventListener("click", () => void removeFromGroup());
 		}
 
 		const addButton = container.createEl("button", {
 			cls: "callander-button button-outlined",
 			text: "Add member",
 		});
-		addButton.addEventListener("click", async () => {
+		addButton.addEventListener("click", () => {
 			const candidates = contacts.filter(
 				(c) => !c.groups.includes(groupName)
 			);
+			const addToGroup = async (contact: ContactWithCountdown) => {
+				await ops.addFriendToGroup(contact.file, groupName);
+				this.render();
+			};
 			new ContactSuggestModal(
 				this.app,
 				candidates,
-				async (contact) => {
-					await ops.addFriendToGroup(contact.file, groupName);
-					this.render();
-				},
+				(contact) => void addToGroup(contact),
 				`Add to ${ops.prettyGroupName(groupName)}…`
 			).open();
 		});
@@ -2825,10 +2873,10 @@ export class ContactPageView extends ItemView {
 		);
 		if (mentions.length === 0) return;
 
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "contact-diary-mentions",
 		});
-		section.createEl("div", {
+		section.createDiv({
 			cls: "contact-idea-group-header",
 			text: "📖 Mentioned in diary",
 		});
@@ -2839,7 +2887,7 @@ export class ContactPageView extends ItemView {
 			});
 			row.addEventListener("click", (e) => {
 				e.preventDefault();
-				this.app.workspace.openLinkText(entry.file.path, "", true);
+				void this.app.workspace.openLinkText(entry.file.path, "", true);
 			});
 		}
 	}
@@ -2847,17 +2895,17 @@ export class ContactPageView extends ItemView {
 	// Migrate legacy giftIdeas -> ideas (category: gift). In-memory on load;
 	// the file itself is rewritten on the next save.
 	private migrateLegacyGiftIdeas() {
-		const legacy = this.contactData.giftIdeas;
-		if (Array.isArray(legacy) && legacy.length > 0) {
-			const existing: Idea[] = Array.isArray(this.contactData.ideas)
-				? this.contactData.ideas
-				: [];
-			const migrated: Idea[] = legacy.map((g: any) => ({
-				category: "gift",
-				text: g?.text ?? String(g),
-				done: !!g?.done,
-			}));
-			this.contactData.ideas = [...existing, ...migrated];
+		const legacy = asArray(this.contactData.giftIdeas);
+		if (legacy.length > 0) {
+			const migrated = legacy.map((g): Idea => {
+				const text = fieldOf(g, "text");
+				return {
+					category: "gift",
+					text: text == null ? toText(g) : toText(text),
+					done: !!fieldOf(g, "done"),
+				};
+			});
+			this.contactData.ideas = [...this.ideasList(), ...migrated];
 		}
 		delete this.contactData.giftIdeas;
 	}
@@ -2868,27 +2916,25 @@ export class ContactPageView extends ItemView {
 	// and move logistics items to the travel list. In-memory; persists on save.
 	private migratePlanStructure() {
 		if (!this.isPlanFile()) return;
-		if (!Array.isArray(this.contactData.items)) return;
-		if (!this.contactData.items.some((i: any) => i && "bucket" in i)) {
+		const items = asArray(this.contactData.items);
+		if (!items.some((i) => isRecord(i) && "bucket" in i)) {
 			return;
 		}
-		const newItems: any[] = [];
-		const travel = Array.isArray(this.contactData.travel)
-			? this.contactData.travel
-			: [];
-		for (const item of this.contactData.items) {
-			if (item && "bucket" in item) {
+		const newItems: unknown[] = [];
+		const travel = asArray(this.contactData.travel);
+		for (const item of items) {
+			if (isRecord(item) && "bucket" in item) {
 				if (item.bucket === "logistics") {
 					travel.push({
 						text: item.text,
-						...(item.cost && { cost: item.cost }),
+						...(item.cost ? { cost: item.cost } : {}),
 					});
 				} else {
 					newItems.push({
 						text: item.text,
 						category: "activity",
 						priority: item.bucket === "must" ? "must" : "maybe",
-						...(item.cost && { cost: item.cost }),
+						...(item.cost ? { cost: item.cost } : {}),
 					});
 				}
 			} else {
@@ -2900,18 +2946,17 @@ export class ContactPageView extends ItemView {
 	}
 
 	private migrateLegacyInteractions() {
-		const legacy = this.contactData.interactions;
-		if (Array.isArray(legacy) && legacy.length > 0) {
-			const existing: FriendEvent[] = Array.isArray(
-				this.contactData.events
-			)
-				? this.contactData.events
-				: [];
-			const migrated: FriendEvent[] = legacy.map((i: any) => ({
-				date: i?.date ?? "",
-				text: i?.text ?? String(i),
-			}));
-			this.contactData.events = [...existing, ...migrated];
+		const legacy = asArray(this.contactData.interactions);
+		if (legacy.length > 0) {
+			const migrated = legacy.map((i): FriendEvent => {
+				const date = fieldOf(i, "date");
+				const text = fieldOf(i, "text");
+				return {
+					date: toText(date),
+					text: text == null ? toText(i) : toText(text),
+				};
+			});
+			this.contactData.events = [...this.eventsList(), ...migrated];
 		}
 		delete this.contactData.interactions;
 	}
@@ -2923,17 +2968,15 @@ export class ContactPageView extends ItemView {
 	}
 
 	private renderIdeasSection(container: HTMLElement) {
-		const ideasSection = container.createEl("div", {
+		const ideasSection = container.createDiv({
 			cls: "contact-ideas-section",
 		});
 
-		const ideas: Idea[] = Array.isArray(this.contactData.ideas)
-			? this.contactData.ideas
-			: [];
+		const ideas = this.ideasList();
 
 		// Add helper text if no ideas yet
 		if (ideas.length === 0) {
-			ideasSection.createEl("div", {
+			ideasSection.createDiv({
 				cls: "section-helper-text",
 				text: "Jot quick thoughts for this friend — gifts to give, conversations to pick back up, things to do together, places to go.",
 			});
@@ -2949,16 +2992,16 @@ export class ContactPageView extends ItemView {
 
 			if (items.length === 0) continue;
 
-			const group = ideasSection.createEl("div", {
+			const group = ideasSection.createDiv({
 				cls: "contact-idea-group",
 			});
-			group.createEl("div", {
+			group.createDiv({
 				cls: "contact-idea-group-header",
 				text: `${cat.emoji} ${cat.label}`,
 			});
 
 			for (const { idea, index } of items) {
-				const item = group.createEl("div", {
+				const item = group.createDiv({
 					cls: `contact-idea-item ${idea.done ? "done" : ""}`,
 				});
 
@@ -2969,16 +3012,19 @@ export class ContactPageView extends ItemView {
 					},
 				});
 				checkbox.checked = !!idea.done;
-				checkbox.addEventListener("change", async () => {
-					this.contactData.ideas[index].done = checkbox.checked;
+				const toggleIdeaDone = async () => {
+					this.ideasList()[index].done = checkbox.checked;
 					await this.saveContactData();
 					this.render();
 					if (checkbox.checked) {
 						this.offerLogAsEvent(idea);
 					}
-				});
+				};
+				checkbox.addEventListener("change", () =>
+					void toggleIdeaDone()
+				);
 
-				const textEl = item.createEl("div", {
+				const textEl = item.createDiv({
 					cls: "contact-idea-text",
 					text: idea.text,
 				});
@@ -3004,10 +3050,9 @@ export class ContactPageView extends ItemView {
 						idea.resurface,
 						async (resurface) => {
 							if (resurface) {
-								this.contactData.ideas[index].resurface =
-									resurface;
+								this.ideasList()[index].resurface = resurface;
 							} else {
-								delete this.contactData.ideas[index].resurface;
+								delete this.ideasList()[index].resurface;
 							}
 							await this.saveContactData();
 							this.render();
@@ -3020,16 +3065,17 @@ export class ContactPageView extends ItemView {
 					attr: { "aria-label": "Delete idea" },
 				});
 				setIcon(deleteBtn, "trash");
-				deleteBtn.addEventListener("click", async () => {
-					this.contactData.ideas.splice(index, 1);
+				const deleteIdea = async () => {
+					this.ideasList().splice(index, 1);
 					await this.saveContactData();
 					this.render();
-				});
+				};
+				deleteBtn.addEventListener("click", () => void deleteIdea());
 			}
 		}
 
 		// Capture goes through the modal, below the list
-		const footer = ideasSection.createEl("div", {
+		const footer = ideasSection.createDiv({
 			cls: "contact-section-footer",
 		});
 		const addButton = footer.createEl("button", {
@@ -3044,13 +3090,10 @@ export class ContactPageView extends ItemView {
 	private openQuickNote() {
 		new NoteInputModal(
 			this.app,
-			this.contactData.displayName || this.contactData.name,
+			this.contactData.displayName || this.contactData.name || "",
 			async (text) => {
 				const created = new Date().toISOString().split("T")[0];
-				if (!Array.isArray(this.contactData.drafts)) {
-					this.contactData.drafts = [];
-				}
-				this.contactData.drafts.push({ text, created });
+				this.pushToList("drafts", { text, created });
 				await this.saveContactData();
 				this.render();
 			}
@@ -3060,14 +3103,11 @@ export class ContactPageView extends ItemView {
 	private openAddIdeaModal() {
 		new QuickIdeaModal(
 			this.app,
-			this.contactData.displayName || this.contactData.name,
+			this.contactData.displayName || this.contactData.name || "",
 			this.lastIdeaCategory,
 			async (category, text) => {
 				this.lastIdeaCategory = category;
-				if (!Array.isArray(this.contactData.ideas)) {
-					this.contactData.ideas = [];
-				}
-				this.contactData.ideas.push({
+				this.pushToList("ideas", {
 					category,
 					text,
 					done: false,
@@ -3105,22 +3145,22 @@ export class ContactPageView extends ItemView {
 	}
 
 	private renderFunFactsSection(container: HTMLElement) {
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "contact-funfacts-section",
 		});
 		const facts = this.funFactsOf();
 
 		if (facts.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "A line or two worth remembering — where you met, an inside joke, what they're into.",
 			});
 		} else {
-			const list = section.createEl("div", {
+			const list = section.createDiv({
 				cls: "contact-funfacts-list",
 			});
 			facts.forEach((fact, index) => {
-				const row = list.createEl("div", {
+				const row = list.createDiv({
 					cls: "contact-funfact-item",
 				});
 				row.createSpan({ cls: "contact-funfact-text", text: fact });
@@ -3129,18 +3169,19 @@ export class ContactPageView extends ItemView {
 					attr: { "aria-label": "Remove fun fact" },
 				});
 				setIcon(del, "trash");
-				del.addEventListener("click", async () => {
+				const deleteFunFact = async () => {
 					const arr = this.funFactsOf();
 					arr.splice(index, 1);
 					if (arr.length > 0) this.contactData.funFacts = arr;
 					else delete this.contactData.funFacts;
 					await this.saveContactData();
 					this.render();
-				});
+				};
+				del.addEventListener("click", () => void deleteFunFact());
 			});
 		}
 
-		const footer = section.createEl("div", {
+		const footer = section.createDiv({
 			cls: "contact-section-footer",
 		});
 		const btn = footer.createEl("button", { cls: "callander-button" });
@@ -3149,7 +3190,7 @@ export class ContactPageView extends ItemView {
 		btn.addEventListener("click", () => {
 			new FunFactsModal(
 				this.app,
-				this.contactData.displayName || this.contactData.name,
+				this.contactData.displayName || this.contactData.name || "",
 				async (fact) => {
 					if (!fact) return;
 					this.contactData.funFacts = [...this.funFactsOf(), fact];
@@ -3162,51 +3203,49 @@ export class ContactPageView extends ItemView {
 
 	/** Normalized quote list (legacy plain strings read as { text }). */
 	private quotesOf(): Quote[] {
-		const raw = this.contactData.quotes;
-		if (!Array.isArray(raw)) return [];
-		return raw
-			.map((q: any) =>
-				typeof q === "string"
-					? { text: q }
-					: {
-							text: String(q?.text ?? ""),
-							...(q?.context && { context: String(q.context) }),
-					  }
-			)
-			.filter((q: Quote) => q.text.length > 0);
+		return asArray(this.contactData.quotes)
+			.map((q): Quote => {
+				if (typeof q === "string") return { text: q };
+				const context = fieldOf(q, "context");
+				return {
+					text: toText(fieldOf(q, "text")),
+					...(context ? { context: toText(context) } : {}),
+				};
+			})
+			.filter((q) => q.text.length > 0);
 	}
 
 	private renderQuotesSection(container: HTMLElement) {
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "contact-quotes-section",
 		});
 		const quotes = this.quotesOf();
 
 		if (quotes.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "Memorable things they've said — the one-liners you don't want to forget.",
 			});
 		}
 
 		quotes.forEach((q, index) => {
-			const row = section.createEl("div", {
+			const row = section.createDiv({
 				cls: "contact-quote-item plan-clickable-row",
 			});
 			row.addEventListener("click", () => this.openQuoteModal(index, q));
-			row.createEl("div", {
+			row.createDiv({
 				cls: "contact-quote-text",
 				text: `“${q.text}”`,
 			});
 			if (q.context) {
-				row.createEl("div", {
+				row.createDiv({
 					cls: "contact-quote-context",
 					text: `— ${q.context}`,
 				});
 			}
 		});
 
-		const footer = section.createEl("div", {
+		const footer = section.createDiv({
 			cls: "contact-section-footer",
 		});
 		const addBtn = footer.createEl("button", {
@@ -3220,7 +3259,7 @@ export class ContactPageView extends ItemView {
 	private openQuoteModal(index: number | null, quote: Quote | null) {
 		new QuoteModal(
 			this.app,
-			this.contactData.displayName || this.contactData.name,
+			this.contactData.displayName || this.contactData.name || "",
 			quote,
 			async (value) => {
 				const list = this.quotesOf();
@@ -3244,16 +3283,14 @@ export class ContactPageView extends ItemView {
 	}
 
 	private renderInterestsSection(container: HTMLElement) {
-		const section = container.createEl("div", {
+		const section = container.createDiv({
 			cls: "contact-interests-section",
 		});
 
-		const interests: Interest[] = Array.isArray(this.contactData.interests)
-			? this.contactData.interests
-			: [];
+		const interests = asArray(this.contactData.interests) as Interest[];
 
 		if (interests.length === 0) {
-			section.createEl("div", {
+			section.createDiv({
 				cls: "section-helper-text",
 				text: "What they're into — books, music, teams, the food they love. Handy for gifts, plans, and picking a conversation back up.",
 			});
@@ -3270,19 +3307,19 @@ export class ContactPageView extends ItemView {
 
 			if (items.length === 0) continue;
 
-			const group = section.createEl("div", {
+			const group = section.createDiv({
 				cls: "contact-idea-group",
 			});
-			group.createEl("div", {
+			group.createDiv({
 				cls: "contact-idea-group-header",
 				text: `${cat.emoji} ${cat.label}`,
 			});
 
-			const chips = group.createEl("div", {
+			const chips = group.createDiv({
 				cls: "contact-interest-chips",
 			});
 			for (const { interest, index } of items) {
-				const chip = chips.createEl("div", {
+				const chip = chips.createDiv({
 					cls: "contact-interest-chip",
 				});
 				chip.createSpan({ text: interest.text });
@@ -3298,19 +3335,19 @@ export class ContactPageView extends ItemView {
 					attr: { "aria-label": `Remove ${interest.text}` },
 				});
 				setIcon(removeBtn, "x");
-				removeBtn.addEventListener("click", async () => {
-					this.contactData.interests.splice(index, 1);
-					if (this.contactData.interests.length === 0) {
-						delete this.contactData.interests;
-					}
+				const removeInterest = async () => {
+					this.removeFromList("interests", index);
 					await this.saveContactData();
 					this.render();
-				});
+				};
+				removeBtn.addEventListener("click", () =>
+					void removeInterest()
+				);
 			}
 		}
 
 		// Capture goes through the modal, below the list
-		const footer = section.createEl("div", {
+		const footer = section.createDiv({
 			cls: "contact-section-footer",
 		});
 		const addButton = footer.createEl("button", {
@@ -3323,14 +3360,11 @@ export class ContactPageView extends ItemView {
 	private openAddInterestModal() {
 		new InterestModal(
 			this.app,
-			this.contactData.displayName || this.contactData.name,
+			this.contactData.displayName || this.contactData.name || "",
 			this.lastInterestCategory,
 			async (category, text, detail) => {
 				this.lastInterestCategory = category;
-				if (!Array.isArray(this.contactData.interests)) {
-					this.contactData.interests = [];
-				}
-				this.contactData.interests.push({
+				this.pushToList("interests", {
 					category,
 					text,
 					...(detail && { detail }),
@@ -3342,13 +3376,13 @@ export class ContactPageView extends ItemView {
 	}
 
 	private async renderExtrasSection(container: HTMLElement) {
-		const extrasSection = container.createEl("div", {
+		const extrasSection = container.createDiv({
 			cls: "contact-extras-section",
 		});
 
 		if (!this._file) return;
 
-		const headerContainer = extrasSection.createEl("div", {
+		const headerContainer = extrasSection.createDiv({
 			cls: "contact-extras-header",
 		});
 
@@ -3358,7 +3392,7 @@ export class ContactPageView extends ItemView {
 			content.split(/^---\n([\s\S]*?)\n---/).pop() || "";
 
 		if (!extrasContent.trim()) {
-			headerContainer.createEl("div", {
+			headerContainer.createDiv({
 				cls: "section-helper-text",
 				text: "Add formatted text, links, and other Markdown content",
 			});
@@ -3370,11 +3404,12 @@ export class ContactPageView extends ItemView {
 				content.split(/^---\n([\s\S]*?)\n---/).pop() || "";
 
 			if (extrasContent.trim()) {
-				const contentDiv = extrasSection.createEl("div", {
+				const contentDiv = extrasSection.createDiv({
 					cls: "contact-extras-content",
 				});
 
-				await MarkdownRenderer.renderMarkdown(
+				await MarkdownRenderer.render(
+					this.app,
 					extrasContent,
 					contentDiv,
 					this._file.path,
@@ -3396,7 +3431,7 @@ export class ContactPageView extends ItemView {
 						} else if (!href?.startsWith("http")) {
 							// Handle internal Obsidian links
 							event.preventDefault();
-							this.app.workspace.openLinkText(
+							void this.app.workspace.openLinkText(
 								href || "",
 								this._file?.path || "",
 								event.ctrlKey || event.metaKey
@@ -3413,7 +3448,7 @@ export class ContactPageView extends ItemView {
 		}
 
 		// Edit button sits below the rendered content
-		const footer = extrasSection.createEl("div", {
+		const footer = extrasSection.createDiv({
 			cls: "contact-section-footer",
 		});
 		const editButton = footer.createEl("button", {
@@ -3460,7 +3495,7 @@ export class ContactPageView extends ItemView {
 
 		await this.app.fileManager.processFrontMatter(
 			this._file,
-			(frontmatter) => {
+			(frontmatter: Record<string, unknown>) => {
 				Object.assign(frontmatter, this.contactData);
 				// Legacy keys are migrated on load — remove them from disk
 				if (!("giftIdeas" in this.contactData)) {
@@ -3505,10 +3540,7 @@ export class ContactPageView extends ItemView {
 		location?: string,
 		link?: string
 	) {
-		if (!Array.isArray(this.contactData.events)) {
-			this.contactData.events = [];
-		}
-		this.contactData.events.push({
+		this.pushToList("events", {
 			date,
 			text,
 			type,
@@ -3524,25 +3556,24 @@ export class ContactPageView extends ItemView {
 			this.app,
 			event,
 			async (date, text, type, location, link) => {
-				if (!Array.isArray(this.contactData.events)) {
-					this.contactData.events = [];
-				}
+				const events = this.eventsList();
+				this.contactData.events = events;
 				// Preserve extra properties (e.g. diary source link)
-				this.contactData.events[index] = {
-					...this.contactData.events[index],
+				events[index] = {
+					...events[index],
 					date,
 					text,
 					type,
 				};
 				if (location) {
-					this.contactData.events[index].location = location;
+					events[index].location = location;
 				} else {
-					delete this.contactData.events[index].location;
+					delete events[index].location;
 				}
 				if (link) {
-					this.contactData.events[index].link = link;
+					events[index].link = link;
 				} else {
-					delete this.contactData.events[index].link;
+					delete events[index].link;
 				}
 				await this.saveContactData();
 				this.render();
@@ -3565,7 +3596,7 @@ export class ContactPageView extends ItemView {
 	}
 
 	public async deleteEvent(index: number) {
-		this.contactData.events.splice(index, 1);
+		this.eventsList().splice(index, 1);
 		await this.saveContactData();
 		this.render();
 	}

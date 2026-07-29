@@ -1,4 +1,4 @@
-import { App, Modal, Notice } from "obsidian";
+import { App, Notice } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import { stringifyYaml } from "obsidian";
@@ -110,7 +110,7 @@ export class AddContactModal extends FormModal {
 				cls: "contact-group-chip",
 				attr: { type: "button" },
 			});
-			const dot = chip.createEl("span", { cls: "group-dot" });
+			const dot = chip.createSpan({ cls: "group-dot" });
 			dot.style.backgroundColor =
 				colorOf.get(name) ?? "var(--background-modifier-border)";
 			chip.createSpan({ text: ops.prettyGroupName(name) });
@@ -125,7 +125,7 @@ export class AddContactModal extends FormModal {
 		// Group creation lives on the dashboard — here you only toggle
 		// membership of existing groups
 		if (infos.length === 0) {
-			groupsWrap.createEl("div", {
+			groupsWrap.createDiv({
 				cls: "section-helper-text",
 				text: "No groups yet — create them from the dashboard.",
 			});
@@ -140,7 +140,7 @@ export class AddContactModal extends FormModal {
 
 		form.addEventListener("submit", (e) => {
 			e.preventDefault();
-			const data: Record<string, any> = {
+			const data: Record<string, string | string[]> = {
 				name: nameInput.value,
 			};
 
@@ -168,19 +168,19 @@ export class AddContactModal extends FormModal {
 						),
 						relationship,
 					];
-					this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				}
 			}
 
 			if (data.name) {
-				this.onSubmit(data);
+				void this.onSubmit(data);
 				this.close();
 			}
 		});
 	}
 
-	private async onSubmit(data: Record<string, any>) {
-		const fileName = `${data.name}.md`;
+	private async onSubmit(data: Record<string, string | string[]>) {
+		const fileName = `${String(data.name)}.md`;
 		const filePath = `${this.plugin.settings.contactsFolder}/${fileName}`;
 
 		// Ensure folder exists before creating contact
@@ -197,7 +197,7 @@ export class AddContactModal extends FormModal {
 			const file = await this.app.vault.create(filePath, fileContent);
 
 			// Wait a moment for the file to be indexed
-			await new Promise((resolve) => setTimeout(resolve, 300));
+			await new Promise((resolve) => window.setTimeout(resolve, 300));
 
 			// Refresh the Friend Tracker view
 			const friendTrackerLeaves = this.app.workspace.getLeavesOfType(
@@ -212,7 +212,7 @@ export class AddContactModal extends FormModal {
 				}
 			}
 
-			new Notice(`Added ${data.name}`);
+			new Notice(`Added ${String(data.name)}`);
 			// Straight to their page
 			await this.plugin.openContactPage(file);
 		} catch (error) {

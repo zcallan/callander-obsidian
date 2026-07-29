@@ -1,4 +1,4 @@
-import { App, FuzzySuggestModal, Modal, TFile } from "obsidian";
+import { App, FuzzySuggestModal, TFile } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown } from "@/types";
 import { IDEA_CATEGORIES, IdeaCategory } from "@/constants";
@@ -92,7 +92,7 @@ export class QuickIdeaModal extends FormModal {
 		contentEl.createEl("h2", { text: `Idea for ${this.contactName}` });
 
 		// Category picker: one row of emoji buttons
-		const categoryRow = contentEl.createEl("div", {
+		const categoryRow = contentEl.createDiv({
 			cls: "quick-idea-categories",
 		});
 
@@ -128,7 +128,7 @@ export class QuickIdeaModal extends FormModal {
 		});
 		textInput.value = this.initialText;
 
-		const buttonContainer = contentEl.createEl("div", {
+		const buttonContainer = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttonContainer.createEl("button", {
@@ -143,15 +143,15 @@ export class QuickIdeaModal extends FormModal {
 			this.close();
 		};
 
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		textInput.addEventListener("keydown", (event) => {
 			if (event.key === "Enter") {
 				event.preventDefault();
-				submit();
+				void submit();
 			}
 		});
 
-		setTimeout(() => textInput.focus(), 0);
+		window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

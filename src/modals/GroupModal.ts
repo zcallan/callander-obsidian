@@ -1,4 +1,4 @@
-import { App, Modal, Notice } from "obsidian";
+import { App, Notice } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import type { GroupInfo } from "@/types";
@@ -29,7 +29,7 @@ export class GroupModal extends FormModal {
 				: "New group",
 		});
 
-		const nameField = contentEl.createEl("div", {
+		const nameField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		nameField.createEl("label", { text: "Name" });
@@ -43,11 +43,11 @@ export class GroupModal extends FormModal {
 
 		// Color: fixed palette of swatches
 		let color = this.existing?.color ?? GROUP_COLORS[0];
-		const colorField = contentEl.createEl("div", {
+		const colorField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		colorField.createEl("label", { text: "Color" });
-		const swatchRow = colorField.createEl("div", {
+		const swatchRow = colorField.createDiv({
 			cls: "group-color-swatches",
 		});
 		const swatches = new Map<string, HTMLElement>();
@@ -66,7 +66,7 @@ export class GroupModal extends FormModal {
 			swatches.set(c, swatch);
 		}
 
-		const buttons = contentEl.createEl("div", {
+		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 
@@ -75,7 +75,7 @@ export class GroupModal extends FormModal {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
-			deleteButton.addEventListener("click", async () => {
+			const handleDelete = async () => {
 				if (!this.deleteArmed) {
 					this.deleteArmed = true;
 					deleteButton.setText("Really delete?");
@@ -89,14 +89,15 @@ export class GroupModal extends FormModal {
 				);
 				await this.onDone();
 				this.close();
-			});
+			};
+			deleteButton.addEventListener("click", () => void handleDelete());
 		}
 
 		const saveButton = buttons.createEl("button", {
 			text: this.existing ? "Save" : "Create",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", async () => {
+		const handleSave = async () => {
 			const name = nameInput.value.trim().toLowerCase();
 			if (!name) return;
 			if (this.existing && name !== this.existing.name) {
@@ -105,7 +106,8 @@ export class GroupModal extends FormModal {
 			await ops.setGroupColor(name, color);
 			await this.onDone();
 			this.close();
-		});
+		};
+		saveButton.addEventListener("click", () => void handleSave());
 	}
 
 	onClose() {

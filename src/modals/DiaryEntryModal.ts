@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Setting } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 interface DiaryEntryModalValues {
 	title: string;
@@ -51,7 +51,7 @@ export class DiaryEntryModal extends FormModal {
 				});
 			});
 
-		const buttonContainer = contentEl.createEl("div", {
+		const buttonContainer = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 
@@ -65,16 +65,16 @@ export class DiaryEntryModal extends FormModal {
 			text: "Save",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", () => this.submit());
+		saveButton.addEventListener("click", () => void this.submit());
 
 		// Ten-second capture: Enter in the title field submits
 		titleInput!.addEventListener("keydown", (event) => {
 			if (event.key === "Enter") {
 				event.preventDefault();
-				this.submit();
+				void this.submit();
 			}
 		});
-		setTimeout(() => titleInput!.focus(), 0);
+		window.setTimeout(() => titleInput!.focus(), 0);
 	}
 
 	private async submit() {

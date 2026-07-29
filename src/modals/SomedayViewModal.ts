@@ -54,27 +54,27 @@ export class SomedayViewModal extends Modal {
 		if (comp) metaParts.push(comp.label);
 		const days = formatSomedayDays(s.days);
 		if (days) metaParts.push(days);
-		contentEl.createEl("div", {
+		contentEl.createDiv({
 			cls: "someday-view-meta",
 			text: metaParts.join(" · "),
 		});
 
 		if (s.cost !== null) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "someday-view-cost",
 				text: `~$${s.cost}`,
 			});
 		}
 
 		if (s.notes) {
-			contentEl.createEl("div", {
+			contentEl.createDiv({
 				cls: "someday-view-notes",
 				text: s.notes,
 			});
 		}
 
 		if (s.convertedTo) {
-			const link = contentEl.createEl("div", {
+			const link = contentEl.createDiv({
 				cls: "someday-converted-link",
 				text: "→ opened as a plan",
 			});
@@ -82,7 +82,7 @@ export class SomedayViewModal extends Modal {
 				const pf = this.app.vault.getFileByPath(s.convertedTo);
 				if (pf) {
 					this.close();
-					this.plugin.openContactPage(pf);
+					void this.plugin.openContactPage(pf);
 				}
 			});
 		}
@@ -93,36 +93,38 @@ export class SomedayViewModal extends Modal {
 
 	private renderSubIdeas(container: HTMLElement) {
 		const ops = this.plugin.somedayOperations;
-		const wrap = container.createEl("div", {
+		const wrap = container.createDiv({
 			cls: "someday-view-subideas",
 		});
 
 		this.subIdeas.forEach((sub, index) => {
-			const row = wrap.createEl("div", {
+			const row = wrap.createDiv({
 				cls: `someday-subidea${sub.done ? " done" : ""}`,
 			});
 			const box = row.createEl("input", {
 				attr: { type: "checkbox", "aria-label": "Done" },
 			});
 			box.checked = !!sub.done;
-			box.addEventListener("change", async () => {
+			const handleToggle = async () => {
 				sub.done = box.checked;
 				row.toggleClass("done", box.checked);
 				await ops.toggleSubIdea(this.someday.file, index);
 				await this.onChange();
-			});
+			};
+			box.addEventListener("change", () => void handleToggle());
 			row.createSpan({ cls: "someday-subidea-text", text: sub.text });
 			const del = row.createEl("button", {
 				cls: "callander-button button-icon button-danger",
 				attr: { "aria-label": "Remove sub-idea" },
 			});
 			setIcon(del, "trash");
-			del.addEventListener("click", async () => {
+			const handleRemove = async () => {
 				this.subIdeas.splice(index, 1);
 				await ops.removeSubIdea(this.someday.file, index);
 				await this.onChange();
 				this.render();
-			});
+			};
+			del.addEventListener("click", () => void handleRemove());
 		});
 
 		const addBtn = wrap.createEl("button", {
@@ -147,23 +149,27 @@ export class SomedayViewModal extends Modal {
 	private renderActions(container: HTMLElement) {
 		const ops = this.plugin.somedayOperations;
 		const s = this.someday;
-		const actions = container.createEl("div", {
+		const actions = container.createDiv({
 			cls: "someday-view-actions",
 		});
-		const button = (icon: string, label: string, onClick: () => void) => {
+		const button = (
+			icon: string,
+			label: string,
+			onClick: () => void | Promise<void>
+		) => {
 			const btn = actions.createEl("button", {
 				cls: "callander-button",
 			});
 			setIcon(btn, icon);
 			btn.createSpan({ text: label });
-			btn.addEventListener("click", onClick);
+			btn.addEventListener("click", () => void onClick());
 			return btn;
 		};
 
 		if (!s.convertedTo) {
 			button("map", "Convert to plan", () => {
 				this.close();
-				this.plugin.convertSomedayToPlan(s);
+				void this.plugin.convertSomedayToPlan(s);
 			});
 		}
 		button("pencil", "Edit", () => {
