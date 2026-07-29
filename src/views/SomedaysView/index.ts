@@ -1,4 +1,11 @@
-import { ItemView, WorkspaceLeaf, setIcon, Notice } from "obsidian";
+import {
+	ItemView,
+	WorkspaceLeaf,
+	setIcon,
+	Notice,
+	type ViewStateResult,
+} from "obsidian";
+import { fieldOf } from "@/utils/fm";
 import type FriendTracker from "@/main";
 import type { SomedayInfo } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
@@ -91,8 +98,9 @@ export class SomedaysView extends ItemView {
 	}
 
 	// Opening a Someday file routes here with its path → open its view modal.
-	async setState(state: any, result: any) {
-		this.focusPath = state?.focusPath ?? null;
+	async setState(state: unknown, result: ViewStateResult) {
+		const focusPath = fieldOf(state, "focusPath");
+		this.focusPath = typeof focusPath === "string" ? focusPath : null;
 		await super.setState(state, result);
 		await this.refresh();
 	}

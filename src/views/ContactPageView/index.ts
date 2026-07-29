@@ -6,6 +6,7 @@ import {
 	setIcon,
 	parseYaml,
 	MarkdownRenderer,
+	type ViewStateResult,
 } from "obsidian";
 import type FriendTracker from "@/main";
 import { ContactFields } from "@/components/ContactFields";
@@ -67,12 +68,80 @@ import {
 	flexSortKey,
 	monthName,
 } from "@/utils/flexdate";
+import { asArray, fieldOf, isRecord } from "@/utils/fm";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
+/** Scalar frontmatter keys the page binds directly into string inputs. */
+const SCALAR_FIELDS = [
+	"name",
+	"displayName",
+	"birthday",
+	"relationship",
+	"met",
+	"notes",
+	"date",
+	"endDate",
+	"location",
+	"status",
+] as const;
+
+/**
+ * The parsed YAML of a contact/plan/group page. Scalars the page binds as
+ * strings are typed (coerced once in normalizeFrontmatter); collections stay
+ * `unknown` and flow through the service readers (ideasOf, eventsOf,
+ * itemsOf, ...) that validate their shapes. The index signature carries
+ * user-defined custom fields.
+ */
+interface ContactFrontmatter {
+	name?: string;
+	displayName?: string;
+	birthday?: string;
+	relationship?: string;
+	met?: string;
+	notes?: string;
+	date?: string;
+	endDate?: string;
+	location?: string;
+	status?: string;
+	ideas?: unknown;
+	events?: unknown;
+	drafts?: unknown;
+	items?: unknown;
+	travel?: unknown;
+	accommodation?: unknown;
+	bring?: unknown;
+	costs?: unknown;
+	credits?: unknown;
+	costsPaid?: unknown;
+	members?: unknown;
+	unconfirmedMembers?: unknown;
+	interests?: unknown;
+	quotes?: unknown;
+	funFacts?: unknown;
+	groups?: unknown;
+	/** Legacy keys, folded into ideas/events by the in-memory migrations */
+	giftIdeas?: unknown;
+	interactions?: unknown;
+	[key: string]: unknown;
+}
+
+/** YAML-shaped unknown → ContactFrontmatter, coercing bound scalars once. */
+function toContactFrontmatter(parsed: unknown): ContactFrontmatter {
+	if (!isRecord(parsed)) return {};
+	const data = parsed as ContactFrontmatter;
+	for (const key of SCALAR_FIELDS) {
+		const value = parsed[key];
+		if (value != null && typeof value !== "string") {
+			data[key] = String(value);
+		}
+	}
+	return data;
+}
+
 export class ContactPageView extends ItemView {
 	private _file: TFile | null = null;
-	private contactData: any = {};
+	private contactData: ContactFrontmatter = {};
 	private contactFields: ContactFields;
 	private eventTimeline: EventTimeline;
 	public plugin: FriendTracker;
@@ -87,6 +156,31 @@ export class ContactPageView extends ItemView {
 
 	public getRelationshipTypes(): string[] {
 		return this.plugin.settings.relationshipTypes;
+	}
+
+	/** In-memory events, post-migration — the same array reference. */
+	private eventsList(): FriendEvent[] {
+		return asArray(this.contactData.events) as FriendEvent[];
+	}
+
+	/** In-memory ideas, post-migration — the same array reference. */
+	private ideasList(): Idea[] {
+		return asArray(this.contactData.ideas) as Idea[];
+	}
+
+	/** Append to a frontmatter list, creating it when absent. */
+	private pushToList(key: string, value: unknown) {
+		const list = asArray(this.contactData[key]);
+		list.push(value);
+		this.contactData[key] = list;
+	}
+
+	/** Splice one entry out of a frontmatter list; empty lists drop the key. */
+	private removeFromList(key: string, index: number) {
+		const list = asArray(this.contactData[key]);
+		list.splice(index, 1);
+		if (list.length === 0) delete this.contactData[key];
+		else this.contactData[key] = list;
 	}
 
 	public async addRelationshipType(
@@ -149,8 +243,12 @@ export class ContactPageView extends ItemView {
 		return this._file;
 	}
 
-	async setState(state: any, result: any) {
-		const file = this.app.vault.getFileByPath(state.filePath);
+	async setState(state: unknown, result: ViewStateResult) {
+		const filePath = fieldOf(state, "filePath");
+		const file =
+			typeof filePath === "string"
+				? this.app.vault.getFileByPath(filePath)
+				: null;
 		const fileChanged = !!file && file.path !== this._file?.path;
 		if (file) {
 			await this.setFile(file);
@@ -160,7 +258,9 @@ export class ContactPageView extends ItemView {
 		// reports that its state changed (as FileView does for files).
 		if (fileChanged && result) {
 			result.history = true;
-			result.layout = true;
+			// `layout` isn't in the typed API, but same-type navigation only
+			// lands in tab history when it's set — keep the write.
+			(result as ViewStateResult & { layout?: boolean }).layout = true;
 		}
 		await super.setState(state, result);
 	}
@@ -180,7 +280,8 @@ export class ContactPageView extends ItemView {
 			// Only update if this._file is still the same file
 			if (this._file?.path !== currentFilePath) return;
 			const yamlMatch = content.match(/^---\n([\s\S]*?)\n---/);
-			this.contactData = yamlMatch ? parseYaml(yamlMatch[1]) : {};
+			const parsed: unknown = yamlMatch ? parseYaml(yamlMatch[1]) : {};
+			this.contactData = toContactFrontmatter(parsed);
 			this.migrateLegacyGiftIdeas();
 			this.migrateLegacyInteractions();
 			this.migratePlanStructure();
@@ -443,7 +544,8 @@ export class ContactPageView extends ItemView {
 		setIcon(editButton, "pencil");
 
 		// Add birthday-derived details, at whatever precision is recorded
-		const birthdayFlex = parseFlexDate(this.contactData.birthday);
+		const birthdayValue = this.contactData.birthday ?? "";
+		const birthdayFlex = parseFlexDate(birthdayValue);
 		if (birthdayFlex && birthdayFlex.month) {
 			const { year, month, day } = birthdayFlex;
 
@@ -451,7 +553,7 @@ export class ContactPageView extends ItemView {
 			if (year !== null) {
 				const ageText =
 					this.plugin.contactOperations.calculateDetailedAge(
-						this.contactData.birthday
+						birthdayValue
 					);
 				if (ageText) {
 					nameDisplay.createSpan({
@@ -475,11 +577,11 @@ export class ContactPageView extends ItemView {
 			let relativeText: string | null = null;
 			if (day !== null) {
 				const daysUntil = this.calculateDaysUntilBirthday(
-					this.contactData.birthday
+					birthdayValue
 				);
 				const daysSince =
 					this.plugin.contactOperations.calculateDaysSinceBirthday(
-						this.contactData.birthday
+						birthdayValue
 					);
 
 				if (daysUntil === 0) {
@@ -864,7 +966,7 @@ export class ContactPageView extends ItemView {
 						this.createInfoField(
 							fieldsContainer,
 							field,
-							this.contactData[field]
+							String(this.contactData[field] ?? "")
 						);
 					}
 				});
@@ -1103,9 +1205,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-events-header",
 		});
 
-		const events: FriendEvent[] = Array.isArray(this.contactData.events)
-			? this.contactData.events
-			: [];
+		const events = this.eventsList();
 
 		// Add helper text if no events yet
 		if (events.length === 0) {
@@ -1139,9 +1239,7 @@ export class ContactPageView extends ItemView {
 	}
 
 	private renderDraftsStrip(container: HTMLElement) {
-		const drafts = Array.isArray(this.contactData.drafts)
-			? this.contactData.drafts
-			: [];
+		const drafts = asArray(this.contactData.drafts);
 		if (drafts.length === 0) return;
 
 		const strip = container.createDiv({
@@ -1152,11 +1250,15 @@ export class ContactPageView extends ItemView {
 			text: "✏️ Drafts to sort",
 		});
 
-		drafts.forEach((draft: any, index: number) => {
+		drafts.forEach((draft, index) => {
+			const draftText =
+				typeof draft === "string"
+					? draft
+					: String(fieldOf(draft, "text") ?? "");
 			const row = strip.createDiv({ cls: "contact-draft-row" });
 			row.createSpan({
 				cls: "contact-draft-text",
-				text: typeof draft === "string" ? draft : draft.text,
+				text: draftText,
 			});
 
 			const ideaButton = row.createEl("button", {
@@ -1166,26 +1268,20 @@ export class ContactPageView extends ItemView {
 			ideaButton.addEventListener("click", () => {
 				new QuickIdeaModal(
 					this.app,
-					this.contactData.displayName || this.contactData.name,
+					this.contactData.displayName || this.contactData.name || "",
 					this.lastIdeaCategory,
 					async (category, text) => {
 						this.lastIdeaCategory = category;
-						if (!Array.isArray(this.contactData.ideas)) {
-							this.contactData.ideas = [];
-						}
-						this.contactData.ideas.push({
+						this.pushToList("ideas", {
 							category,
 							text,
 							done: false,
 						});
-						this.contactData.drafts.splice(index, 1);
-						if (this.contactData.drafts.length === 0) {
-							delete this.contactData.drafts;
-						}
+						this.removeFromList("drafts", index);
 						await this.saveContactData();
 						this.render();
 					},
-					typeof draft === "string" ? draft : draft.text
+					draftText
 				).open();
 			});
 
@@ -1195,19 +1291,17 @@ export class ContactPageView extends ItemView {
 			});
 			setIcon(deleteButton, "trash");
 			deleteButton.addEventListener("click", () => {
-				const text = typeof draft === "string" ? draft : draft.text;
 				const preview =
-					text.length > 80 ? text.slice(0, 80) + "…" : text;
+					draftText.length > 80
+						? draftText.slice(0, 80) + "…"
+						: draftText;
 				new ConfirmModal(
 					this.app,
 					"Discard draft",
 					`Discard "${preview}"?`,
 					"Discard",
 					async () => {
-						this.contactData.drafts.splice(index, 1);
-						if (this.contactData.drafts.length === 0) {
-							delete this.contactData.drafts;
-						}
+						this.removeFromList("drafts", index);
 						await this.saveContactData();
 						this.render();
 					}
@@ -1363,7 +1457,7 @@ export class ContactPageView extends ItemView {
 						await this.plugin.contactOperations.addEventToFile(
 							file,
 							date,
-							this.contactData.name,
+							this.contactData.name ?? "",
 							"hangout"
 						);
 					}
@@ -1416,11 +1510,8 @@ export class ContactPageView extends ItemView {
 
 	/** Member display names — resolved contacts use displayName, guests as-is */
 	private planMemberDisplays(list?: string[]): string[] {
-		const members: string[] =
-			list ??
-			(Array.isArray(this.contactData.members)
-				? this.contactData.members
-				: []);
+		const members =
+			list ?? asArray(this.contactData.members).map(String);
 		return members.map((raw) => {
 			const linktext = String(raw).replace(/^\[\[|\]\]$/g, "");
 			const dest = this._file
@@ -1496,9 +1587,7 @@ export class ContactPageView extends ItemView {
 		);
 		stay.forEach((a) => lines.push(withDuration(a)));
 
-		const items: PlanItem[] = Array.isArray(this.contactData.items)
-			? this.contactData.items
-			: [];
+		const items = asArray(this.contactData.items) as PlanItem[];
 
 		// Ideas under one "Plans:" heading — must-dos first, maybes marked
 		if (items.length > 0) {
@@ -1547,9 +1636,7 @@ export class ContactPageView extends ItemView {
 	/** Resolve the plan's wikilink members to contact files */
 	private resolvePlanMembers(): TFile[] {
 		if (!this._file) return [];
-		const members: string[] = Array.isArray(this.contactData.members)
-			? this.contactData.members
-			: [];
+		const members = asArray(this.contactData.members).map(String);
 		const files: TFile[] = [];
 		for (const raw of members) {
 			const linktext = String(raw).replace(/^\[\[|\]\]$/g, "");
@@ -1565,9 +1652,7 @@ export class ContactPageView extends ItemView {
 	/** Everyone at the table: guests/contacts + you. */
 	private planMemberCount(): number {
 		const yourName = this.plugin.settings.yourName;
-		const members: string[] = Array.isArray(this.contactData.members)
-			? this.contactData.members
-			: [];
+		const members = asArray(this.contactData.members).map(String);
 		const others = members.filter(
 			(raw) =>
 				!yourName ||
@@ -1581,9 +1666,7 @@ export class ContactPageView extends ItemView {
 	private async renderPlanMembers(container: HTMLElement) {
 		if (!this._file) return;
 		const yourName = this.plugin.settings.yourName;
-		const members: string[] = Array.isArray(this.contactData.members)
-			? this.contactData.members
-			: [];
+		const members = asArray(this.contactData.members).map(String);
 		// You are shown automatically — skip any guest entry duplicating you
 		const visible = members
 			.map((raw: string, index: number) => ({
@@ -1605,10 +1688,7 @@ export class ContactPageView extends ItemView {
 		});
 
 		const removeMember = async (index: number) => {
-			this.contactData.members.splice(index, 1);
-			if (this.contactData.members.length === 0) {
-				delete this.contactData.members;
-			}
+			this.removeFromList("members", index);
 			await this.saveContactData();
 			this.render();
 		};
@@ -1655,11 +1735,9 @@ export class ContactPageView extends ItemView {
 		}
 
 		// Unconfirmed people, in their own section (only when there are any)
-		const unconfirmed: string[] = Array.isArray(
+		const unconfirmed = asArray(
 			this.contactData.unconfirmedMembers
-		)
-			? this.contactData.unconfirmedMembers
-			: [];
+		).map(String);
 		if (unconfirmed.length > 0) {
 			container.createDiv({
 				cls: "plan-member-sublabel",
@@ -1703,14 +1781,8 @@ export class ContactPageView extends ItemView {
 					attr: { "aria-label": "Confirm — they're in" },
 				});
 				const confirmMember = async () => {
-					this.contactData.unconfirmedMembers.splice(index, 1);
-					if (this.contactData.unconfirmedMembers.length === 0) {
-						delete this.contactData.unconfirmedMembers;
-					}
-					if (!Array.isArray(this.contactData.members)) {
-						this.contactData.members = [];
-					}
-					this.contactData.members.push(raw);
+					this.removeFromList("unconfirmedMembers", index);
+					this.pushToList("members", raw);
 					await this.saveContactData();
 					this.render();
 				};
@@ -1723,10 +1795,7 @@ export class ContactPageView extends ItemView {
 					attr: { "aria-label": "Remove" },
 				});
 				const removeUnconfirmed = async () => {
-					this.contactData.unconfirmedMembers.splice(index, 1);
-					if (this.contactData.unconfirmedMembers.length === 0) {
-						delete this.contactData.unconfirmedMembers;
-					}
+					this.removeFromList("unconfirmedMembers", index);
 					await this.saveContactData();
 					this.render();
 				};
@@ -1766,10 +1835,7 @@ export class ContactPageView extends ItemView {
 					const key = isUnconfirmed
 						? "unconfirmedMembers"
 						: "members";
-					if (!Array.isArray(this.contactData[key])) {
-						this.contactData[key] = [];
-					}
-					this.contactData[key].push(entry);
+					this.pushToList(key, entry);
 					await this.saveContactData();
 					this.render();
 				}
@@ -1779,9 +1845,7 @@ export class ContactPageView extends ItemView {
 	}
 
 	private renderPlanDrafts(container: HTMLElement) {
-		const drafts = Array.isArray(this.contactData.drafts)
-			? this.contactData.drafts
-			: [];
+		const drafts = asArray(this.contactData.drafts);
 		if (drafts.length === 0) return;
 
 		const strip = container.createDiv({
@@ -1792,8 +1856,11 @@ export class ContactPageView extends ItemView {
 			text: "✏️ Drafts to sort",
 		});
 
-		drafts.forEach((draft: any, index: number) => {
-			const text = typeof draft === "string" ? draft : draft.text;
+		drafts.forEach((draft, index) => {
+			const text =
+				typeof draft === "string"
+					? draft
+					: String(fieldOf(draft, "text") ?? "");
 			const row = strip.createDiv({ cls: "contact-draft-row" });
 			row.createSpan({ cls: "contact-draft-text", text });
 
@@ -1806,14 +1873,8 @@ export class ContactPageView extends ItemView {
 					this.app,
 					String(this.contactData.name ?? ""),
 					async (value) => {
-						if (!Array.isArray(this.contactData.items)) {
-							this.contactData.items = [];
-						}
-						this.contactData.items.push(value);
-						this.contactData.drafts.splice(index, 1);
-						if (this.contactData.drafts.length === 0) {
-							delete this.contactData.drafts;
-						}
+						this.pushToList("items", value);
+						this.removeFromList("drafts", index);
 						await this.saveContactData();
 						this.render();
 					},
@@ -1835,10 +1896,7 @@ export class ContactPageView extends ItemView {
 					`Discard "${preview}"?`,
 					"Discard",
 					async () => {
-						this.contactData.drafts.splice(index, 1);
-						if (this.contactData.drafts.length === 0) {
-							delete this.contactData.drafts;
-						}
+						this.removeFromList("drafts", index);
 						await this.saveContactData();
 						this.render();
 					}
@@ -2872,17 +2930,17 @@ export class ContactPageView extends ItemView {
 	// Migrate legacy giftIdeas -> ideas (category: gift). In-memory on load;
 	// the file itself is rewritten on the next save.
 	private migrateLegacyGiftIdeas() {
-		const legacy = this.contactData.giftIdeas;
-		if (Array.isArray(legacy) && legacy.length > 0) {
-			const existing: Idea[] = Array.isArray(this.contactData.ideas)
-				? this.contactData.ideas
-				: [];
-			const migrated: Idea[] = legacy.map((g: any) => ({
-				category: "gift",
-				text: g?.text ?? String(g),
-				done: !!g?.done,
-			}));
-			this.contactData.ideas = [...existing, ...migrated];
+		const legacy = asArray(this.contactData.giftIdeas);
+		if (legacy.length > 0) {
+			const migrated = legacy.map((g): Idea => {
+				const text = fieldOf(g, "text");
+				return {
+					category: "gift",
+					text: text == null ? String(g) : String(text),
+					done: !!fieldOf(g, "done"),
+				};
+			});
+			this.contactData.ideas = [...this.ideasList(), ...migrated];
 		}
 		delete this.contactData.giftIdeas;
 	}
@@ -2893,27 +2951,25 @@ export class ContactPageView extends ItemView {
 	// and move logistics items to the travel list. In-memory; persists on save.
 	private migratePlanStructure() {
 		if (!this.isPlanFile()) return;
-		if (!Array.isArray(this.contactData.items)) return;
-		if (!this.contactData.items.some((i: any) => i && "bucket" in i)) {
+		const items = asArray(this.contactData.items);
+		if (!items.some((i) => isRecord(i) && "bucket" in i)) {
 			return;
 		}
-		const newItems: any[] = [];
-		const travel = Array.isArray(this.contactData.travel)
-			? this.contactData.travel
-			: [];
-		for (const item of this.contactData.items) {
-			if (item && "bucket" in item) {
+		const newItems: unknown[] = [];
+		const travel = asArray(this.contactData.travel);
+		for (const item of items) {
+			if (isRecord(item) && "bucket" in item) {
 				if (item.bucket === "logistics") {
 					travel.push({
 						text: item.text,
-						...(item.cost && { cost: item.cost }),
+						...(item.cost ? { cost: item.cost } : {}),
 					});
 				} else {
 					newItems.push({
 						text: item.text,
 						category: "activity",
 						priority: item.bucket === "must" ? "must" : "maybe",
-						...(item.cost && { cost: item.cost }),
+						...(item.cost ? { cost: item.cost } : {}),
 					});
 				}
 			} else {
@@ -2925,18 +2981,17 @@ export class ContactPageView extends ItemView {
 	}
 
 	private migrateLegacyInteractions() {
-		const legacy = this.contactData.interactions;
-		if (Array.isArray(legacy) && legacy.length > 0) {
-			const existing: FriendEvent[] = Array.isArray(
-				this.contactData.events
-			)
-				? this.contactData.events
-				: [];
-			const migrated: FriendEvent[] = legacy.map((i: any) => ({
-				date: i?.date ?? "",
-				text: i?.text ?? String(i),
-			}));
-			this.contactData.events = [...existing, ...migrated];
+		const legacy = asArray(this.contactData.interactions);
+		if (legacy.length > 0) {
+			const migrated = legacy.map((i): FriendEvent => {
+				const date = fieldOf(i, "date");
+				const text = fieldOf(i, "text");
+				return {
+					date: date == null ? "" : String(date),
+					text: text == null ? String(i) : String(text),
+				};
+			});
+			this.contactData.events = [...this.eventsList(), ...migrated];
 		}
 		delete this.contactData.interactions;
 	}
@@ -2952,9 +3007,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-ideas-section",
 		});
 
-		const ideas: Idea[] = Array.isArray(this.contactData.ideas)
-			? this.contactData.ideas
-			: [];
+		const ideas = this.ideasList();
 
 		// Add helper text if no ideas yet
 		if (ideas.length === 0) {
@@ -2995,7 +3048,7 @@ export class ContactPageView extends ItemView {
 				});
 				checkbox.checked = !!idea.done;
 				const toggleIdeaDone = async () => {
-					this.contactData.ideas[index].done = checkbox.checked;
+					this.ideasList()[index].done = checkbox.checked;
 					await this.saveContactData();
 					this.render();
 					if (checkbox.checked) {
@@ -3032,10 +3085,9 @@ export class ContactPageView extends ItemView {
 						idea.resurface,
 						async (resurface) => {
 							if (resurface) {
-								this.contactData.ideas[index].resurface =
-									resurface;
+								this.ideasList()[index].resurface = resurface;
 							} else {
-								delete this.contactData.ideas[index].resurface;
+								delete this.ideasList()[index].resurface;
 							}
 							await this.saveContactData();
 							this.render();
@@ -3049,7 +3101,7 @@ export class ContactPageView extends ItemView {
 				});
 				setIcon(deleteBtn, "trash");
 				const deleteIdea = async () => {
-					this.contactData.ideas.splice(index, 1);
+					this.ideasList().splice(index, 1);
 					await this.saveContactData();
 					this.render();
 				};
@@ -3073,13 +3125,10 @@ export class ContactPageView extends ItemView {
 	private openQuickNote() {
 		new NoteInputModal(
 			this.app,
-			this.contactData.displayName || this.contactData.name,
+			this.contactData.displayName || this.contactData.name || "",
 			async (text) => {
 				const created = new Date().toISOString().split("T")[0];
-				if (!Array.isArray(this.contactData.drafts)) {
-					this.contactData.drafts = [];
-				}
-				this.contactData.drafts.push({ text, created });
+				this.pushToList("drafts", { text, created });
 				await this.saveContactData();
 				this.render();
 			}
@@ -3089,14 +3138,11 @@ export class ContactPageView extends ItemView {
 	private openAddIdeaModal() {
 		new QuickIdeaModal(
 			this.app,
-			this.contactData.displayName || this.contactData.name,
+			this.contactData.displayName || this.contactData.name || "",
 			this.lastIdeaCategory,
 			async (category, text) => {
 				this.lastIdeaCategory = category;
-				if (!Array.isArray(this.contactData.ideas)) {
-					this.contactData.ideas = [];
-				}
-				this.contactData.ideas.push({
+				this.pushToList("ideas", {
 					category,
 					text,
 					done: false,
@@ -3179,7 +3225,7 @@ export class ContactPageView extends ItemView {
 		btn.addEventListener("click", () => {
 			new FunFactsModal(
 				this.app,
-				this.contactData.displayName || this.contactData.name,
+				this.contactData.displayName || this.contactData.name || "",
 				async (fact) => {
 					if (!fact) return;
 					this.contactData.funFacts = [...this.funFactsOf(), fact];
@@ -3192,18 +3238,16 @@ export class ContactPageView extends ItemView {
 
 	/** Normalized quote list (legacy plain strings read as { text }). */
 	private quotesOf(): Quote[] {
-		const raw = this.contactData.quotes;
-		if (!Array.isArray(raw)) return [];
-		return raw
-			.map((q: any) =>
-				typeof q === "string"
-					? { text: q }
-					: {
-							text: String(q?.text ?? ""),
-							...(q?.context && { context: String(q.context) }),
-					  }
-			)
-			.filter((q: Quote) => q.text.length > 0);
+		return asArray(this.contactData.quotes)
+			.map((q): Quote => {
+				if (typeof q === "string") return { text: q };
+				const context = fieldOf(q, "context");
+				return {
+					text: String(fieldOf(q, "text") ?? ""),
+					...(context ? { context: String(context) } : {}),
+				};
+			})
+			.filter((q) => q.text.length > 0);
 	}
 
 	private renderQuotesSection(container: HTMLElement) {
@@ -3250,7 +3294,7 @@ export class ContactPageView extends ItemView {
 	private openQuoteModal(index: number | null, quote: Quote | null) {
 		new QuoteModal(
 			this.app,
-			this.contactData.displayName || this.contactData.name,
+			this.contactData.displayName || this.contactData.name || "",
 			quote,
 			async (value) => {
 				const list = this.quotesOf();
@@ -3278,9 +3322,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-interests-section",
 		});
 
-		const interests: Interest[] = Array.isArray(this.contactData.interests)
-			? this.contactData.interests
-			: [];
+		const interests = asArray(this.contactData.interests) as Interest[];
 
 		if (interests.length === 0) {
 			section.createDiv({
@@ -3329,10 +3371,7 @@ export class ContactPageView extends ItemView {
 				});
 				setIcon(removeBtn, "x");
 				const removeInterest = async () => {
-					this.contactData.interests.splice(index, 1);
-					if (this.contactData.interests.length === 0) {
-						delete this.contactData.interests;
-					}
+					this.removeFromList("interests", index);
 					await this.saveContactData();
 					this.render();
 				};
@@ -3356,14 +3395,11 @@ export class ContactPageView extends ItemView {
 	private openAddInterestModal() {
 		new InterestModal(
 			this.app,
-			this.contactData.displayName || this.contactData.name,
+			this.contactData.displayName || this.contactData.name || "",
 			this.lastInterestCategory,
 			async (category, text, detail) => {
 				this.lastInterestCategory = category;
-				if (!Array.isArray(this.contactData.interests)) {
-					this.contactData.interests = [];
-				}
-				this.contactData.interests.push({
+				this.pushToList("interests", {
 					category,
 					text,
 					...(detail && { detail }),
@@ -3493,7 +3529,7 @@ export class ContactPageView extends ItemView {
 
 		await this.app.fileManager.processFrontMatter(
 			this._file,
-			(frontmatter) => {
+			(frontmatter: Record<string, unknown>) => {
 				Object.assign(frontmatter, this.contactData);
 				// Legacy keys are migrated on load — remove them from disk
 				if (!("giftIdeas" in this.contactData)) {
@@ -3538,10 +3574,7 @@ export class ContactPageView extends ItemView {
 		location?: string,
 		link?: string
 	) {
-		if (!Array.isArray(this.contactData.events)) {
-			this.contactData.events = [];
-		}
-		this.contactData.events.push({
+		this.pushToList("events", {
 			date,
 			text,
 			type,
@@ -3557,25 +3590,24 @@ export class ContactPageView extends ItemView {
 			this.app,
 			event,
 			async (date, text, type, location, link) => {
-				if (!Array.isArray(this.contactData.events)) {
-					this.contactData.events = [];
-				}
+				const events = this.eventsList();
+				this.contactData.events = events;
 				// Preserve extra properties (e.g. diary source link)
-				this.contactData.events[index] = {
-					...this.contactData.events[index],
+				events[index] = {
+					...events[index],
 					date,
 					text,
 					type,
 				};
 				if (location) {
-					this.contactData.events[index].location = location;
+					events[index].location = location;
 				} else {
-					delete this.contactData.events[index].location;
+					delete events[index].location;
 				}
 				if (link) {
-					this.contactData.events[index].link = link;
+					events[index].link = link;
 				} else {
-					delete this.contactData.events[index].link;
+					delete events[index].link;
 				}
 				await this.saveContactData();
 				this.render();
@@ -3598,7 +3630,7 @@ export class ContactPageView extends ItemView {
 	}
 
 	public async deleteEvent(index: number) {
-		this.contactData.events.splice(index, 1);
+		this.eventsList().splice(index, 1);
 		await this.saveContactData();
 		this.render();
 	}

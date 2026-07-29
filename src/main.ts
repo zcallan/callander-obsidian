@@ -508,7 +508,7 @@ export default class FriendTracker extends Plugin {
 			)) {
 				const view = leaf.view;
 				if (view instanceof SomedaysView) {
-					await view.setState({ focusPath }, {});
+					await view.setState({ focusPath }, { history: false });
 					break;
 				}
 			}
