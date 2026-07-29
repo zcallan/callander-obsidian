@@ -66,22 +66,22 @@ export class DashboardView extends ItemView {
 			path.startsWith(this.plugin.settings.contactsFolder + "/");
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("create", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("delete", (file) => {
-				if (inScope(file.path)) this.refresh();
+				if (inScope(file.path)) void this.refresh();
 			})
 		);
 		this.registerEvent(
 			this.app.vault.on("rename", (file, oldPath) => {
-				if (inScope(file.path) || inScope(oldPath)) this.refresh();
+				if (inScope(file.path) || inScope(oldPath)) void this.refresh();
 			})
 		);
 		await this.refresh();
@@ -106,13 +106,17 @@ export class DashboardView extends ItemView {
 		const header = container.createDiv({ cls: "dashboard-header" });
 		header.createEl("h2", { text: "Callander" });
 		const actions = header.createDiv({ cls: "dashboard-actions" });
-		const action = (icon: string, label: string, onClick: () => void) => {
+		const action = (
+			icon: string,
+			label: string,
+			onClick: () => void | Promise<void>
+		) => {
 			const btn = actions.createEl("button", {
 				cls: "callander-button",
 			});
 			setIcon(btn, icon);
 			btn.createSpan({ text: label });
-			btn.addEventListener("click", onClick);
+			btn.addEventListener("click", () => void onClick());
 		};
 		action("user-plus", "Add friend", () =>
 			this.plugin.openAddContactModal()
@@ -193,7 +197,7 @@ export class DashboardView extends ItemView {
 					text: contact.displayName,
 				});
 				row.addEventListener("click", () =>
-					this.openContact(contact.file)
+					void this.openContact(contact.file)
 				);
 			}
 		}
@@ -238,7 +242,7 @@ export class DashboardView extends ItemView {
 				});
 			}
 			chip.addEventListener("click", () =>
-				this.openContact(contact.file)
+				void this.openContact(contact.file)
 			);
 		}
 		if (matches.length === 0) {
@@ -303,7 +307,9 @@ export class DashboardView extends ItemView {
 			});
 			if (item.contact) {
 				const file = item.contact.file;
-				label.addEventListener("click", () => this.openContact(file));
+				label.addEventListener("click", () =>
+					void this.openContact(file)
+				);
 			}
 
 			const ideaButton = row.createEl("button", {
@@ -548,7 +554,7 @@ export class DashboardView extends ItemView {
 			});
 			toggle.addEventListener("click", () => {
 				this.showAllUpcomingEvents = !this.showAllUpcomingEvents;
-				this.render();
+				void this.render();
 			});
 		}
 	}
@@ -681,7 +687,7 @@ export class DashboardView extends ItemView {
 				} ago · ${hit.contact.displayName}`,
 			});
 			row.addEventListener("click", () =>
-				this.openContact(hit.contact.file)
+				void this.openContact(hit.contact.file)
 			);
 		}
 	}
@@ -713,9 +719,9 @@ export class DashboardView extends ItemView {
 			text: "New plan",
 		});
 		newButton.addEventListener("click", () => {
-			new PlanModal(this.app, this.plugin, async (file) => {
-				await this.plugin.openContactPage(file);
-			}).open();
+			new PlanModal(this.app, this.plugin, (file) =>
+				void this.plugin.openContactPage(file)
+			).open();
 		});
 
 		if (plans.length === 0) {
@@ -804,7 +810,9 @@ export class DashboardView extends ItemView {
 				});
 			}
 
-			row.addEventListener("click", () => this.openContact(plan.file));
+			row.addEventListener("click", () =>
+				void this.openContact(plan.file)
+			);
 		}
 	}
 
@@ -851,7 +859,7 @@ export class DashboardView extends ItemView {
 			text: "See all",
 		});
 		allButton.addEventListener("click", () =>
-			this.plugin.activateSomedays()
+			void this.plugin.activateSomedays()
 		);
 
 		if (somedays.length === 0) {
@@ -891,7 +899,7 @@ export class DashboardView extends ItemView {
 				text: `+${somedays.length - 5} more on the Somedays page`,
 			});
 			more.addEventListener("click", () =>
-				this.plugin.activateSomedays()
+				void this.plugin.activateSomedays()
 			);
 		}
 	}
@@ -925,7 +933,7 @@ export class DashboardView extends ItemView {
 			text: "Open diary",
 		});
 		openButton.addEventListener("click", () =>
-			this.plugin.activateDiaryView()
+			void this.plugin.activateDiaryView()
 		);
 
 		const entries = this.plugin.diaryOperations
@@ -967,9 +975,9 @@ export class DashboardView extends ItemView {
 				});
 			}
 
-			row.addEventListener("click", async () => {
-				await this.app.workspace.getLeaf(false).openFile(entry.file);
-			});
+			row.addEventListener("click", () =>
+				void this.app.workspace.getLeaf(false).openFile(entry.file)
+			);
 		}
 	}
 
@@ -1031,11 +1039,12 @@ export class DashboardView extends ItemView {
 				cls: "dashboard-row-date",
 				text: ` · ${count} member${count === 1 ? "" : "s"}`,
 			});
-			label.addEventListener("click", async () => {
+			const handleOpenGroup = async () => {
 				const file =
 					info.file ?? (await ops.ensureGroupFile(info.name));
 				await this.openContact(file);
-			});
+			};
+			label.addEventListener("click", () => void handleOpenGroup());
 
 			const manageButton = row.createEl("button", {
 				cls: "callander-button button-icon dashboard-row-action",
@@ -1101,7 +1110,7 @@ export class DashboardView extends ItemView {
 						  } saved`
 						: "no gift ideas yet",
 			});
-			row.addEventListener("click", () => this.openContact(c.file));
+			row.addEventListener("click", () => void this.openContact(c.file));
 		}
 	}
 
@@ -1164,7 +1173,9 @@ export class DashboardView extends ItemView {
 				cls: "dashboard-row-date",
 				text: ` · ${this.formatDayDate(-c.daysSinceBirthday!)}`,
 			});
-			label.addEventListener("click", () => this.openContact(c.file));
+			label.addEventListener("click", () =>
+				void this.openContact(c.file)
+			);
 
 			const wishedButton = row.createEl("button", {
 				cls: "callander-button dashboard-row-action",
@@ -1172,7 +1183,7 @@ export class DashboardView extends ItemView {
 			});
 			setIcon(wishedButton, "check");
 			wishedButton.createSpan({ text: "Done" });
-			wishedButton.addEventListener("click", async (e) => {
+			const handleWished = async (e: MouseEvent) => {
 				e.stopPropagation();
 				await this.plugin.contactOperations.markBirthdayWished(
 					c.file,
@@ -1180,7 +1191,8 @@ export class DashboardView extends ItemView {
 				);
 				new Notice(`🎈 Nice — ${c.displayName} checked off`);
 				await this.refresh();
-			});
+			};
+			wishedButton.addEventListener("click", (e) => void handleWished(e));
 		}
 	}
 
@@ -1233,20 +1245,21 @@ export class DashboardView extends ItemView {
 				text: "File to friend…",
 			});
 			fileButton.addEventListener("click", () => {
+				const handleChoose = async (contact: ContactWithCountdown) => {
+					const moved =
+						await this.plugin.contactOperations.moveInboxIdea(
+							index,
+							contact.file
+						);
+					if (moved) {
+						new Notice(`Filed to ${contact.displayName}`);
+						await this.refresh();
+					}
+				};
 				new ContactSuggestModal(
 					this.app,
 					this.contacts,
-					async (contact) => {
-						const moved =
-							await this.plugin.contactOperations.moveInboxIdea(
-								index,
-								contact.file
-							);
-						if (moved) {
-							new Notice(`Filed to ${contact.displayName}`);
-							await this.refresh();
-						}
-					},
+					(contact) => void handleChoose(contact),
 					"File this idea to…"
 				).open();
 			});

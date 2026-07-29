@@ -47,7 +47,7 @@ export class DiaryView extends ItemView {
 
 	private onVaultChange(path: string) {
 		if (!this.plugin.diaryOperations.isDiaryFile(path)) return;
-		this.refresh();
+		void this.refresh();
 	}
 
 	async refresh() {
@@ -152,7 +152,7 @@ export class DiaryView extends ItemView {
 
 		// Expanded: rendered body + toolbar
 		const bodyContainer = card.createDiv({ cls: "diary-entry-body" });
-		this.renderReadingView(bodyContainer, entry);
+		void this.renderReadingView(bodyContainer, entry);
 		this.renderToolbar(card, entry);
 	}
 
@@ -197,7 +197,9 @@ export class DiaryView extends ItemView {
 		});
 		setIcon(editButton, "pencil");
 		editButton.createSpan({ text: "Edit" });
-		editButton.addEventListener("click", () => this.openInEditor(entry));
+		editButton.addEventListener("click", () =>
+			void this.openInEditor(entry)
+		);
 
 		// Put this entry on the timeline of every [[linked]] friend
 		const logButton = toolbar.createEl("button", {
@@ -206,7 +208,7 @@ export class DiaryView extends ItemView {
 		setIcon(logButton, "milestone");
 		logButton.createSpan({ text: "Log to timelines" });
 		logButton.addEventListener("click", () =>
-			this.plugin.logDiaryEntryToTimelines(entry.file)
+			void this.plugin.logDiaryEntryToTimelines(entry.file)
 		);
 
 		toolbar.createDiv({ cls: "diary-toolbar-spacer" });
