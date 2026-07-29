@@ -140,7 +140,7 @@ export class AddContactModal extends FormModal {
 
 		form.addEventListener("submit", (e) => {
 			e.preventDefault();
-			const data: Record<string, any> = {
+			const data: Record<string, string | string[]> = {
 				name: nameInput.value,
 			};
 
@@ -179,8 +179,8 @@ export class AddContactModal extends FormModal {
 		});
 	}
 
-	private async onSubmit(data: Record<string, any>) {
-		const fileName = `${data.name}.md`;
+	private async onSubmit(data: Record<string, string | string[]>) {
+		const fileName = `${String(data.name)}.md`;
 		const filePath = `${this.plugin.settings.contactsFolder}/${fileName}`;
 
 		// Ensure folder exists before creating contact
@@ -212,7 +212,7 @@ export class AddContactModal extends FormModal {
 				}
 			}
 
-			new Notice(`Added ${data.name}`);
+			new Notice(`Added ${String(data.name)}`);
 			// Straight to their page
 			await this.plugin.openContactPage(file);
 		} catch (error) {

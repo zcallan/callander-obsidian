@@ -7,7 +7,7 @@ import {
 	ViewState,
 } from "obsidian";
 import { FriendTrackerSettings, DEFAULT_SETTINGS, SomedayInfo } from "./types";
-import { fieldOf, isRecord } from "@/utils/fm";
+import { fieldOf, isRecord, toText } from "@/utils/fm";
 import { IdeaCategory, formatSomedaySeasons, formatSomedayDays } from "@/constants";
 import {
 	CaptureTargetModal,
@@ -1089,7 +1089,7 @@ export default class FriendTracker extends Plugin {
 		];
 		const location = fieldOf(metadata, "location");
 		if (location) {
-			lines.push(`LOCATION:${escape(String(location))}`);
+			lines.push(`LOCATION:${escape(toText(location))}`);
 		}
 		lines.push("END:VEVENT", "END:VCALENDAR");
 

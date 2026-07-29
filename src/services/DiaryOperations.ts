@@ -1,7 +1,7 @@
 import { TFile, TFolder, normalizePath, parseYaml } from "obsidian";
 import type FriendTracker from "@/main";
 import type { DiaryEntry } from "@/types";
-import { fieldOf, isRecord } from "@/utils/fm";
+import { fieldOf, isRecord, toText } from "@/utils/fm";
 
 export class DiaryOperations {
 	constructor(private plugin: FriendTracker) {}
@@ -50,7 +50,7 @@ export class DiaryOperations {
 				const { frontmatter, body } = this.splitContent(content);
 				const str = (key: string): string => {
 					const v = frontmatter[key];
-					return v ? String(v) : "";
+					return v ? toText(v) : "";
 				};
 				entries.push({
 					file,
@@ -94,8 +94,8 @@ export class DiaryOperations {
 				const date = fieldOf(fm, "date");
 				return {
 					file,
-					title: title ? String(title) : file.basename,
-					date: date ? String(date) : "",
+					title: title ? toText(title) : file.basename,
+					date: date ? toText(date) : "",
 				};
 			})
 			.sort((a, b) => (b.date || "").localeCompare(a.date || ""));

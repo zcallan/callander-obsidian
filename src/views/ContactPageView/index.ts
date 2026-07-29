@@ -68,7 +68,7 @@ import {
 	flexSortKey,
 	monthName,
 } from "@/utils/flexdate";
-import { asArray, fieldOf, isRecord } from "@/utils/fm";
+import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -133,7 +133,7 @@ function toContactFrontmatter(parsed: unknown): ContactFrontmatter {
 	for (const key of SCALAR_FIELDS) {
 		const value = parsed[key];
 		if (value != null && typeof value !== "string") {
-			data[key] = String(value);
+			data[key] = toText(value);
 		}
 	}
 	return data;
@@ -966,7 +966,7 @@ export class ContactPageView extends ItemView {
 						this.createInfoField(
 							fieldsContainer,
 							field,
-							String(this.contactData[field] ?? "")
+							toText(this.contactData[field])
 						);
 					}
 				});
@@ -1254,7 +1254,7 @@ export class ContactPageView extends ItemView {
 			const draftText =
 				typeof draft === "string"
 					? draft
-					: String(fieldOf(draft, "text") ?? "");
+					: toText(fieldOf(draft, "text"));
 			const row = strip.createDiv({ cls: "contact-draft-row" });
 			row.createSpan({
 				cls: "contact-draft-text",
@@ -1860,7 +1860,7 @@ export class ContactPageView extends ItemView {
 			const text =
 				typeof draft === "string"
 					? draft
-					: String(fieldOf(draft, "text") ?? "");
+					: toText(fieldOf(draft, "text"));
 			const row = strip.createDiv({ cls: "contact-draft-row" });
 			row.createSpan({ cls: "contact-draft-text", text });
 
@@ -2936,7 +2936,7 @@ export class ContactPageView extends ItemView {
 				const text = fieldOf(g, "text");
 				return {
 					category: "gift",
-					text: text == null ? String(g) : String(text),
+					text: text == null ? toText(g) : toText(text),
 					done: !!fieldOf(g, "done"),
 				};
 			});
@@ -2987,8 +2987,8 @@ export class ContactPageView extends ItemView {
 				const date = fieldOf(i, "date");
 				const text = fieldOf(i, "text");
 				return {
-					date: date == null ? "" : String(date),
-					text: text == null ? String(i) : String(text),
+					date: toText(date),
+					text: text == null ? toText(i) : toText(text),
 				};
 			});
 			this.contactData.events = [...this.eventsList(), ...migrated];
@@ -3243,8 +3243,8 @@ export class ContactPageView extends ItemView {
 				if (typeof q === "string") return { text: q };
 				const context = fieldOf(q, "context");
 				return {
-					text: String(fieldOf(q, "text") ?? ""),
-					...(context ? { context: String(context) } : {}),
+					text: toText(fieldOf(q, "text")),
+					...(context ? { context: toText(context) } : {}),
 				};
 			})
 			.filter((q) => q.text.length > 0);

@@ -10,7 +10,7 @@ import type {
 import type { EventType, IdeaCategory } from "@/constants";
 import { REMINDERS_BASENAME } from "@/constants";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
-import { asArray, fieldOf, isRecord } from "@/utils/fm";
+import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 
 export const INBOX_BASENAME = "Idea Inbox";
 
@@ -32,7 +32,7 @@ export class ContactOperations {
 				const text = fieldOf(g, "text");
 				return {
 					category: "gift" as const,
-					text: text == null ? String(g) : String(text),
+					text: text == null ? toText(g) : toText(text),
 					done: !!fieldOf(g, "done"),
 				};
 			}
@@ -570,7 +570,7 @@ export class ContactOperations {
 				if (groups.length > 0) fm.groups = [...new Set(groups)];
 				if (dupMeta.notes) {
 					fm.notes = fm.notes
-						? `${String(fm.notes)}\n\n${String(dupMeta.notes)}`
+						? `${toText(fm.notes)}\n\n${toText(dupMeta.notes)}`
 						: dupMeta.notes;
 				}
 			}
@@ -621,7 +621,7 @@ export class ContactOperations {
 						const t = fieldOf(g, "text");
 						return {
 							category: "gift" as const,
-							text: t == null ? String(g) : String(t),
+							text: t == null ? toText(g) : toText(t),
 							done: !!fieldOf(g, "done"),
 						};
 					})
@@ -668,7 +668,7 @@ export class ContactOperations {
 				if (isRecord(metadata)) {
 					const str = (key: string): string => {
 						const v = metadata[key];
-						return v ? String(v) : "";
+						return v ? toText(v) : "";
 					};
 
 					// Events are stored newest-first; fall back to the legacy
@@ -678,9 +678,7 @@ export class ContactOperations {
 						asArray(metadata.interactions)[0] ??
 						null;
 					const lastInteraction = latest
-						? this.formatDaysAgo(
-								String(fieldOf(latest, "date") ?? "")
-						  )
+						? this.formatDaysAgo(toText(fieldOf(latest, "date")))
 						: null;
 
 					const ideas = ContactOperations.ideasOf(metadata);

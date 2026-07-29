@@ -2,7 +2,7 @@ import { TFile, normalizePath } from "obsidian";
 import type FriendTracker from "@/main";
 import type { Reminder } from "@/types";
 import { REMINDERS_BASENAME } from "@/constants";
-import { asArray, fieldOf, isRecord } from "@/utils/fm";
+import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 
 /** The editable fields of a reminder — used for both create and update. */
 export interface ReminderFields {
@@ -46,14 +46,14 @@ export class ReminderOperations {
 			.map((raw): Reminder => {
 				const r = isRecord(raw) ? raw : {};
 				return {
-					id: String(r.id ?? ""),
-					name: String(r.name ?? ""),
-					...(r.date ? { date: String(r.date) } : {}),
-					...(r.time ? { time: String(r.time) } : {}),
-					...(r.location ? { location: String(r.location) } : {}),
-					...(r.link ? { link: String(r.link) } : {}),
+					id: toText(r.id),
+					name: toText(r.name),
+					...(r.date ? { date: toText(r.date) } : {}),
+					...(r.time ? { time: toText(r.time) } : {}),
+					...(r.location ? { location: toText(r.location) } : {}),
+					...(r.link ? { link: toText(r.link) } : {}),
 					status: r.status === "done" ? "done" : "open",
-					...(r.created ? { created: String(r.created) } : {}),
+					...(r.created ? { created: toText(r.created) } : {}),
 				};
 			})
 			.filter((r) => r.name.length > 0);
