@@ -344,16 +344,17 @@ export class PlanCostModal extends FormModal {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
-			del.addEventListener("click", async () => {
+			const handleDelete = async () => {
 				await this.onDelete!();
 				this.close();
-			});
+			};
+			del.addEventListener("click", () => void handleDelete());
 		}
 		const saveButton = buttons.createEl("button", {
 			text: this.initial ? "Save" : "Add",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", async () => {
+		const handleSave = async () => {
 			const label = labelInput.value.trim();
 			const amount = Number(amountInput.value);
 			if (!label || !Number.isFinite(amount) || amount <= 0) return;
@@ -364,7 +365,8 @@ export class PlanCostModal extends FormModal {
 				split: { mode: this.mode, ...(shares && { shares }) },
 			});
 			this.close();
-		});
+		};
+		saveButton.addEventListener("click", () => void handleSave());
 	}
 
 	onClose() {

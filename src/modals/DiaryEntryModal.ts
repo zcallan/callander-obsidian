@@ -65,13 +65,13 @@ export class DiaryEntryModal extends FormModal {
 			text: "Save",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", () => this.submit());
+		saveButton.addEventListener("click", () => void this.submit());
 
 		// Ten-second capture: Enter in the title field submits
 		titleInput!.addEventListener("keydown", (event) => {
 			if (event.key === "Enter") {
 				event.preventDefault();
-				this.submit();
+				void this.submit();
 			}
 		});
 		window.setTimeout(() => titleInput!.focus(), 0);

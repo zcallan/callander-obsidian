@@ -201,14 +201,14 @@ export class PlanSimpleItemModal extends FormModal {
 			});
 			this.close();
 		};
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		const inputs: HTMLElement[] = [textInput, durationInput, costInput];
 		if (schedule) inputs.push(...schedule.inputs);
 		for (const input of inputs) {
 			input.addEventListener("keydown", (e) => {
 				if (e.key === "Enter") {
 					e.preventDefault();
-					submit();
+					void submit();
 				}
 			});
 		}

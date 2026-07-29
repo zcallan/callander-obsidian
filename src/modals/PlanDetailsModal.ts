@@ -88,13 +88,14 @@ export class PlanDetailsModal extends FormModal {
 			text: "Save",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", async () => {
+		const handleSave = async () => {
 			await this.onSubmit({
 				...details,
 				location: details.location.trim(),
 			});
 			this.close();
-		});
+		};
+		saveButton.addEventListener("click", () => void handleSave());
 	}
 
 	onClose() {

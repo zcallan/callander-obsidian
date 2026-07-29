@@ -48,18 +48,20 @@ export class ResurfaceModal extends FormModal {
 			text: "Clear",
 			cls: "callander-modal-button",
 		});
-		clearButton.addEventListener("click", async () => {
+		const handleClear = async () => {
 			await this.onSubmit("");
 			this.close();
-		});
+		};
+		clearButton.addEventListener("click", () => void handleClear());
 		const saveButton = buttons.createEl("button", {
 			text: "Save",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", async () => {
+		const handleSave = async () => {
 			await this.onSubmit(value);
 			this.close();
-		});
+		};
+		saveButton.addEventListener("click", () => void handleSave());
 	}
 
 	onClose() {

@@ -155,11 +155,11 @@ export class ReminderModal extends FormModal {
 			await this.onSaved();
 			this.close();
 		};
-		saveBtn.addEventListener("click", submit);
+		saveBtn.addEventListener("click", () => void submit());
 		nameInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
 		window.setTimeout(() => nameInput.focus(), 0);

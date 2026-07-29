@@ -99,7 +99,7 @@ export class GroupEventModal extends FormModal {
 			text: "Log for selected",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", async () => {
+		const handleSave = async () => {
 			const text = textInput.value.trim();
 			if (!text || !dateValue || checked.size === 0) {
 				new Notice("Pick at least one friend and write what happened");
@@ -117,7 +117,8 @@ export class GroupEventModal extends FormModal {
 			}
 			new Notice(`Logged for ${targets.length} friend(s)`);
 			this.close();
-		});
+		};
+		saveButton.addEventListener("click", () => void handleSave());
 	}
 
 	onClose() {

@@ -74,12 +74,12 @@ export class QuickNoteModal extends FormModal {
 			this.close();
 		};
 
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		for (const input of [textInput, friendInput]) {
 			input.addEventListener("keydown", (event) => {
 				if (event.key === "Enter") {
 					event.preventDefault();
-					submit();
+					void submit();
 				}
 			});
 		}

@@ -75,7 +75,7 @@ export class GroupModal extends FormModal {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
-			deleteButton.addEventListener("click", async () => {
+			const handleDelete = async () => {
 				if (!this.deleteArmed) {
 					this.deleteArmed = true;
 					deleteButton.setText("Really delete?");
@@ -89,14 +89,15 @@ export class GroupModal extends FormModal {
 				);
 				await this.onDone();
 				this.close();
-			});
+			};
+			deleteButton.addEventListener("click", () => void handleDelete());
 		}
 
 		const saveButton = buttons.createEl("button", {
 			text: this.existing ? "Save" : "Create",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", async () => {
+		const handleSave = async () => {
 			const name = nameInput.value.trim().toLowerCase();
 			if (!name) return;
 			if (this.existing && name !== this.existing.name) {
@@ -105,7 +106,8 @@ export class GroupModal extends FormModal {
 			await ops.setGroupColor(name, color);
 			await this.onDone();
 			this.close();
-		});
+		};
+		saveButton.addEventListener("click", () => void handleSave());
 	}
 
 	onClose() {

@@ -143,11 +143,11 @@ export class QuickIdeaModal extends FormModal {
 			this.close();
 		};
 
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		textInput.addEventListener("keydown", (event) => {
 			if (event.key === "Enter") {
 				event.preventDefault();
-				submit();
+				void submit();
 			}
 		});
 

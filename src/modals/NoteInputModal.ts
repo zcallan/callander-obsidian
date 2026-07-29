@@ -36,12 +36,12 @@ export class NoteInputModal extends FormModal {
 			await this.onSubmit(text);
 			this.close();
 		};
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		// Cmd/Ctrl+Enter saves; plain Enter makes a newline
 		input.addEventListener("keydown", (e) => {
 			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
 		window.setTimeout(() => input.focus(), 0);

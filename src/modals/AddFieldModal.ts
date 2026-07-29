@@ -1,9 +1,12 @@
 import { App, Modal } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 export class AddFieldModal extends FormModal {
-	private onSubmit: (fieldName: string) => void;
+	private onSubmit: (fieldName: string) => void | Promise<void>;
 
-	constructor(app: App, onSubmit: (fieldName: string) => void) {
+	constructor(
+		app: App,
+		onSubmit: (fieldName: string) => void | Promise<void>
+	) {
 		super(app);
 		this.onSubmit = onSubmit;
 	}
@@ -18,7 +21,7 @@ export class AddFieldModal extends FormModal {
 			e.preventDefault();
 			const input = form.querySelector("input");
 			if (input?.value) {
-				this.onSubmit(input.value.toLowerCase());
+				void this.onSubmit(input.value.toLowerCase());
 				this.close();
 			}
 		});

@@ -14,7 +14,7 @@ export class EventModal extends FormModal {
 		type: EventType,
 		location: string,
 		link: string
-	) => void;
+	) => void | Promise<void>;
 
 	constructor(
 		app: App,
@@ -25,7 +25,7 @@ export class EventModal extends FormModal {
 			type: EventType,
 			location: string,
 			link: string
-		) => void,
+		) => void | Promise<void>,
 		private onDelete?: () => Promise<void>,
 		private onCopy?: () => void
 	) {
@@ -182,7 +182,7 @@ export class EventModal extends FormModal {
 		const submit = () => {
 			const text = textInput.value.trim();
 			if (!text || !dateValue) return;
-			this.onSubmit(
+			void this.onSubmit(
 				dateValue,
 				text,
 				this.type,

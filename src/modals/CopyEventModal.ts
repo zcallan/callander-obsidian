@@ -86,7 +86,7 @@ export class CopyEventModal extends FormModal {
 			text: "Copy",
 			cls: "callander-modal-button mod-cta",
 		});
-		copyButton.addEventListener("click", async () => {
+		const handleCopy = async () => {
 			const targets = contacts.filter((c) => checked.has(c.file.path));
 			if (targets.length === 0) return;
 			for (const c of targets) {
@@ -106,7 +106,8 @@ export class CopyEventModal extends FormModal {
 					.join(", ")}`
 			);
 			this.close();
-		});
+		};
+		copyButton.addEventListener("click", () => void handleCopy());
 	}
 
 	onClose() {

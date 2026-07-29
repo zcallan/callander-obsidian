@@ -102,11 +102,11 @@ export class InterestModal extends FormModal {
 			this.close();
 		};
 
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		const onEnter = (event: KeyboardEvent) => {
 			if (event.key === "Enter") {
 				event.preventDefault();
-				submit();
+				void submit();
 			}
 		};
 		textInput.addEventListener("keydown", onEnter);
