@@ -14,7 +14,7 @@ import type {
 	PlanSimpleItem,
 	PlanTimelineEntry,
 } from "@/types";
-import { asArray, fieldOf, isRecord } from "@/utils/fm";
+import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 
 /** The named field when it's a non-empty string, else undefined. */
 function strFieldOf(value: unknown, key: string): string | undefined {
@@ -201,9 +201,9 @@ export class PlanOperations {
 			.map((c): PlanCredit => {
 				const note = fieldOf(c, "note");
 				return {
-					person: String(fieldOf(c, "person") ?? ""),
+					person: toText(fieldOf(c, "person")),
 					amount: Number(fieldOf(c, "amount")) || 0,
-					...(note ? { note: String(note) } : {}),
+					...(note ? { note: toText(note) } : {}),
 				};
 			})
 			.filter((c) => c.person.length > 0 && c.amount > 0);
@@ -235,7 +235,7 @@ export class PlanOperations {
 					this.app.metadataCache.getFileCache(file)?.frontmatter;
 				const str = (key: string): string => {
 					const v = fieldOf(fm, key);
-					return v ? String(v) : "";
+					return v ? toText(v) : "";
 				};
 				return {
 					file,

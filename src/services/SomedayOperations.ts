@@ -3,7 +3,7 @@ import type FriendTracker from "@/main";
 import type { SomedayCompany, SomedayDay } from "@/constants";
 import { SOMEDAY_DAYS, SOMEDAY_SEASONS } from "@/constants";
 import type { SomedayInfo, SomedaySubIdea } from "@/types";
-import { asArray, fieldOf } from "@/utils/fm";
+import { asArray, fieldOf, toText } from "@/utils/fm";
 
 /** The editable fields of a Someday — used for both create and update. */
 export interface SomedayFields {
@@ -88,7 +88,7 @@ export class SomedayOperations {
 			this.app.metadataCache.getFileCache(file)?.frontmatter;
 		const str = (key: string): string => {
 			const v = fieldOf(fm, key);
-			return v ? String(v) : "";
+			return v ? toText(v) : "";
 		};
 		const company = fieldOf(fm, "company");
 		return {

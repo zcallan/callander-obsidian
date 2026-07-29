@@ -18,7 +18,15 @@ export function asArray(value: unknown): unknown[] {
 	return Array.isArray(value) ? (value as unknown[]) : [];
 }
 
-/** String coercion that keeps null/undefined absent instead of "null". */
-export function asString(value: unknown): string | undefined {
-	return value == null ? undefined : String(value);
+/**
+ * Display string for a YAML scalar. Strings pass through; numbers/booleans
+ * stringify; anything else (null, objects, arrays) is "" — frontmatter
+ * fields never legitimately hold those where prose is expected.
+ */
+export function toText(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (typeof value === "number" || typeof value === "boolean") {
+		return String(value);
+	}
+	return "";
 }
