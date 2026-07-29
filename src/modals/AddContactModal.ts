@@ -168,12 +168,12 @@ export class AddContactModal extends FormModal {
 						),
 						relationship,
 					];
-					this.plugin.saveSettings();
+					void this.plugin.saveSettings();
 				}
 			}
 
 			if (data.name) {
-				this.onSubmit(data);
+				void this.onSubmit(data);
 				this.close();
 			}
 		});

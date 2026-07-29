@@ -84,7 +84,7 @@ export class EventViewModal extends Modal {
 
 		button("user", "View person", () => {
 			this.close();
-			this.plugin.openContactPage(this.contact.file);
+			void this.plugin.openContactPage(this.contact.file);
 		});
 
 		button("pencil", "Edit", () => {

@@ -109,7 +109,7 @@ export class AddPlanMemberModal extends FormModal {
 			const el = listEl.createDiv({
 				cls: "friend-list-row plan-member-result",
 			});
-			el.addEventListener("click", () => add(c, c.displayName));
+			el.addEventListener("click", () => void add(c, c.displayName));
 			const info = el.createDiv({ cls: "friend-list-info" });
 			const main = info.createDiv({ cls: "friend-list-main" });
 			main.createSpan({ cls: "friend-list-name", text: c.displayName });
@@ -142,7 +142,7 @@ export class AddPlanMemberModal extends FormModal {
 				const el = listEl.createDiv({
 					cls: "friend-list-row plan-member-result plan-member-guest",
 				});
-				el.addEventListener("click", () => add(null, raw));
+				el.addEventListener("click", () => void add(null, raw));
 				el.createDiv({
 					cls: "friend-list-info",
 				}).createDiv({
@@ -165,8 +165,9 @@ export class AddPlanMemberModal extends FormModal {
 			e.preventDefault();
 			const raw = searchInput.value.trim();
 			const matches = filtered(raw.toLowerCase());
-			if (matches.length > 0) add(matches[0], matches[0].displayName);
-			else if (raw) add(null, raw);
+			if (matches.length > 0)
+				void add(matches[0], matches[0].displayName);
+			else if (raw) void add(null, raw);
 		});
 
 		renderResults();

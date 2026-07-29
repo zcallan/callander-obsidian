@@ -43,10 +43,11 @@ export class MergeFriendsModal extends FormModal {
 			text: "Merge",
 			cls: "callander-modal-button callander-modal-button-danger",
 		});
-		confirm.addEventListener("click", async () => {
+		const handleConfirm = async () => {
 			await this.onConfirm();
 			this.close();
-		});
+		};
+		confirm.addEventListener("click", () => void handleConfirm());
 	}
 
 	onClose() {

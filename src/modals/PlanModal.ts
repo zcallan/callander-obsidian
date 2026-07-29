@@ -90,11 +90,11 @@ export class PlanModal extends FormModal {
 			this.close();
 			this.onCreated(file);
 		};
-		createButton.addEventListener("click", submit);
+		createButton.addEventListener("click", () => void submit());
 		nameInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
 		window.setTimeout(() => nameInput.focus(), 0);

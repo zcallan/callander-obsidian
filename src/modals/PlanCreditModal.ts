@@ -65,10 +65,11 @@ export class PlanCreditModal extends FormModal {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
-			del.addEventListener("click", async () => {
+			const handleDelete = async () => {
 				await this.onDelete!();
 				this.close();
-			});
+			};
+			del.addEventListener("click", () => void handleDelete());
 		}
 		const saveButton = buttons.createEl("button", {
 			text: this.initial ? "Save" : "Add",
@@ -83,12 +84,12 @@ export class PlanCreditModal extends FormModal {
 			await this.onSubmit({ person, amount, ...(note && { note }) });
 			this.close();
 		};
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		for (const input of [amountInput, noteInput]) {
 			input.addEventListener("keydown", (e) => {
 				if (e.key === "Enter") {
 					e.preventDefault();
-					submit();
+					void submit();
 				}
 			});
 		}

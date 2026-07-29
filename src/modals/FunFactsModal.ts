@@ -37,11 +37,11 @@ export class FunFactsModal extends FormModal {
 			await this.onSubmit(fact);
 			this.close();
 		};
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		input.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
 		window.setTimeout(() => input.focus(), 0);

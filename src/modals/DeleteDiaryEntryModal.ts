@@ -31,10 +31,11 @@ export class DeleteDiaryEntryModal extends Modal {
 			text: "Delete",
 			cls: "callander-modal-button callander-modal-button-danger",
 		});
-		deleteButton.addEventListener("click", async () => {
+		const handleDelete = async () => {
 			await this.onDelete();
 			this.close();
-		});
+		};
+		deleteButton.addEventListener("click", () => void handleDelete());
 	}
 
 	onClose() {

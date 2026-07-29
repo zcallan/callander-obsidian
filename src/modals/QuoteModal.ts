@@ -75,17 +75,17 @@ export class QuoteModal extends FormModal {
 			await this.onSubmit({ text, ...(context && { context }) });
 			this.close();
 		};
-		saveButton.addEventListener("click", submit);
+		saveButton.addEventListener("click", () => void submit());
 		contextInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
 		textInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
 		window.setTimeout(() => textInput.focus(), 0);

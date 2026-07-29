@@ -73,13 +73,17 @@ export class ReminderViewModal extends Modal {
 		const actions = contentEl.createDiv({
 			cls: "someday-view-actions",
 		});
-		const button = (icon: string, label: string, onClick: () => void) => {
+		const button = (
+			icon: string,
+			label: string,
+			onClick: () => void | Promise<void>
+		) => {
 			const btn = actions.createEl("button", {
 				cls: "callander-button",
 			});
 			setIcon(btn, icon);
 			btn.createSpan({ text: label });
-			btn.addEventListener("click", onClick);
+			btn.addEventListener("click", () => void onClick());
 		};
 
 		button("check", "Mark as done", async () => {

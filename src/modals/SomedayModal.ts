@@ -381,11 +381,11 @@ export class SomedayModal extends FormModal {
 			await this.onSaved(file);
 			this.close();
 		};
-		saveBtn.addEventListener("click", submit);
+		saveBtn.addEventListener("click", () => void submit());
 		nameInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {
 				e.preventDefault();
-				submit();
+				void submit();
 			}
 		});
 
