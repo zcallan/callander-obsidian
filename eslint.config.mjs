@@ -1,0 +1,20 @@
+import obsidianmd from "eslint-plugin-obsidianmd";
+import { defineConfig } from "eslint/config";
+
+// Mirrors the Obsidian plugin review bot: obsidianmd/recommended already
+// layers typescript-eslint recommendedTypeChecked over **/*.ts.
+export default defineConfig([
+	// main.js is the esbuild bundle; the .mjs files are Node build scripts
+	// that never run inside Obsidian (the review bot doesn't lint them).
+	{ ignores: ["main.js", "esbuild.config.mjs", "version-bump.mjs"] },
+	...obsidianmd.configs.recommended,
+	{
+		files: ["**/*.ts"],
+		languageOptions: {
+			parserOptions: {
+				projectService: true,
+				tsconfigRootDir: import.meta.dirname,
+			},
+		},
+	},
+]);
