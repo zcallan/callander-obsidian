@@ -70,11 +70,11 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 	getSettingDefinitions(): SettingDefinitionItem[] {
 		return [
 			{
-				name: "Contacts folder",
-				desc: "Folder where contact files will be stored",
+				name: "Base folder",
+				desc: "Folder that holds your Callander data — the People, Groups, Plans and Somedays folders live inside it",
 				control: {
 					type: "folder",
-					key: "contactsFolder",
+					key: "baseFolder",
 					placeholder: "Enter folder name",
 				},
 			},
@@ -200,7 +200,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			});
 		}
 		// Folder paths were normalized on entry before; keep that behavior
-		if (key === "contactsFolder" || key === "diaryFolder") {
+		if (key === "baseFolder" || key === "diaryFolder") {
 			value = normalizePath(String(value));
 		}
 		Object.assign(this.plugin.settings, { [key]: value });
@@ -220,15 +220,17 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName("Contacts folder")
-			.setDesc("Folder where contact files will be stored")
+			.setName("Base folder")
+			.setDesc(
+				"Folder that holds your Callander data — the People, Groups, Plans and Somedays folders live inside it"
+			)
 			.addText((text) => {
 				new FolderSuggest(this.app, text.inputEl);
 				return text
 					.setPlaceholder("Enter folder name")
-					.setValue(this.plugin.settings.contactsFolder)
+					.setValue(this.plugin.settings.baseFolder)
 					.onChange(async (value) => {
-						this.plugin.settings.contactsFolder =
+						this.plugin.settings.baseFolder =
 							normalizePath(value);
 						await this.plugin.saveSettings();
 					});

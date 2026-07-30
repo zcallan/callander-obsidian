@@ -447,36 +447,23 @@ export default class FriendTracker extends Plugin {
 
 	public shouldOpenAsContact(path: string): boolean {
 		if (this.markdownBypass.has(path)) return false;
-		const folder = this.settings.contactsFolder + "/";
-		if (!path.startsWith(folder) || !path.endsWith(".md")) return false;
-		// Diary entries are meant to be edited as plain notes
-		if (
-			path.startsWith(this.diaryOperations.getDiaryFolderPath() + "/")
-		) {
-			return false;
-		}
-		// Somedays have their own list view, not a contact page
-		if (this.somedayOperations.isSomedayFile(path)) {
-			return false;
-		}
-		// Plans and Groups are Callander pages by construction — don't
-		// wait for the metadata cache (freshly created files aren't
-		// indexed yet, which would bounce them to the markdown editor)
-		if (
+		if (!path.endsWith(".md")) return false;
+		// Callander pages are identified purely by folder: People/, Plans/
+		// and Groups/ under the base folder. Everything else there —
+		// Reminders, the Idea Inbox, recaps, diary entries — is a plain
+		// note. No metadata-cache lookup, so freshly created files route
+		// correctly before they're indexed.
+		return (
+			path.startsWith(
+				this.contactOperations.getPeopleFolderPath() + "/"
+			) ||
 			path.startsWith(
 				this.planOperations.getPlansFolderPath() + "/"
 			) ||
 			path.startsWith(
 				this.contactOperations.getGroupsFolderPath() + "/"
 			)
-		) {
-			return true;
-		}
-		// Contacts (and the inbox) are identified by a name frontmatter
-		// field — generated notes like recaps don't have one
-		const frontmatter =
-			this.app.metadataCache.getCache(path)?.frontmatter;
-		return !!frontmatter && typeof frontmatter.name === "string";
+		);
 	}
 
 	/** Someday files route to the Somedays list view, not a contact page. */
@@ -1173,7 +1160,7 @@ export default class FriendTracker extends Plugin {
 		).length;
 		lines.push(`## Diary`, `- ${diaryCount} entries about ${year}`, "");
 
-		const path = `${this.settings.contactsFolder}/Callander Recap ${year}.md`;
+		const path = `${this.settings.baseFolder}/Callander Recap ${year}.md`;
 		const existing = this.app.vault.getAbstractFileByPath(path);
 		if (existing instanceof TFile) {
 			await this.app.vault.modify(existing, lines.join("\n"));
@@ -1210,7 +1197,7 @@ export default class FriendTracker extends Plugin {
 	 */
 	private async migrateBirthplaceValues() {
 		const folder = this.app.vault.getFolderByPath(
-			this.settings.contactsFolder
+			this.contactOperations.getPeopleFolderPath()
 		);
 		if (!folder) return;
 		for (const child of folder.children) {

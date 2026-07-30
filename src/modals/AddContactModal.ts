@@ -180,14 +180,12 @@ export class AddContactModal extends FormModal {
 	}
 
 	private async onSubmit(data: Record<string, string | string[]>) {
+		const ops = this.plugin.contactOperations;
 		const fileName = `${String(data.name)}.md`;
-		const filePath = `${this.plugin.settings.contactsFolder}/${fileName}`;
+		const filePath = `${ops.getPeopleFolderPath()}/${fileName}`;
 
-		// Ensure folder exists before creating contact
-		const folder = this.plugin.settings.contactsFolder;
-		if (!this.app.vault.getFolderByPath(folder)) {
-			await this.app.vault.createFolder(folder);
-		}
+		// Ensure the base and People folders exist before creating
+		await ops.ensurePeopleFolder();
 
 		// Create YAML frontmatter
 		const yaml = stringifyYaml(data);

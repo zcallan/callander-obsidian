@@ -8,7 +8,6 @@ import type {
 	Idea,
 } from "@/types";
 import type { EventType, IdeaCategory } from "@/constants";
-import { REMINDERS_BASENAME } from "@/constants";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 
@@ -113,11 +112,31 @@ export class ContactOperations {
 		];
 	}
 
+	// ---- Folders ----
+
+	/** Person files live in People/ under the base folder — nothing else
+	 * in the base folder (Reminders, Idea Inbox, recaps) is a person. */
+	getPeopleFolderPath(): string {
+		return normalizePath(`${this.plugin.settings.baseFolder}/People`);
+	}
+
+	/** Creates the base and People folders on first use. */
+	async ensurePeopleFolder(): Promise<void> {
+		const base = normalizePath(this.plugin.settings.baseFolder);
+		if (!this.app.vault.getFolderByPath(base)) {
+			await this.app.vault.createFolder(base);
+		}
+		const people = this.getPeopleFolderPath();
+		if (!this.app.vault.getFolderByPath(people)) {
+			await this.app.vault.createFolder(people);
+		}
+	}
+
 	// ---- Groups ----
 
 	getGroupsFolderPath(): string {
 		return normalizePath(
-			`${this.plugin.settings.contactsFolder}/Groups`
+			`${this.plugin.settings.baseFolder}/Groups`
 		);
 	}
 
@@ -278,7 +297,7 @@ export class ContactOperations {
 		fn: (file: TFile, frontmatter: Record<string, unknown>) => void
 	): Promise<void> {
 		const folder = this.app.vault.getFolderByPath(
-			this.plugin.settings.contactsFolder
+			this.getPeopleFolderPath()
 		);
 		if (!folder) return;
 		for (const file of folder.children) {
@@ -311,7 +330,7 @@ export class ContactOperations {
 
 	getInboxPath(): string {
 		return normalizePath(
-			`${this.plugin.settings.contactsFolder}/${INBOX_BASENAME}.md`
+			`${this.plugin.settings.baseFolder}/${INBOX_BASENAME}.md`
 		);
 	}
 
@@ -634,12 +653,11 @@ export class ContactOperations {
 	}
 
 	async getContacts(): Promise<ContactWithCountdown[]> {
-		const folder = this.plugin.settings.contactsFolder;
 		const vault = this.plugin.app.vault;
-		const folderPath = vault.getFolderByPath(folder);
+		const folderPath = vault.getFolderByPath(this.getPeopleFolderPath());
 
 		if (!folderPath) {
-			new Notice("Callander folder not found.");
+			new Notice("Callander People folder not found.");
 			return [];
 		}
 
@@ -650,13 +668,6 @@ export class ContactOperations {
 
 		for (const file of files) {
 			if (!(file instanceof TFile)) continue;
-			// The idea inbox / reminders store live beside contacts, not friends
-			if (
-				file.basename === INBOX_BASENAME ||
-				file.basename === REMINDERS_BASENAME
-			) {
-				continue;
-			}
 
 			try {
 				// The metadata cache already holds parsed frontmatter —

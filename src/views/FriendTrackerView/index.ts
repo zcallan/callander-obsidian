@@ -126,7 +126,8 @@ export class FriendTrackerView extends ItemView {
 	}
 
 	private isContactFile(file: TFile): boolean {
-		const contactFolder = this.plugin.settings.contactsFolder;
-		return file.path.startsWith(contactFolder + "/");
+		const peopleFolder =
+			this.plugin.contactOperations.getPeopleFolderPath();
+		return file.path.startsWith(peopleFolder + "/");
 	}
 }
