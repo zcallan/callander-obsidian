@@ -11,7 +11,9 @@ import type {
 } from "./constants";
 
 export interface FriendTrackerSettings {
-	contactsFolder: string;
+	/** Holds all Callander data: the People, Groups, Plans and Somedays
+	 * folders plus the Idea Inbox / Reminders stores. */
+	baseFolder: string;
 	diaryFolder: string;
 	defaultSortColumn: keyof Omit<ContactWithCountdown, "file">;
 	defaultSortDirection: "asc" | "desc";
@@ -281,8 +283,8 @@ export interface Reminder {
 }
 
 export const DEFAULT_SETTINGS: FriendTrackerSettings = {
-	contactsFolder: "FriendTracker",
-	diaryFolder: "FriendTracker/Diary",
+	baseFolder: "Friends",
+	diaryFolder: "Friends/Diary",
 	defaultSortColumn: "daysUntilBirthday",
 	defaultSortDirection: "asc",
 	relationshipTypes: ["family", "friend", "colleague", "pet"],

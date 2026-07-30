@@ -30,7 +30,7 @@ export class PlanOperations {
 	}
 
 	getPlansFolderPath(): string {
-		return normalizePath(`${this.plugin.settings.contactsFolder}/Plans`);
+		return normalizePath(`${this.plugin.settings.baseFolder}/Plans`);
 	}
 
 	isPlanFile(path: string): boolean {

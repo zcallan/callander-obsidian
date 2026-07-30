@@ -63,7 +63,7 @@ export class DashboardView extends ItemView {
 
 	async onOpen() {
 		const inScope = (path: string) =>
-			path.startsWith(this.plugin.settings.contactsFolder + "/");
+			path.startsWith(this.plugin.settings.baseFolder + "/");
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
 				if (inScope(file.path)) void this.refresh();

@@ -32,7 +32,7 @@ export class SomedayOperations {
 
 	getSomedaysFolderPath(): string {
 		return normalizePath(
-			`${this.plugin.settings.contactsFolder}/Somedays`
+			`${this.plugin.settings.baseFolder}/Somedays`
 		);
 	}
 

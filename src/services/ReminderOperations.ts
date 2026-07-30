@@ -27,7 +27,7 @@ export class ReminderOperations {
 
 	getRemindersPath(): string {
 		return normalizePath(
-			`${this.plugin.settings.contactsFolder}/${REMINDERS_BASENAME}.md`
+			`${this.plugin.settings.baseFolder}/${REMINDERS_BASENAME}.md`
 		);
 	}
 
