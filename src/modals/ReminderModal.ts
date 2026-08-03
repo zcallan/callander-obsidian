@@ -5,9 +5,13 @@ import { createFlexDateInput } from "@/components/FlexDateInput";
 import type FriendTracker from "@/main";
 import type { Reminder } from "@/types";
 import type { ReminderFields } from "@/services/ReminderOperations";
+import { REMINDER_TYPES } from "@/constants";
+import type { ReminderType } from "@/constants";
 
 /** Create or edit a reminder — a name, and optional date/time/location/link. */
 export class ReminderModal extends FormModal {
+	private type: ReminderType;
+
 	constructor(
 		app: App,
 		private plugin: FriendTracker,
@@ -16,6 +20,7 @@ export class ReminderModal extends FormModal {
 		private onDeleted?: () => void | Promise<void>
 	) {
 		super(app);
+		this.type = existing?.type ?? "task";
 	}
 
 	onOpen() {
@@ -35,6 +40,32 @@ export class ReminderModal extends FormModal {
 			attr: { type: "text", placeholder: "e.g. Laura's birthday" },
 		});
 		nameInput.value = this.existing?.name ?? "";
+
+		// ---- Type: one row of emoji buttons, task is the default ----
+		const typeRow = contentEl.createDiv({
+			cls: "quick-idea-categories",
+		});
+		const typeButtons = new Map<ReminderType, HTMLButtonElement>();
+		REMINDER_TYPES.forEach((t) => {
+			const button = typeRow.createEl("button", {
+				cls: `quick-idea-category-button ${
+					this.type === t.id ? "selected" : ""
+				}`,
+				attr: { "aria-label": t.label },
+			});
+			button.createSpan({
+				cls: "quick-idea-category-emoji",
+				text: t.emoji,
+			});
+			button.createSpan({ text: t.label });
+			button.addEventListener("click", () => {
+				this.type = t.id;
+				typeButtons.forEach((el, id) =>
+					el.toggleClass("selected", id === t.id)
+				);
+			});
+			typeButtons.set(t.id, button);
+		});
 
 		// ---- Date ----
 		let dateValue = this.existing?.date ?? "";
@@ -120,7 +151,7 @@ export class ReminderModal extends FormModal {
 					"Delete",
 					async () => {
 						await this.plugin.reminderOperations.deleteReminder(
-							existing.id
+							existing
 						);
 						await this.onDeleted?.();
 						this.close();
@@ -143,12 +174,13 @@ export class ReminderModal extends FormModal {
 				name,
 				date: dateValue,
 				time: timeInput.value.trim(),
+				type: this.type,
 				location: locInput.value.trim(),
 				link: linkInput.value.trim(),
 			};
 			const ops = this.plugin.reminderOperations;
 			if (this.existing) {
-				await ops.updateReminder(this.existing.id, fields);
+				await ops.updateReminder(this.existing, fields);
 			} else {
 				await ops.addReminder(fields);
 			}

@@ -19,15 +19,24 @@ export function createFlexDateInput(
 		inputClass?: string;
 		defaultPrecision?: FlexPrecision;
 		allowFuture?: boolean;
+		/** Which precisions to offer. Defaults to all three. */
+		precisions?: FlexPrecision[];
 	}
 ): void {
 	const inputClass = options?.inputClass ?? "contact-field-input";
+	const allowed: FlexPrecision[] = options?.precisions?.length
+		? options.precisions
+		: ["year", "month", "day"];
 
 	const initialFlex = parseFlexDate(initialValue);
 	let currentValue = initialFlex ? toFlexString(initialFlex) : "";
 	let precision: FlexPrecision = initialFlex
 		? flexPrecision(initialFlex)
 		: options?.defaultPrecision ?? "year";
+	// A stored value can be coarser than this field now offers (or the
+	// caller's default may not be on the list) — fall back to the coarsest
+	// option rather than rendering a control that isn't there.
+	if (!allowed.includes(precision)) precision = allowed[0];
 
 	const setValue = (value: string) => {
 		currentValue = value;
@@ -48,9 +57,11 @@ export function createFlexDateInput(
 			["month", "Month"],
 			["day", "Exact day"],
 		] as Array<[FlexPrecision, string]>
-	).forEach(([id, label]) => {
-		precisionSelect.createEl("option", { value: id, text: label });
-	});
+	)
+		.filter(([id]) => allowed.includes(id))
+		.forEach(([id, label]) => {
+			precisionSelect.createEl("option", { value: id, text: label });
+		});
 	precisionSelect.value = precision;
 
 	let input: HTMLInputElement | null = null;

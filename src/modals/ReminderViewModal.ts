@@ -4,6 +4,8 @@ import type { Reminder } from "@/types";
 import { ReminderModal } from "@/modals/ReminderModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
+import { splitLeadingEmoji } from "@/components/EventTimeline";
+import { REMINDER_TYPES } from "@/constants";
 
 /**
  * A read view of a reminder with Mark-as-done / Edit / Delete — mirrors
@@ -41,7 +43,13 @@ export class ReminderViewModal extends Modal {
 		contentEl.addClass("someday-view-modal");
 		const r = this.reminder;
 
-		contentEl.createEl("h2", { text: r.name });
+		// The type emoji leads the title unless the name brings its own
+		const typeEmoji = REMINDER_TYPES.find((t) => t.id === r.type)?.emoji;
+		const title =
+			typeEmoji && !splitLeadingEmoji(r.name)
+				? `${typeEmoji} ${r.name}`
+				: r.name;
+		contentEl.createEl("h2", { text: title });
 		contentEl.createDiv({
 			cls: "someday-view-meta",
 			text: this.whenLabel(),
@@ -87,7 +95,7 @@ export class ReminderViewModal extends Modal {
 		};
 
 		button("check", "Mark as done", async () => {
-			await this.plugin.reminderOperations.setStatus(r.id, "done");
+			await this.plugin.reminderOperations.setStatus(r, "done");
 			await this.onChange();
 			this.close();
 		});
@@ -113,7 +121,7 @@ export class ReminderViewModal extends Modal {
 				`Delete "${r.name}"?`,
 				"Delete",
 				async () => {
-					await this.plugin.reminderOperations.deleteReminder(r.id);
+					await this.plugin.reminderOperations.deleteReminder(r);
 					await this.onChange();
 					this.close();
 				}

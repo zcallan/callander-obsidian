@@ -164,3 +164,10 @@ export function formatTimeSince(date: FlexDate, now = new Date()): string {
 	const years = Math.floor(months / 12);
 	return years === 1 ? "1 year ago" : `${years} years ago`;
 }
+
+/** Today as a local YYYY-MM-DD stamp (for created/updated fields). */
+export function todayISO(): string {
+	const d = new Date();
+	const pad = (n: number) => String(n).padStart(2, "0");
+	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}

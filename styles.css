@@ -533,6 +533,14 @@ If your plugin does not need CSS, delete this file.
 	display: none;
 }
 
+/* Long plan names wrap on phones (breaking on words) instead of
+   ellipsizing or forcing the page into a horizontal scroll */
+.is-mobile .contact-name-display h1.contact-name-wrap {
+	white-space: normal;
+	overflow-wrap: break-word;
+	min-width: 0;
+}
+
 .contact-name-edit {
 	background: none;
 	border: none;
@@ -1502,10 +1510,6 @@ If your plugin does not need CSS, delete this file.
 	flex-shrink: 0;
 }
 
-.dashboard-row-action {
-	flex-shrink: 0;
-}
-
 /* Group filter + shared event modal */
 .callander-group-filter {
 	margin-left: auto;
@@ -1574,10 +1578,15 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-accent);
 }
 
+/* Row buttons sit in a centered flex row, so they must drop the
+   top margin .callander-button carries for footer/stacked placements */
 .dashboard-row-action {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
+	flex-shrink: 0;
+	margin-top: 0;
+	align-self: center;
 }
 
 .dashboard-row-date {
@@ -2336,7 +2345,9 @@ If your plugin does not need CSS, delete this file.
 .is-mobile .modal-content {
 	overflow-y: auto;
 	min-height: 0;
-	padding-bottom: var(--callander-keyboard-inset, 0px);
+	/* The inset var is 0 with the keyboard closed — keep a breathable
+	   floor so this doesn't zero out the modal's own bottom padding */
+	padding-bottom: max(var(--callander-keyboard-inset, 0px), 16px);
 }
 
 .is-phone .modal-content {
@@ -2344,15 +2355,16 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* iOS zooms the whole webview when a focused control renders under 16px,
-   which throws off the keyboard inset handling above. The quick-idea
-   input already sits at 1em (≥16px on mobile) and behaves; bring every
-   other modal control (Add friend, Add event, …) up to match. */
+   which throws off the keyboard inset handling above. max() guarantees
+   the floor even where an ancestor shrinks the em, for every control
+   class our modals use (Add friend, Add event, Add idea, Add travel, …). */
 .is-mobile .modal .callander-modal-input,
 .is-mobile .modal .contact-field-input,
 .is-mobile .modal .contact-event-text-input,
 .is-mobile .modal .contact-met-precision,
-.is-mobile .modal .plan-time-precision {
-	font-size: 1em;
+.is-mobile .modal .plan-time-precision,
+.is-mobile .modal .quick-idea-input {
+	font-size: max(1em, 16px);
 }
 
 /* Modals must never scroll horizontally: box-sizing the 100%-wide
@@ -2566,6 +2578,14 @@ If your plugin does not need CSS, delete this file.
 .dashboard-diary-tagged {
 	color: var(--text-muted);
 	font-size: 0.85em;
+}
+
+/* Temporary migration nudge in the Upcoming section (see
+   ReminderOperations — remove ~2026-09 with the legacy store) */
+.dashboard-migration-note {
+	border-left: 2px solid var(--color-yellow);
+	padding-left: 8px;
+	margin-bottom: 8px;
 }
 
 /* Diary rows */

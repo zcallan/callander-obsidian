@@ -69,6 +69,7 @@ import {
 	formatTimeSince,
 	flexSortKey,
 	monthName,
+	todayISO,
 } from "@/utils/flexdate";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 
@@ -499,6 +500,13 @@ export class ContactPageView extends ItemView {
 				this.contactData.name ||
 				"Unnamed Contact",
 		});
+
+		// Plans: the name is edited through "Edit details" instead of an
+		// inline pencil, and long trip names wrap rather than overflow
+		if (this.isPlanFile()) {
+			nameText.addClass("contact-name-wrap");
+			return;
+		}
 
 		const nameInput = editContainer.createEl("input", {
 			type: "text",
@@ -1342,11 +1350,12 @@ export class ContactPageView extends ItemView {
 		editBtn.addEventListener("click", () => this.openPlanDetailsModal());
 	}
 
-	/** Edit the plan's date, end date & location. */
+	/** Edit the plan's name, date, end date & location. */
 	private openPlanDetailsModal() {
 		new PlanDetailsModal(
 			this.app,
 			{
+				name: this.contactData.name || "",
 				date: this.contactData.date
 					? String(this.contactData.date)
 					: "",
@@ -1358,6 +1367,9 @@ export class ContactPageView extends ItemView {
 					: "",
 			},
 			async (details) => {
+				const renamed =
+					details.name && details.name !== this.contactData.name;
+				this.contactData.name = details.name;
 				this.contactData.date = details.date;
 				if (details.endDate) {
 					this.contactData.endDate = details.endDate;
@@ -1370,6 +1382,25 @@ export class ContactPageView extends ItemView {
 					delete this.contactData.location;
 				}
 				await this.saveContactData();
+				// Keep the filename in step with the name (same sanitizing
+				// as plan creation)
+				if (renamed && this._file?.parent) {
+					const safeName =
+						details.name
+							.replace(/[\\/:*?"<>|#^[\]]/g, "-")
+							.trim() || "Plan";
+					const newPath = `${this._file.parent.path}/${safeName}.md`;
+					if (newPath !== this._file.path) {
+						try {
+							await this.app.fileManager.renameFile(
+								this._file,
+								newPath
+							);
+						} catch (error) {
+							new Notice(`Error renaming plan: ${error}`);
+						}
+					}
+				}
 				this.render();
 			},
 			() => this.confirmDeletePlan()
@@ -3584,6 +3615,15 @@ export class ContactPageView extends ItemView {
 			});
 		}
 
+		// People and plans carry a last-updated stamp; group pages don't
+		const path = this._file.path;
+		const stampUpdated =
+			path.startsWith(
+				this.plugin.contactOperations.getPeopleFolderPath() + "/"
+			) ||
+			path.startsWith(
+				this.plugin.planOperations.getPlansFolderPath() + "/"
+			);
 		await this.app.fileManager.processFrontMatter(
 			this._file,
 			(frontmatter: Record<string, unknown>) => {
@@ -3594,6 +3634,9 @@ export class ContactPageView extends ItemView {
 				}
 				if (!("interactions" in this.contactData)) {
 					delete frontmatter.interactions;
+				}
+				if (stampUpdated) {
+					frontmatter.updated = todayISO();
 				}
 			}
 		);

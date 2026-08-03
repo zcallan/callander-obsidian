@@ -11,6 +11,7 @@ import type {
 import {
 	IDEA_CATEGORIES,
 	EVENT_TYPES,
+	REMINDER_TYPES,
 	formatSomedayDays,
 	formatSomedaySeasons,
 } from "@/constants";
@@ -256,7 +257,7 @@ export class DashboardView extends ItemView {
 	private async renderDrafts(container: HTMLElement) {
 		const ops = this.plugin.contactOperations;
 		const inboxFile = this.app.vault.getAbstractFileByPath(
-			ops.getInboxPath()
+			ops.getDashboardFilePath()
 		);
 		const inboxDrafts = await ops.getInboxDrafts();
 
@@ -494,6 +495,22 @@ export class DashboardView extends ItemView {
 			).open();
 		});
 
+		// Reminders moved from the single Reminders.md store to one file
+		// each under Reminders/. Old rows still work, but nudge people to
+		// move across. TODO(~2026-09): remove along with the legacy store.
+		const legacyCount =
+			this.plugin.reminderOperations.legacyReminderCount();
+		if (legacyCount > 0) {
+			section.createDiv({
+				cls: "section-helper-text dashboard-migration-note",
+				text: `⚠️ Reminders now live in their own folder, and ${
+					legacyCount === 1
+						? "1 of yours is"
+						: `${legacyCount} of yours are`
+				} still in the old Reminders.md. Re-add each with "Add reminder", delete the old one here, then remove Reminders.md.`,
+			});
+		}
+
 		if (items.length === 0) {
 			section.createDiv({
 				cls: "section-helper-text",
@@ -530,11 +547,17 @@ export class DashboardView extends ItemView {
 				const r = item.reminder;
 				const lead = splitLeadingEmoji(r.name);
 				const { date, relative } = this.upcomingWhen(r.date ?? "", now);
+				// Legacy Reminders.md rows wear the migration warning instead
+				// of their own icon (goes away with the legacy store)
+				const legacy = !r.file;
+				const typeEmoji = REMINDER_TYPES.find(
+					(t) => t.id === r.type
+				)?.emoji;
 				this.renderUpcomingRow(section, {
-					icon: lead ? lead.emoji : "⏰",
+					icon: legacy ? "⚠️" : lead ? lead.emoji : typeEmoji ?? "⏰",
 					date: date || "Anytime",
 					time: r.time ? this.formatReminderTime(r.time) : "",
-					name: lead ? lead.rest : r.name,
+					name: legacy || !lead ? r.name : lead.rest,
 					suffix: r.location ?? "",
 					relative,
 					onClick: () =>
@@ -569,18 +592,29 @@ export class DashboardView extends ItemView {
 			suffix: string;
 			relative: string;
 			onClick: () => void;
+			/** Right-hand button, shown in place of the relative text */
+			action?: {
+				icon: string;
+				label: string;
+				ariaLabel: string;
+				onClick: (e: MouseEvent) => void;
+			};
 		}
 	) {
 		const row = section.createDiv({
 			cls: "dashboard-row dashboard-row-clickable dashboard-upcoming-row",
 		});
 		const mainCol = row.createDiv({ cls: "dashboard-upcoming-main" });
-		mainCol.createDiv({
-			cls: "dashboard-upcoming-when",
-			text: `${opts.icon ? opts.icon + " " : ""}${opts.date}${
-				opts.time ? " · " + opts.time : ""
-			}`,
-		});
+		// Rows without a date (missed birthdays) are single-line — skip the
+		// when line entirely rather than leaving an empty gap above the name
+		if (opts.icon || opts.date || opts.time) {
+			mainCol.createDiv({
+				cls: "dashboard-upcoming-when",
+				text: `${opts.icon ? opts.icon + " " : ""}${opts.date}${
+					opts.time ? " · " + opts.time : ""
+				}`,
+			});
+		}
 		const nameEl = mainCol.createDiv({
 			cls: "dashboard-upcoming-name",
 		});
@@ -591,7 +625,15 @@ export class DashboardView extends ItemView {
 				text: ` • ${opts.suffix}`,
 			});
 		}
-		if (opts.relative) {
+		if (opts.action) {
+			const button = row.createEl("button", {
+				cls: "callander-button dashboard-row-action",
+				attr: { "aria-label": opts.action.ariaLabel },
+			});
+			setIcon(button, opts.action.icon);
+			button.createSpan({ text: opts.action.label });
+			button.addEventListener("click", opts.action.onClick);
+		} else if (opts.relative) {
 			row.createSpan({
 				cls: "dashboard-upcoming-rel",
 				text: opts.relative,
@@ -639,6 +681,20 @@ export class DashboardView extends ItemView {
 			else if (days <= 90) relative = `in ${days} days`;
 			else relative = `in ${Math.round(days / 30)} months`;
 			return { date, relative };
+		}
+		// Month precision ("August 2026"): counting days would imply a
+		// precision we don't have, so compare whole months instead.
+		if (p.year !== null && p.month !== null) {
+			const months =
+				(p.year - now.getFullYear()) * 12 +
+				(p.month - (now.getMonth() + 1));
+			let relative: string;
+			if (months === 0) relative = "this month";
+			else if (months === 1) relative = "next month";
+			else if (months === -1) relative = "last month";
+			else if (months < 0) relative = `${-months} months ago`;
+			else relative = `in ${months} months`;
+			return { date: formatFlexDate(p), relative };
 		}
 		return { date: formatFlexDate(p), relative: "" };
 	}
@@ -732,31 +788,49 @@ export class DashboardView extends ItemView {
 		}
 
 		const now = new Date();
+		const today = new Date(now);
+		today.setHours(0, 0, 0, 0);
 		for (const plan of plans) {
 			// A leading emoji in the plan name stands in as the row icon
 			const lead = splitLeadingEmoji(plan.name);
 			const { date, relative } = this.upcomingWhen(plan.date, now);
 
+			const startFlex = parseFlexDate(plan.date);
+			const endFlex = parseFlexDate(plan.endDate);
+
 			// Multi-day plans read as a range: "Saturday Aug 16 - Aug 17"
 			let when = date;
-			const endFlex = parseFlexDate(plan.endDate);
-			if (
-				when &&
-				endFlex &&
-				endFlex.month !== null &&
-				endFlex.day !== null
-			) {
-				const startYear = parseFlexDate(plan.date)?.year;
+			let endDay: Date | null = null;
+			if (endFlex && endFlex.month !== null && endFlex.day !== null) {
 				const endYear =
-					endFlex.year ?? startYear ?? now.getFullYear();
-				when += ` - ${new Date(
-					endYear,
-					endFlex.month - 1,
-					endFlex.day
-				).toLocaleDateString("en-US", {
-					month: "short",
-					day: "numeric",
-				})}`;
+					endFlex.year ?? startFlex?.year ?? now.getFullYear();
+				endDay = new Date(endYear, endFlex.month - 1, endFlex.day);
+				if (when) {
+					when += ` - ${endDay.toLocaleDateString("en-US", {
+						month: "short",
+						day: "numeric",
+					})}`;
+				}
+			}
+
+			// A plan that's underway reads as "today" for its whole span:
+			// the start date's "3 days ago" would suggest it had passed
+			let relativeText = relative;
+			if (
+				endDay &&
+				startFlex &&
+				startFlex.year !== null &&
+				startFlex.month !== null &&
+				startFlex.day !== null
+			) {
+				const startDay = new Date(
+					startFlex.year,
+					startFlex.month - 1,
+					startFlex.day
+				);
+				if (today >= startDay && today <= endDay) {
+					relativeText = "today";
+				}
 			}
 
 			// Location and rough budget sit beside the name
@@ -770,7 +844,7 @@ export class DashboardView extends ItemView {
 				date: when || "No date yet",
 				name: lead ? lead.rest : plan.name,
 				suffix: details.join(" • "),
-				relative,
+				relative: relativeText,
 				onClick: () => void this.openContact(plan.file),
 			});
 		}
@@ -1039,38 +1113,26 @@ export class DashboardView extends ItemView {
 		}
 
 		for (const c of upcoming) {
-			const row = section.createDiv({
-				cls: "dashboard-row dashboard-row-clickable",
-			});
 			const days = c.daysUntilBirthday!;
-			const when =
-				days === 0
-					? "today! 🎂"
-					: days === 1
-					? "tomorrow"
-					: `in ${days} days`;
-			const label = row.createSpan({
-				text: `${c.displayName} — ${when}`,
-			});
-			if (days >= 1) {
-				label.createSpan({
-					cls: "dashboard-row-date",
-					text: ` · ${this.formatDayDate(days)}`,
-				});
-			}
 			const giftCount = c.ideas.filter(
 				(i) => !i.done && i.category === "gift"
 			).length;
-			row.createSpan({
-				cls: "dashboard-row-meta",
-				text:
+			this.renderUpcomingRow(section, {
+				icon: "",
+				date: this.formatDayDate(days),
+				name: c.displayName,
+				suffix:
 					giftCount > 0
-						? `🎁 ${giftCount} idea${
-								giftCount > 1 ? "s" : ""
-						  } saved`
+						? `${giftCount} gift idea${giftCount > 1 ? "s" : ""}`
 						: "no gift ideas yet",
+				relative:
+					days === 0
+						? "today! 🎂"
+						: days === 1
+						? "tomorrow"
+						: `in ${days} days`,
+				onClick: () => void this.openContact(c.file),
 			});
-			row.addEventListener("click", () => void this.openContact(c.file));
 		}
 	}
 
@@ -1120,39 +1182,34 @@ export class DashboardView extends ItemView {
 		section.createEl("h3", { text: "🕯️ Missed birthdays" });
 
 		for (const c of missed) {
-			const row = section.createDiv({ cls: "dashboard-row" });
-			const label = row.createSpan({
-				cls: "dashboard-row-clickable-label",
-				text: `${c.displayName} — was ${
-					c.daysSinceBirthday === 1
-						? "yesterday"
-						: `${c.daysSinceBirthday} days ago`
-				}`,
-			});
-			label.createSpan({
-				cls: "dashboard-row-date",
-				text: ` · ${this.formatDayDate(-c.daysSinceBirthday!)}`,
-			});
-			label.addEventListener("click", () =>
-				void this.openContact(c.file)
-			);
-
-			const wishedButton = row.createEl("button", {
-				cls: "callander-button dashboard-row-action",
-				attr: { "aria-label": "Mark as wished" },
-			});
-			setIcon(wishedButton, "check");
-			wishedButton.createSpan({ text: "Done" });
+			const daysSince = c.daysSinceBirthday!;
 			const handleWished = async (e: MouseEvent) => {
+				// Don't also open the contact page behind the modal
 				e.stopPropagation();
 				await this.plugin.contactOperations.markBirthdayWished(
 					c.file,
-					this.lastOccurrenceDate(c.daysSinceBirthday!)
+					this.lastOccurrenceDate(daysSince)
 				);
 				new Notice(`🎈 Nice — ${c.displayName} checked off`);
 				await this.refresh();
 			};
-			wishedButton.addEventListener("click", (e) => void handleWished(e));
+			this.renderUpcomingRow(section, {
+				icon: "",
+				date: "",
+				name: c.displayName,
+				suffix:
+					daysSince === 1
+						? "yesterday"
+						: `${daysSince} days ago`,
+				relative: "",
+				onClick: () => void this.openContact(c.file),
+				action: {
+					icon: "check",
+					label: "Done",
+					ariaLabel: "Mark as wished",
+					onClick: (e) => void handleWished(e),
+				},
+			});
 		}
 	}
 

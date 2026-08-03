@@ -166,6 +166,20 @@ export const EVENT_TYPES = [
 
 export type EventType = (typeof EVENT_TYPES)[number]["id"];
 
+// Reminder types — "task" is the plain default; the rest are outings.
+export const REMINDER_TYPES = [
+	{ id: "task", label: "Task", emoji: "⏰" },
+	{ id: "party", label: "Party", emoji: "🎉" },
+	{ id: "concert", label: "Concert", emoji: "🎸" },
+	{ id: "movie", label: "Movie", emoji: "🍿" },
+	{ id: "hangout", label: "Hangout", emoji: "🤝" },
+	{ id: "event", label: "Event", emoji: "📅" },
+	{ id: "comedy", label: "Comedy", emoji: "🎭" },
+	{ id: "other", label: "Other", emoji: "⏰" },
+] as const;
+
+export type ReminderType = (typeof REMINDER_TYPES)[number]["id"];
+
 // Plan ideas carry a category and a priority — a plan is a menu.
 export const PLAN_IDEA_CATEGORIES = [
 	{ id: "activity", label: "Activity", emoji: "🥾" },

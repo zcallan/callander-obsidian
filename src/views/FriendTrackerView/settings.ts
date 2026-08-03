@@ -88,6 +88,15 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				},
 			},
 			{
+				name: "Dashboard file name",
+				desc: "Note in the base folder that opens the Callander dashboard — quick ideas and drafts are stored in its properties",
+				control: {
+					type: "text",
+					key: "dashboardFileName",
+					placeholder: "Dashboard",
+				},
+			},
+			{
 				name: "Belated birthday window",
 				desc: 'For this many days after a birthday, show "birthday was X days ago" so you can still send a belated message',
 				control: {
@@ -203,6 +212,10 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		if (key === "baseFolder" || key === "diaryFolder") {
 			value = normalizePath(String(value));
 		}
+		// A basename, not a path — strip separators and stray whitespace
+		if (key === "dashboardFileName") {
+			value = String(value).replace(/[\\/]/g, "-").trim();
+		}
 		Object.assign(this.plugin.settings, { [key]: value });
 		return this.plugin.saveSettings();
 	}
@@ -246,6 +259,22 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.diaryFolder)
 					.onChange(async (value) => {
 						this.plugin.settings.diaryFolder = normalizePath(value);
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Dashboard file name")
+			.setDesc(
+				"Note in the base folder that opens the Callander dashboard — quick ideas and drafts are stored in its properties"
+			)
+			.addText((text) => {
+				text.setPlaceholder("Dashboard")
+					.setValue(this.plugin.settings.dashboardFileName)
+					.onChange(async (value) => {
+						this.plugin.settings.dashboardFileName = value
+							.replace(/[\\/]/g, "-")
+							.trim();
 						await this.plugin.saveSettings();
 					});
 			});

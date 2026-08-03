@@ -15,6 +15,7 @@ import type {
 	PlanTimelineEntry,
 } from "@/types";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
+import { todayISO } from "@/utils/flexdate";
 
 /** The named field when it's a non-empty string, else undefined. */
 function strFieldOf(value: unknown, key: string): string | undefined {
@@ -272,18 +273,31 @@ export class PlanOperations {
 		const end = endDate.trim() ? `endDate: ${endDate.trim()}\n` : "";
 		return await this.app.vault.create(
 			path,
-			`---\nname: ${JSON.stringify(name)}\ndate: ${date}\n${end}${loc}status: planning\n---\n`
+			`---\nname: ${JSON.stringify(
+				name
+			)}\ndate: ${date}\n${end}${loc}status: planning\ncreated: ${todayISO()}\nupdated: ${todayISO()}\n---\n`
+		);
+	}
+
+	/** Every write goes through here so the file's `updated` stamp stays true. */
+	private async writePlan(
+		file: TFile,
+		fn: (fm: Record<string, unknown>) => void
+	): Promise<void> {
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fn(fm);
+				fm.updated = todayISO();
+			}
 		);
 	}
 
 	/** Quick-capture path: append an idea without opening the plan */
 	async addItem(file: TFile, item: PlanItem): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
-				fm.items = [...PlanOperations.itemsOf(fm), item];
-			}
-		);
+		await this.writePlan(file, (fm) => {
+			fm.items = [...PlanOperations.itemsOf(fm), item];
+		});
 	}
 
 	/** Bring items are a checklist; legacy plain strings read as unchecked */
@@ -302,15 +316,9 @@ export class PlanOperations {
 
 	/** Quick-capture path for the bring list */
 	async addBringItem(file: TFile, text: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
-				fm.bring = [
-					...PlanOperations.bringOf(fm),
-					{ text, done: false },
-				];
-			}
-		);
+		await this.writePlan(file, (fm) => {
+			fm.bring = [...PlanOperations.bringOf(fm), { text, done: false }];
+		});
 	}
 
 	/** Sum of per-item costs across ideas, travel and accommodation */

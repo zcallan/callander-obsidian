@@ -7,6 +7,7 @@ import { FriendTrackerView } from "@/views/FriendTrackerView";
 import { createRelationshipInput } from "@/components/ContactFields";
 import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
+import { todayISO } from "@/utils/flexdate";
 
 export class AddContactModal extends FormModal {
 	constructor(app: App, private plugin: FriendTracker) {
@@ -181,6 +182,8 @@ export class AddContactModal extends FormModal {
 
 	private async onSubmit(data: Record<string, string | string[]>) {
 		const ops = this.plugin.contactOperations;
+		data.created = todayISO();
+		data.updated = todayISO();
 		const fileName = `${String(data.name)}.md`;
 		const filePath = `${ops.getPeopleFolderPath()}/${fileName}`;
 
