@@ -13,7 +13,8 @@ export class EventModal extends FormModal {
 		text: string,
 		type: EventType,
 		location: string,
-		link: string
+		link: string,
+		description: string
 	) => void | Promise<void>;
 
 	constructor(
@@ -24,7 +25,8 @@ export class EventModal extends FormModal {
 			text: string,
 			type: EventType,
 			location: string,
-			link: string
+			link: string,
+			description: string
 		) => void | Promise<void>,
 		private onDelete?: () => Promise<void>,
 		private onCopy?: () => void
@@ -45,6 +47,21 @@ export class EventModal extends FormModal {
 		contentEl.createEl("h2", {
 			text: this.event ? "Edit event" : "Add event",
 		});
+
+		// The event itself first — the one thing you always fill in
+		const textField = contentEl.createDiv({
+			cls: "callander-modal-field",
+		});
+		textField.createEl("label", { text: "Event" });
+		const textInput = textField.createEl("input", {
+			cls: "callander-modal-input",
+			attr: {
+				type: "text",
+				placeholder:
+					"A meetup, a life event of theirs, a memorable outing...",
+			},
+		});
+		textInput.value = this.event?.text || "";
 
 		// Type picker: one row of emoji buttons, hangout is the default
 		const typeRow = contentEl.createDiv({
@@ -92,14 +109,18 @@ export class EventModal extends FormModal {
 			}
 		);
 
-		const textInput = contentEl.createEl("textarea", {
+		const descField = contentEl.createDiv({
+			cls: "callander-modal-field",
+		});
+		descField.createEl("label", { text: "Description (optional)" });
+		const descInput = descField.createEl("textarea", {
 			attr: {
 				placeholder:
-					"What happened? A meetup, a life event of theirs, a memorable outing...",
+					"Any details worth keeping — how it went, who else was there...",
 			},
 			cls: "contact-event-text-input",
 		});
-		textInput.value = this.event?.text || "";
+		descInput.value = this.event?.description || "";
 
 		const locationField = contentEl.createDiv({
 			cls: "callander-modal-field",
@@ -187,20 +208,29 @@ export class EventModal extends FormModal {
 				text,
 				this.type,
 				locationInput.value.trim(),
-				linkInput.value.trim()
+				linkInput.value.trim(),
+				descInput.value.trim()
 			);
 			this.close();
 		};
 
 		saveButton.addEventListener("click", submit);
-		const onKeydown = (event: KeyboardEvent) => {
-			if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+		// Enter submits from the single-line fields; the description
+		// textarea needs cmd/ctrl+Enter so plain Enter can add lines
+		const onEnter = (event: KeyboardEvent) => {
+			if (event.key === "Enter") {
 				event.preventDefault();
 				submit();
 			}
 		};
-		textInput.addEventListener("keydown", onKeydown);
-		locationInput.addEventListener("keydown", onKeydown);
+		textInput.addEventListener("keydown", onEnter);
+		locationInput.addEventListener("keydown", onEnter);
+		descInput.addEventListener("keydown", (event) => {
+			if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+				event.preventDefault();
+				submit();
+			}
+		});
 
 		window.setTimeout(() => textInput.focus(), 0);
 	}

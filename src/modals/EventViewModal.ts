@@ -92,11 +92,18 @@ export class EventViewModal extends Modal {
 			new EventModal(
 				this.app,
 				event,
-				async (date, text, eventType, location, link) => {
+				async (date, text, eventType, location, link, description) => {
 					await this.plugin.contactOperations.updateEventInFile(
 						this.contact.file,
 						event,
-						{ date, text, type: eventType, location, link }
+						{
+							date,
+							text,
+							type: eventType,
+							location,
+							link,
+							description,
+						}
 					);
 					// Same object reference the dashboard's contact list holds —
 					// mutate it in place so the change is visible immediately.
@@ -107,6 +114,8 @@ export class EventViewModal extends Modal {
 					else delete event.location;
 					if (link) event.link = link;
 					else delete event.link;
+					if (description) event.description = description;
+					else delete event.description;
 					await this.onChange();
 				},
 				async () => {

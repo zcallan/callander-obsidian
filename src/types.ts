@@ -1,5 +1,7 @@
 import { TFile } from "obsidian";
 import type {
+	AccommodationType,
+	BookingState,
 	EventType,
 	IdeaCategory,
 	InterestCategory,
@@ -103,14 +105,24 @@ export interface PlanSimpleItem {
 	text: string;
 	/** Mode of transport — travel legs only. */
 	type?: TravelType;
-	/** ISO date (YYYY-MM-DD) — travel legs, for chronological ordering. */
+	/** Kind of stay — accommodation only. */
+	stay?: AccommodationType;
+	/** ISO date (YYYY-MM-DD): travel legs and check-in nights. */
 	date?: string;
 	/** 24h time (HH:MM) — travel legs, refines ordering within a day. */
 	time?: string;
-	/** Who's on this leg, free text, e.g. "me, Riley, Laura". */
+	/** Who's on this leg / staying, free text, e.g. "me, Riley, Laura". */
 	people?: string;
-	/** Free-text span, e.g. "3 nights", "2h flight", "Fri–Sun". */
+	/** Free-text span for travel, e.g. "2h flight". Stays use `nights`. */
 	duration?: string;
+	/** Whole nights at this accommodation. */
+	nights?: number;
+	/** Street address — openable in Google Maps. */
+	address?: string;
+	/** Booking status — accommodation only; absent means no booking needed. */
+	booked?: BookingState;
+	/** Check-in/out times, door codes — anything worth having on hand. */
+	notes?: string;
 	cost?: number;
 }
 
@@ -128,7 +140,19 @@ export interface PlanTimelineEntry {
 	people?: string;
 	text: string;
 	emoji: string;
+	/** Idea entries only — carried so a read view can label them. */
+	category?: PlanIdeaCategory;
+	priority?: PlanPriority;
+	/** Accommodation entries only — the kind of stay. */
+	stay?: AccommodationType;
+	/** Travel entries only — the mode of transport. */
+	travel?: TravelType;
 	duration?: string;
+	/** Stay length — accommodation entries (shown once, on check-in day). */
+	nights?: number;
+	address?: string;
+	booked?: BookingState;
+	notes?: string;
 	cost?: number;
 }
 
@@ -193,6 +217,8 @@ export interface SortConfig {
 export interface FriendEvent {
 	date: string;
 	text: string;
+	/** Optional details, shown under the name on the timeline */
+	description?: string;
 	/** Optional — legacy/untyped events are fine and render neutral */
 	type?: EventType;
 	/** Optional where it happened, shown after the text on the timeline */

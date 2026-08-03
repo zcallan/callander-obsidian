@@ -481,6 +481,7 @@ export class ContactOperations {
 			type: EventType;
 			location?: string;
 			link?: string;
+			description?: string;
 		}
 	): Promise<void> {
 		await this.writeFrontMatter(file, (fm) => {
@@ -499,6 +500,9 @@ export class ContactOperations {
 				else delete events[index].location;
 				if (updated.link) events[index].link = updated.link;
 				else delete events[index].link;
+				if (updated.description)
+					events[index].description = updated.description;
+				else delete events[index].description;
 				delete fm.interactions;
 				fm.events = events;
 			}

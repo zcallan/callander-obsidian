@@ -39,7 +39,8 @@ import {
 	PLAN_IDEA_CATEGORIES,
 	TRAVEL_TYPES,
 	TRAVEL_TYPE_EMOJI,
-	roughTime,
+	ACCOMMODATION_EMOJI,
+	BOOKING_STATES,
 } from "@/constants";
 import type {
 	PlanCost,
@@ -53,6 +54,18 @@ import { PlanDetailsModal } from "@/modals/PlanDetailsModal";
 import { AddPlanMemberModal } from "@/modals/AddPlanMemberModal";
 import { PlanItemModal } from "@/modals/PlanItemModal";
 import { PlanSimpleItemModal } from "@/modals/PlanSimpleItemModal";
+import { PlanTimelineViewModal } from "@/modals/PlanTimelineViewModal";
+import {
+	buildPlanShareText,
+	formatPlanDateRange,
+} from "@/utils/planShare";
+import {
+	formatItemCost,
+	formatItemTime,
+	formatTimelineDay,
+	nightsLabel,
+	nightsSummary,
+} from "@/utils/planFormat";
 import { ScheduleFieldOptions } from "@/modals/scheduleFields";
 import { InterestModal } from "@/modals/InterestModal";
 import { PlanCostModal } from "@/modals/PlanCostModal";
@@ -1298,7 +1311,10 @@ export class ContactPageView extends ItemView {
 		const parts: string[] = [];
 		const dateFlex = parseFlexDate(this.contactData.date);
 		if (dateFlex) {
-			let when = this.formatPlanDateRange();
+			let when = formatPlanDateRange(
+				this.contactData.date,
+				this.contactData.endDate
+			);
 			if (dateFlex.month !== null && dateFlex.day !== null) {
 				const target = new Date(
 					dateFlex.year ?? new Date().getFullYear(),
@@ -1475,39 +1491,6 @@ export class ContactPageView extends ItemView {
 	}
 
 	/** "Thu 30 Jul - Sun 2 Aug", "Thu 30 Jul", or just "October" */
-	private formatPlanDateRange(): string {
-		const start = parseFlexDate(this.contactData.date);
-		if (!start) return "";
-		const end = parseFlexDate(this.contactData.endDate);
-
-		const exact = (d: {
-			year: number | null;
-			month: number | null;
-			day: number | null;
-		}) =>
-			d.year !== null && d.month !== null && d.day !== null
-				? new Date(d.year, d.month - 1, d.day)
-				: null;
-
-		const startDate = exact(start);
-		const endDate = end ? exact(end) : null;
-
-		if (!startDate) return formatFlexDate(start);
-
-		// Both ends fully formatted, day-first: "Thu 30 Jul"
-		const fmt = (d: Date) =>
-			d.toLocaleDateString("en-AU", {
-				weekday: "short",
-				day: "numeric",
-				month: "short",
-			});
-
-		if (!endDate || endDate.getTime() === startDate.getTime()) {
-			return fmt(startDate);
-		}
-		return `${fmt(startDate)} - ${fmt(endDate)}`;
-	}
-
 	/** Member display names — resolved contacts use displayName, guests as-is */
 	private planMemberDisplays(list?: string[]): string[] {
 		const members =
@@ -1531,106 +1514,18 @@ export class ContactPageView extends ItemView {
 
 	/** The iMessage-ready version of a plan. Costs stay out of the invite. */
 	private buildPlanShareText(): string {
-		const lines: string[] = [String(this.contactData.name ?? "")];
-
-		const range = this.formatPlanDateRange();
-		if (range) lines.push(range);
-		if (this.contactData.location) {
-			lines.push(String(this.contactData.location));
-		}
-
-		// You're on the trip too — lead with your name, dedupe if you
-		// also happen to be listed as a guest
-		const yourName = this.plugin.settings.yourName;
-		const memberNames = this.planMemberDisplays().filter(
-			(n) => !yourName || n.toLowerCase() !== yourName.toLowerCase()
-		);
-		const fullNames = yourName ? [yourName, ...memberNames] : memberNames;
-		const unconfirmedFulls = this.planMemberDisplays(
-			Array.isArray(this.contactData.unconfirmedMembers)
-				? this.contactData.unconfirmedMembers
-				: []
-		);
-		// Shorten across the whole pool so dupes disambiguate consistently
-		const shortened = this.shortenMemberNames([
-			...fullNames,
-			...unconfirmedFulls,
-		]);
-		const names = shortened.slice(0, fullNames.length);
-		const unconfirmedNames = shortened.slice(fullNames.length);
-		if (names.length > 0) {
-			lines.push(`${names.join(", ")} (${names.length})`);
-		}
-		if (unconfirmedNames.length > 0) {
-			lines.push(`Unconfirmed: ${unconfirmedNames.join(", ")}`);
-		}
-
-		// Travel & accommodation as plain context lines
-		const withDuration = (i: { text: string; duration?: string }) =>
-			i.duration ? `${i.text} (${i.duration})` : i.text;
-		const travel = PlanOperations.simpleListOf(this.contactData, "travel");
-		travel.forEach((t) => {
-			const icon = t.type ? `${TRAVEL_TYPE_EMOJI[t.type]} ` : "";
-			const when = [
-				t.date ? this.formatTravelDate(t.date) : "",
-				t.time ? this.formatItemTime(t.time) : "",
-			]
-				.filter(Boolean)
-				.join(" ");
-			const prefix = when ? `${when} — ` : "";
-			const who = t.people ? ` (${t.people})` : "";
-			lines.push(`${icon}${prefix}${withDuration(t)}${who}`);
-		});
-		const stay = PlanOperations.simpleListOf(
-			this.contactData,
-			"accommodation"
-		);
-		stay.forEach((a) => lines.push(withDuration(a)));
-
-		const items = asArray(this.contactData.items) as PlanItem[];
-
-		// Ideas under one "Plans:" heading — must-dos first, maybes marked
-		if (items.length > 0) {
-			lines.push("", "Plans:");
-			const musts = items.filter(
-				(i) => (i.priority ?? "maybe") === "must"
-			);
-			const maybes = items.filter(
-				(i) => (i.priority ?? "maybe") !== "must"
-			);
-			musts.forEach((i) => lines.push(`- ${i.text}`));
-			maybes.forEach((i) => lines.push(`- ${i.text} (if there's time)`));
-		}
-
-		// Checked state stays personal — the message lists everything
-		const bring = PlanOperations.bringOf(this.contactData);
-		if (bring.length > 0) {
-			lines.push("", "Bring:");
-			bring.forEach((b) => lines.push(`- ${b.text}`));
-		}
-
-		return lines.join("\n");
-	}
-
-	/**
-	 * Message style: first names only — with a last initial appended when
-	 * two people share a first name ("Austin M, Austin P").
-	 */
-	private shortenMemberNames(fullNames: string[]): string[] {
-		const firstCounts = new Map<string, number>();
-		for (const name of fullNames) {
-			const first = name.trim().split(/\s+/)[0].toLowerCase();
-			firstCounts.set(first, (firstCounts.get(first) ?? 0) + 1);
-		}
-		return fullNames.map((name) => {
-			const parts = name.trim().split(/\s+/);
-			const first = parts[0];
-			const isDupe = (firstCounts.get(first.toLowerCase()) ?? 0) > 1;
-			if (isDupe && parts.length > 1) {
-				return `${first} ${parts[1].charAt(0).toUpperCase()}`;
+		return buildPlanShareText(
+			this.contactData as Record<string, unknown>,
+			{
+				yourName: this.plugin.settings.yourName,
+				members: this.planMemberDisplays(),
+				unconfirmed: this.planMemberDisplays(
+					Array.isArray(this.contactData.unconfirmedMembers)
+						? this.contactData.unconfirmedMembers
+						: []
+				),
 			}
-			return first;
-		});
+		);
 	}
 
 	/** Resolve the plan's wikilink members to contact files */
@@ -1956,7 +1851,7 @@ export class ContactPageView extends ItemView {
 				if (item.cost !== undefined) {
 					textEl.createSpan({
 						cls: "plan-item-cost",
-						text: ` · ${this.formatItemCost(item.cost)}`,
+						text: ` · ${formatItemCost(item.cost)}`,
 					});
 				}
 				if (item.people) {
@@ -2017,14 +1912,16 @@ export class ContactPageView extends ItemView {
 			const textEl = row.createDiv({
 				cls: "contact-idea-text",
 			});
-			if (
-				item.type &&
-				TRAVEL_TYPE_EMOJI[item.type] &&
-				!this.startsWithEmoji(item.text)
-			) {
+			const icon =
+				key === "accommodation"
+					? (item.stay && ACCOMMODATION_EMOJI[item.stay]) || "🛏️"
+					: item.type
+					? TRAVEL_TYPE_EMOJI[item.type]
+					: "";
+			if (icon && !this.startsWithEmoji(item.text)) {
 				textEl.createSpan({
 					cls: "plan-item-type-icon",
-					text: TRAVEL_TYPE_EMOJI[item.type],
+					text: icon,
 				});
 			}
 			textEl.createSpan({ text: item.text });
@@ -2034,16 +1931,37 @@ export class ContactPageView extends ItemView {
 					text: ` · ${item.duration}`,
 				});
 			}
+			if (item.nights) {
+				textEl.createSpan({
+					cls: "plan-item-duration",
+					text: ` · ${
+						nightsLabel(item.nights)
+					}`,
+				});
+			}
 			if (item.cost !== undefined) {
 				textEl.createSpan({
 					cls: "plan-item-cost",
-					text: ` · ${this.formatItemCost(item.cost)}`,
+					text: ` · ${formatItemCost(item.cost)}`,
 				});
 			}
 			if (item.people) {
 				textEl.createSpan({
 					cls: "plan-item-people",
 					text: ` · ${item.people}`,
+				});
+			}
+			const booking = BOOKING_STATES.find((b) => b.id === item.booked);
+			if (booking && booking.id !== "none") {
+				textEl.createSpan({
+					cls: "plan-item-booking",
+					text: ` · ${booking.emoji} ${booking.label}`,
+				});
+			}
+			if (item.notes) {
+				row.createDiv({
+					cls: "plan-stay-notes",
+					text: item.notes,
 				});
 			}
 		});
@@ -2067,38 +1985,6 @@ export class ContactPageView extends ItemView {
 	}
 
 	/** Item cost label: an explicit 0 reads as "Free"; blank stays hidden. */
-	private formatItemCost(cost: number): string {
-		return cost === 0 ? "Free" : `$${cost}`;
-	}
-
-	/** "Thu 30 Jul" from an ISO date, en-AU. */
-	private formatTravelDate(iso: string): string {
-		const d = new Date(`${iso}T00:00:00`);
-		if (isNaN(d.getTime())) return iso;
-		const weekday = d.toLocaleDateString("en-AU", { weekday: "short" });
-		const dayMonth = d.toLocaleDateString("en-AU", {
-			day: "numeric",
-			month: "short",
-		});
-		return `${weekday} ${dayMonth}`;
-	}
-
-	/**
-	 * Rough time → its label ("Morning"); exact "HH:MM" → "10:00am" / "2:30pm";
-	 * anything else passes through.
-	 */
-	private formatItemTime(time: string): string {
-		const rough = roughTime(time);
-		if (rough) return rough.label;
-		const m = /^(\d{1,2}):(\d{2})$/.exec(time);
-		if (!m) return time;
-		let hour = parseInt(m[1], 10);
-		const minute = m[2];
-		const ampm = hour >= 12 ? "pm" : "am";
-		hour = hour % 12 || 12;
-		return `${hour}:${minute}${ampm}`;
-	}
-
 	/**
 	 * The plan as an itinerary: every dated item across ideas, travel and
 	 * accommodation, grouped by day, earliest first. Derived on the fly from
@@ -2142,7 +2028,7 @@ export class ContactPageView extends ItemView {
 			for (const day of sortedDays) {
 				timeline.createDiv({
 					cls: "contact-timeline-year plan-timeline-day",
-					text: this.formatTimelineDay(day),
+					text: formatTimelineDay(day),
 				});
 				const dayEntries = byDay.get(day);
 				if (dayEntries && dayEntries.length > 0) {
@@ -2213,11 +2099,15 @@ export class ContactPageView extends ItemView {
 			cls: `contact-timeline-dot timeline-dot-${entry.source}`,
 		});
 
-		// Line 1: the time within the day (the day is the group header).
-		if (entry.time) {
+		// Line 1: the time within the day (the day is the group header). A stay
+		// has no clock time — it's simply where the day ends.
+		const isStay = entry.source === "accommodation";
+		if (isStay || entry.time) {
 			row.createDiv({
 				cls: "contact-timeline-date",
-				text: this.formatItemTime(entry.time),
+				text: isStay
+					? "Sleeping at"
+					: formatItemTime(entry.time as string),
 			});
 		}
 
@@ -2230,8 +2120,19 @@ export class ContactPageView extends ItemView {
 		});
 		const metaBits: string[] = [];
 		if (entry.duration) metaBits.push(entry.duration);
+		// Answers "when do we leave?" without a second timeline row.
+		if (entry.nights) {
+			metaBits.push(nightsSummary(entry.date, entry.nights));
+		}
 		if (entry.cost !== undefined)
-			metaBits.push(this.formatItemCost(entry.cost));
+			metaBits.push(formatItemCost(entry.cost));
+		// Only the state that still needs chasing earns a spot on the timeline.
+		// "Booked" and "Not needed" are resting states — the Accommodation
+		// section and the modals are where you go to check them.
+		const booking = BOOKING_STATES.find((b) => b.id === entry.booked);
+		if (booking && booking.id === "todo") {
+			metaBits.push(`${booking.emoji} ${booking.label}`);
+		}
 		if (metaBits.length) {
 			textEl.createSpan({
 				cls: "plan-travel-meta",
@@ -2245,6 +2146,56 @@ export class ContactPageView extends ItemView {
 				text: entry.people,
 			});
 		}
+
+		// Plain text here — the whole row is already a target that opens the
+		// read view, where the address gets its Map button.
+		if (entry.address) {
+			row.createDiv({
+				cls: "plan-stay-address",
+				text: `📍 ${entry.address}`,
+			});
+		}
+
+		if (entry.notes) {
+			row.createDiv({
+				cls: "plan-stay-notes",
+				text: entry.notes,
+			});
+		}
+
+		// Desktop hover shortcuts, so editing doesn't need the read view first.
+		// CSS hides these on touch, where tapping the row is the only path.
+		const actions = row.createDiv({ cls: "contact-timeline-actions" });
+		const editBtn = actions.createEl("button", {
+			cls: "callander-button",
+			attr: { "aria-label": "Edit" },
+		});
+		setIcon(editBtn, "pencil");
+		editBtn.createSpan({ text: "Edit" });
+		editBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			this.editTimelineEntry(entry);
+		});
+
+		const deleteBtn = actions.createEl("button", {
+			cls: "callander-button button-icon button-danger",
+			attr: { "aria-label": "Delete" },
+		});
+		setIcon(deleteBtn, "trash");
+		deleteBtn.addEventListener("click", (e) => {
+			e.stopPropagation();
+			const preview =
+				entry.text.length > 80
+					? entry.text.slice(0, 80) + "…"
+					: entry.text;
+			new ConfirmModal(
+				this.app,
+				"Delete from plan",
+				`Delete "${preview}"?`,
+				"Delete",
+				() => this.deleteTimelineEntry(entry)
+			).open();
+		});
 	}
 
 	/** True when the text already leads with an emoji/pictograph. */
@@ -2281,20 +2232,38 @@ export class ContactPageView extends ItemView {
 		return days;
 	}
 
-	/** "Thursday 30 July" from an ISO date, en-AU. */
-	private formatTimelineDay(iso: string): string {
-		const d = new Date(`${iso}T00:00:00`);
-		if (isNaN(d.getTime())) return iso;
-		const weekday = d.toLocaleDateString("en-AU", { weekday: "long" });
-		const dayMonth = d.toLocaleDateString("en-AU", {
-			day: "numeric",
-			month: "long",
-		});
-		return `${weekday} ${dayMonth}`;
+	/** Tapping a timeline row reads it first; Edit/Delete live in that view. */
+	private openTimelineEntry(entry: PlanTimelineEntry) {
+		new PlanTimelineViewModal(
+			this.app,
+			entry,
+			() => this.editTimelineEntry(entry),
+			() => this.deleteTimelineEntry(entry)
+		).open();
+	}
+
+	/** Remove a timeline row's underlying item from the plan. */
+	private async deleteTimelineEntry(entry: PlanTimelineEntry) {
+		if (entry.source === "idea") {
+			const current = PlanOperations.itemsOf(this.contactData);
+			current.splice(entry.index, 1);
+			if (current.length > 0) this.contactData.items = current;
+			else delete this.contactData.items;
+		} else {
+			const current = PlanOperations.simpleListOf(
+				this.contactData,
+				entry.source
+			);
+			current.splice(entry.index, 1);
+			if (current.length > 0) this.contactData[entry.source] = current;
+			else delete this.contactData[entry.source];
+		}
+		await this.saveContactData();
+		this.render();
 	}
 
 	/** Route a timeline row back to its real item's edit modal. */
-	private openTimelineEntry(entry: PlanTimelineEntry) {
+	private editTimelineEntry(entry: PlanTimelineEntry) {
 		if (entry.source === "idea") {
 			const item =
 				PlanOperations.itemsOf(this.contactData)[entry.index] ?? null;
@@ -2324,8 +2293,9 @@ export class ContactPageView extends ItemView {
 		if (startISO && endISO) {
 			opts.dayOptions = this.daysBetween(startISO, endISO).map((d) => ({
 				value: d,
-				label: this.formatTimelineDay(d),
+				label: formatTimelineDay(d),
 			}));
+			opts.lastDay = endISO;
 		}
 		return opts;
 	}
@@ -2422,10 +2392,15 @@ export class ContactPageView extends ItemView {
 			item
 				? {
 						text: item.text,
+						stay: item.stay,
 						date: item.date,
-						time: item.time,
 						people: item.people,
+						// Read only to migrate a legacy "3 nights" into `nights`.
 						duration: item.duration,
+						nights: item.nights,
+						address: item.address,
+						booked: item.booked,
+						notes: item.notes,
 						cost: item.cost,
 				  }
 				: null,
@@ -2457,7 +2432,8 @@ export class ContactPageView extends ItemView {
 						await this.saveContactData();
 						this.render();
 				  },
-			this.planScheduleOptions()
+			this.planScheduleOptions(),
+			true
 		).open();
 	}
 
@@ -3660,8 +3636,15 @@ export class ContactPageView extends ItemView {
 		const modal = new EventModal(
 			this.app,
 			null,
-			async (date, text, type, location, link) => {
-				await this.addEvent(date, text, type, location, link);
+			async (date, text, type, location, link, description) => {
+				await this.addEvent(
+					date,
+					text,
+					type,
+					location,
+					link,
+					description
+				);
 			}
 		);
 		modal.open();
@@ -3672,7 +3655,8 @@ export class ContactPageView extends ItemView {
 		text: string,
 		type: EventType,
 		location?: string,
-		link?: string
+		link?: string,
+		description?: string
 	) {
 		this.pushToList("events", {
 			date,
@@ -3680,6 +3664,7 @@ export class ContactPageView extends ItemView {
 			type,
 			...(location && { location }),
 			...(link && { link }),
+			...(description && { description }),
 		});
 		await this.saveContactData();
 		this.render();
@@ -3689,7 +3674,7 @@ export class ContactPageView extends ItemView {
 		const modal = new EventModal(
 			this.app,
 			event,
-			async (date, text, type, location, link) => {
+			async (date, text, type, location, link, description) => {
 				const events = this.eventsList();
 				this.contactData.events = events;
 				// Preserve extra properties (e.g. diary source link)
@@ -3708,6 +3693,11 @@ export class ContactPageView extends ItemView {
 					events[index].link = link;
 				} else {
 					delete events[index].link;
+				}
+				if (description) {
+					events[index].description = description;
+				} else {
+					delete events[index].description;
 				}
 				await this.saveContactData();
 				this.render();
