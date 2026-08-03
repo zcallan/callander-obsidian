@@ -2568,16 +2568,7 @@ If your plugin does not need CSS, delete this file.
 	font-size: 0.85em;
 }
 
-/* Plan rows: a touch more line separation, slightly larger detail line */
-.dashboard-plan-row {
-	gap: 5px;
-}
-
-.dashboard-plan-row .dashboard-diary-tagged {
-	font-size: 0.9em;
-}
-
-/* Diary rows share the plan-row rhythm */
+/* Diary rows */
 .dashboard-diary-row {
 	gap: 5px;
 }

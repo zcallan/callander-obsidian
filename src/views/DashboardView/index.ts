@@ -731,87 +731,48 @@ export class DashboardView extends ItemView {
 			return;
 		}
 
+		const now = new Date();
 		for (const plan of plans) {
-			const row = section.createDiv({
-				cls: "dashboard-row dashboard-row-clickable dashboard-diary-row dashboard-plan-row",
-			});
-			const main = row.createDiv({
-				cls: "dashboard-diary-main",
-			});
-			main.createSpan({ text: plan.name });
-			const metaParts: string[] = [];
-			const dateFlex = parseFlexDate(plan.date);
-			if (dateFlex) {
-				const fmtDay = (y: number, m: number, d: number) =>
-					new Date(y, m - 1, d).toLocaleDateString("en-AU", {
-						weekday: "short",
-						day: "numeric",
-						month: "short",
-					});
-				let when = formatFlexDate(dateFlex);
-				if (dateFlex.month !== null && dateFlex.day !== null) {
-					const year = dateFlex.year ?? new Date().getFullYear();
-					when = fmtDay(year, dateFlex.month, dateFlex.day);
-					const endFlex = parseFlexDate(plan.endDate);
-					if (
-						endFlex &&
-						endFlex.month !== null &&
-						endFlex.day !== null
-					) {
-						when += ` - ${fmtDay(
-							endFlex.year ?? year,
-							endFlex.month,
-							endFlex.day
-						)}`;
-					}
-					const target = new Date(
-						year,
-						dateFlex.month - 1,
-						dateFlex.day
-					);
-					target.setHours(0, 0, 0, 0);
-					const today = new Date();
-					today.setHours(0, 0, 0, 0);
-					const days = Math.round(
-						(target.getTime() - today.getTime()) / 86400000
-					);
-					if (days === 0) when += " · today!";
-					else if (days > 0) when += ` · in ${days} days`;
-					else when += " · passed — mark it done?";
-				}
-				metaParts.push(when);
-			}
-			if (metaParts.length > 0) {
-				main.createSpan({
-					cls: "dashboard-row-date",
-					text: metaParts.join(" · "),
-				});
+			// A leading emoji in the plan name stands in as the row icon
+			const lead = splitLeadingEmoji(plan.name);
+			const { date, relative } = this.upcomingWhen(plan.date, now);
+
+			// Multi-day plans read as a range: "Saturday Aug 16 - Aug 17"
+			let when = date;
+			const endFlex = parseFlexDate(plan.endDate);
+			if (
+				when &&
+				endFlex &&
+				endFlex.month !== null &&
+				endFlex.day !== null
+			) {
+				const startYear = parseFlexDate(plan.date)?.year;
+				const endYear =
+					endFlex.year ?? startYear ?? now.getFullYear();
+				when += ` - ${new Date(
+					endYear,
+					endFlex.month - 1,
+					endFlex.day
+				).toLocaleDateString("en-US", {
+					month: "short",
+					day: "numeric",
+				})}`;
 			}
 
-			// Second line: location, headcount, budget
-			const detailParts: string[] = [];
-			if (plan.location) detailParts.push(plan.location);
-			if (plan.members.length > 0) {
-				detailParts.push(
-					`${plan.members.length} ${
-						plan.members.length === 1 ? "person" : "people"
-					}`
-				);
-			}
-			const est = PlanOperations.estimate({
-				items: plan.items,
-			});
-			if (est > 0) detailParts.push(`~$${est}`);
-			if (detailParts.length > 0) {
-				row.createDiv({
-					cls: "dashboard-diary-tagged",
-					text: detailParts.join(" · "),
-				});
-			}
+			// Location and rough budget sit beside the name
+			const details: string[] = [];
+			if (plan.location) details.push(plan.location);
+			const est = PlanOperations.estimate({ items: plan.items });
+			if (est > 0) details.push(`~$${est}`);
 
-			row.addEventListener("click", () =>
-				void this.openContact(plan.file)
-			);
+			this.renderUpcomingRow(section, {
+				icon: lead ? lead.emoji : "🗺️",
+				date: when || "No date yet",
+				name: lead ? lead.rest : plan.name,
+				suffix: details.join(" • "),
+				relative,
+				onClick: () => void this.openContact(plan.file),
+			});
 		}
 	}
 
