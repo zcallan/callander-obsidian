@@ -15,6 +15,7 @@ import type {
 	ContactWithCountdown,
 	FriendEvent,
 	Idea,
+	InsideJoke,
 	Interest,
 	Quote,
 } from "@/types";
@@ -61,6 +62,7 @@ import { CopyEventModal } from "@/modals/CopyEventModal";
 import { NoteInputModal } from "@/modals/NoteInputModal";
 import { FunFactsModal } from "@/modals/FunFactsModal";
 import { QuoteModal } from "@/modals/QuoteModal";
+import { InsideJokeModal } from "@/modals/InsideJokeModal";
 import {
 	parseFlexDate,
 	formatFlexDate,
@@ -118,6 +120,7 @@ interface ContactFrontmatter {
 	unconfirmedMembers?: unknown;
 	interests?: unknown;
 	quotes?: unknown;
+	insideJokes?: unknown;
 	funFacts?: unknown;
 	groups?: unknown;
 	/** Legacy keys, folded into ideas/events by the in-memory migrations */
@@ -465,10 +468,12 @@ export class ContactPageView extends ItemView {
 
 		this.renderIdeasSection(section("lightbulb", "Ideas"));
 		this.renderEventsSection(section("milestone", "Timeline"));
-		// Interests + fun facts + quotes are about the friend — friends only
+		// Interests + fun facts + jokes + quotes are about the friend —
+		// friends only
 		if (!this.isGroupFile()) {
 			this.renderInterestsSection(section("heart", "Interests"));
 			this.renderFunFactsSection(section("sparkles", "Fun facts"));
+			this.renderInsideJokesSection(section("laugh", "Inside jokes"));
 			this.renderQuotesSection(section("quote", "Quotes"));
 		}
 		this.renderNotesSection(section("pencil", "Notes"));
@@ -3254,6 +3259,92 @@ export class ContactPageView extends ItemView {
 		setIcon(addBtn, "plus");
 		addBtn.createSpan({ text: "Add quote" });
 		addBtn.addEventListener("click", () => this.openQuoteModal(null, null));
+	}
+
+	/** Normalized inside-joke list (legacy plain strings read as { text }). */
+	private insideJokesOf(): InsideJoke[] {
+		return asArray(this.contactData.insideJokes)
+			.map((j): InsideJoke => {
+				if (typeof j === "string") return { text: j };
+				const context = fieldOf(j, "context");
+				return {
+					text: toText(fieldOf(j, "text")),
+					...(context ? { context: toText(context) } : {}),
+				};
+			})
+			.filter((j) => j.text.length > 0);
+	}
+
+	private renderInsideJokesSection(container: HTMLElement) {
+		const section = container.createDiv({
+			cls: "contact-quotes-section",
+		});
+		const jokes = this.insideJokesOf();
+
+		if (jokes.length === 0) {
+			section.createDiv({
+				cls: "section-helper-text",
+				text: "The jokes only the two of you get — keep them from fading.",
+			});
+		}
+
+		// Same visual treatment as quotes: text row + muted context line
+		jokes.forEach((j, index) => {
+			const row = section.createDiv({
+				cls: "contact-quote-item plan-clickable-row",
+			});
+			row.addEventListener("click", () =>
+				this.openInsideJokeModal(index, j)
+			);
+			row.createDiv({
+				cls: "contact-quote-text",
+				text: j.text,
+			});
+			if (j.context) {
+				row.createDiv({
+					cls: "contact-quote-context",
+					text: `— ${j.context}`,
+				});
+			}
+		});
+
+		const footer = section.createDiv({
+			cls: "contact-section-footer",
+		});
+		const addBtn = footer.createEl("button", {
+			cls: "callander-button",
+		});
+		setIcon(addBtn, "plus");
+		addBtn.createSpan({ text: "Add inside joke" });
+		addBtn.addEventListener("click", () =>
+			this.openInsideJokeModal(null, null)
+		);
+	}
+
+	private openInsideJokeModal(index: number | null, joke: InsideJoke | null) {
+		new InsideJokeModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name || "",
+			joke,
+			async (value) => {
+				const list = this.insideJokesOf();
+				if (index === null) list.push(value);
+				else list[index] = value;
+				this.contactData.insideJokes = list;
+				await this.saveContactData();
+				this.render();
+			},
+			index === null
+				? undefined
+				: async () => {
+						const list = this.insideJokesOf();
+						list.splice(index, 1);
+						if (list.length > 0) this.contactData.insideJokes = list;
+						else delete this.contactData.insideJokes;
+						await this.saveContactData();
+						this.render();
+				  }
+		).open();
 	}
 
 	private openQuoteModal(index: number | null, quote: Quote | null) {
