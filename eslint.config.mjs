@@ -24,6 +24,10 @@ export default defineConfig([
 				projectService: true,
 				tsconfigRootDir: import.meta.dirname,
 			},
+			globals: {
+				// Build stamp injected by esbuild's define (globals.d.ts)
+				__CALLANDER_BUILD__: "readonly",
+			},
 		},
 	},
 ]);
