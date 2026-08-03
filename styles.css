@@ -2354,6 +2354,20 @@ If your plugin does not need CSS, delete this file.
 	-webkit-overflow-scrolling: touch;
 }
 
+/* While the keyboard is up, confine modals to the space above it. Without
+   this, a modal whose content happens to fit its natural height has no
+   scroll container at all — the inset padding just extends it further
+   underneath the keyboard, and low fields are unreachable. Shrinking the
+   container's content box re-centers the modal above the keyboard and
+   forces modal-content to overflow (and therefore scroll) when needed. */
+body.is-mobile.callander-kb-open .modal-container {
+	padding-bottom: var(--callander-keyboard-inset, 0px);
+}
+
+body.is-mobile.callander-kb-open .modal {
+	max-height: 100%;
+}
+
 /* iOS zooms the whole webview when a focused control renders under 16px,
    which throws off the keyboard inset handling above. max() guarantees
    the floor even where an ancestor shrinks the em, for every control

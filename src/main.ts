@@ -123,14 +123,9 @@ export default class FriendTracker extends Plugin {
 	public lastQuickIdeaCategory: IdeaCategory = "gift";
 	private statusBarEl: HTMLElement | null = null;
 
-	/** True when this install carries the .hotreload dev marker. */
+	/** True when this install carries the .hotreload dev marker —
+	 * gates the dev-only build-stamp notice. */
 	private devBuild = false;
-
-	/** Dev-only on-screen diagnostics for the mobile keyboard machinery —
-	 * remove along with its call sites once the modal bug is settled. */
-	private kbDebug(msg: string) {
-		if (this.devBuild) new Notice(msg, 4000);
-	}
 
 	async onload() {
 		await this.loadSettings();
@@ -370,15 +365,16 @@ export default class FriendTracker extends Plugin {
 	private installKeyboardInsetTracking() {
 		if (!Platform.isMobile) return;
 
-		const setInset = (px: number, reason: string) => {
+		const setInset = (px: number) => {
 			const value = Math.max(0, Math.round(px));
-			if (value !== currentInset()) {
-				this.kbDebug(`inset ${currentInset()}→${value} (${reason})`);
-			}
 			document.body.style.setProperty(
 				"--callander-keyboard-inset",
 				`${value}px`
 			);
+			// Lets CSS confine modals to the space above the keyboard —
+			// padding alone can't help a modal whose content fits without
+			// scrolling (it just extends underneath, unreachable)
+			document.body.toggleClass("callander-kb-open", value > 0);
 		};
 		const currentInset = () =>
 			parseInt(
@@ -416,8 +412,7 @@ export default class FriendTracker extends Plugin {
 			setInset(
 				Number.isFinite(height) && height > 0
 					? height
-					: Math.round(window.innerHeight * 0.42),
-				"kb-show"
+					: Math.round(window.innerHeight * 0.42)
 			);
 		};
 		const onHide = () => {
@@ -425,11 +420,8 @@ export default class FriendTracker extends Plugin {
 			// sequence while a text field still holds focus — honoring it
 			// buries the field with no inset. A real dismissal blurs the
 			// field, and the focusout handler tears the inset down then.
-			if (summonsKeyboard(document.activeElement)) {
-				this.kbDebug("kb-hide ignored (field focused)");
-				return;
-			}
-			setInset(0, "kb-hide");
+			if (summonsKeyboard(document.activeElement)) return;
+			setInset(0);
 		};
 		for (const type of ["keyboardWillShow", "keyboardDidShow"]) {
 			window.addEventListener(type, onShow);
@@ -455,7 +447,7 @@ export default class FriendTracker extends Plugin {
 			const update = () => {
 				const inset =
 					window.innerHeight - vv.height - vv.offsetTop;
-				if (inset > 30) setInset(inset, "vv-resize");
+				if (inset > 30) setInset(inset);
 			};
 			vv.addEventListener("resize", update);
 			this.register(() =>
@@ -467,18 +459,6 @@ export default class FriendTracker extends Plugin {
 		// keyboard by the time the animation is done, assume one
 		this.registerDomEvent(document, "focusin", (event) => {
 			const target = event.target as HTMLElement | null;
-			if (
-				target &&
-				target.closest(".modal") &&
-				["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-			) {
-				const type = (target as HTMLInputElement).type ?? "";
-				this.kbDebug(
-					`focus ${target.tagName.toLowerCase()}[${type}] font=${
-						getComputedStyle(target).fontSize
-					} zoom=${window.visualViewport?.scale ?? "?"} inset=${currentInset()}`
-				);
-			}
 			if (summonsKeyboard(target)) {
 				// Two-shot: iOS keyboard churn on some modals can zero the
 				// inset AFTER the first check has passed — re-verify once
@@ -488,8 +468,7 @@ export default class FriendTracker extends Plugin {
 						if (document.activeElement !== target) return;
 						if (currentInset() < 30) {
 							setInset(
-								Math.round(window.innerHeight * 0.42),
-								`fallback@${delay}`
+								Math.round(window.innerHeight * 0.42)
 							);
 						}
 						if (scroll) {
@@ -509,7 +488,7 @@ export default class FriendTracker extends Plugin {
 		this.registerDomEvent(document, "input", (event) => {
 			const target = event.target as HTMLElement | null;
 			if (summonsKeyboard(target) && currentInset() < 30) {
-				setInset(Math.round(window.innerHeight * 0.42), "typing");
+				setInset(Math.round(window.innerHeight * 0.42));
 			}
 		});
 
@@ -518,7 +497,7 @@ export default class FriendTracker extends Plugin {
 		this.registerDomEvent(document, "focusout", () => {
 			window.setTimeout(() => {
 				const active = document.activeElement as HTMLElement | null;
-				if (!summonsKeyboard(active)) setInset(0, "focusout");
+				if (!summonsKeyboard(active)) setInset(0);
 			}, 150);
 		});
 	}

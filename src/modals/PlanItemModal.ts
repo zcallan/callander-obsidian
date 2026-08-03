@@ -25,6 +25,10 @@ export interface PlanItemValue {
 /**
  * Capture or edit a plan idea: category + priority + text + cost, plus an
  * optional date/time/people. A date promotes the idea onto the plan timeline.
+ *
+ * Structured exactly like AddContactModal (a real <form>, labelled fields,
+ * synchronous focus, type=submit) — that shape behaves with the iOS
+ * keyboard where the previous flat layout didn't.
  */
 export class PlanItemModal extends FormModal {
 	private category: PlanIdeaCategory;
@@ -50,23 +54,28 @@ export class PlanItemModal extends FormModal {
 			text: this.initial ? "Edit idea" : `Add to ${this.planName}`,
 		});
 
-		// Idea text first — the one thing you always fill in.
-		contentEl.createDiv({
-			cls: "modal-section-label",
-			text: "Idea",
+		const form = contentEl.createEl("form", {
+			cls: "callander-add-contact-form",
 		});
-		const textInput = contentEl.createEl("input", {
-			cls: "quick-idea-input",
-			attr: { type: "text", placeholder: "e.g. Get a lobster roll" },
+
+		// Idea text first — the one thing you always fill in.
+		const textField = form.createDiv({ cls: "callander-modal-field" });
+		textField.createEl("label", { text: "Idea" });
+		const textInput = textField.createEl("input", {
+			cls: "callander-modal-input",
+			attr: {
+				type: "text",
+				name: "idea",
+				placeholder: "e.g. Get a lobster roll",
+			},
 		});
 		textInput.value = this.initial?.text ?? "";
+		textInput.focus();
 
-		// Category picker
-		contentEl.createDiv({
-			cls: "modal-section-label",
-			text: "Category",
-		});
-		const catRow = contentEl.createDiv({
+		// Category picker (type=button so chips don't submit the form)
+		const catField = form.createDiv({ cls: "callander-modal-field" });
+		catField.createEl("label", { text: "Category" });
+		const catRow = catField.createDiv({
 			cls: "quick-idea-categories",
 		});
 		const catButtons = new Map<PlanIdeaCategory, HTMLButtonElement>();
@@ -75,6 +84,7 @@ export class PlanItemModal extends FormModal {
 				cls: `quick-idea-category-button ${
 					this.category === c.id ? "selected" : ""
 				}`,
+				attr: { type: "button" },
 			});
 			button.createSpan({
 				cls: "quick-idea-category-emoji",
@@ -92,7 +102,7 @@ export class PlanItemModal extends FormModal {
 
 		// Optional scheduling — a date promotes this idea onto the timeline.
 		const schedule = appendScheduleFields(
-			contentEl,
+			form,
 			{
 				date: this.initial?.date,
 				time: this.initial?.time,
@@ -101,26 +111,22 @@ export class PlanItemModal extends FormModal {
 			this.scheduleOptions
 		);
 
-		contentEl.createDiv({
-			cls: "modal-section-label",
-			text: "Approx. cost (optional)",
-		});
-		const costWrap = contentEl.createDiv({
+		const costField = form.createDiv({ cls: "callander-modal-field" });
+		costField.createEl("label", { text: "Approx. cost (optional)" });
+		const costWrap = costField.createDiv({
 			cls: "plan-cost-input-wrap",
 		});
 		costWrap.createSpan({ cls: "plan-cost-input-prefix", text: "$" });
 		const costInput = costWrap.createEl("input", {
-			cls: "quick-idea-input plan-cost-input",
-			attr: { type: "number", min: "0", placeholder: "0" },
+			cls: "callander-modal-input plan-cost-input",
+			attr: { type: "number", name: "cost", min: "0", placeholder: "0" },
 		});
 		if (this.initial?.cost) costInput.value = String(this.initial.cost);
 
 		// Priority picker — at the bottom, above the buttons
-		contentEl.createDiv({
-			cls: "modal-section-label",
-			text: "Priority",
-		});
-		const priRow = contentEl.createDiv({
+		const priField = form.createDiv({ cls: "callander-modal-field" });
+		priField.createEl("label", { text: "Priority" });
+		const priRow = priField.createDiv({
 			cls: "quick-idea-categories plan-priority-row",
 		});
 		const priButtons = new Map<PlanPriority, HTMLButtonElement>();
@@ -129,6 +135,7 @@ export class PlanItemModal extends FormModal {
 				cls: `quick-idea-category-button ${
 					this.priority === p.id ? "selected" : ""
 				}`,
+				attr: { type: "button" },
 			});
 			button.createSpan({
 				cls: "quick-idea-category-emoji",
@@ -144,7 +151,7 @@ export class PlanItemModal extends FormModal {
 			priButtons.set(p.id, button);
 		});
 
-		const buttonRow = contentEl.createDiv({
+		const buttonRow = form.createDiv({
 			cls: "callander-modal-buttons",
 		});
 
@@ -152,6 +159,7 @@ export class PlanItemModal extends FormModal {
 			const deleteButton = buttonRow.createEl("button", {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
+				attr: { type: "button" },
 			});
 			deleteButton.addEventListener("click", () => {
 				const preview =
@@ -171,34 +179,26 @@ export class PlanItemModal extends FormModal {
 			});
 		}
 
-		const saveButton = buttonRow.createEl("button", {
+		buttonRow.createEl("button", {
 			text: this.initial ? "Save" : "Add",
 			cls: "callander-modal-button mod-cta",
+			attr: { type: "submit" },
 		});
 
-		const submit = async () => {
+		// Enter in any field submits via the form, like Add friend
+		form.addEventListener("submit", (e) => {
+			e.preventDefault();
 			const text = textInput.value.trim();
 			if (!text) return;
 			const cost = Number(costInput.value);
-			await this.onSubmit({
+			void this.onSubmit({
 				category: this.category,
 				priority: this.priority,
 				text,
 				...schedule.values(),
 				...(Number.isFinite(cost) && cost > 0 && { cost }),
-			});
-			this.close();
-		};
-		saveButton.addEventListener("click", () => void submit());
-		for (const input of [textInput, costInput, ...schedule.inputs]) {
-			input.addEventListener("keydown", (e) => {
-				if (e.key === "Enter") {
-					e.preventDefault();
-					void submit();
-				}
-			});
-		}
-		window.setTimeout(() => textInput.focus(), 0);
+			}).then(() => this.close());
+		});
 	}
 
 	onClose() {
