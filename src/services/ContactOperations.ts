@@ -8,16 +8,38 @@ import type {
 	Idea,
 } from "@/types";
 import type { EventType, IdeaCategory } from "@/constants";
-import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
+import { parseFlexDate, formatFlexDate, todayISO } from "@/utils/flexdate";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 
-export const INBOX_BASENAME = "Idea Inbox";
+/** Where the inbox lived before it became the dashboard file's properties. */
+const LEGACY_INBOX_BASENAME = "Idea Inbox";
 
 export class ContactOperations {
 	constructor(private plugin: FriendTracker) {}
 
 	private get app() {
 		return this.plugin.app;
+	}
+
+	/**
+	 * processFrontMatter that also stamps person files' last-updated date.
+	 * The same writers serve group pages and the idea inbox — only files
+	 * under People/ get the stamp.
+	 */
+	private async writeFrontMatter(
+		file: TFile,
+		fn: (fm: Record<string, unknown>) => void
+	): Promise<void> {
+		const isPerson = file.path.startsWith(
+			this.getPeopleFolderPath() + "/"
+		);
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fn(fm);
+				if (isPerson) fm.updated = todayISO();
+			}
+		);
 	}
 
 	/** Merge modern + legacy idea keys into one normalized list */
@@ -67,9 +89,7 @@ export class ContactOperations {
 	/** Capture a raw thought onto a friend (or the inbox) for later triage */
 	async addDraft(file: TFile, text: string): Promise<void> {
 		const created = new Date().toISOString().split("T")[0];
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				fm.drafts = [
 					...ContactOperations.draftsOf(fm),
 					{ text, created },
@@ -79,9 +99,7 @@ export class ContactOperations {
 	}
 
 	async removeDraft(file: TFile, index: number): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				const drafts = ContactOperations.draftsOf(fm);
 				if (index >= 0 && index < drafts.length) {
 					drafts.splice(index, 1);
@@ -93,7 +111,7 @@ export class ContactOperations {
 	}
 
 	async getInboxDrafts(): Promise<Draft[]> {
-		const file = this.app.vault.getAbstractFileByPath(this.getInboxPath());
+		const file = this.app.vault.getAbstractFileByPath(this.getDashboardFilePath());
 		if (!(file instanceof TFile)) return [];
 		const metadata =
 			this.app.metadataCache.getFileCache(file)?.frontmatter;
@@ -197,9 +215,7 @@ export class ContactOperations {
 
 	async setGroupColor(name: string, color: string): Promise<TFile> {
 		const file = await this.ensureGroupFile(name);
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				fm.color = color;
 			}
 		);
@@ -235,9 +251,7 @@ export class ContactOperations {
 			)}.md`
 		);
 		if (oldFile instanceof TFile) {
-			await this.app.fileManager.processFrontMatter(
-				oldFile,
-				(fm: Record<string, unknown>) => {
+			await this.writeFrontMatter(oldFile, (fm) => {
 					fm.name = this.prettyGroupName(normalized);
 				}
 			);
@@ -270,9 +284,7 @@ export class ContactOperations {
 	}
 
 	async addFriendToGroup(file: TFile, group: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				fm.groups = [
 					...new Set([...ContactOperations.groupsOf(fm), group]),
 				];
@@ -281,9 +293,7 @@ export class ContactOperations {
 	}
 
 	async removeFriendFromGroup(file: TFile, group: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				const groups = ContactOperations.groupsOf(fm).filter(
 					(g) => g !== group
 				);
@@ -302,9 +312,7 @@ export class ContactOperations {
 		if (!folder) return;
 		for (const file of folder.children) {
 			if (!(file instanceof TFile) || file.extension !== "md") continue;
-			await this.app.fileManager.processFrontMatter(
-				file,
-				(fm: Record<string, unknown>) => {
+			await this.writeFrontMatter(file, (fm) => {
 					fn(file, fm);
 				}
 			);
@@ -326,26 +334,52 @@ export class ContactOperations {
 		);
 	}
 
-	// ---- Idea inbox ----
+	// ---- Dashboard file (carries the idea inbox in its properties) ----
 
-	getInboxPath(): string {
-		return normalizePath(
-			`${this.plugin.settings.baseFolder}/${INBOX_BASENAME}.md`
-		);
+	getDashboardFilePath(): string {
+		const name =
+			this.plugin.settings.dashboardFileName.trim() || "Dashboard";
+		return normalizePath(`${this.plugin.settings.baseFolder}/${name}.md`);
 	}
 
-	async ensureInboxFile(): Promise<TFile> {
-		const path = this.getInboxPath();
+	async ensureDashboardFile(): Promise<TFile> {
+		const path = this.getDashboardFilePath();
 		const existing = this.app.vault.getAbstractFileByPath(path);
 		if (existing instanceof TFile) return existing;
 		return await this.app.vault.create(
 			path,
-			`---\nname: ${INBOX_BASENAME}\n---\n`
+			`---\nkind: dashboard\n---\n`
 		);
 	}
 
+	/** One-time: the old "Idea Inbox.md" becomes the dashboard file. */
+	async migrateLegacyInboxFile(): Promise<void> {
+		if (this.app.vault.getAbstractFileByPath(this.getDashboardFilePath())) {
+			return;
+		}
+		const legacy = this.app.vault.getAbstractFileByPath(
+			normalizePath(
+				`${this.plugin.settings.baseFolder}/${LEGACY_INBOX_BASENAME}.md`
+			)
+		);
+		if (!(legacy instanceof TFile)) return;
+		await this.app.fileManager.renameFile(
+			legacy,
+			this.getDashboardFilePath()
+		);
+		const renamed = this.app.vault.getAbstractFileByPath(
+			this.getDashboardFilePath()
+		);
+		if (renamed instanceof TFile) {
+			await this.writeFrontMatter(renamed, (fm) => {
+				delete fm.name; // was "Idea Inbox" — no longer meaningful
+				fm.kind = "dashboard";
+			});
+		}
+	}
+
 	async getInboxIdeas(): Promise<Idea[]> {
-		const file = this.app.vault.getAbstractFileByPath(this.getInboxPath());
+		const file = this.app.vault.getAbstractFileByPath(this.getDashboardFilePath());
 		if (!(file instanceof TFile)) return [];
 		const metadata =
 			this.app.metadataCache.getFileCache(file)?.frontmatter;
@@ -354,12 +388,10 @@ export class ContactOperations {
 
 	/** Move an inbox idea onto a friend (or group) file */
 	async moveInboxIdea(index: number, target: TFile): Promise<Idea | null> {
-		const inbox = this.app.vault.getAbstractFileByPath(this.getInboxPath());
+		const inbox = this.app.vault.getAbstractFileByPath(this.getDashboardFilePath());
 		if (!(inbox instanceof TFile)) return null;
 		let moved: Idea | null = null;
-		await this.app.fileManager.processFrontMatter(
-			inbox,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(inbox, (fm) => {
 				const ideas = ContactOperations.ideasOf(fm);
 				if (index >= 0 && index < ideas.length) {
 					moved = ideas.splice(index, 1)[0];
@@ -369,9 +401,7 @@ export class ContactOperations {
 			}
 		);
 		if (moved) {
-			await this.app.fileManager.processFrontMatter(
-				target,
-				(fm: Record<string, unknown>) => {
+			await this.writeFrontMatter(target, (fm) => {
 					const ideas = ContactOperations.ideasOf(fm);
 					delete fm.giftIdeas;
 					fm.ideas = [...ideas, moved];
@@ -391,9 +421,7 @@ export class ContactOperations {
 		type: EventType = "hangout",
 		location?: string
 	): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				const events = ContactOperations.eventsOf(fm);
 				delete fm.interactions;
 				fm.events = [
@@ -414,9 +442,7 @@ export class ContactOperations {
 		date: string,
 		text: string
 	): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				const events = ContactOperations.eventsOf(fm);
 				const existing = events.findIndex((e) => e.source === source);
 				if (existing >= 0) {
@@ -433,9 +459,7 @@ export class ContactOperations {
 
 	/** Remove the event that came from a given diary entry, if present */
 	async removeDiaryEvent(file: TFile, source: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				const events = ContactOperations.eventsOf(fm);
 				const kept = events.filter((e) => e.source !== source);
 				if (kept.length !== events.length) {
@@ -459,9 +483,7 @@ export class ContactOperations {
 			link?: string;
 		}
 	): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				const events = ContactOperations.eventsOf(fm);
 				const index = events.findIndex(
 					(e) => JSON.stringify(e) === JSON.stringify(original)
@@ -485,9 +507,7 @@ export class ContactOperations {
 
 	/** Delete an event from a friend/group file, matched by deep equality */
 	async deleteEventFromFile(file: TFile, target: FriendEvent): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				const events = ContactOperations.eventsOf(fm);
 				const kept = events.filter(
 					(e) => JSON.stringify(e) !== JSON.stringify(target)
@@ -506,9 +526,7 @@ export class ContactOperations {
 	 * timeline on the person's page is unaffected. Matched by deep equality.
 	 */
 	async hideEventFromUpcoming(file: TFile, target: FriendEvent): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				const events = ContactOperations.eventsOf(fm);
 				const index = events.findIndex(
 					(e) => JSON.stringify(e) === JSON.stringify(target)
@@ -539,9 +557,7 @@ export class ContactOperations {
 
 	/** Record that this year's birthday wish was sent (dashboard "Missed") */
 	async markBirthdayWished(file: TFile, occurrence: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (fm) => {
 				fm.birthdayWished = occurrence;
 			}
 		);
@@ -557,9 +573,7 @@ export class ContactOperations {
 			.replace(/^---\n[\s\S]*?\n---\n?/, "")
 			.trim();
 
-		await this.app.fileManager.processFrontMatter(
-			keep,
-			(fm: Record<string, unknown>) => {
+		await this.writeFrontMatter(keep, (fm) => {
 				// Fill scalar gaps only — the kept friend always wins conflicts
 				for (const [key, value] of Object.entries(dupMeta)) {
 					if (
@@ -629,9 +643,7 @@ export class ContactOperations {
 		category: IdeaCategory,
 		text: string
 	): Promise<void> {
-		await this.plugin.app.fileManager.processFrontMatter(
-			file,
-			(frontmatter: Record<string, unknown>) => {
+		await this.writeFrontMatter(file, (frontmatter) => {
 				// Existing entries pass through untouched (unlike ideasOf, no
 				// filtering — malformed rows are left exactly as they were)
 				const ideas = asArray(frontmatter.ideas) as Idea[];

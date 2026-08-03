@@ -3,12 +3,13 @@ import { FormModal } from "@/modals/FormModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 
 interface PlanDetails {
+	name: string;
 	date: string;
 	endDate: string;
 	location: string;
 }
 
-/** Edit a plan's date (or range) and location. */
+/** Edit a plan's name, date (or range) and location. */
 export class PlanDetailsModal extends FormModal {
 	constructor(
 		app: App,
@@ -26,6 +27,19 @@ export class PlanDetailsModal extends FormModal {
 
 		const details = { ...this.current };
 
+		const nameField = contentEl.createDiv({
+			cls: "callander-modal-field",
+		});
+		nameField.createEl("label", { text: "Name" });
+		const nameInput = nameField.createEl("input", {
+			cls: "callander-modal-input",
+			attr: { type: "text", placeholder: "e.g. Byron Bay trip" },
+		});
+		nameInput.value = details.name;
+		nameInput.addEventListener("input", () => {
+			details.name = nameInput.value;
+		});
+
 		const dateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
@@ -39,6 +53,8 @@ export class PlanDetailsModal extends FormModal {
 			{
 				inputClass: "callander-modal-input",
 				defaultPrecision: "month",
+				// A year alone is too vague to plan around
+				precisions: ["month", "day"],
 			}
 		);
 
@@ -55,6 +71,7 @@ export class PlanDetailsModal extends FormModal {
 			{
 				inputClass: "callander-modal-input",
 				defaultPrecision: "day",
+				precisions: ["month", "day"],
 			}
 		);
 
@@ -91,6 +108,8 @@ export class PlanDetailsModal extends FormModal {
 		const handleSave = async () => {
 			await this.onSubmit({
 				...details,
+				// A cleared name isn't a rename — keep the current one
+				name: details.name.trim() || this.current.name,
 				location: details.location.trim(),
 			});
 			this.close();

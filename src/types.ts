@@ -5,16 +5,20 @@ import type {
 	InterestCategory,
 	PlanIdeaCategory,
 	PlanPriority,
+	ReminderType,
 	SomedayCompany,
 	SomedayDay,
 	TravelType,
 } from "./constants";
 
 export interface FriendTrackerSettings {
-	/** Holds all Callander data: the People, Groups, Plans and Somedays
-	 * folders plus the Idea Inbox / Reminders stores. */
+	/** Holds all Callander data: the People, Groups, Plans, Somedays and
+	 * Reminders folders plus the dashboard file. */
 	baseFolder: string;
 	diaryFolder: string;
+	/** Basename of the note (in the base folder) that opens the Callander
+	 * dashboard and carries the idea inbox in its properties. */
+	dashboardFileName: string;
 	defaultSortColumn: keyof Omit<ContactWithCountdown, "file">;
 	defaultSortDirection: "asc" | "desc";
 	relationshipTypes: string[];
@@ -276,21 +280,29 @@ export interface DiaryEntry {
  * dashboard's Upcoming section. Stored together in a single Reminders.md file.
  */
 export interface Reminder {
+	/** File path for folder reminders; a random id for legacy Reminders.md rows */
 	id: string;
 	name: string;
 	/** FlexDate string; absent for an undated reminder */
 	date?: string;
 	/** 24-hour "HH:MM" */
 	time?: string;
+	/** What kind of thing it is; typeless (legacy) reminders render neutral */
+	type?: ReminderType;
 	location?: string;
 	link?: string;
 	status?: "open" | "done";
 	created?: string;
+	updated?: string;
+	/** Set for reminders that live as their own file under Reminders/;
+	 * absent for legacy rows still inside Reminders.md */
+	file?: TFile;
 }
 
 export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	baseFolder: "Friends",
 	diaryFolder: "Friends/Diary",
+	dashboardFileName: "Dashboard",
 	defaultSortColumn: "daysUntilBirthday",
 	defaultSortDirection: "asc",
 	relationshipTypes: ["family", "friend", "colleague", "pet"],

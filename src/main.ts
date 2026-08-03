@@ -50,6 +50,22 @@ function createSetViewStateOverride(
 			plugin.settings.openContactsInCallanderView &&
 			viewState.type === "markdown" &&
 			typeof path === "string" &&
+			plugin.shouldOpenAsDashboard(path)
+		) {
+			return original.call(
+				this,
+				{
+					...viewState,
+					type: VIEW_TYPE_DASHBOARD,
+					state: {},
+				},
+				eventState
+			);
+		}
+		if (
+			plugin.settings.openContactsInCallanderView &&
+			viewState.type === "markdown" &&
+			typeof path === "string" &&
 			plugin.shouldOpenAsSomeday(path)
 		) {
 			return original.call(
@@ -107,6 +123,15 @@ export default class FriendTracker extends Plugin {
 	public lastQuickIdeaCategory: IdeaCategory = "gift";
 	private statusBarEl: HTMLElement | null = null;
 
+	/** True when this install carries the .hotreload dev marker. */
+	private devBuild = false;
+
+	/** Dev-only on-screen diagnostics for the mobile keyboard machinery —
+	 * remove along with its call sites once the modal bug is settled. */
+	private kbDebug(msg: string) {
+		if (this.devBuild) new Notice(msg, 4000);
+	}
+
 	async onload() {
 		await this.loadSettings();
 		this.contactOperations = new ContactOperations(this);
@@ -122,6 +147,17 @@ export default class FriendTracker extends Plugin {
 	}
 
 	private async initialize() {
+		// Dev installs carry the .hotreload marker in the plugin folder
+		// (release installs never do) — surface the build stamp there so
+		// it's unambiguous which bundle is actually running on a device.
+		void this.app.vault.adapter
+			.exists(`${this.manifest.dir ?? ""}/.hotreload`)
+			.then((dev) => {
+				this.devBuild = dev;
+				if (dev) {
+					new Notice(`Callander dev build ${__CALLANDER_BUILD__}`);
+				}
+			});
 		try {
 			// Register views
 			this.registerView(
@@ -297,6 +333,9 @@ export default class FriendTracker extends Plugin {
 			// hometown field (the birthplace field itself remains)
 			await this.migrateBirthplaceValues();
 
+			// The idea inbox's old standalone file becomes the dashboard file
+			await this.contactOperations.migrateLegacyInboxFile();
+
 			// Check for birthdays after everything is initialized — and
 			// keep checking (hourly + on focus) so a Mac waking up with
 			// Obsidian in the background still notifies. The once-per-day
@@ -331,8 +370,11 @@ export default class FriendTracker extends Plugin {
 	private installKeyboardInsetTracking() {
 		if (!Platform.isMobile) return;
 
-		const setInset = (px: number) => {
+		const setInset = (px: number, reason: string) => {
 			const value = Math.max(0, Math.round(px));
+			if (value !== currentInset()) {
+				this.kbDebug(`inset ${currentInset()}→${value} (${reason})`);
+			}
 			document.body.style.setProperty(
 				"--callander-keyboard-inset",
 				`${value}px`
@@ -345,6 +387,24 @@ export default class FriendTracker extends Plugin {
 				)
 			) || 0;
 
+		// Selects and native date/month/time inputs open iOS wheel pickers,
+		// NOT the keyboard — no keyboard events ever fire for them, so the
+		// focus fallback must not fake an inset for them, and a hide event
+		// while one is focused is real.
+		const summonsKeyboard = (el: Element | null): boolean => {
+			if (!el || !el.closest(".modal")) return false;
+			if (el.tagName === "TEXTAREA") return true;
+			if (el.tagName !== "INPUT") return false;
+			return ![
+				"date",
+				"month",
+				"time",
+				"checkbox",
+				"radio",
+				"range",
+			].includes((el as HTMLInputElement).type);
+		};
+
 		// Primary: Capacitor's native keyboard events (Obsidian mobile is
 		// Capacitor; on iOS the webview often does NOT resize for the
 		// keyboard, so visualViewport alone sees nothing)
@@ -356,10 +416,21 @@ export default class FriendTracker extends Plugin {
 			setInset(
 				Number.isFinite(height) && height > 0
 					? height
-					: Math.round(window.innerHeight * 0.42)
+					: Math.round(window.innerHeight * 0.42),
+				"kb-show"
 			);
 		};
-		const onHide = () => setInset(0);
+		const onHide = () => {
+			// iOS emits a stray keyboardWillHide during some modals' open
+			// sequence while a text field still holds focus — honoring it
+			// buries the field with no inset. A real dismissal blurs the
+			// field, and the focusout handler tears the inset down then.
+			if (summonsKeyboard(document.activeElement)) {
+				this.kbDebug("kb-hide ignored (field focused)");
+				return;
+			}
+			setInset(0, "kb-hide");
+		};
 		for (const type of ["keyboardWillShow", "keyboardDidShow"]) {
 			window.addEventListener(type, onShow);
 		}
@@ -384,7 +455,7 @@ export default class FriendTracker extends Plugin {
 			const update = () => {
 				const inset =
 					window.innerHeight - vv.height - vv.offsetTop;
-				if (inset > 30) setInset(inset);
+				if (inset > 30) setInset(inset, "vv-resize");
 			};
 			vv.addEventListener("resize", update);
 			this.register(() =>
@@ -401,29 +472,53 @@ export default class FriendTracker extends Plugin {
 				target.closest(".modal") &&
 				["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
 			) {
-				window.setTimeout(() => {
-					if (currentInset() < 30) {
-						setInset(Math.round(window.innerHeight * 0.42));
-					}
-					target.scrollIntoView({
-						block: "center",
-						behavior: "smooth",
-					});
-				}, 350);
+				const type = (target as HTMLInputElement).type ?? "";
+				this.kbDebug(
+					`focus ${target.tagName.toLowerCase()}[${type}] font=${
+						getComputedStyle(target).fontSize
+					} zoom=${window.visualViewport?.scale ?? "?"} inset=${currentInset()}`
+				);
+			}
+			if (summonsKeyboard(target)) {
+				// Two-shot: iOS keyboard churn on some modals can zero the
+				// inset AFTER the first check has passed — re-verify once
+				// the churn has had time to settle
+				const assist = (delay: number, scroll: boolean) =>
+					window.setTimeout(() => {
+						if (document.activeElement !== target) return;
+						if (currentInset() < 30) {
+							setInset(
+								Math.round(window.innerHeight * 0.42),
+								`fallback@${delay}`
+							);
+						}
+						if (scroll) {
+							target!.scrollIntoView({
+								block: "center",
+								behavior: "smooth",
+							});
+						}
+					}, delay);
+				assist(350, true);
+				assist(900, false);
 			}
 		});
 
-		// Drop the inset when focus leaves modal inputs entirely
+		// Keystrokes are proof the keyboard is open — heal the inset if
+		// event churn zeroed it while typing
+		this.registerDomEvent(document, "input", (event) => {
+			const target = event.target as HTMLElement | null;
+			if (summonsKeyboard(target) && currentInset() < 30) {
+				setInset(Math.round(window.innerHeight * 0.42), "typing");
+			}
+		});
+
+		// Drop the inset when focus moves off keyboard-summoning controls —
+		// including onto a select/date picker, where the keyboard closes
 		this.registerDomEvent(document, "focusout", () => {
 			window.setTimeout(() => {
 				const active = document.activeElement as HTMLElement | null;
-				const stillTyping =
-					active &&
-					active.closest(".modal") &&
-					["INPUT", "TEXTAREA", "SELECT"].includes(
-						active.tagName
-					);
-				if (!stillTyping) setInset(0);
+				if (!summonsKeyboard(active)) setInset(0, "focusout");
 			}, 150);
 		});
 	}
@@ -470,6 +565,12 @@ export default class FriendTracker extends Plugin {
 	public shouldOpenAsSomeday(path: string): boolean {
 		if (this.markdownBypass.has(path)) return false;
 		return this.somedayOperations.isSomedayFile(path);
+	}
+
+	/** The dashboard file opens the dashboard view, not its raw markdown. */
+	public shouldOpenAsDashboard(path: string): boolean {
+		if (this.markdownBypass.has(path)) return false;
+		return path === this.contactOperations.getDashboardFilePath();
 	}
 
 	/** Open a contact's underlying note as raw markdown, bypassing the intercept */
@@ -602,7 +703,7 @@ export default class FriendTracker extends Plugin {
 			{
 				kind: "inbox",
 				label: "📥 Idea inbox (file to a friend later)",
-				getFile: () => this.contactOperations.ensureInboxFile(),
+				getFile: () => this.contactOperations.ensureDashboardFile(),
 			},
 		];
 	}
@@ -613,7 +714,7 @@ export default class FriendTracker extends Plugin {
 		new QuickNoteModal(this.app, contacts, async (text, contact) => {
 			const file = contact
 				? contact.file
-				: await this.contactOperations.ensureInboxFile();
+				: await this.contactOperations.ensureDashboardFile();
 			await this.contactOperations.addDraft(file, text);
 			new Notice(
 				contact

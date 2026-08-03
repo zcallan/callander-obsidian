@@ -41,6 +41,8 @@ export class PlanModal extends FormModal {
 			{
 				inputClass: "callander-modal-input",
 				defaultPrecision: "month",
+				// A year alone is too vague to plan around
+				precisions: ["month", "day"],
 			}
 		);
 
@@ -58,6 +60,7 @@ export class PlanModal extends FormModal {
 			{
 				inputClass: "callander-modal-input",
 				defaultPrecision: "day",
+				precisions: ["month", "day"],
 			}
 		);
 

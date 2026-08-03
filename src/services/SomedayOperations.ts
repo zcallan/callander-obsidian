@@ -4,6 +4,7 @@ import type { SomedayCompany, SomedayDay } from "@/constants";
 import { SOMEDAY_DAYS, SOMEDAY_SEASONS } from "@/constants";
 import type { SomedayInfo, SomedaySubIdea } from "@/types";
 import { asArray, fieldOf, toText } from "@/utils/fm";
+import { todayISO } from "@/utils/flexdate";
 
 /** The editable fields of a Someday — used for both create and update. */
 export interface SomedayFields {
@@ -28,6 +29,20 @@ export class SomedayOperations {
 
 	private get app() {
 		return this.plugin.app;
+	}
+
+	/** Every write goes through here so the file's `updated` stamp stays true. */
+	private async writeSomeday(
+		file: TFile,
+		fn: (fm: Record<string, unknown>) => void
+	): Promise<void> {
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fn(fm);
+				fm.updated = todayISO();
+			}
+		);
 	}
 
 	getSomedaysFolderPath(): string {
@@ -131,11 +146,7 @@ export class SomedayOperations {
 		while (this.app.vault.getAbstractFileByPath(path)) {
 			path = normalizePath(`${folderPath}/${safeName} ${counter++}.md`);
 		}
-		const pad = (n: number) => String(n).padStart(2, "0");
-		const now = new Date();
-		const created = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
-			now.getDate()
-		)}`;
+		const created = todayISO();
 		const file = await this.app.vault.create(
 			path,
 			`---\nkind: someday\nname: ${JSON.stringify(
@@ -153,9 +164,7 @@ export class SomedayOperations {
 		file: TFile,
 		patch: Partial<SomedayFields>
 	): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeSomeday(file, (fm) => {
 				const set = (key: string, value: unknown) => {
 					if (
 						value === undefined ||
@@ -190,9 +199,7 @@ export class SomedayOperations {
 	async addSubIdea(file: TFile, text: string): Promise<void> {
 		const trimmed = text.trim();
 		if (!trimmed) return;
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeSomeday(file, (fm) => {
 				fm.subIdeas = [
 					...SomedayOperations.subIdeasOf(fm),
 					{ text: trimmed, done: false },
@@ -202,9 +209,7 @@ export class SomedayOperations {
 	}
 
 	async toggleSubIdea(file: TFile, index: number): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeSomeday(file, (fm) => {
 				const list = SomedayOperations.subIdeasOf(fm);
 				if (index >= 0 && index < list.length) {
 					list[index] = { ...list[index], done: !list[index].done };
@@ -215,9 +220,7 @@ export class SomedayOperations {
 	}
 
 	async removeSubIdea(file: TFile, index: number): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeSomeday(file, (fm) => {
 				const list = SomedayOperations.subIdeasOf(fm);
 				if (index >= 0 && index < list.length) list.splice(index, 1);
 				if (list.length > 0) fm.subIdeas = list;
@@ -227,9 +230,7 @@ export class SomedayOperations {
 	}
 
 	async setStatus(file: TFile, status: "open" | "done"): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeSomeday(file, (fm) => {
 				fm.status = status;
 			}
 		);
@@ -237,9 +238,7 @@ export class SomedayOperations {
 
 	/** Record the Plan a Someday became (kept as a breadcrumb when not removed). */
 	async markConverted(file: TFile, planPath: string): Promise<void> {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
+		await this.writeSomeday(file, (fm) => {
 				fm.convertedTo = planPath;
 			}
 		);

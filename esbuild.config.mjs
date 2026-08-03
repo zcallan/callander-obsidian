@@ -12,6 +12,16 @@ if you want to view the source, please visit the github repository of this plugi
 
 const prod = process.argv[2] === "production";
 
+function buildStamp() {
+	const now = new Date();
+	const pad = (n) => String(n).padStart(2, "0");
+	const h = now.getHours();
+	const h12 = h % 12 === 0 ? 12 : h % 12;
+	return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+		now.getDate()
+	)} ${h12}:${pad(now.getMinutes())} ${h < 12 ? "AM" : "PM"}`;
+}
+
 // Dev builds can go straight into a vault's plugin folder so Obsidian
 // (and iCloud-synced devices) pick them up. Put the absolute path of the
 // vault plugin dir in .vault-plugin-path (gitignored). Production builds
@@ -55,6 +65,12 @@ const context = await esbuild.context({
 		"@lezer/lr",
 		...builtinModules,
 	],
+	define: {
+		// Baked into the bundle so a running install can say which build
+		// it is (surfaced as a dev-only startup notice). Local time of the
+		// build machine, e.g. "2026-08-02 10:39 PM".
+		__CALLANDER_BUILD__: JSON.stringify(buildStamp()),
+	},
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
