@@ -3,6 +3,7 @@ import type FriendTracker from "@/main";
 import type { DiaryEntry } from "@/types";
 import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
 import { DeleteDiaryEntryModal } from "@/modals/DeleteDiaryEntryModal";
+import { formatDate } from "@/utils/dateFormat";
 
 export const VIEW_TYPE_DIARY = "callander-diary-view";
 
@@ -98,20 +99,20 @@ export class DiaryView extends ItemView {
 		if (!dateStr) return "Undated";
 		const [year, month] = dateStr.split("-").map(Number);
 		if (!year || !month) return "Undated";
-		return new Date(year, month - 1, 1).toLocaleDateString(undefined, {
+		return formatDate(new Date(year, month - 1, 1), {
 			month: "long",
 			year: "numeric",
 		});
 	}
 
-	private formatDate(dateStr: string): string {
+	private formatEntryDate(dateStr: string): string {
 		if (!dateStr) return "";
 		const [year, month, day] = dateStr.split("-").map(Number);
 		if (!year || !month || !day) return dateStr;
-		return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+		return formatDate(new Date(year, month - 1, day), {
 			weekday: "short",
-			month: "short",
 			day: "numeric",
+			month: "short",
 		});
 	}
 
@@ -126,7 +127,7 @@ export class DiaryView extends ItemView {
 		const cardHeader = card.createDiv({ cls: "diary-entry-header" });
 		cardHeader.createDiv({
 			cls: "diary-entry-date",
-			text: this.formatDate(entry.date),
+			text: this.formatEntryDate(entry.date),
 		});
 		cardHeader.createDiv({
 			cls: "diary-entry-title",

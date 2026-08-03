@@ -180,6 +180,34 @@ export const REMINDER_TYPES = [
 
 export type ReminderType = (typeof REMINDER_TYPES)[number]["id"];
 
+// Where you're sleeping — deliberately few; untyped stays render the bed.
+export const ACCOMMODATION_TYPES = [
+	{ id: "home", label: "Home", emoji: "🏠" },
+	{ id: "airbnb", label: "Airbnb", emoji: "🏡" },
+	{ id: "hotel", label: "Hotel", emoji: "🏨" },
+	{ id: "friends", label: "Mate's place", emoji: "🛋️" },
+	{ id: "camping", label: "Camping", emoji: "⛺" },
+] as const;
+
+export type AccommodationType = (typeof ACCOMMODATION_TYPES)[number]["id"];
+
+export const ACCOMMODATION_EMOJI: Record<AccommodationType, string> = {
+	home: "🏠",
+	airbnb: "🏡",
+	hotel: "🏨",
+	friends: "🛋️",
+	camping: "⛺",
+};
+
+// Booking status for stays; "none" (no booking needed) shows nothing.
+export const BOOKING_STATES = [
+	{ id: "booked", label: "Booked", emoji: "✅" },
+	{ id: "todo", label: "To book", emoji: "📌" },
+	{ id: "none", label: "Not needed", emoji: "➖" },
+] as const;
+
+export type BookingState = (typeof BOOKING_STATES)[number]["id"];
+
 // Plan ideas carry a category and a priority — a plan is a menu.
 export const PLAN_IDEA_CATEGORIES = [
 	{ id: "activity", label: "Activity", emoji: "🥾" },

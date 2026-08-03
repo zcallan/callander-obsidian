@@ -2,6 +2,7 @@ import { TFile, TFolder, normalizePath } from "obsidian";
 import type FriendTracker from "@/main";
 import type { PlanIdeaCategory, PlanPriority } from "@/constants";
 import {
+	ACCOMMODATION_EMOJI,
 	PLAN_IDEA_CATEGORIES,
 	TRAVEL_TYPE_EMOJI,
 	timeSortValue,
@@ -98,9 +99,13 @@ export class PlanOperations {
 				const type = strFieldOf(i, "type");
 				const rawText = fieldOf(i, "text");
 				const cost = fieldOf(i, "cost");
+				const stay = strFieldOf(i, "stay");
+				const booked = strFieldOf(i, "booked");
+				const nights = fieldOf(i, "nights");
 				return {
 					text: typeof rawText === "string" ? rawText : "",
 					...(type && { type: type as PlanSimpleItem["type"] }),
+					...(stay && { stay: stay as PlanSimpleItem["stay"] }),
 					...(date && { date }),
 					...(strFieldOf(i, "time") && { time: strFieldOf(i, "time") }),
 					...(strFieldOf(i, "people") && {
@@ -108,6 +113,17 @@ export class PlanOperations {
 					}),
 					...(strFieldOf(i, "duration") && {
 						duration: strFieldOf(i, "duration"),
+					}),
+					...(typeof nights === "number" &&
+						nights > 0 && { nights }),
+					...(strFieldOf(i, "address") && {
+						address: strFieldOf(i, "address"),
+					}),
+					...(booked && {
+						booked: booked as PlanSimpleItem["booked"],
+					}),
+					...(strFieldOf(i, "notes") && {
+						notes: strFieldOf(i, "notes"),
 					}),
 					...(typeof cost === "number" && { cost }),
 				};
@@ -137,38 +153,51 @@ export class PlanOperations {
 				...(item.people && { people: item.people }),
 				text: item.text,
 				emoji: cat?.emoji ?? "💡",
+				...(item.category && { category: item.category }),
+				...(item.priority && { priority: item.priority }),
 				...(item.cost !== undefined && { cost: item.cost }),
 			});
 		});
 
-		const stayEmoji = "🛏️";
 		(["travel", "accommodation"] as const).forEach((key) => {
 			PlanOperations.simpleListOf(metadata, key).forEach(
 				(item, index) => {
 					if (!item.date) return;
-					const emoji =
-						key === "travel"
-							? item.type
-								? TRAVEL_TYPE_EMOJI[item.type]
-								: "🧭"
-							: stayEmoji;
+					const isStay = key === "accommodation";
+					const emoji = isStay
+						? (item.stay && ACCOMMODATION_EMOJI[item.stay]) || "🛏️"
+						: item.type
+						? TRAVEL_TYPE_EMOJI[item.type]
+						: "🧭";
 					entries.push({
-						source: key === "travel" ? "travel" : "accommodation",
+						source: isStay ? "accommodation" : "travel",
 						index,
 						date: item.date,
-						...(item.time && { time: item.time }),
+						// A stay has no clock time — it always closes the day.
+						...(!isStay && item.time && { time: item.time }),
 						...(item.people && { people: item.people }),
 						text: item.text,
 						emoji,
-						...(item.duration && { duration: item.duration }),
+						...(!isStay &&
+							item.duration && { duration: item.duration }),
+						...(!isStay && item.type && { travel: item.type }),
+						...(isStay && item.stay && { stay: item.stay }),
+						...(isStay && item.nights && { nights: item.nights }),
+						...(isStay && item.address && { address: item.address }),
+						...(isStay && item.booked && { booked: item.booked }),
+						...(isStay && item.notes && { notes: item.notes }),
 						...(item.cost !== undefined && { cost: item.cost }),
 					});
 				}
 			);
 		});
 
+		// Within a day: timed entries, then untimed, then stays last — you go
+		// to bed after everything else. The tier digit outranks the clock.
 		const key = (e: PlanTimelineEntry) =>
-			`${e.date}T${timeSortValue(e.time)}`;
+			`${e.date}T${e.source === "accommodation" ? "1" : "0"}${timeSortValue(
+				e.time
+			)}`;
 		return entries.sort((a, b) => key(a).localeCompare(key(b)));
 	}
 

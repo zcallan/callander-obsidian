@@ -19,6 +19,20 @@ export interface ScheduleFieldOptions {
 	dayOptions?: Array<{ value: string; label: string }>;
 	/** When set, People is a dropdown of these names (adds pills). */
 	people?: string[];
+	/** Stays close out their day, so they don't carry a clock time. */
+	hideTime?: boolean;
+	/** Fired when the date changes — lets a caller track it live. */
+	onDateChange?: () => void;
+	/** Skip People here so a caller can place it elsewhere in the form. */
+	hidePeople?: boolean;
+	/** ISO date the plan ends — a stay can't check out after it. */
+	lastDay?: string;
+}
+
+export interface PeopleFieldHandle {
+	value: () => string;
+	/** The free-text input, when there's no known cast to pick from. */
+	input: HTMLInputElement | null;
 }
 
 export interface ScheduleFieldsHandle {
@@ -67,38 +81,50 @@ export function appendScheduleFields(
 		});
 		dateInput.value = initialDate;
 	}
+	if (options.onDateChange) {
+		const notify = options.onDateChange;
+		(dateSelect ?? dateInput)?.addEventListener("change", () => notify());
+	}
 
 	// --- Time: Roughly / Exact ---
-	const timeField = container.createDiv({ cls: "plan-schedule-field" });
-	timeField.createDiv({ cls: "modal-section-label", text: "Time" });
-	const timeControls = timeField.createDiv({
-		cls: "plan-time-controls",
-	});
-
+	// Skipped entirely for stays, which have no clock time of their own.
 	const initialTime = initial.time ?? "";
 	const isExact = /^\d{1,2}:\d{2}$/.test(initialTime);
 	const [initHour, initMinute] = isExact ? initialTime.split(":") : ["", ""];
 	let precision: "rough" | "exact" = isExact ? "exact" : "rough";
 
-	const precisionSelect = timeControls.createEl("select", {
-		cls: "dropdown plan-time-precision",
-		attr: { "aria-label": "How precisely do you know the time?" },
-	});
-	precisionSelect.createEl("option", { value: "rough", text: "Roughly" });
-	precisionSelect.createEl("option", { value: "exact", text: "Exact" });
-	precisionSelect.value = precision;
-
-	const dynamic = timeControls.createDiv({ cls: "plan-time-dynamic" });
+	let precisionSelect: HTMLSelectElement | null = null;
+	let dynamic: HTMLElement | null = null;
 	let roughSelect: HTMLSelectElement | null = null;
 	let hourSelect: HTMLSelectElement | null = null;
 	let minuteSelect: HTMLSelectElement | null = null;
 
+	if (!options.hideTime) {
+		const timeField = container.createDiv({ cls: "plan-schedule-field" });
+		timeField.createDiv({ cls: "modal-section-label", text: "Time" });
+		const timeControls = timeField.createDiv({
+			cls: "plan-time-controls",
+		});
+
+		precisionSelect = timeControls.createEl("select", {
+			cls: "dropdown plan-time-precision",
+			attr: { "aria-label": "How precisely do you know the time?" },
+		});
+		precisionSelect.createEl("option", { value: "rough", text: "Roughly" });
+		precisionSelect.createEl("option", { value: "exact", text: "Exact" });
+		precisionSelect.value = precision;
+
+		dynamic = timeControls.createDiv({ cls: "plan-time-dynamic" });
+	}
+
 	const renderTime = () => {
-		dynamic.empty();
+		if (!dynamic) return;
+		const host = dynamic;
+		host.empty();
 		roughSelect = hourSelect = minuteSelect = null;
 
 		if (precision === "rough") {
-			roughSelect = dynamic.createEl("select", {
+			roughSelect = host.createEl("select", {
 				cls: "quick-idea-input plan-time-select plan-rough-select",
 			});
 			roughSelect.createEl("option", { value: "", text: "—" });
@@ -113,7 +139,7 @@ export function appendScheduleFields(
 			return;
 		}
 
-		const selects = dynamic.createDiv({ cls: "plan-time-selects" });
+		const selects = host.createDiv({ cls: "plan-time-selects" });
 		hourSelect = selects.createEl("select", {
 			cls: "quick-idea-input plan-time-select",
 		});
@@ -134,20 +160,62 @@ export function appendScheduleFields(
 		}
 	};
 
-	precisionSelect.addEventListener("change", () => {
-		precision = precisionSelect.value as "rough" | "exact";
-		renderTime();
-	});
+	if (precisionSelect) {
+		const select = precisionSelect;
+		select.addEventListener("change", () => {
+			precision = select.value as "rough" | "exact";
+			renderTime();
+		});
+	}
 	renderTime();
 
 	// --- People ---
-	container.createDiv({ cls: "modal-section-label", text: "People" });
-	let peopleInput: HTMLInputElement | null = null;
-	let getPeople: () => string;
+	const people = options.hidePeople
+		? null
+		: appendPeopleField(container, initial.people, options.people);
 
-	if (options.people && options.people.length > 0) {
-		const peopleOptions = options.people;
-		const selected = (initial.people ?? "")
+	const inputs: HTMLElement[] = [];
+	if (precisionSelect) inputs.push(precisionSelect);
+	if (dateInput) inputs.push(dateInput);
+	if (people?.input) inputs.push(people.input);
+
+	return {
+		values: () => {
+			const date = dateSelect
+				? dateSelect.value
+				: dateInput?.value.trim() ?? "";
+			let time = "";
+			if (precision === "exact" && hourSelect && minuteSelect) {
+				time = `${hourSelect.value}:${minuteSelect.value}`;
+			} else if (roughSelect) {
+				time = roughSelect.value;
+			}
+			const value = people?.value() ?? "";
+			return {
+				...(date && { date }),
+				...(time && { time }),
+				...(value && { people: value }),
+			};
+		},
+		inputs,
+	};
+}
+
+/**
+ * "People", on its own so a form can place it wherever it belongs. With a
+ * known cast (`options`) it's a dropdown that adds removable pills; without
+ * one it falls back to free text.
+ */
+export function appendPeopleField(
+	container: HTMLElement,
+	initial: string | undefined,
+	options?: string[]
+): PeopleFieldHandle {
+	container.createDiv({ cls: "modal-section-label", text: "People" });
+
+	if (options && options.length > 0) {
+		const peopleOptions = options;
+		const selected = (initial ?? "")
 			.split(",")
 			.map((s) => s.trim())
 			.filter(Boolean);
@@ -171,9 +239,7 @@ export function appendScheduleFields(
 		const renderPills = () => {
 			pillsEl.empty();
 			selected.forEach((name, i) => {
-				const pill = pillsEl.createSpan({
-					cls: "plan-people-pill",
-				});
+				const pill = pillsEl.createSpan({ cls: "plan-people-pill" });
 				pill.createSpan({ text: name });
 				const x = pill.createEl("button", {
 					cls: "plan-people-pill-x",
@@ -196,38 +262,13 @@ export function appendScheduleFields(
 		});
 		renderSelect();
 		renderPills();
-		getPeople = () => selected.join(", ");
-	} else {
-		peopleInput = container.createEl("input", {
-			cls: "quick-idea-input",
-			attr: { type: "text", placeholder: "e.g. Callan, Steve" },
-		});
-		peopleInput.value = initial.people ?? "";
-		getPeople = () => peopleInput!.value.trim();
+		return { value: () => selected.join(", "), input: null };
 	}
 
-	const inputs: HTMLElement[] = [precisionSelect];
-	if (dateInput) inputs.push(dateInput);
-	if (peopleInput) inputs.push(peopleInput);
-
-	return {
-		values: () => {
-			const date = dateSelect
-				? dateSelect.value
-				: dateInput?.value.trim() ?? "";
-			let time = "";
-			if (precision === "exact" && hourSelect && minuteSelect) {
-				time = `${hourSelect.value}:${minuteSelect.value}`;
-			} else if (roughSelect) {
-				time = roughSelect.value;
-			}
-			const people = getPeople();
-			return {
-				...(date && { date }),
-				...(time && { time }),
-				...(people && { people }),
-			};
-		},
-		inputs,
-	};
+	const input = container.createEl("input", {
+		cls: "quick-idea-input",
+		attr: { type: "text", placeholder: "e.g. Callan, Steve" },
+	});
+	input.value = initial ?? "";
+	return { value: () => input.value.trim(), input };
 }

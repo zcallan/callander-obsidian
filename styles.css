@@ -299,6 +299,13 @@ If your plugin does not need CSS, delete this file.
 	font-size: 0.85em;
 }
 
+/* Event description: same muted small text as the date line */
+.contact-timeline-desc {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	white-space: pre-wrap;
+}
+
 .contact-timeline-text {
 	line-height: 1.4;
 }
@@ -828,6 +835,7 @@ If your plugin does not need CSS, delete this file.
 
 .contact-timeline-date,
 .contact-timeline-text,
+.contact-timeline-desc,
 .contact-age-display,
 .contact-extras-content {
 	-webkit-user-select: text;
@@ -2368,6 +2376,13 @@ body.is-mobile.callander-kb-open .modal {
 	max-height: 100%;
 }
 
+/* A squeezed modal must scroll, not compress: where modal-content is a
+   flex column, its direct children (inputs sit at that level in the
+   simpler modals) would otherwise shrink under the keyboard */
+body.is-mobile.callander-kb-open .modal-content > * {
+	flex-shrink: 0;
+}
+
 /* iOS zooms the whole webview when a focused control renders under 16px,
    which throws off the keyboard inset handling above. max() guarantees
    the floor even where an ancestor shrinks the em, for every control
@@ -3820,4 +3835,110 @@ body.is-mobile.callander-kb-open .modal {
 	flex-shrink: 0;
 	white-space: nowrap;
 	align-self: center;
+}
+
+/* ---- Accommodation: stays on the plan timeline ---- */
+
+/* Nights stepper — tap targets only, so it never summons the iOS keyboard */
+.plan-nights-stepper {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.plan-nights-step {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 34px;
+	height: 34px;
+	padding: 0;
+	font-size: 1.1em;
+	line-height: 1;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.plan-nights-step:hover {
+	background: var(--background-modifier-hover);
+}
+
+.plan-nights-value {
+	min-width: 2ch;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+}
+
+.plan-nights-suffix {
+	color: var(--text-muted);
+}
+
+/* Booking status on a stay's list row */
+.plan-item-booking {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* Address + notes sub-lines under a stay's timeline row */
+.plan-stay-address {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-top: 2px;
+}
+
+.plan-stay-notes {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-top: 2px;
+	white-space: pre-wrap;
+}
+
+.plan-notes-input {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 2.6em;
+	resize: vertical;
+}
+
+/* Phone: bigger stepper targets */
+.is-phone .plan-nights-step {
+	width: 40px;
+	height: 40px;
+}
+
+/* Live check-out hint beside the nights stepper */
+.plan-nights-until {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* Plan timeline hover actions: compact, and clear of the row's own text.
+   The shared .contact-timeline-actions rules handle reveal-on-hover and
+   hiding on touch. */
+.plan-timeline-item .contact-timeline-actions {
+	gap: 6px;
+	background: var(--background-primary);
+	padding-left: 8px;
+}
+
+.plan-timeline-item .contact-timeline-actions .callander-button {
+	padding: 2px 8px;
+	height: auto;
+	font-size: 0.85em;
+}
+
+/* Nights "+" is capped by the plan's end date */
+.plan-nights-step:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.plan-nights-step:disabled:hover {
+	background: var(--background-primary);
 }

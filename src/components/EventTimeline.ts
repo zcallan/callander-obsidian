@@ -207,6 +207,14 @@ export class EventTimeline {
 			});
 		}
 
+		// Details sit under the name, styled like the date line
+		if (event.description) {
+			item.createDiv({
+				cls: "contact-timeline-desc",
+				text: event.description,
+			});
+		}
+
 		// Provenance badge: this event came from a diary entry
 		if (event.source) {
 			const badgeEl = textEl.createSpan({
