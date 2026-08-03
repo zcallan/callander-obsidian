@@ -225,6 +225,12 @@ export interface Quote {
 	context?: string;
 }
 
+/** An inside joke you share, with optional context (how it started). */
+export interface InsideJoke {
+	text: string;
+	context?: string;
+}
+
 /** A child idea under a Someday — e.g. a bakery to hit on the Maine trip. */
 export interface SomedaySubIdea {
 	text: string;
