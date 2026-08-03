@@ -2343,6 +2343,18 @@ If your plugin does not need CSS, delete this file.
 	-webkit-overflow-scrolling: touch;
 }
 
+/* iOS zooms the whole webview when a focused control renders under 16px,
+   which throws off the keyboard inset handling above. The quick-idea
+   input already sits at 1em (≥16px on mobile) and behaves; bring every
+   other modal control (Add friend, Add event, …) up to match. */
+.is-mobile .modal .callander-modal-input,
+.is-mobile .modal .contact-field-input,
+.is-mobile .modal .contact-event-text-input,
+.is-mobile .modal .contact-met-precision,
+.is-mobile .modal .plan-time-precision {
+	font-size: 1em;
+}
+
 /* Modals must never scroll horizontally: box-sizing the 100%-wide
    inputs, and letting flex-row children actually shrink */
 .modal .callander-modal-input,
