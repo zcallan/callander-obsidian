@@ -88,6 +88,16 @@ import {
 	todayISO,
 } from "@/utils/flexdate";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
+import {
+	joinFrontmatter,
+	parseQuotesSection,
+	splitFrontmatter,
+	upsertQuotesSection,
+} from "@/utils/quotesMarkdown";
+import {
+	parseIdeasSection,
+	upsertIdeasSection,
+} from "@/utils/ideasMarkdown";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -181,7 +191,9 @@ const CLEARABLE_FIELDS = [
 	"interests",
 	"funFacts",
 	"insideJokes",
+	// Moved into the note body; the key has to be removable to migrate out
 	"quotes",
+	"ideas",
 	// Legacy keys: migrated into ideas/events on load, then dropped
 	"giftIdeas",
 	"interactions",
@@ -212,8 +224,21 @@ export class ContactPageView extends ItemView {
 	private expandedPlanSections = new Set<string>();
 	// The friend "General" info accordion — collapsed by default
 	private expandedInfoSection = false;
+	// The raw-markdown accordion — likewise collapsed by default
+	private expandedMarkdownSection = false;
 	/** Guards against reacting to our own writes */
 	private writingUntil = 0;
+	/**
+	 * Quotes as read from the note body. Null means this note has no
+	 * `## Quotes` section yet, so its frontmatter is still the source of
+	 * truth and a migration is due.
+	 */
+	private bodyQuotes: Quote[] | null = null;
+	/** Ideas as read from the note body; null until this note is migrated. */
+	private bodyIdeas: Idea[] | null = null;
+	/** Legacy `giftIdeas` on a note whose ideas already moved to the body —
+	 * appended there by migrateIdeasToBody rather than lost. */
+	private pendingLegacyIdeas: Idea[] = [];
 
 	public getRelationshipTypes(): string[] {
 		return this.plugin.settings.relationshipTypes;
@@ -224,9 +249,71 @@ export class ContactPageView extends ItemView {
 		return asArray(this.contactData.events) as FriendEvent[];
 	}
 
-	/** In-memory ideas, post-migration — the same array reference. */
+	/**
+	 * The friend's ideas. The body wins once the note has an `## Ideas`
+	 * section; until then the frontmatter list still stands in.
+	 *
+	 * Unlike the old frontmatter list this is a copy, not a live reference
+	 * — callers mutate it and hand it back to writeIdeasToBody rather than
+	 * editing in place and saving.
+	 */
 	private ideasList(): Idea[] {
-		return asArray(this.contactData.ideas) as Idea[];
+		return this.bodyIdeas ?? (asArray(this.contactData.ideas) as Idea[]);
+	}
+
+	/** Rewrite just the Ideas section, leaving the rest of the note —
+	 * frontmatter included — exactly as it was. */
+	private async writeIdeasToBody(ideas: Idea[]): Promise<void> {
+		if (!this._file) return;
+		this.writingUntil = Date.now() + 1000;
+		await this.app.vault.process(this._file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			return joinFrontmatter(
+				frontmatter,
+				upsertIdeasSection(body, ideas)
+			);
+		});
+		this.bodyIdeas = ideas;
+	}
+
+	/**
+	 * Move this note's ideas out of frontmatter and into the body, once.
+	 * Body first, frontmatter keys cleared only on success — so a failure
+	 * in between leaves the data in both places, the body wins next read,
+	 * and the stale keys are cleared then.
+	 */
+	private async migrateIdeasToBody(): Promise<void> {
+		if (!this._file) return;
+		const hasStaleKeys =
+			this.contactData.ideas !== undefined ||
+			this.contactData.giftIdeas !== undefined;
+
+		if (this.bodyIdeas !== null) {
+			// Already migrated. A legacy `giftIdeas` key found now has
+			// never been folded in, so it's appended; a stale `ideas` key
+			// is just a crash between the two writes below, and the body
+			// already holds those — dropping it can't lose anything.
+			if (this.pendingLegacyIdeas.length > 0) {
+				await this.writeIdeasToBody([
+					...this.bodyIdeas,
+					...this.pendingLegacyIdeas,
+				]);
+				this.pendingLegacyIdeas = [];
+			}
+			if (hasStaleKeys) {
+				delete this.contactData.ideas;
+				delete this.contactData.giftIdeas;
+				await this.saveContactData(false);
+			}
+			return;
+		}
+
+		const ideas = asArray(this.contactData.ideas) as Idea[];
+		if (ideas.length === 0) return;
+		await this.writeIdeasToBody(ideas);
+		delete this.contactData.ideas;
+		delete this.contactData.giftIdeas;
+		await this.saveContactData(false);
 	}
 
 	/** Append to a frontmatter list, creating it when absent. */
@@ -343,12 +430,21 @@ export class ContactPageView extends ItemView {
 			const yamlMatch = content.match(/^---\n([\s\S]*?)\n---/);
 			const parsed: unknown = yamlMatch ? parseYaml(yamlMatch[1]) : {};
 			this.contactData = toContactFrontmatter(parsed);
+			// Quotes live in the body; the same read serves both, so this
+			// costs no extra I/O.
+			const body = splitFrontmatter(content).body;
+			this.bodyQuotes = parseQuotesSection(body);
+			this.bodyIdeas = parseIdeasSection(body);
 			this.migrateLegacyGiftIdeas();
 			this.migrateLegacyInteractions();
 			this.migratePlanStructure();
+			await this.migrateQuotesToBody();
+			await this.migrateIdeasToBody();
 		} catch (error) {
 			console.error(`Error reading contact file ${file.path}:`, error);
 			this.contactData = {};
+			this.bodyQuotes = null;
+			this.bodyIdeas = null;
 		}
 		// Only render if still the same file
 		if (this._file?.path === currentFilePath) {
@@ -524,6 +620,43 @@ export class ContactPageView extends ItemView {
 			return wrap;
 		};
 
+		/**
+		 * Same header, but its content collapses. Returns the body to fill
+		 * and the wrap, so a caller can put controls *outside* the collapsed
+		 * area — the Markdown section keeps its Edit button reachable while
+		 * the content itself is hidden.
+		 */
+		const collapsibleSection = (
+			icon: string,
+			label: string,
+			open: boolean,
+			onToggle: (next: boolean) => void
+		) => {
+			const wrap = contentContainer.createDiv({
+				cls: "contact-stack-section plan-accordion",
+			});
+			const header = wrap.createDiv({
+				cls: "contact-stack-header plan-accordion-header",
+			});
+			setIcon(
+				header.createSpan({ cls: "contact-stack-header-icon" }),
+				icon
+			);
+			header.createSpan({ cls: "plan-accordion-label", text: label });
+			setIcon(
+				header.createSpan({ cls: "plan-accordion-chevron" }),
+				"chevron-down"
+			);
+			const body = wrap.createDiv({ cls: "plan-accordion-body" });
+			wrap.toggleClass("is-open", open);
+			header.addEventListener("click", () => {
+				open = !open;
+				wrap.toggleClass("is-open", open);
+				onToggle(open);
+			});
+			return { wrap, body };
+		};
+
 		this.renderIdeasSection(section("lightbulb", "Ideas"));
 		this.renderEventsSection(section("milestone", "Timeline"));
 		// Interests + fun facts + jokes + quotes are about the friend —
@@ -535,7 +668,18 @@ export class ContactPageView extends ItemView {
 			this.renderQuotesSection(section("quote", "Quotes"));
 		}
 		this.renderNotesSection(section("pencil", "Notes"));
-		void this.renderExtrasSection(section("document", "Markdown"));
+		// Raw markdown is reference material, not something you scan on every
+		// visit — collapsed by default, with the Edit button left outside so
+		// it stays one click away.
+		const markdown = collapsibleSection(
+			"document",
+			"Markdown",
+			this.expandedMarkdownSection,
+			(open) => {
+				this.expandedMarkdownSection = open;
+			}
+		);
+		void this.renderExtrasSection(markdown.wrap, markdown.body);
 	}
 
 	private renderNameSection(container: HTMLElement) {
@@ -1309,11 +1453,10 @@ export class ContactPageView extends ItemView {
 					this.lastIdeaCategory,
 					async (category, text) => {
 						this.lastIdeaCategory = category;
-						this.pushToList("ideas", {
-							category,
-							text,
-							done: false,
-						});
+						await this.writeIdeasToBody([
+							...this.ideasList(),
+							{ category, text, done: false },
+						]);
 						this.removeFromList("drafts", index);
 						await this.saveContactData();
 						this.render();
@@ -2695,6 +2838,22 @@ export class ContactPageView extends ItemView {
 			).open();
 		};
 
+		// Persists the toggle and refreshes the page underneath — the view
+		// modal is a separate overlay, so this never disturbs it; it updates
+		// its own display itself once the save resolves.
+		const toggleCostSettled = async (index: number, settled: boolean) => {
+			const list = PlanOperations.costsOf(this.contactData);
+			const current = list[index];
+			if (!current) return;
+			const updated: PlanCost = { ...current };
+			if (settled) updated.settled = true;
+			else delete updated.settled;
+			list[index] = updated;
+			this.contactData.costs = list;
+			await this.saveContactData();
+			this.render();
+		};
+
 		// Tapping a row reads it first; Edit/Delete live in that view.
 		const openCost = (index: number, cost: PlanCost) => {
 			new PlanCostViewModal(
@@ -2703,7 +2862,8 @@ export class ContactPageView extends ItemView {
 				participants,
 				() => editCost(index, cost),
 				() => deleteCost(index),
-				this.plugin.settings.yourName
+				this.plugin.settings.yourName,
+				(settled) => toggleCostSettled(index, settled)
 			).open();
 		};
 
@@ -2751,11 +2911,19 @@ export class ContactPageView extends ItemView {
 			});
 			textEl.createSpan({
 				cls: "plan-item-cost",
-				text: ` · $${cost.amount} · ${splitModeLabel(
-					cost.split.mode
-				).toLowerCase()}`,
+				text: ` · $${cost.amount} · `,
+			});
+			textEl.createSpan({
+				cls: cost.settled
+					? "plan-item-cost plan-cost-settled-label"
+					: "plan-item-cost",
+				text: cost.settled
+					? "Settled"
+					: splitModeLabel(cost.split.mode).toLowerCase(),
 			});
 
+			// Settled — already squared up, so it drops out of "Who owes what".
+			if (cost.settled) return;
 			const owed = PlanOperations.owedFor(cost, participants);
 			for (const p of participants) {
 				owedTotals[p] = (owedTotals[p] ?? 0) + (owed[p] ?? 0);
@@ -2855,7 +3023,10 @@ export class ContactPageView extends ItemView {
 					await this.saveContactData();
 				};
 				checkbox.addEventListener("change", () => void togglePaid());
-				check.createSpan({ cls: "plan-cost-owed-name", text: p });
+				check.createSpan({
+					cls: "plan-cost-owed-name",
+					text: isYou(p) ? `${p} (Me)` : p,
+				});
 
 				const owedGross = owedTotals[p] ?? 0;
 				const credited = PlanOperations.creditTotalFor(p, credits);
@@ -2866,22 +3037,26 @@ export class ContactPageView extends ItemView {
 				});
 
 				// Per-person breakdown — always shown, disabled when they're
-				// not part of any expense.
+				// not part of any expense. Gated on having something to list
+				// rather than on the amount owed: once everything of theirs is
+				// settled they owe nothing, but the settled lines are exactly
+				// what you'd open this to check.
+				const breakdownRows = PlanOperations.breakdownFor(
+					p,
+					costs,
+					participants,
+					credits
+				);
 				const breakdownBtn = rowEl.createEl("button", {
 					cls: "callander-button plan-breakdown-btn",
 					text: "Breakdown",
 				});
-				if (owedGross > 0) {
+				if (breakdownRows.length > 0) {
 					breakdownBtn.addEventListener("click", () => {
 						new PlanCostBreakdownModal(
 							this.app,
 							p,
-							PlanOperations.breakdownFor(
-								p,
-								costs,
-								participants,
-								credits
-							)
+							breakdownRows
 						).open();
 					});
 				} else {
@@ -3034,16 +3209,24 @@ export class ContactPageView extends ItemView {
 	// the file itself is rewritten on the next save.
 	private migrateLegacyGiftIdeas() {
 		const legacy = asArray(this.contactData.giftIdeas);
-		if (legacy.length > 0) {
-			const migrated = legacy.map((g): Idea => {
-				const text = fieldOf(g, "text");
-				return {
-					category: "gift",
-					text: text == null ? toText(g) : toText(text),
-					done: !!fieldOf(g, "done"),
-				};
-			});
-			this.contactData.ideas = [...this.ideasList(), ...migrated];
+		this.pendingLegacyIdeas = legacy.map((g): Idea => {
+			const text = fieldOf(g, "text");
+			return {
+				category: "gift",
+				text: text == null ? toText(g) : toText(text),
+				done: !!fieldOf(g, "done"),
+			};
+		});
+		// Before the note has an Ideas section these can just join the
+		// frontmatter list, which migrateIdeasToBody then moves wholesale.
+		// Afterwards they have to be appended to the body instead, so they
+		// stay pending until that runs.
+		if (this.bodyIdeas === null && this.pendingLegacyIdeas.length > 0) {
+			this.contactData.ideas = [
+				...(asArray(this.contactData.ideas) as Idea[]),
+				...this.pendingLegacyIdeas,
+			];
+			this.pendingLegacyIdeas = [];
 		}
 		delete this.contactData.giftIdeas;
 	}
@@ -3151,8 +3334,9 @@ export class ContactPageView extends ItemView {
 				});
 				checkbox.checked = !!idea.done;
 				const toggleIdeaDone = async () => {
-					this.ideasList()[index].done = checkbox.checked;
-					await this.saveContactData();
+					const list = this.ideasList();
+					list[index] = { ...list[index], done: checkbox.checked };
+					await this.writeIdeasToBody(list);
 					this.render();
 					if (checkbox.checked) {
 						this.offerLogAsEvent(idea);
@@ -3187,12 +3371,12 @@ export class ContactPageView extends ItemView {
 						idea.text,
 						idea.resurface,
 						async (resurface) => {
-							if (resurface) {
-								this.ideasList()[index].resurface = resurface;
-							} else {
-								delete this.ideasList()[index].resurface;
-							}
-							await this.saveContactData();
+							const list = this.ideasList();
+							const next = { ...list[index] };
+							if (resurface) next.resurface = resurface;
+							else delete next.resurface;
+							list[index] = next;
+							await this.writeIdeasToBody(list);
 							this.render();
 						}
 					).open();
@@ -3204,8 +3388,9 @@ export class ContactPageView extends ItemView {
 				});
 				setIcon(deleteBtn, "trash");
 				const deleteIdea = async () => {
-					this.ideasList().splice(index, 1);
-					await this.saveContactData();
+					const list = this.ideasList();
+					list.splice(index, 1);
+					await this.writeIdeasToBody(list);
 					this.render();
 				};
 				deleteBtn.addEventListener("click", () => void deleteIdea());
@@ -3245,11 +3430,12 @@ export class ContactPageView extends ItemView {
 			this.lastIdeaCategory,
 			async (category, text) => {
 				this.lastIdeaCategory = category;
-				this.pushToList("ideas", {
-					category,
-					text,
-					done: false,
-				});
+				await this.writeIdeasToBody([
+					...this.ideasList(),
+					{ category, text, done: false },
+				]);
+				// The body write leaves frontmatter alone, so the
+				// last-updated stamp has to be set separately.
 				await this.saveContactData();
 				this.render();
 			}
@@ -3348,7 +3534,8 @@ export class ContactPageView extends ItemView {
 	}
 
 	/** Normalized quote list (legacy plain strings read as { text }). */
-	private quotesOf(): Quote[] {
+	/** Quotes still in frontmatter — the pre-migration source. */
+	private frontmatterQuotes(): Quote[] {
 		return asArray(this.contactData.quotes)
 			.map((q): Quote => {
 				if (typeof q === "string") return { text: q };
@@ -3359,6 +3546,53 @@ export class ContactPageView extends ItemView {
 				};
 			})
 			.filter((q) => q.text.length > 0);
+	}
+
+	/** The body wins once the note has a Quotes section; until then the
+	 * frontmatter list still stands in. */
+	private quotesOf(): Quote[] {
+		return this.bodyQuotes ?? this.frontmatterQuotes();
+	}
+
+	/**
+	 * Move a note's quotes out of frontmatter and into the body, once.
+	 *
+	 * Ordered so a failure is always recoverable: the body is written
+	 * first, and only a successful write clears the frontmatter key. If the
+	 * second step fails the quotes exist in both places, the body wins on
+	 * the next read, and the stale key is cleared then.
+	 */
+	private async migrateQuotesToBody(): Promise<void> {
+		if (!this._file) return;
+		// Already migrated — but a previous run may have died between the
+		// two writes, so clear any leftover key.
+		if (this.bodyQuotes !== null) {
+			if (this.contactData.quotes !== undefined) {
+				delete this.contactData.quotes;
+				await this.saveContactData(false);
+			}
+			return;
+		}
+		const quotes = this.frontmatterQuotes();
+		if (quotes.length === 0) return;
+		await this.writeQuotesToBody(quotes);
+		delete this.contactData.quotes;
+		await this.saveContactData(false);
+	}
+
+	/** Rewrite just the Quotes section, leaving the rest of the note —
+	 * frontmatter included — exactly as it was. */
+	private async writeQuotesToBody(quotes: Quote[]): Promise<void> {
+		if (!this._file) return;
+		this.writingUntil = Date.now() + 1000;
+		await this.app.vault.process(this._file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			return joinFrontmatter(
+				frontmatter,
+				upsertQuotesSection(body, quotes)
+			);
+		});
+		this.bodyQuotes = quotes;
 	}
 
 	private renderQuotesSection(container: HTMLElement) {
@@ -3497,8 +3731,7 @@ export class ContactPageView extends ItemView {
 				const list = this.quotesOf();
 				if (index === null) list.push(value);
 				else list[index] = value;
-				this.contactData.quotes = list;
-				await this.saveContactData();
+				await this.writeQuotesToBody(list);
 				this.render();
 			},
 			index === null
@@ -3506,9 +3739,7 @@ export class ContactPageView extends ItemView {
 				: async () => {
 						const list = this.quotesOf();
 						list.splice(index, 1);
-						if (list.length > 0) this.contactData.quotes = list;
-						else delete this.contactData.quotes;
-						await this.saveContactData();
+						await this.writeQuotesToBody(list);
 						this.render();
 				  }
 		).open();
@@ -3607,8 +3838,17 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	private async renderExtrasSection(container: HTMLElement) {
-		const extrasSection = container.createDiv({
+	/**
+	 * @param container The section wrap — the Edit button hangs off this, so
+	 * on the person page it stays visible while the section is collapsed.
+	 * @param body The collapsible area holding the rendered markdown.
+	 * Defaults to the container, which is the plan page's flat layout.
+	 */
+	private async renderExtrasSection(
+		container: HTMLElement,
+		body: HTMLElement = container
+	) {
+		const extrasSection = body.createDiv({
 			cls: "contact-extras-section",
 		});
 
@@ -3679,9 +3919,11 @@ export class ContactPageView extends ItemView {
 			);
 		}
 
-		// Edit button sits below the rendered content
-		const footer = extrasSection.createDiv({
-			cls: "contact-section-footer",
+		// Outside the accordion body, so it's reachable without expanding.
+		// It no longer sits inside .contact-extras-section, so it brings its
+		// own gutters rather than inheriting that section's padding.
+		const footer = container.createDiv({
+			cls: "contact-section-footer contact-extras-footer",
 		});
 		const editButton = footer.createEl("button", {
 			cls: "callander-button",
@@ -3702,7 +3944,12 @@ export class ContactPageView extends ItemView {
 		textarea.classList.remove("measuring");
 	}
 
-	async saveContactData() {
+	/**
+	 * @param stamp Whether this counts as a user edit. Migrations pass
+	 * false: moving a field between storage formats shouldn't make every
+	 * friend look like you touched them today.
+	 */
+	async saveContactData(stamp = true) {
 		if (!this._file) return;
 
 		// Our own write will fire a modify event — ignore it briefly so we
@@ -3743,7 +3990,7 @@ export class ContactPageView extends ItemView {
 				for (const key of CLEARABLE_FIELDS) {
 					if (!(key in this.contactData)) delete frontmatter[key];
 				}
-				if (stampUpdated) {
+				if (stampUpdated && stamp) {
 					frontmatter.updated = todayISO();
 				}
 			}

@@ -5,11 +5,38 @@ import type {
 	Draft,
 	FriendEvent,
 	GroupInfo,
+	Quote,
 	Idea,
 } from "@/types";
 import type { EventType, IdeaCategory } from "@/constants";
 import { parseFlexDate, formatFlexDate, todayISO } from "@/utils/flexdate";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
+import {
+	joinFrontmatter,
+	splitFrontmatter,
+} from "@/utils/markdownSection";
+import {
+	parseIdeasSection,
+	upsertIdeasSection,
+} from "@/utils/ideasMarkdown";
+import {
+	parseQuotesSection,
+	upsertQuotesSection,
+} from "@/utils/quotesMarkdown";
+
+/** Quotes still sitting in a note's frontmatter, pre-migration. */
+function quotesFromFrontmatter(metadata: unknown): Quote[] {
+	return asArray(fieldOf(metadata, "quotes"))
+		.map((q): Quote => {
+			if (typeof q === "string") return { text: q };
+			const context = fieldOf(q, "context");
+			return {
+				text: toText(fieldOf(q, "text")),
+				...(context ? { context: toText(context) } : {}),
+			};
+		})
+		.filter((q) => q.text.length > 0);
+}
 
 /** Where the inbox lived before it became the dashboard file's properties. */
 const LEGACY_INBOX_BASENAME = "Idea Inbox";
@@ -38,6 +65,91 @@ export class ContactOperations {
 			(fm: Record<string, unknown>) => {
 				fn(fm);
 				if (isPerson) fm.updated = todayISO();
+			}
+		);
+	}
+
+	// ---- Ideas in the note body ----
+	// Ideas live as markdown under `## Ideas` rather than in frontmatter.
+	// Every reader and writer goes through the three methods below, so the
+	// body stays the single source of truth and no caller has to know where
+	// the data physically sits.
+
+	/**
+	 * A file's ideas. The body wins once the note has an `## Ideas`
+	 * section; until then the frontmatter list still stands in, which is
+	 * what makes the migration lazy rather than a vault-wide rewrite.
+	 *
+	 * Costs one `cachedRead` — cached by Obsidian per file until it
+	 * changes, unlike frontmatter which comes free from the metadata cache.
+	 */
+	async readIdeas(file: TFile): Promise<Idea[]> {
+		let body: string;
+		try {
+			body = splitFrontmatter(await this.app.vault.cachedRead(file)).body;
+		} catch {
+			return [];
+		}
+		const fromBody = parseIdeasSection(body);
+		if (fromBody !== null) return fromBody;
+		return ContactOperations.ideasOf(
+			this.app.metadataCache.getFileCache(file)?.frontmatter
+		);
+	}
+
+	/** Rewrite just the Ideas section, leaving the rest of the note —
+	 * frontmatter included — exactly as it was. */
+	async writeIdeas(file: TFile, ideas: Idea[]): Promise<void> {
+		await this.app.vault.process(file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			return joinFrontmatter(
+				frontmatter,
+				upsertIdeasSection(body, ideas)
+			);
+		});
+	}
+
+	/**
+	 * Move a file's ideas out of frontmatter and into the body, once.
+	 *
+	 * Ordered so a failure is always recoverable: the body is written
+	 * first, and only a successful write clears the frontmatter key. Die in
+	 * between and the ideas exist in both places, the body wins on the next
+	 * read, and the stale key is cleared then.
+	 */
+	async migrateIdeasToBody(file: TFile): Promise<void> {
+		let content: string;
+		try {
+			content = await this.app.vault.cachedRead(file);
+		} catch {
+			return;
+		}
+		const alreadyMigrated =
+			parseIdeasSection(splitFrontmatter(content).body) !== null;
+		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+		const stale =
+			isRecord(fm) &&
+			(fm.ideas !== undefined || fm.giftIdeas !== undefined);
+
+		if (alreadyMigrated) {
+			// A previous run may have died between the two writes.
+			if (stale) await this.clearFrontmatterIdeas(file);
+			return;
+		}
+		const ideas = ContactOperations.ideasOf(fm);
+		if (ideas.length === 0) return;
+		await this.writeIdeas(file, ideas);
+		await this.clearFrontmatterIdeas(file);
+	}
+
+	/** Drop the migrated keys without stamping `updated` — moving a field
+	 * between storage formats isn't a user edit. */
+	private async clearFrontmatterIdeas(file: TFile): Promise<void> {
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				delete fm.ideas;
+				delete fm.giftIdeas;
 			}
 		);
 	}
@@ -401,12 +513,13 @@ export class ContactOperations {
 			}
 		);
 		if (moved) {
-			await this.writeFrontMatter(target, (fm) => {
-					const ideas = ContactOperations.ideasOf(fm);
-					delete fm.giftIdeas;
-					fm.ideas = [...ideas, moved];
-				}
-			);
+			// The inbox itself stays in the dashboard's frontmatter — it's a
+			// queue, not a person's record — but the friend it lands on
+			// keeps its ideas in the body like any other.
+			await this.migrateIdeasToBody(target);
+			const ideas = await this.readIdeas(target);
+			await this.writeIdeas(target, [...ideas, moved]);
+			await this.writeFrontMatter(target, () => undefined);
 		}
 		return moved;
 	}
@@ -603,9 +716,22 @@ export class ContactOperations {
 	async mergeFriends(keep: TFile, duplicate: TFile): Promise<void> {
 		const dupMeta = await this.readFrontmatter(duplicate);
 		const dupContent = await this.app.vault.read(duplicate);
-		const dupBody = dupContent
-			.replace(/^---\n[\s\S]*?\n---\n?/, "")
-			.trim();
+		const dupBodyRaw = splitFrontmatter(dupContent).body;
+
+		// Body-stored lists have to be merged as data, not appended as text
+		// — pasting the duplicate's body wholesale would leave the kept
+		// friend with two `## Ideas` headings.
+		const dupIdeas =
+			parseIdeasSection(dupBodyRaw) ??
+			ContactOperations.ideasOf(dupMeta);
+		const dupQuotes =
+			parseQuotesSection(dupBodyRaw) ?? quotesFromFrontmatter(dupMeta);
+		// Whatever's left once the sections we own are lifted out — the
+		// user's own prose, which still gets appended.
+		const dupBody = upsertQuotesSection(
+			upsertIdeasSection(dupBodyRaw, []),
+			[]
+		).trim();
 
 		await this.writeFrontMatter(keep, (fm) => {
 				// Fill scalar gaps only — the kept friend always wins conflicts
@@ -620,15 +746,13 @@ export class ContactOperations {
 						fm[key] = value;
 					}
 				}
-				fm.ideas = [
-					...ContactOperations.ideasOf(fm),
-					...ContactOperations.ideasOf(dupMeta),
-				];
 				fm.events = [
 					...ContactOperations.eventsOf(fm),
 					...ContactOperations.eventsOf(dupMeta),
 				];
+				delete fm.ideas;
 				delete fm.giftIdeas;
+				delete fm.quotes;
 				delete fm.interactions;
 				const groups = [
 					...ContactOperations.groupsOf(fm),
@@ -643,13 +767,24 @@ export class ContactOperations {
 			}
 		);
 
-		if (dupBody) {
-			const keepContent = await this.app.vault.read(keep);
-			await this.app.vault.modify(
-				keep,
-				keepContent.replace(/\s*$/, "") + "\n\n" + dupBody + "\n"
-			);
-		}
+		// Read the kept friend's own lists before the frontmatter keys were
+		// dropped above, so nothing is lost in the handover.
+		const keepIdeas =
+			parseIdeasSection(splitFrontmatter(await this.app.vault.read(keep)).body) ??
+			ContactOperations.ideasOf(await this.readFrontmatter(keep));
+		const keepQuotes =
+			parseQuotesSection(splitFrontmatter(await this.app.vault.read(keep)).body) ??
+			[];
+
+		await this.app.vault.process(keep, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			let next = upsertIdeasSection(body, [...keepIdeas, ...dupIdeas]);
+			next = upsertQuotesSection(next, [...keepQuotes, ...dupQuotes]);
+			if (dupBody) {
+				next = `${next.replace(/\s*$/, "")}\n\n${dupBody}\n`;
+			}
+			return joinFrontmatter(frontmatter, next);
+		});
 
 		await this.app.fileManager.trashFile(duplicate);
 	}
@@ -669,33 +804,22 @@ export class ContactOperations {
 	}
 
 	/**
-	 * Append an idea to a contact file's frontmatter without needing the
-	 * contact page to be open. Also folds in any legacy giftIdeas.
+	 * Append an idea to a contact file without needing the contact page to
+	 * be open. Migrates the file's ideas into the body first, so a friend
+	 * captured against from the dashboard ends up in the same shape as one
+	 * edited on their own page.
 	 */
 	async addIdea(
 		file: TFile,
 		category: IdeaCategory,
 		text: string
 	): Promise<void> {
-		await this.writeFrontMatter(file, (frontmatter) => {
-				// Existing entries pass through untouched (unlike ideasOf, no
-				// filtering — malformed rows are left exactly as they were)
-				const ideas = asArray(frontmatter.ideas) as Idea[];
-				ideas.push(
-					...asArray(frontmatter.giftIdeas).map((g): Idea => {
-						const t = fieldOf(g, "text");
-						return {
-							category: "gift" as const,
-							text: t == null ? toText(g) : toText(t),
-							done: !!fieldOf(g, "done"),
-						};
-					})
-				);
-				delete frontmatter.giftIdeas;
-				ideas.push({ category, text, done: false });
-				frontmatter.ideas = ideas;
-			}
-		);
+		await this.migrateIdeasToBody(file);
+		const ideas = await this.readIdeas(file);
+		await this.writeIdeas(file, [...ideas, { category, text, done: false }]);
+		// The body write doesn't touch frontmatter, so the person's
+		// last-updated stamp has to be set on its own.
+		await this.writeFrontMatter(file, () => undefined);
 	}
 
 	async getContacts(): Promise<ContactWithCountdown[]> {
@@ -738,7 +862,11 @@ export class ContactOperations {
 						? this.formatDaysAgo(toText(fieldOf(latest, "date")))
 						: null;
 
-					const ideas = ContactOperations.ideasOf(metadata);
+					// Ideas live in the note body, so unlike everything else
+					// here they cost a read. Obsidian caches it per file
+					// until the file changes — one read per edit, not one
+					// per render.
+					const ideas = await this.readIdeas(file);
 					const openIdeas = ideas.filter((i) => !i.done).length;
 					const birthday = str("birthday");
 

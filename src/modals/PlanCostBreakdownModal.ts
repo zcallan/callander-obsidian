@@ -9,6 +9,7 @@ export class PlanCostBreakdownModal extends Modal {
 			label: string;
 			descriptor: string;
 			amount: number;
+			settled?: boolean;
 		}>
 	) {
 		super(app);
@@ -30,14 +31,22 @@ export class PlanCostBreakdownModal extends Modal {
 		const list = contentEl.createDiv({ cls: "plan-breakdown-list" });
 		let total = 0;
 		for (const r of this.rows) {
-			total += r.amount;
+			// Settled lines are history — shown, but already squared up, so
+			// they don't add to what's still owed.
+			if (!r.settled) total += r.amount;
 			const row = list.createDiv({ cls: "plan-breakdown-row" });
 			row.createSpan({
 				cls: "plan-breakdown-label",
 				text: `${r.label} · ${r.descriptor}`,
 			});
+			if (r.settled) {
+				row.createSpan({
+					cls: "plan-breakdown-settled",
+					text: "Settled",
+				});
+			}
 			row.createSpan({
-				cls: "plan-breakdown-amount",
+				cls: `plan-breakdown-amount${r.settled ? " is-settled" : ""}`,
 				text: `$${r.amount.toFixed(2)}`,
 			});
 		}

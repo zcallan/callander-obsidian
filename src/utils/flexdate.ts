@@ -167,7 +167,17 @@ export function formatTimeSince(date: FlexDate, now = new Date()): string {
 
 /** Today as a local YYYY-MM-DD stamp (for created/updated fields). */
 export function todayISO(): string {
+	return isoStamp(new Date());
+}
+
+/** N days from today (negative for the past), as a local YYYY-MM-DD stamp. */
+export function daysFromToday(days: number): string {
 	const d = new Date();
+	d.setDate(d.getDate() + days);
+	return isoStamp(d);
+}
+
+function isoStamp(d: Date): string {
 	const pad = (n: number) => String(n).padStart(2, "0");
 	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }

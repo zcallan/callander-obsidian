@@ -113,7 +113,7 @@ import { MergeFriendsModal } from "@/modals/MergeFriendsModal";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { ReminderModal } from "@/modals/ReminderModal";
-import { parseFlexDate, todayISO } from "@/utils/flexdate";
+import { daysFromToday, parseFlexDate, todayISO } from "@/utils/flexdate";
 
 export default class FriendTracker extends Plugin {
 	settings: FriendTrackerSettings;
@@ -1031,11 +1031,43 @@ export default class FriendTracker extends Plugin {
 			const today = todayISO();
 			const yaml = stringifyYaml({
 				name: "Example Friend",
+				birthday: daysFromToday(21),
+				met: today,
 				created: today,
 				updated: today,
 			});
-			await this.app.vault.create(examplePath, `---\n${yaml}\n---\n`);
+			const file = await this.app.vault.create(
+				examplePath,
+				`---\n${yaml}\n---\n`
+			);
+			// getContacts() reads frontmatter from the metadata cache, not
+			// the file — deliberately, since a cache read costs nothing
+			// while a cold file read can mean a network fetch on a
+			// cloud-synced vault. That cache is populated by a separate,
+			// async indexing pass, so it isn't guaranteed to have caught up
+			// with a file created a moment ago. DashboardView.onOpen() calls
+			// refresh() right after this returns — without waiting here,
+			// that first render could miss the friend it just seeded, only
+			// showing it after the dashboard is closed and reopened.
+			await this.waitForMetadata(file);
 		}
+	}
+
+	/** Resolves once the metadata cache has indexed `file`, or after a
+	 * short timeout — bounded so a missed event can't hang the caller. */
+	private async waitForMetadata(file: TFile): Promise<void> {
+		if (this.app.metadataCache.getFileCache(file)?.frontmatter) return;
+		await new Promise<void>((resolve) => {
+			const done = () => {
+				window.clearTimeout(timeout);
+				this.app.metadataCache.offref(ref);
+				resolve();
+			};
+			const timeout = window.setTimeout(done, 2000);
+			const ref = this.app.metadataCache.on("changed", (changed) => {
+				if (changed.path === file.path) done();
+			});
+		});
 	}
 
 	// ---- Birthday calendar export ----

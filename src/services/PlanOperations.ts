@@ -17,6 +17,7 @@ import type {
 } from "@/types";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import { todayISO } from "@/utils/flexdate";
+import { splitModeLabel } from "@/utils/planFormat";
 
 /** The named field when it's a non-empty string, else undefined. */
 function strFieldOf(value: unknown, key: string): string | undefined {
@@ -224,6 +225,7 @@ export class PlanOperations {
 				return {
 					label: typeof label === "string" ? label : "",
 					amount: Number(fieldOf(c, "amount")) || 0,
+					...(fieldOf(c, "settled") === true && { settled: true }),
 					split: {
 						mode:
 							mode === "shares" ||
@@ -449,37 +451,49 @@ export class PlanOperations {
 	/**
 	 * How one person's total splits across each expense they're part of:
 	 * label, a human "how" descriptor (e.g. "2 shares", "25%", "even"), and
-	 * the amount they owe for that item.
+	 * the amount they owe for that item. Settled expenses stay in the list —
+	 * they're the record of what was squared up — flagged so the caller can
+	 * show them as done and leave them out of the total.
 	 */
 	static breakdownFor(
 		person: string,
 		costs: PlanCost[],
 		participants: string[],
 		credits: PlanCredit[] = []
-	): Array<{ label: string; descriptor: string; amount: number }> {
+	): Array<{
+		label: string;
+		descriptor: string;
+		amount: number;
+		settled?: boolean;
+	}> {
 		const rows: Array<{
 			label: string;
 			descriptor: string;
 			amount: number;
+			settled?: boolean;
 		}> = [];
 		for (const cost of costs) {
 			const amount = PlanOperations.owedFor(cost, participants)[person];
 			if (!amount || amount <= 0) continue;
 			const shares = cost.split.shares ?? {};
+			// Shares and percent show the person's own number — more useful
+			// than the mode name. Everything else reuses the same wording
+			// the cost row and view modal already use for that mode.
 			let descriptor: string;
 			if (cost.split.mode === "shares") {
 				const w = shares[person] ?? 1;
 				descriptor = `${w} ${w === 1 ? "share" : "shares"}`;
-			} else if (cost.split.mode === "receipt") {
-				descriptor = "off the receipt";
-			} else if (cost.split.mode === "value") {
-				descriptor = "set amount";
 			} else if (cost.split.mode === "percent") {
 				descriptor = `${shares[person] ?? 0}%`;
 			} else {
-				descriptor = "even";
+				descriptor = splitModeLabel(cost.split.mode).toLowerCase();
 			}
-			rows.push({ label: cost.label, descriptor, amount });
+			rows.push({
+				label: cost.label,
+				descriptor,
+				amount,
+				...(cost.settled && { settled: true }),
+			});
 		}
 		// Credits come off as negative lines
 		for (const c of credits.filter((c) => c.person === person)) {

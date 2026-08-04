@@ -1963,6 +1963,7 @@ If your plugin does not need CSS, delete this file.
 /* A day in the plan's range with nothing scheduled */
 .plan-timeline-empty {
 	color: var(--text-muted);
+	opacity: 0.7;
 	font-style: italic;
 	cursor: default;
 }
@@ -2969,14 +2970,20 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	cursor: pointer;
 }
 
-/* Your own row can't be ticked — show a clear disabled grey box */
-.plan-cost-owed-check input[type="checkbox"]:disabled {
-	-webkit-appearance: none;
-	appearance: none;
+/* Sized explicitly (not just the disabled state below) so the gap to the
+   name reads the same on every row — native checkboxes carry their own
+   implicit spacing that doesn't match the disabled box's. */
+.plan-cost-owed-check input[type="checkbox"] {
 	width: 16px;
 	height: 16px;
 	flex: 0 0 auto;
 	margin: 0;
+}
+
+/* Your own row can't be ticked — show a clear disabled grey box */
+.plan-cost-owed-check input[type="checkbox"]:disabled {
+	-webkit-appearance: none;
+	appearance: none;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	background-color: var(--background-modifier-border);
@@ -3014,6 +3021,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
    Shares plan-item-cost sizing; just recolour. */
 .plan-credit-amount {
 	color: var(--color-green);
+}
+
+/* Settled expense, in the cost view modal: only the word goes green — the
+   amount stays a plain figure, since it's still what the expense cost. */
+.plan-cost-settled-label {
+	color: var(--color-green, #5cb870);
 }
 
 /* Cost section footer: "Add expense" + "Add credit". Side by side on desktop,
@@ -3060,6 +3073,19 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .plan-breakdown-amount {
 	flex: 0 0 auto;
 	font-variant-numeric: tabular-nums;
+}
+
+/* A settled line in the breakdown: "Settled" in green ahead of the figure,
+   the figure struck through since it no longer counts toward the total. */
+.plan-breakdown-settled {
+	flex: 0 0 auto;
+	color: var(--color-green, #5cb870);
+	font-size: 0.85em;
+}
+
+.plan-breakdown-amount.is-settled {
+	text-decoration: line-through;
+	opacity: 0.6;
 }
 
 .plan-breakdown-total {
@@ -3472,6 +3498,13 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .plan-accordion.is-open .plan-accordion-body {
 	display: block;
+}
+
+/* The markdown section's Edit button sits outside the collapsible body, so
+   it no longer inherits .contact-extras-section's padding — give it the same
+   gutters so it lines up with every other section's controls. */
+.contact-extras-footer {
+	padding: 4px 16px 12px;
 }
 
 /* General accordion: the page header already provides the divider above, so
