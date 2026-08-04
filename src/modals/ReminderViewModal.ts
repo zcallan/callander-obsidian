@@ -12,6 +12,9 @@ import { REMINDER_TYPES } from "@/constants";
  * SomedayViewModal. `onChange` refreshes the dashboard behind it.
  */
 export class ReminderViewModal extends Modal {
+	private notesSaveTimer: number | null = null;
+	private notesDirty = false;
+
 	constructor(
 		app: App,
 		private plugin: FriendTracker,
@@ -35,6 +38,44 @@ export class ReminderViewModal extends Modal {
 		if (f) parts.push(formatFlexDate(f));
 		if (this.reminder.time) parts.push(this.formatTime(this.reminder.time));
 		return parts.join(" · ") || "No date";
+	}
+
+	/** Debounced write: keeps typing from hitting disk on every keystroke.
+	 * Reminders are matched by id/file rather than by content, so — unlike
+	 * events — there's no risk in updating `reminder` immediately here. */
+	private scheduleNotesSave(value: string) {
+		if (value) this.reminder.notes = value;
+		else delete this.reminder.notes;
+		this.notesDirty = true;
+		if (this.notesSaveTimer !== null) {
+			window.clearTimeout(this.notesSaveTimer);
+		}
+		this.notesSaveTimer = window.setTimeout(
+			() => void this.flushNotes(),
+			600
+		);
+	}
+
+	/** Write whatever's pending now — called on blur and on close, so a
+	 * quick edit-then-dismiss never loses the last few keystrokes. */
+	private async flushNotes() {
+		if (this.notesSaveTimer !== null) {
+			window.clearTimeout(this.notesSaveTimer);
+			this.notesSaveTimer = null;
+		}
+		if (!this.notesDirty) return;
+		this.notesDirty = false;
+		const r = this.reminder;
+		await this.plugin.reminderOperations.updateReminder(r, {
+			name: r.name,
+			date: r.date,
+			time: r.time,
+			type: r.type,
+			location: r.location,
+			link: r.link,
+			notes: r.notes,
+		});
+		await this.onChange();
 	}
 
 	onOpen() {
@@ -77,6 +118,22 @@ export class ReminderViewModal extends Modal {
 			openBtn.addEventListener("click", () => window.open(url, "_blank"));
 		}
 
+		// Notes — edits live here, saving themselves shortly after you stop
+		// typing (not shown on the dashboard row, only in this view).
+		const notesInput = contentEl.createEl("textarea", {
+			cls: "someday-view-notes-input",
+			attr: { placeholder: "Notes (optional)", rows: "3" },
+		});
+		notesInput.value = r.notes ?? "";
+		notesInput.addEventListener("input", () => {
+			this.scheduleNotesSave(notesInput.value);
+		});
+		notesInput.addEventListener("blur", () => void this.flushNotes());
+		// Being the only textarea, it'd otherwise grab the modal's default
+		// focus — undo that right after, so opening the modal doesn't pop
+		// the keyboard on mobile or steal focus from the actual buttons.
+		window.setTimeout(() => notesInput.blur(), 0);
+
 		// Actions
 		const actions = contentEl.createDiv({
 			cls: "someday-view-actions",
@@ -110,10 +167,10 @@ export class ReminderViewModal extends Modal {
 			).open();
 		});
 		const del = actions.createEl("button", {
-			cls: "callander-button button-danger",
+			cls: "callander-button button-icon button-danger",
+			attr: { "aria-label": "Delete" },
 		});
 		setIcon(del, "trash");
-		del.createSpan({ text: "Delete" });
 		del.addEventListener("click", () => {
 			new ConfirmModal(
 				this.app,
@@ -130,6 +187,7 @@ export class ReminderViewModal extends Modal {
 	}
 
 	onClose() {
+		void this.flushNotes();
 		this.contentEl.empty();
 	}
 }

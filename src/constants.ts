@@ -161,6 +161,7 @@ export const EVENT_TYPES = [
 	{ id: "milestone", label: "Milestone", emoji: "🏅" },
 	{ id: "life", label: "Life event", emoji: "🌱" },
 	{ id: "given", label: "Given", emoji: "🎁" },
+	{ id: "party", label: "Party", emoji: "🎉" },
 	{ id: "other", label: "Other", emoji: "✨" },
 ] as const;
 
@@ -212,8 +213,13 @@ export type BookingState = (typeof BOOKING_STATES)[number]["id"];
 export const PLAN_IDEA_CATEGORIES = [
 	{ id: "activity", label: "Activity", emoji: "🥾" },
 	{ id: "restaurant", label: "Restaurant", emoji: "🍴" },
+	{ id: "bar", label: "Bar", emoji: "🍺" },
+	{ id: "coffee", label: "Coffee", emoji: "☕" },
 	{ id: "cooking", label: "Cooking", emoji: "🍳" },
 	{ id: "sightseeing", label: "Sightseeing", emoji: "📸" },
+	{ id: "show", label: "Show", emoji: "🎭" },
+	{ id: "event", label: "Event", emoji: "🎪" },
+	{ id: "shopping", label: "Shopping", emoji: "🛍️" },
 	{ id: "other", label: "Other", emoji: "✨" },
 ] as const;
 

@@ -8,6 +8,8 @@ import {
 	formatTimelineDay,
 	nightsLabel,
 	nightsSummary,
+	shortenMemberNames,
+	shortenPeopleList,
 	startsWithEmoji,
 } from "@/utils/planFormat";
 
@@ -26,24 +28,6 @@ export interface PlanShareOptions {
 	members: string[];
 	/** Invited-but-unconfirmed display names, likewise resolved. */
 	unconfirmed: string[];
-}
-
-/** "Riley" — or "Riley P" when two Rileys would otherwise collide. */
-export function shortenMemberNames(fullNames: string[]): string[] {
-	const firstCounts = new Map<string, number>();
-	for (const name of fullNames) {
-		const first = name.trim().split(/\s+/)[0].toLowerCase();
-		firstCounts.set(first, (firstCounts.get(first) ?? 0) + 1);
-	}
-	return fullNames.map((name) => {
-		const parts = name.trim().split(/\s+/);
-		const first = parts[0];
-		const isDupe = (firstCounts.get(first.toLowerCase()) ?? 0) > 1;
-		if (isDupe && parts.length > 1) {
-			return `${first} ${parts[1].charAt(0).toUpperCase()}`;
-		}
-		return first;
-	});
 }
 
 /** "Thu 30 Jul - Sun 2 Aug", collapsing to one date when there's no range. */
@@ -88,7 +72,11 @@ export function formatPlanDateRange(
  * and notes on their own lines, since that's exactly the detail people ask
  * for after you send the plan.
  */
-export function planShareLines(entry: PlanTimelineEntry): string[] {
+export function planShareLines(
+	entry: PlanTimelineEntry,
+	/** Everyone on the plan, so first names disambiguate consistently. */
+	roster: string[] = []
+): string[] {
 	const isStay = entry.source === "accommodation";
 	const when = isStay
 		? "Sleeping at"
@@ -102,12 +90,15 @@ export function planShareLines(entry: PlanTimelineEntry): string[] {
 	const bits: string[] = [];
 	if (entry.duration) bits.push(entry.duration);
 	if (entry.nights) bits.push(nightsSummary(entry.date, entry.nights));
-	if (entry.people) bits.push(entry.people);
+	if (entry.people) bits.push(shortenPeopleList(entry.people, roster));
 
 	const icon = startsWithEmoji(entry.text) ? "" : `${entry.emoji} `;
 	const meta = bits.length > 0 ? ` • ${bits.join(" • ")}` : "";
 	const lines = [`- ${when ? `${when} — ` : ""}${icon}${entry.text}${meta}`];
-	if (entry.address) lines.push(`  📍 ${entry.address}`);
+	// A stay calls it an address, an idea calls it a location — either is
+	// worth carrying into the message.
+	const place = entry.address ?? entry.location;
+	if (place) lines.push(`  📍 ${place}`);
 	if (entry.notes) lines.push(`  ${entry.notes}`);
 	return lines;
 }
@@ -130,7 +121,8 @@ export function buildPlanShareText(
 	);
 	const fullNames = yourName ? [yourName, ...memberNames] : memberNames;
 	// Shorten across the whole pool so dupes disambiguate consistently.
-	const shortened = shortenMemberNames([...fullNames, ...opts.unconfirmed]);
+	const roster = [...fullNames, ...opts.unconfirmed];
+	const shortened = shortenMemberNames(roster);
 	const names = shortened.slice(0, fullNames.length);
 	const unconfirmedNames = shortened.slice(fullNames.length);
 	if (names.length > 0) {
@@ -147,7 +139,7 @@ export function buildPlanShareText(
 			currentDay = entry.date;
 			lines.push("", formatTimelineDay(entry.date));
 		}
-		lines.push(...planShareLines(entry));
+		lines.push(...planShareLines(entry, roster));
 	}
 
 	// Undated items still have to appear somewhere, or copying would quietly
@@ -159,7 +151,10 @@ export function buildPlanShareText(
 		lines.push("", "Travel:");
 		undatedTravel.forEach((t) => {
 			const icon = t.type ? `${TRAVEL_TYPE_EMOJI[t.type]} ` : "";
-			const bits = [t.duration, t.people].filter(Boolean);
+			const bits = [
+				t.duration,
+				t.people && shortenPeopleList(t.people, roster),
+			].filter(Boolean);
 			const meta = bits.length > 0 ? ` • ${bits.join(" • ")}` : "";
 			lines.push(`- ${icon}${t.text}${meta}`);
 		});

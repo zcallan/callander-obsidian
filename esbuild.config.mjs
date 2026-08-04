@@ -22,6 +22,11 @@ function buildStamp() {
 	)} ${h12}:${pad(now.getMinutes())} ${h < 12 ? "AM" : "PM"}`;
 }
 
+/** The version being shipped — stable for a given commit, unlike a clock. */
+function releaseVersion() {
+	return JSON.parse(fs.readFileSync("manifest.json", "utf8")).version;
+}
+
 // Dev builds can go straight into a vault's plugin folder so Obsidian
 // (and iCloud-synced devices) pick them up. Put the absolute path of the
 // vault plugin dir in .vault-plugin-path (gitignored). Production builds
@@ -66,10 +71,17 @@ const context = await esbuild.context({
 		...builtinModules,
 	],
 	define: {
-		// Baked into the bundle so a running install can say which build
-		// it is (surfaced as a dev-only startup notice). Local time of the
-		// build machine, e.g. "2026-08-02 10:39 PM".
-		__CALLANDER_BUILD__: JSON.stringify(buildStamp()),
+		// Baked into the bundle so a running install can say which build it
+		// is (surfaced as a dev-only startup notice).
+		//
+		// Dev gets the build machine's local time, e.g. "2026-08-02 10:39 PM",
+		// so you can tell at a glance which bundle reached a device. Release
+		// builds MUST stay byte-reproducible — a clock reading would make
+		// every rebuild differ and defeat verification — so they carry the
+		// manifest version instead, which is fixed for a given tag.
+		__CALLANDER_BUILD__: JSON.stringify(
+			prod ? releaseVersion() : buildStamp()
+		),
 	},
 	format: "cjs",
 	target: "es2018",

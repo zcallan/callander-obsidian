@@ -26,6 +26,12 @@ export interface FriendTrackerSettings {
 	relationshipTypes: string[];
 	defaultActiveTab: "notes" | "events" | "ideas" | "markdown";
 	belatedBirthdayDays: number;
+	/** How far ahead the dashboard's Upcoming section looks, in days */
+	upcomingDays: number;
+	/** Default sales tax %, offered on a "by receipt" expense split */
+	receiptTaxPercent: number;
+	/** Default tip %, offered on a "by receipt" expense split */
+	receiptTipPercent: number;
 	showBirthdayReminders: boolean;
 	birthdayReminderDays: number;
 	showMetColumn: boolean;
@@ -97,7 +103,11 @@ export interface PlanItem {
 	time?: string;
 	/** Who's involved, free text, e.g. "me, Riley, Laura". */
 	people?: string;
+	/** Where it happens, e.g. "Eventide Oyster Co" — openable in Maps. */
+	location?: string;
 	cost?: number;
+	/** Free-text detail — edited from the timeline's read view. */
+	notes?: string;
 }
 
 /** Flat plan list entries: travel legs, accommodation options */
@@ -119,7 +129,7 @@ export interface PlanSimpleItem {
 	nights?: number;
 	/** Street address — openable in Google Maps. */
 	address?: string;
-	/** Booking status — accommodation only; absent means no booking needed. */
+	/** Booking status — stays and travel legs; absent means nothing to chase. */
 	booked?: BookingState;
 	/** Check-in/out times, door codes — anything worth having on hand. */
 	notes?: string;
@@ -151,6 +161,8 @@ export interface PlanTimelineEntry {
 	/** Stay length — accommodation entries (shown once, on check-in day). */
 	nights?: number;
 	address?: string;
+	/** Idea entries' equivalent of `address` — both open in Maps. */
+	location?: string;
 	booked?: BookingState;
 	notes?: string;
 	cost?: number;
@@ -165,9 +177,20 @@ export interface PlanCost {
 	label: string;
 	amount: number;
 	split: {
-		mode: "even" | "shares" | "percent";
-		/** Per-person weights (shares) or percentages, keyed by name */
+		mode: "even" | "shares" | "percent" | "value" | "receipt";
+		/** Per-person weights (shares), percentages, or exact dollar
+		 * amounts ("value" and "receipt"), keyed by name */
 		shares?: Record<string, number>;
+		/** "receipt" only — how a line was written when it was arithmetic
+		 * ("7+7" for 14), keyed by name. Kept purely so you can see how a
+		 * figure was arrived at; `shares` remains the number that counts. */
+		exprs?: Record<string, string>;
+		/** "receipt" only — sales tax %, absent when not applied. Charged
+		 * on the subtotal, not compounded with the tip. */
+		tax?: number;
+		/** "receipt" only — tip %, absent when not applied. Also charged
+		 * on the subtotal. */
+		tip?: number;
 	};
 }
 
@@ -228,6 +251,15 @@ export interface FriendEvent {
 	/** Path of the diary entry this event was logged from, if any —
 	 * used to update instead of duplicate when re-logging */
 	source?: string;
+	/**
+	 * Wikilink to the Plan this row came from ("[[Weekend in Maine]]").
+	 *
+	 * Only ever set on rows *derived* at render time from a plan's
+	 * membership — never written to a person's note. The plan stays the
+	 * single source of truth, so a row appears and disappears with the
+	 * membership itself. Its presence marks a row as read-only here.
+	 */
+	plan?: string;
 	/** Hidden from the dashboard's Upcoming section only — the timeline
 	 * on the person's page still shows it */
 	hiddenFromUpcoming?: boolean;
@@ -317,6 +349,7 @@ export interface Reminder {
 	type?: ReminderType;
 	location?: string;
 	link?: string;
+	notes?: string;
 	status?: "open" | "done";
 	created?: string;
 	updated?: string;
@@ -334,6 +367,9 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	relationshipTypes: ["family", "friend", "colleague", "pet"],
 	defaultActiveTab: "notes",
 	belatedBirthdayDays: 14,
+	upcomingDays: 30,
+	receiptTaxPercent: 6.25,
+	receiptTipPercent: 20,
 	showBirthdayReminders: true,
 	birthdayReminderDays: 7,
 	showMetColumn: false,

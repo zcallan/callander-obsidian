@@ -2,7 +2,6 @@ import { App, Modal, Notice, setIcon } from "obsidian";
 import type FriendTracker from "@/main";
 import type { SomedayInfo, SomedaySubIdea } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
-import { SomedaySubIdeaModal } from "@/modals/SomedaySubIdeaModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 import {
@@ -13,12 +12,15 @@ import {
 
 /**
  * A read-first look at a Someday — its when/days/company/cost/notes and
- * sub-ideas — with the actions (convert, edit, done, copy, delete) as buttons.
- * Sub-idea ticks are mirrored locally so the view stays in step without a refetch.
+ * sub-ideas — with the actions (edit, copy, delete, mark done, convert) as
+ * buttons. Sub-idea ticks are mirrored locally so the view stays in step
+ * without a refetch.
  */
 export class SomedayViewModal extends Modal {
 	private status: string;
 	private subIdeas: SomedaySubIdea[];
+	private notesSaveTimer: number | null = null;
+	private notesDirty = false;
 
 	constructor(
 		app: App,
@@ -49,27 +51,26 @@ export class SomedayViewModal extends Modal {
 
 		contentEl.createEl("h2", { text: s.name });
 
-		const metaParts: string[] = [this.whenLabel()];
-		const comp = somedayCompany(s.company);
-		if (comp) metaParts.push(comp.label);
-		const days = formatSomedayDays(s.days);
-		if (days) metaParts.push(days);
+		// When + candidate days, one line: "📅 Sometime in Oct • Weekends"
+		const daysLabel = formatSomedayDays(s.days);
 		contentEl.createDiv({
 			cls: "someday-view-meta",
-			text: metaParts.join(" · "),
+			text: `📅 ${[this.whenLabel(), daysLabel]
+				.filter(Boolean)
+				.join(" • ")}`,
 		});
 
-		if (s.cost !== null) {
+		// Company + cost, one line — the company's own emoji leads it, so
+		// "Solo"/"Group"/"Either" carry their existing 🧍/👥/🔀 glyph rather
+		// than a generic icon. Skipped entirely when neither is set.
+		const comp = somedayCompany(s.company);
+		const costLabel = s.cost !== null ? `~$${s.cost}` : "";
+		if (comp || costLabel) {
 			contentEl.createDiv({
-				cls: "someday-view-cost",
-				text: `~$${s.cost}`,
-			});
-		}
-
-		if (s.notes) {
-			contentEl.createDiv({
-				cls: "someday-view-notes",
-				text: s.notes,
+				cls: "someday-view-meta",
+				text: `${comp?.emoji ?? "💵"} ${[comp?.label, costLabel]
+					.filter(Boolean)
+					.join(" • ")}`,
 			});
 		}
 
@@ -127,52 +128,81 @@ export class SomedayViewModal extends Modal {
 			del.addEventListener("click", () => void handleRemove());
 		});
 
-		const addBtn = wrap.createEl("button", {
-			cls: "callander-button someday-subidea-addbtn",
+		// Description — edits live here rather than only in the full Edit
+		// form, and saves itself shortly after you stop typing.
+		const notesInput = wrap.createEl("textarea", {
+			cls: "someday-view-notes-input",
+			attr: { placeholder: "Notes (optional)", rows: "3" },
 		});
-		setIcon(addBtn, "plus");
-		addBtn.createSpan({ text: "Add sub-idea" });
-		addBtn.addEventListener("click", () => {
-			new SomedaySubIdeaModal(
-				this.app,
-				this.someday.name,
-				async (text) => {
-					this.subIdeas.push({ text, done: false });
-					await ops.addSubIdea(this.someday.file, text);
-					await this.onChange();
-					this.render();
-				}
-			).open();
+		notesInput.value = this.someday.notes;
+		notesInput.addEventListener("input", () => {
+			this.scheduleNotesSave(notesInput.value);
 		});
+		notesInput.addEventListener("blur", () => void this.flushNotes());
+		// Being the only textarea, it'd otherwise grab the modal's default
+		// focus — undo that right after, so opening the modal doesn't pop
+		// the keyboard on mobile or steal focus from the actual buttons.
+		window.setTimeout(() => notesInput.blur(), 0);
+	}
+
+	/** Debounced write: keeps typing from hitting disk on every keystroke. */
+	private scheduleNotesSave(value: string) {
+		this.someday.notes = value;
+		this.notesDirty = true;
+		if (this.notesSaveTimer !== null) {
+			window.clearTimeout(this.notesSaveTimer);
+		}
+		this.notesSaveTimer = window.setTimeout(
+			() => void this.flushNotes(),
+			600
+		);
+	}
+
+	/** Write whatever's pending now — called on blur and on close, so a
+	 * quick edit-then-dismiss never loses the last few keystrokes. */
+	private async flushNotes() {
+		if (this.notesSaveTimer !== null) {
+			window.clearTimeout(this.notesSaveTimer);
+			this.notesSaveTimer = null;
+		}
+		if (!this.notesDirty) return;
+		this.notesDirty = false;
+		await this.plugin.somedayOperations.updateSomeday(this.someday.file, {
+			notes: this.someday.notes,
+		});
+		await this.onChange();
 	}
 
 	private renderActions(container: HTMLElement) {
 		const ops = this.plugin.somedayOperations;
 		const s = this.someday;
-		const actions = container.createDiv({
-			cls: "someday-view-actions",
-		});
+
 		const button = (
+			row: HTMLElement,
 			icon: string,
 			label: string,
-			onClick: () => void | Promise<void>
+			onClick: () => void | Promise<void>,
+			opts: { iconOnly?: boolean; danger?: boolean } = {}
 		) => {
-			const btn = actions.createEl("button", {
-				cls: "callander-button",
+			const btn = row.createEl("button", {
+				cls: [
+					"callander-button",
+					opts.iconOnly && "button-icon",
+					opts.danger && "button-danger",
+				]
+					.filter(Boolean)
+					.join(" "),
+				attr: opts.iconOnly ? { "aria-label": label } : {},
 			});
 			setIcon(btn, icon);
-			btn.createSpan({ text: label });
+			if (!opts.iconOnly) btn.createSpan({ text: label });
 			btn.addEventListener("click", () => void onClick());
 			return btn;
 		};
 
-		if (!s.convertedTo) {
-			button("map", "Convert to plan", () => {
-				this.close();
-				void this.plugin.convertSomedayToPlan(s);
-			});
-		}
-		button("pencil", "Edit", () => {
+		// Housekeeping — edit the fields, copy as text, or delete outright.
+		const editRow = container.createDiv({ cls: "someday-view-actions" });
+		button(editRow, "pencil", "Edit details", () => {
 			this.close();
 			new SomedayModal(
 				this.app,
@@ -182,10 +212,48 @@ export class SomedayViewModal extends Modal {
 				this.onChange
 			).open();
 		});
+		button(
+			editRow,
+			"copy",
+			"Copy",
+			async () => {
+				await navigator.clipboard.writeText(this.buildText());
+				new Notice("📋 Copied");
+			},
+			{ iconOnly: true }
+		);
+		button(
+			editRow,
+			"trash",
+			"Delete",
+			() => {
+				new ConfirmModal(
+					this.app,
+					"Delete someday",
+					`Delete "${s.name}"?`,
+					"Delete",
+					async () => {
+						await ops.deleteSomeday(s.file);
+						await this.onChange();
+						this.close();
+					}
+				).open();
+			},
+			{ iconOnly: true, danger: true }
+		);
+
+		container.createDiv({ cls: "someday-view-divider" });
+
+		// The two things that move a someday forward: tick it off, or turn
+		// it into an actual plan.
+		const progressRow = container.createDiv({
+			cls: "someday-view-actions",
+		});
 		const isDone = this.status === "done";
 		button(
+			progressRow,
 			isDone ? "rotate-ccw" : "check",
-			isDone ? "Reopen" : "Done",
+			isDone ? "Reopen" : "Mark done",
 			async () => {
 				this.status = isDone ? "open" : "done";
 				this.someday.status = this.status;
@@ -194,29 +262,12 @@ export class SomedayViewModal extends Modal {
 				this.render();
 			}
 		);
-		button("copy", "Copy", async () => {
-			await navigator.clipboard.writeText(this.buildText());
-			new Notice("📋 Copied");
-		});
-
-		const del = actions.createEl("button", {
-			cls: "callander-button button-danger",
-		});
-		setIcon(del, "trash");
-		del.createSpan({ text: "Delete" });
-		del.addEventListener("click", () => {
-			new ConfirmModal(
-				this.app,
-				"Delete someday",
-				`Delete "${s.name}"?`,
-				"Delete",
-				async () => {
-					await ops.deleteSomeday(s.file);
-					await this.onChange();
-					this.close();
-				}
-			).open();
-		});
+		if (!s.convertedTo) {
+			button(progressRow, "map", "Convert to plan", () => {
+				this.close();
+				void this.plugin.convertSomedayToPlan(s);
+			});
+		}
 	}
 
 	private buildText(): string {
@@ -238,6 +289,7 @@ export class SomedayViewModal extends Modal {
 	}
 
 	onClose() {
+		void this.flushNotes();
 		this.contentEl.empty();
 	}
 }

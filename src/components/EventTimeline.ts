@@ -42,7 +42,10 @@ export class EventTimeline {
 	render(
 		container: HTMLElement,
 		events: FriendEvent[],
-		met: string | number | undefined
+		met: string | number | undefined,
+		/** Plans this person is on — derived on every render, never stored
+		 * on their note, so they can't go stale when membership changes. */
+		planEvents: FriendEvent[] = []
 	) {
 		const timeline = container.createDiv({
 			cls: "contact-timeline",
@@ -57,6 +60,11 @@ export class EventTimeline {
 					parsed: ReturnType<typeof parseFlexDate>;
 			  }
 			| {
+					kind: "plan";
+					event: FriendEvent;
+					parsed: ReturnType<typeof parseFlexDate>;
+			  }
+			| {
 					kind: "met";
 					parsed: NonNullable<ReturnType<typeof parseFlexDate>>;
 			  };
@@ -68,6 +76,14 @@ export class EventTimeline {
 			parsed: parseFlexDate(event.date),
 		}));
 
+		for (const event of planEvents) {
+			rows.push({
+				kind: "plan",
+				event,
+				parsed: parseFlexDate(event.date),
+			});
+		}
+
 		// The origin — where the friendship began — sorts in like any dated row
 		// rather than being pinned to the bottom.
 		const metFlex = parseFlexDate(met);
@@ -77,7 +93,7 @@ export class EventTimeline {
 
 		// Future events (never the "met" origin) float to the top.
 		const isUpcoming = (row: Row) =>
-			row.kind === "event" && !!row.parsed && isFlexUpcoming(row.parsed);
+			row.kind !== "met" && !!row.parsed && isFlexUpcoming(row.parsed);
 		const upcoming = rows
 			.filter(isUpcoming)
 			.sort(
@@ -103,6 +119,8 @@ export class EventTimeline {
 					row.parsed,
 					true
 				);
+			} else if (row.kind === "plan") {
+				this.renderEventItem(timeline, row.event, null, row.parsed, true);
 			}
 		}
 
@@ -131,6 +149,14 @@ export class EventTimeline {
 					row.parsed,
 					false
 				);
+			} else if (row.kind === "plan") {
+				this.renderEventItem(
+					timeline,
+					row.event,
+					null,
+					row.parsed,
+					false
+				);
 			} else {
 				const origin = timeline.createDiv({
 					cls: "contact-timeline-item contact-timeline-origin",
@@ -144,20 +170,36 @@ export class EventTimeline {
 		}
 	}
 
+	/**
+	 * `index` is the event's position in the person's own `events` list —
+	 * or null for a row derived from a Plan, which isn't stored here and so
+	 * can't be edited or deleted from this page. Those open the plan instead.
+	 */
 	private renderEventItem(
 		container: HTMLElement,
 		event: FriendEvent,
-		index: number,
+		index: number | null,
 		parsed: ReturnType<typeof parseFlexDate>,
 		upcoming: boolean
 	) {
+		const derived = index === null;
 		const item = container.createDiv({
-			cls: `contact-timeline-item${upcoming ? " upcoming" : ""}`,
+			cls: `contact-timeline-item${upcoming ? " upcoming" : ""}${
+				derived ? " contact-timeline-derived" : ""
+			}`,
 		});
 
 		// Tapping the item opens the edit modal (the only path on mobile,
-		// where the hover action buttons don't exist)
+		// where the hover action buttons don't exist). A derived plan row has
+		// nothing to edit here, so it opens the plan itself.
 		item.addEventListener("click", () => {
+			if (derived) {
+				const target = (event.plan ?? "").replace(/^\[\[|\]\]$/g, "");
+				if (target) {
+					void this.view.app.workspace.openLinkText(target, "", true);
+				}
+				return;
+			}
 			void this.view.openEditEventModal(index, event);
 		});
 
@@ -215,6 +257,22 @@ export class EventTimeline {
 			});
 		}
 
+		// Provenance badge: this event came from a plan being marked done.
+		// The stored value is a wikilink, so strip the brackets to get the
+		// link target Obsidian expects.
+		if (event.plan) {
+			const target = event.plan.replace(/^\[\[|\]\]$/g, "");
+			const badgeEl = textEl.createSpan({
+				cls: "contact-timeline-source",
+				text: " 🗺️",
+				attr: { "aria-label": "Open plan" },
+			});
+			badgeEl.addEventListener("click", (e) => {
+				e.stopPropagation();
+				void this.view.app.workspace.openLinkText(target, "", true);
+			});
+		}
+
 		// Provenance badge: this event came from a diary entry
 		if (event.source) {
 			const badgeEl = textEl.createSpan({
@@ -232,7 +290,10 @@ export class EventTimeline {
 			});
 		}
 
-		// Actions
+		// Actions — a derived plan row has no stored event behind it, so
+		// there's nothing here to edit or delete. Change it on the plan.
+		if (derived) return;
+
 		const actions = item.createDiv({
 			cls: "contact-timeline-actions",
 		});

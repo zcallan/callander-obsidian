@@ -10,18 +10,34 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: write
+            # Required to attest that these assets were built here, from this
+            # source, rather than uploaded by hand.
+            id-token: write
+            attestations: write
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
 
             - name: Use Node.js
-              uses: actions/setup-node@v3
+              uses: actions/setup-node@v4
               with:
-                  node-version: "18.x"
+                  node-version: "20"
+                  cache: npm
 
             - name: Build plugin
+              # `npm ci` installs exactly what the lockfile pins; `npm install`
+              # is free to resolve caret ranges to newer versions, which makes
+              # the released bundle unreproducible.
               run: |
-                  npm install
+                  npm ci
                   npm run build
+
+            - name: Attest build provenance
+              uses: actions/attest-build-provenance@v2
+              with:
+                  subject-path: |
+                      main.js
+                      manifest.json
+                      styles.css
 
             - name: Create release
               env:

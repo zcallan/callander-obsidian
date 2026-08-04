@@ -19,7 +19,9 @@ export interface PlanItemValue {
 	date?: string;
 	time?: string;
 	people?: string;
+	location?: string;
 	cost?: number;
+	notes?: string;
 }
 
 /**
@@ -111,6 +113,36 @@ export class PlanItemModal extends FormModal {
 			this.scheduleOptions
 		);
 
+		// Where it happens — a Map button, mirroring an accommodation's
+		// address, since it's the same "get me there" affordance.
+		const locationField = form.createDiv({ cls: "callander-modal-field" });
+		locationField.createEl("label", { text: "Location (optional)" });
+		const locationRow = locationField.createDiv({ cls: "event-link-row" });
+		const locationInput = locationRow.createEl("input", {
+			cls: "callander-modal-input",
+			attr: {
+				type: "text",
+				name: "location",
+				placeholder: "e.g. Eventide Oyster Co",
+			},
+		});
+		locationInput.value = this.initial?.location ?? "";
+		const mapButton = locationRow.createEl("button", {
+			cls: "callander-button event-link-open",
+			text: "Map",
+			attr: { type: "button" },
+		});
+		mapButton.addEventListener("click", () => {
+			const query = locationInput.value.trim();
+			if (!query) return;
+			window.open(
+				`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+					query
+				)}`,
+				"_blank"
+			);
+		});
+
 		const costField = form.createDiv({ cls: "callander-modal-field" });
 		costField.createEl("label", { text: "Approx. cost (optional)" });
 		const costWrap = costField.createDiv({
@@ -122,6 +154,18 @@ export class PlanItemModal extends FormModal {
 			attr: { type: "number", name: "cost", min: "0", placeholder: "0" },
 		});
 		if (this.initial?.cost) costInput.value = String(this.initial.cost);
+
+		const notesField = form.createDiv({ cls: "callander-modal-field" });
+		notesField.createEl("label", { text: "Notes (optional)" });
+		const notesInput = notesField.createEl("textarea", {
+			cls: "callander-modal-input plan-notes-input",
+			attr: {
+				name: "notes",
+				rows: "2",
+				placeholder: "e.g. Booked for 7pm under Callan",
+			},
+		});
+		notesInput.value = this.initial?.notes ?? "";
 
 		// Priority picker — at the bottom, above the buttons
 		const priField = form.createDiv({ cls: "callander-modal-field" });
@@ -191,12 +235,16 @@ export class PlanItemModal extends FormModal {
 			const text = textInput.value.trim();
 			if (!text) return;
 			const cost = Number(costInput.value);
+			const location = locationInput.value.trim();
+			const notes = notesInput.value.trim();
 			void this.onSubmit({
 				category: this.category,
 				priority: this.priority,
 				text,
 				...schedule.values(),
+				...(location && { location }),
 				...(Number.isFinite(cost) && cost > 0 && { cost }),
+				...(notes && { notes }),
 			}).then(() => this.close());
 		});
 	}

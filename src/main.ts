@@ -5,6 +5,8 @@ import {
 	TFile,
 	WorkspaceLeaf,
 	ViewState,
+	normalizePath,
+	stringifyYaml,
 } from "obsidian";
 import { FriendTrackerSettings, DEFAULT_SETTINGS, SomedayInfo } from "./types";
 import { fieldOf, isRecord, toText } from "@/utils/fm";
@@ -111,7 +113,7 @@ import { MergeFriendsModal } from "@/modals/MergeFriendsModal";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { ReminderModal } from "@/modals/ReminderModal";
-import { parseFlexDate } from "@/utils/flexdate";
+import { parseFlexDate, todayISO } from "@/utils/flexdate";
 
 export default class FriendTracker extends Plugin {
 	settings: FriendTrackerSettings;
@@ -994,6 +996,46 @@ export default class FriendTracker extends Plugin {
 		}
 		this.app.workspace.setActiveLeaf(leaf, { focus: true });
 		await this.app.workspace.revealLeaf(leaf);
+	}
+
+	// ---- First-run seeding ----
+
+	/**
+	 * A missing base folder is the signal a fresh install hasn't touched
+	 * the vault yet — create the folder structure and one example friend
+	 * so the dashboard isn't a blank page the first time it opens.
+	 * No-op once the base folder exists.
+	 */
+	public async seedStarterVault() {
+		const base = normalizePath(this.settings.baseFolder);
+		if (this.app.vault.getFolderByPath(base)) return;
+
+		const ensureFolder = async (path: string) => {
+			const normalized = normalizePath(path);
+			if (!this.app.vault.getFolderByPath(normalized)) {
+				await this.app.vault.createFolder(normalized);
+			}
+		};
+
+		await ensureFolder(base);
+		await ensureFolder(this.contactOperations.getPeopleFolderPath());
+		await ensureFolder(this.contactOperations.getGroupsFolderPath());
+		await ensureFolder(this.planOperations.getPlansFolderPath());
+		await ensureFolder(this.somedayOperations.getSomedaysFolderPath());
+		await ensureFolder(this.reminderOperations.getRemindersFolderPath());
+
+		const examplePath = normalizePath(
+			`${this.contactOperations.getPeopleFolderPath()}/Example Friend.md`
+		);
+		if (!this.app.vault.getAbstractFileByPath(examplePath)) {
+			const today = todayISO();
+			const yaml = stringifyYaml({
+				name: "Example Friend",
+				created: today,
+				updated: today,
+			});
+			await this.app.vault.create(examplePath, `---\n${yaml}\n---\n`);
+		}
 	}
 
 	// ---- Birthday calendar export ----

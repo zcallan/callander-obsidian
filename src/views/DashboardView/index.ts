@@ -33,9 +33,18 @@ import {
 	formatFlexDate,
 	flexSortKey,
 	isFlexUpcoming,
+	monthName,
 } from "@/utils/flexdate";
 import { PlanModal } from "@/modals/PlanModal";
+import { formatDate } from "@/utils/dateFormat";
 import { PlanOperations } from "@/services/PlanOperations";
+
+/**
+ * Emphasis for a row's relative-time text: "soon" is today/tomorrow, "past"
+ * is anything already gone by. Derived from the day count, never by reading
+ * the rendered string back.
+ */
+type RowTone = "soon" | "past";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -63,6 +72,10 @@ export class DashboardView extends ItemView {
 	}
 
 	async onOpen() {
+		// No-ops once the base folder exists — only a fresh install ever
+		// actually creates anything here.
+		await this.plugin.seedStarterVault();
+
 		const inScope = (path: string) =>
 			path.startsWith(this.plugin.settings.baseFolder + "/");
 		this.registerEvent(
@@ -419,14 +432,18 @@ export class DashboardView extends ItemView {
 	/** Future events + reminders, merged and sorted; soonest (and undated) first. */
 	private renderUpcoming(container: HTMLElement) {
 		const now = new Date();
-		type Item =
+		type Item = (
 			| {
 					kind: "event";
 					contact: ContactWithCountdown;
 					event: FriendEvent;
-					key: number;
 			  }
-			| { kind: "reminder"; reminder: Reminder; key: number };
+			| { kind: "reminder"; reminder: Reminder }
+		) & {
+			key: number;
+			/** Days from today; null when the date is too coarse to count. */
+			days: number | null;
+		};
 		const items: Item[] = [];
 
 		for (const c of this.contacts) {
@@ -439,6 +456,7 @@ export class DashboardView extends ItemView {
 						contact: c,
 						event,
 						key: flexSortKey(p),
+						days: this.daysUntilFlex(event.date, now),
 					});
 				}
 			}
@@ -447,7 +465,8 @@ export class DashboardView extends ItemView {
 			if (r.status === "done") continue;
 			const p = parseFlexDate(r.date);
 			if (!p || p.year === null) {
-				items.push({ kind: "reminder", reminder: r, key: 0 });
+				// Undated ("Anytime") — actionable now, so never out of window.
+				items.push({ kind: "reminder", reminder: r, key: 0, days: null });
 				continue;
 			}
 			if (isFlexUpcoming(p, now)) {
@@ -455,6 +474,7 @@ export class DashboardView extends ItemView {
 					kind: "reminder",
 					reminder: r,
 					key: flexSortKey(p),
+					days: this.daysUntilFlex(r.date, now),
 				});
 				continue;
 			}
@@ -472,6 +492,7 @@ export class DashboardView extends ItemView {
 						kind: "reminder",
 						reminder: r,
 						key: flexSortKey(p),
+						days: -passed,
 					});
 				}
 			}
@@ -519,12 +540,23 @@ export class DashboardView extends ItemView {
 			return;
 		}
 
-		const shown = this.showAllUpcomingEvents ? items : items.slice(0, 10);
+		// Default to a near horizon; anything further out waits behind the
+		// toggle, so a booking eight months away doesn't crowd out this week.
+		const windowDays = this.plugin.settings.upcomingDays;
+		const near = items.filter((i) => i.days === null || i.days <= windowDays);
+		const shown = this.showAllUpcomingEvents ? items : near.slice(0, 10);
+
+		if (shown.length === 0) {
+			section.createDiv({
+				cls: "section-helper-text",
+				text: `Nothing in the next ${windowDays} days.`,
+			});
+		}
 		for (const item of shown) {
 			if (item.kind === "event") {
 				const lead = splitLeadingEmoji(item.event.text);
 				const type = EVENT_TYPES.find((t) => t.id === item.event.type);
-				const { date, relative } = this.upcomingWhen(
+				const { date, relative, tone } = this.upcomingWhen(
 					item.event.date,
 					now
 				);
@@ -534,6 +566,7 @@ export class DashboardView extends ItemView {
 					name: lead ? lead.rest : item.event.text,
 					suffix: item.contact.displayName,
 					relative,
+					tone,
 					onClick: () =>
 						new EventViewModal(
 							this.app,
@@ -546,7 +579,10 @@ export class DashboardView extends ItemView {
 			} else {
 				const r = item.reminder;
 				const lead = splitLeadingEmoji(r.name);
-				const { date, relative } = this.upcomingWhen(r.date ?? "", now);
+				const { date, relative, tone } = this.upcomingWhen(
+					r.date ?? "",
+					now
+				);
 				// Legacy Reminders.md rows wear the migration warning instead
 				// of their own icon (goes away with the legacy store)
 				const legacy = !r.file;
@@ -560,6 +596,7 @@ export class DashboardView extends ItemView {
 					name: legacy || !lead ? r.name : lead.rest,
 					suffix: r.location ?? "",
 					relative,
+					tone,
 					onClick: () =>
 						new ReminderViewModal(this.app, this.plugin, r, () =>
 							this.refresh()
@@ -568,12 +605,16 @@ export class DashboardView extends ItemView {
 			}
 		}
 
-		if (items.length > 10) {
+		if (items.length > shown.length || this.showAllUpcomingEvents) {
+			const hidden = items.length - shown.length;
 			const toggle = section.createEl("button", {
 				cls: "callander-button",
 				text: this.showAllUpcomingEvents
 					? "Show fewer"
 					: `Show all (${items.length})`,
+				attr: {
+					"aria-label": `${hidden} further ahead`,
+				},
 			});
 			toggle.addEventListener("click", () => {
 				this.showAllUpcomingEvents = !this.showAllUpcomingEvents;
@@ -591,6 +632,10 @@ export class DashboardView extends ItemView {
 			name: string;
 			suffix: string;
 			relative: string;
+			/** Emphasis for the relative text (right-hand side) */
+			tone?: RowTone;
+			/** Emphasis for the suffix — rows whose timing lives there */
+			suffixTone?: RowTone;
 			onClick: () => void;
 			/** Right-hand button, shown in place of the relative text */
 			action?: {
@@ -621,7 +666,9 @@ export class DashboardView extends ItemView {
 		nameEl.createSpan({ text: opts.name });
 		if (opts.suffix) {
 			nameEl.createSpan({
-				cls: "dashboard-upcoming-person",
+				cls: `dashboard-upcoming-person${
+					opts.suffixTone ? ` dashboard-rel-${opts.suffixTone}` : ""
+				}`,
 				text: ` • ${opts.suffix}`,
 			});
 		}
@@ -635,7 +682,9 @@ export class DashboardView extends ItemView {
 			button.addEventListener("click", opts.action.onClick);
 		} else if (opts.relative) {
 			row.createSpan({
-				cls: "dashboard-upcoming-rel",
+				cls: `dashboard-upcoming-rel${
+					opts.tone ? ` dashboard-rel-${opts.tone}` : ""
+				}`,
 				text: opts.relative,
 			});
 		}
@@ -651,10 +700,46 @@ export class DashboardView extends ItemView {
 	}
 
 	/** Split "when" into a date ("Friday Aug 21") and a relative ("in 25 days"). */
+	/**
+	 * Days from today to a flex date. Coarse dates anchor to the start of
+	 * their period (a bare "August 2026" counts from the 1st) — good enough
+	 * for a window test, where being a few days out never flips the answer.
+	 * Null when there's no year at all, which the caller treats as "always
+	 * show": an undated reminder is actionable now, not far off.
+	 */
+	private daysUntilFlex(dateStr: string | undefined, now: Date): number | null {
+		const p = parseFlexDate(dateStr ?? "");
+		if (!p || p.year === null) return null;
+		const target = new Date(p.year, (p.month ?? 1) - 1, p.day ?? 1);
+		target.setHours(0, 0, 0, 0);
+		const today = new Date(now);
+		today.setHours(0, 0, 0, 0);
+		return Math.round((target.getTime() - today.getTime()) / 86400000);
+	}
+
+	/** "today" / "4 days ago" / "in 12 days" (etc.) and its tone, from an
+	 * exact day offset — the piece day-precision dates and a plan's end
+	 * date both need. */
+	private relativeFromDays(days: number): {
+		relative: string;
+		tone?: RowTone;
+	} {
+		let relative: string;
+		if (days === 0) relative = "today";
+		else if (days === 1) relative = "tomorrow";
+		else if (days === -1) relative = "yesterday";
+		else if (days < 0) relative = `${-days} days ago`;
+		else if (days <= 90) relative = `in ${days} days`;
+		else relative = `in ${Math.round(days / 30)} months`;
+		const tone: RowTone | undefined =
+			days < 0 ? "past" : days <= 1 ? "soon" : undefined;
+		return { relative, tone };
+	}
+
 	private upcomingWhen(
 		dateStr: string,
 		now: Date
-	): { date: string; relative: string } {
+	): { date: string; relative: string; tone?: RowTone } {
 		const p = parseFlexDate(dateStr);
 		if (!p) return { date: "", relative: "" };
 		if (p.year !== null && p.month !== null && p.day !== null) {
@@ -665,22 +750,17 @@ export class DashboardView extends ItemView {
 			const days = Math.round(
 				(target.getTime() - today.getTime()) / 86400000
 			);
-			const date = target
-				.toLocaleDateString("en-US", {
-					weekday: "long",
-					month: "short",
-					day: "numeric",
-					...(p.year !== now.getFullYear() && { year: "numeric" }),
-				})
-				.replace(/,/g, "");
-			let relative: string;
-			if (days === 0) relative = "today";
-			else if (days === 1) relative = "tomorrow";
-			else if (days === -1) relative = "yesterday";
-			else if (days < 0) relative = `${-days} days ago`;
-			else if (days <= 90) relative = `in ${days} days`;
-			else relative = `in ${Math.round(days / 30)} months`;
-			return { date, relative };
+			// Intl's en-AU "short" month doesn't actually abbreviate (renders
+			// "July" in full) — build the short form ourselves rather than
+			// trust it, the same way TableView's birthdayDate() does.
+			const weekday = formatDate(target, { weekday: "long" });
+			const year =
+				p.year !== now.getFullYear() ? ` ${p.year}` : "";
+			const date = `${weekday} ${p.day} ${monthName(p.month).slice(
+				0,
+				3
+			)}${year}`;
+			return { date, ...this.relativeFromDays(days) };
 		}
 		// Month precision ("August 2026"): counting days would imply a
 		// precision we don't have, so compare whole months instead.
@@ -694,7 +774,12 @@ export class DashboardView extends ItemView {
 			else if (months === -1) relative = "last month";
 			else if (months < 0) relative = `${-months} months ago`;
 			else relative = `in ${months} months`;
-			return { date: formatFlexDate(p), relative };
+			// A whole month is never "today" — only the past end gets emphasis.
+			return {
+				date: formatFlexDate(p),
+				relative,
+				tone: months < 0 ? "past" : undefined,
+			};
 		}
 		return { date: formatFlexDate(p), relative: "" };
 	}
@@ -793,12 +878,12 @@ export class DashboardView extends ItemView {
 		for (const plan of plans) {
 			// A leading emoji in the plan name stands in as the row icon
 			const lead = splitLeadingEmoji(plan.name);
-			const { date, relative } = this.upcomingWhen(plan.date, now);
+			const { date, relative, tone } = this.upcomingWhen(plan.date, now);
 
 			const startFlex = parseFlexDate(plan.date);
 			const endFlex = parseFlexDate(plan.endDate);
 
-			// Multi-day plans read as a range: "Saturday Aug 16 - Aug 17"
+			// Multi-day plans read as a range: "Saturday 16 Aug - 17 Aug"
 			let when = date;
 			let endDay: Date | null = null;
 			if (endFlex && endFlex.month !== null && endFlex.day !== null) {
@@ -806,16 +891,19 @@ export class DashboardView extends ItemView {
 					endFlex.year ?? startFlex?.year ?? now.getFullYear();
 				endDay = new Date(endYear, endFlex.month - 1, endFlex.day);
 				if (when) {
-					when += ` - ${endDay.toLocaleDateString("en-US", {
-						month: "short",
-						day: "numeric",
-					})}`;
+					// Self-built short month — see the note in upcomingWhen.
+					when += ` - ${endFlex.day} ${monthName(
+						endFlex.month
+					).slice(0, 3)}`;
 				}
 			}
 
-			// A plan that's underway reads as "today" for its whole span:
-			// the start date's "3 days ago" would suggest it had passed
+			// A plan that's underway reads as "today" for its whole span: the
+			// start date's "3 days ago" would suggest it had passed. And once
+			// it's fully over, the end date is the relevant "ago" — a 4-day
+			// trip that finished yesterday should say "1 day ago", not "4".
 			let relativeText = relative;
+			let relativeTone = tone;
 			if (
 				endDay &&
 				startFlex &&
@@ -830,6 +918,17 @@ export class DashboardView extends ItemView {
 				);
 				if (today >= startDay && today <= endDay) {
 					relativeText = "today";
+					relativeTone = "soon";
+				} else if (today > endDay) {
+					// relativeFromDays takes "target minus today" (negative
+					// = past), same convention as upcomingWhen's own target
+					// date — endDay is already in the past here, so this
+					// comes out negative and reads "N days ago".
+					const daysUntilEnd = Math.round(
+						(endDay.getTime() - today.getTime()) / 86400000
+					);
+					({ relative: relativeText, tone: relativeTone } =
+						this.relativeFromDays(daysUntilEnd));
 				}
 			}
 
@@ -845,6 +944,7 @@ export class DashboardView extends ItemView {
 				name: lead ? lead.rest : plan.name,
 				suffix: details.join(" • "),
 				relative: relativeText,
+				tone: relativeTone,
 				onClick: () => void this.openContact(plan.file),
 			});
 		}
@@ -1131,21 +1231,26 @@ export class DashboardView extends ItemView {
 						: days === 1
 						? "tomorrow"
 						: `in ${days} days`,
+				// This list is upcoming-only — never a past day — so soon is
+				// the only tone that applies here.
+				tone: days <= 1 ? "soon" : undefined,
 				onClick: () => void this.openContact(c.file),
 			});
 		}
 	}
 
-	/** Human date offset from today, e.g. "Monday 16 July" */
+	/** Human date offset from today, e.g. "Monday 16 Aug" */
 	private formatDayDate(offsetDays: number): string {
 		const d = new Date();
 		d.setHours(0, 0, 0, 0);
 		d.setDate(d.getDate() + offsetDays);
-		return d.toLocaleDateString("en-AU", {
-			weekday: "long",
-			day: "numeric",
-			month: "long",
-		});
+		// Self-built short month — Intl's en-AU "short" doesn't actually
+		// abbreviate (renders "August" in full). See upcomingWhen's note.
+		const weekday = formatDate(d, { weekday: "long" });
+		return `${weekday} ${d.getDate()} ${monthName(d.getMonth() + 1).slice(
+			0,
+			3
+		)}`;
 	}
 
 	/** The date (YYYY-MM-DD, local) of this contact's most recent birthday */
@@ -1160,7 +1265,9 @@ export class DashboardView extends ItemView {
 	}
 
 	private renderMissedBirthdays(container: HTMLElement) {
-		const MISSED_HORIZON = 30;
+		// How long a missed birthday stays worth acting on — the belated
+		// window from settings, not a fixed horizon.
+		const horizon = this.plugin.settings.belatedBirthdayDays;
 
 		// Missed = passed within the window and not yet marked as wished
 		const missed = this.contacts
@@ -1168,7 +1275,7 @@ export class DashboardView extends ItemView {
 				(c) =>
 					c.daysSinceBirthday !== null &&
 					c.daysSinceBirthday > 0 &&
-					c.daysSinceBirthday <= MISSED_HORIZON &&
+					c.daysSinceBirthday <= horizon &&
 					c.birthdayWished !==
 						this.lastOccurrenceDate(c.daysSinceBirthday)
 			)
@@ -1201,6 +1308,9 @@ export class DashboardView extends ItemView {
 					daysSince === 1
 						? "yesterday"
 						: `${daysSince} days ago`,
+				// Every row here is already-passed by the section's own
+				// filter (daysSinceBirthday > 0), so always red.
+				suffixTone: "past",
 				relative: "",
 				onClick: () => void this.openContact(c.file),
 				action: {
