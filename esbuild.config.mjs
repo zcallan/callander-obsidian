@@ -22,6 +22,15 @@ function buildStamp() {
 	)} ${h12}:${pad(now.getMinutes())} ${h < 12 ? "AM" : "PM"}`;
 }
 
+/**
+ * `define` values are evaluated once, when the context is created — so in
+ * watch mode every rebuild would carry the time the *watcher started*,
+ * which is useless for telling which bundle reached a device. Dev builds
+ * therefore bake this placeholder and swap it for the real clock reading
+ * after each rebuild.
+ */
+const DEV_STAMP_SENTINEL = "__CALLANDER_DEV_STAMP__";
+
 /** The version being shipped — stable for a given commit, unlike a clock. */
 function releaseVersion() {
 	return JSON.parse(fs.readFileSync("manifest.json", "utf8")).version;
@@ -36,6 +45,19 @@ if (!prod && fs.existsSync(".vault-plugin-path")) {
 	const target = fs.readFileSync(".vault-plugin-path", "utf8").trim();
 	if (target) outDir = target;
 }
+
+/**
+ * Swap the placeholder for the real clock reading, once per rebuild, so the
+ * dev-build notice always names the bundle actually running.
+ */
+const stampDevBuild = () => {
+	if (prod) return;
+	const file = path.join(outDir, "main.js");
+	if (!fs.existsSync(file)) return;
+	const src = fs.readFileSync(file, "utf8");
+	if (!src.includes(DEV_STAMP_SENTINEL)) return;
+	fs.writeFileSync(file, src.split(DEV_STAMP_SENTINEL).join(buildStamp()));
+};
 
 const copyStatics = () => {
 	if (outDir === ".") return;
@@ -75,12 +97,14 @@ const context = await esbuild.context({
 		// is (surfaced as a dev-only startup notice).
 		//
 		// Dev gets the build machine's local time, e.g. "2026-08-02 10:39 PM",
-		// so you can tell at a glance which bundle reached a device. Release
-		// builds MUST stay byte-reproducible — a clock reading would make
-		// every rebuild differ and defeat verification — so they carry the
-		// manifest version instead, which is fixed for a given tag.
+		// so you can tell at a glance which bundle reached a device — filled
+		// in per rebuild by stampDevBuild(), since a value baked in here
+		// would freeze at whenever the watcher started. Release builds MUST
+		// stay byte-reproducible — a clock reading would make every rebuild
+		// differ and defeat verification — so they carry the manifest
+		// version instead, which is fixed for a given tag.
 		__CALLANDER_BUILD__: JSON.stringify(
-			prod ? releaseVersion() : buildStamp()
+			prod ? releaseVersion() : DEV_STAMP_SENTINEL
 		),
 	},
 	format: "cjs",
@@ -94,7 +118,10 @@ const context = await esbuild.context({
 		{
 			name: "copy-statics",
 			setup(build) {
-				build.onEnd(copyStatics);
+				build.onEnd(() => {
+					stampDevBuild();
+					copyStatics();
+				});
 			},
 		},
 	],

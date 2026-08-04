@@ -35,9 +35,9 @@ interface TravelTypeOption {
 const MAX_NIGHTS = 60;
 
 /**
- * Add/edit a flat plan item (travel leg, accommodation): an optional transport
- * type, a date + time, who's along, a detail line, a free-text duration,
- * booking status and a cost. Pass `types` to show the transport-type picker
+ * Add/edit a flat plan item (travel leg, accommodation): a name, an optional
+ * transport type, a date + time, who's along, a free-text duration, booking
+ * status and a cost. Pass `types` to show the transport-type picker
  * (travel only) and `schedule` to show the Date / Time / People fields (travel
  * & accommodation). New travel legs default to the first type (Car).
  *
@@ -132,7 +132,7 @@ export class PlanSimpleItemModal extends FormModal {
 		const renderTextField = () => {
 			contentEl.createDiv({
 				cls: "modal-section-label",
-				text: this.stay ? "Where" : "Detail",
+				text: this.stay ? "Where" : "Name",
 			});
 			const input = contentEl.createEl("input", {
 				cls: "quick-idea-input",
@@ -142,10 +142,9 @@ export class PlanSimpleItemModal extends FormModal {
 			return input;
 		};
 
-		// A stay leads with where you're staying — the one thing you always
-		// know first. Travel keeps its detail line below the type and dates.
-		let textInput!: HTMLInputElement;
-		if (this.stay) textInput = renderTextField();
+		// Both kinds lead with what it's called — the one thing you always
+		// know first, whether that's a hotel name or "Harry's car up".
+		const textInput = renderTextField();
 
 		// Transport-type picker (travel only). Optional — tap again to clear.
 		if (this.types) {
@@ -228,7 +227,10 @@ export class PlanSimpleItemModal extends FormModal {
 					{
 						...this.scheduleOptions,
 						hideTime: this.stay,
-						hidePeople: this.stay,
+						// Placed manually below — after Duration for travel,
+						// after Booking for a stay — rather than wherever
+						// appendScheduleFields would put it on its own.
+						hidePeople: true,
 						onDateChange: () => applyNights(this.nights),
 					}
 			  )
@@ -268,11 +270,10 @@ export class PlanSimpleItemModal extends FormModal {
 			applyNights(this.nights);
 		}
 
-		if (!this.stay) textInput = renderTextField();
-
 		// A flight or a train needs chasing just like a hotel does, so booking
-		// belongs to both kinds — placed straight after the length of the thing
-		// (nights for a stay, duration for a leg) in each.
+		// belongs to both kinds — placed straight after who's coming, itself
+		// straight after the length of the thing (nights for a stay,
+		// duration for a leg) in each.
 		const renderBooking = () =>
 			this.renderChips(
 				contentEl,
@@ -284,7 +285,10 @@ export class PlanSimpleItemModal extends FormModal {
 				}
 			);
 
-		// Free-text duration is a travel thing ("2h flight"); stays use nights.
+		let people: PeopleFieldHandle | null = null;
+
+		// Free-text duration is a travel thing ("2h flight"); stays use
+		// nights. Sits right below Time, ahead of who's coming.
 		let durationInput: HTMLInputElement | null = null;
 		if (!this.stay) {
 			contentEl.createDiv({
@@ -296,13 +300,17 @@ export class PlanSimpleItemModal extends FormModal {
 				attr: { type: "text", placeholder: this.placeholders.duration },
 			});
 			durationInput.value = this.initial?.duration ?? "";
+			people = appendPeopleField(
+				contentEl,
+				this.initial?.people,
+				this.scheduleOptions.people
+			);
 			renderBooking();
 		}
 
 		// Address is accommodation-only; notes follow below for both kinds.
 		let addressInput: HTMLInputElement | null = null;
 		let notesInput: HTMLTextAreaElement | null = null;
-		let people: PeopleFieldHandle | null = null;
 		if (this.stay) {
 			renderBooking();
 

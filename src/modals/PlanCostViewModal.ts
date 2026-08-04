@@ -17,7 +17,8 @@ export class PlanCostViewModal extends Modal {
 		private onEdit: () => void,
 		private onDelete: () => Promise<void>,
 		/** Rendered as "Me", so the split reads the way you'd say it. */
-		private yourName = ""
+		private yourName = "",
+		private onToggleSettled: (settled: boolean) => Promise<void>
 	) {
 		super(app);
 	}
@@ -27,6 +28,12 @@ export class PlanCostViewModal extends Modal {
 	}
 
 	onOpen() {
+		this.render();
+	}
+
+	/** Its own method, not just onOpen's body — settling toggles in place
+	 * without closing the modal, so it needs to redraw itself. */
+	private render() {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass("someday-view-modal");
@@ -35,12 +42,26 @@ export class PlanCostViewModal extends Modal {
 		contentEl.createDiv({ cls: "plan-view-kind", text: "Expense" });
 		contentEl.createEl("h2", { text: c.label });
 
-		contentEl.createDiv({
-			cls: "someday-view-meta",
-			text: `💵 ${this.money(c.amount)} · ${splitModeLabel(
-				c.split.mode
-			)}`,
-		});
+		// Settled reads as done — the split mode no longer matters once
+		// it's squared up, so the price itself carries the news instead.
+		// Only the word is green; the amount still reads as a plain figure.
+		if (c.settled) {
+			const settledLine = contentEl.createDiv({
+				cls: "someday-view-meta",
+			});
+			settledLine.createSpan({
+				cls: "plan-cost-settled-label",
+				text: "Settled",
+			});
+			settledLine.createSpan({ text: ` • ${this.money(c.amount)}` });
+		} else {
+			contentEl.createDiv({
+				cls: "someday-view-meta",
+				text: `💵 ${this.money(c.amount)} · ${splitModeLabel(
+					c.split.mode
+				)}`,
+			});
+		}
 
 		// Receipt add-ons, when either was applied. Both are charged on the
 		// subtotal, so they're listed rather than folded into one figure.
@@ -92,6 +113,21 @@ export class PlanCostViewModal extends Modal {
 		contentEl.createDiv({ cls: "someday-view-divider" });
 
 		const actions = contentEl.createDiv({ cls: "someday-view-actions" });
+
+		const settle = actions.createEl("button", { cls: "callander-button" });
+		setIcon(settle, c.settled ? "rotate-ccw" : "check-circle");
+		settle.createSpan({
+			text: c.settled ? "Mark as unsettled" : "Mark as settled",
+		});
+		settle.addEventListener("click", () => {
+			void (async () => {
+				const next = !c.settled;
+				if (next) this.cost.settled = true;
+				else delete this.cost.settled;
+				await this.onToggleSettled(next);
+				this.render();
+			})();
+		});
 
 		const edit = actions.createEl("button", { cls: "callander-button" });
 		setIcon(edit, "pencil");

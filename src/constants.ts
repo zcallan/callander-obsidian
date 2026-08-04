@@ -267,6 +267,9 @@ export const TRAVEL_TYPES = [
 	{ id: "train", label: "Train", emoji: "🚆" },
 	{ id: "boat", label: "Boat", emoji: "⛵" },
 	{ id: "taxi", label: "Taxi", emoji: "🚕" },
+	{ id: "bike", label: "Bike", emoji: "🚲" },
+	{ id: "walking", label: "Walking", emoji: "🚶" },
+	{ id: "running", label: "Running", emoji: "🏃" },
 	{ id: "other", label: "Other", emoji: "🧭" },
 ] as const;
 

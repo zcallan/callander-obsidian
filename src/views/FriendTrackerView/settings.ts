@@ -72,15 +72,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			// "General" heading, since the whole tab is already understood
 			// to be this plugin's settings.
 			{
-				name: "Base folder",
-				desc: "Folder that holds your Callander data — the People, Groups, Plans and Somedays folders live inside it",
-				control: {
-					type: "folder",
-					key: "baseFolder",
-					placeholder: "Enter folder name",
-				},
-			},
-			{
 				name: "Your name",
 				desc: 'Included automatically in shared plan messages ("Copy as message"), so you don\'t have to add yourself as a guest',
 				control: {
@@ -117,8 +108,17 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
-				heading: "Dashboard",
+				heading: "Files and folders",
 				items: [
+					{
+						name: "Base folder",
+						desc: "Folder that holds your Callander data — the People, Groups, Plans and Somedays folders live inside it",
+						control: {
+							type: "folder",
+							key: "baseFolder",
+							placeholder: "Enter folder name",
+						},
+					},
 					{
 						name: "Dashboard file name",
 						desc: "Note in the base folder that opens the Callander dashboard — quick ideas and drafts are stored in its properties",
@@ -128,6 +128,21 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 							placeholder: "Dashboard",
 						},
 					},
+					{
+						name: "Diary folder",
+						desc: "Folder where diary entries will be stored",
+						control: {
+							type: "folder",
+							key: "diaryFolder",
+							placeholder: "Enter folder name",
+						},
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Dashboard",
+				items: [
 					{
 						name: "Belated birthday window",
 						desc: 'For this many days after a birthday, show "birthday was X days ago" so you can still send a belated message',
@@ -184,21 +199,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					},
 				],
 			},
-			{
-				type: "group",
-				heading: "Diary",
-				items: [
-					{
-						name: "Diary folder",
-						desc: "Folder where diary entries will be stored",
-						control: {
-							type: "folder",
-							key: "diaryFolder",
-							placeholder: "Enter folder name",
-						},
-					},
-				],
-			},
 		];
 	}
 
@@ -234,23 +234,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// Unheaded — see the matching comment in getSettingDefinitions().
-		new Setting(containerEl)
-			.setName("Base folder")
-			.setDesc(
-				"Folder that holds your Callander data — the People, Groups, Plans and Somedays folders live inside it"
-			)
-			.addText((text) => {
-				new FolderSuggest(this.app, text.inputEl);
-				return text
-					.setPlaceholder("Enter folder name")
-					.setValue(this.plugin.settings.baseFolder)
-					.onChange(async (value) => {
-						this.plugin.settings.baseFolder =
-							normalizePath(value);
-						await this.plugin.saveSettings();
-					});
-			});
-
 		new Setting(containerEl)
 			.setName("Your name")
 			.setDesc(
@@ -315,7 +298,24 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl).setName("Dashboard").setHeading();
+		new Setting(containerEl).setName("Files and folders").setHeading();
+
+		new Setting(containerEl)
+			.setName("Base folder")
+			.setDesc(
+				"Folder that holds your Callander data — the People, Groups, Plans and Somedays folders live inside it"
+			)
+			.addText((text) => {
+				new FolderSuggest(this.app, text.inputEl);
+				return text
+					.setPlaceholder("Enter folder name")
+					.setValue(this.plugin.settings.baseFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.baseFolder =
+							normalizePath(value);
+						await this.plugin.saveSettings();
+					});
+			});
 
 		new Setting(containerEl)
 			.setName("Dashboard file name")
@@ -332,6 +332,22 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+
+		new Setting(containerEl)
+			.setName("Diary folder")
+			.setDesc("Folder where diary entries will be stored")
+			.addText((text) => {
+				new FolderSuggest(this.app, text.inputEl);
+				return text
+					.setPlaceholder("Enter folder name")
+					.setValue(this.plugin.settings.diaryFolder)
+					.onChange(async (value) => {
+						this.plugin.settings.diaryFolder = normalizePath(value);
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl).setName("Dashboard").setHeading();
 
 		new Setting(containerEl)
 			.setName("Belated birthday window")
@@ -431,20 +447,5 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			"receiptTipPercent"
 		);
 
-		new Setting(containerEl).setName("Diary").setHeading();
-
-		new Setting(containerEl)
-			.setName("Diary folder")
-			.setDesc("Folder where diary entries will be stored")
-			.addText((text) => {
-				new FolderSuggest(this.app, text.inputEl);
-				return text
-					.setPlaceholder("Enter folder name")
-					.setValue(this.plugin.settings.diaryFolder)
-					.onChange(async (value) => {
-						this.plugin.settings.diaryFolder = normalizePath(value);
-						await this.plugin.saveSettings();
-					});
-			});
 	}
 }

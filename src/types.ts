@@ -176,6 +176,9 @@ export interface PlanTimelineEntry {
 export interface PlanCost {
 	label: string;
 	amount: number;
+	/** Squared up already — excluded from "Who owes what" and its
+	 * per-person breakdown, and shown struck through in the view modal. */
+	settled?: boolean;
 	split: {
 		mode: "even" | "shares" | "percent" | "value" | "receipt";
 		/** Per-person weights (shares), percentages, or exact dollar
