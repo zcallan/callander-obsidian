@@ -36,14 +36,14 @@ const MAX_NIGHTS = 60;
 
 /**
  * Add/edit a flat plan item (travel leg, accommodation): an optional transport
- * type, a date + time, who's along, a detail line, a free-text duration, and a
- * cost. Pass `types` to show the transport-type picker (travel only) and
- * `schedule` to show the Date / Time / People fields (travel & accommodation).
- * New travel legs default to the first type (Car).
+ * type, a date + time, who's along, a detail line, a free-text duration,
+ * booking status and a cost. Pass `types` to show the transport-type picker
+ * (travel only) and `schedule` to show the Date / Time / People fields (travel
+ * & accommodation). New travel legs default to the first type (Car).
  *
  * With `stay` set, it becomes the accommodation form instead: a kind-of-stay
- * picker, a nights stepper (never summons the keyboard), booking status,
- * address and notes — and no Time, since a stay always closes out its day.
+ * picker, a nights stepper (never summons the keyboard), an address and notes —
+ * and no Time, since a stay always closes out its day.
  */
 export class PlanSimpleItemModal extends FormModal {
 	private type?: TravelType;
@@ -270,6 +270,20 @@ export class PlanSimpleItemModal extends FormModal {
 
 		if (!this.stay) textInput = renderTextField();
 
+		// A flight or a train needs chasing just like a hotel does, so booking
+		// belongs to both kinds — placed straight after the length of the thing
+		// (nights for a stay, duration for a leg) in each.
+		const renderBooking = () =>
+			this.renderChips(
+				contentEl,
+				"Booking",
+				BOOKING_STATES,
+				() => this.booked,
+				(id) => {
+					this.booked = id;
+				}
+			);
+
 		// Free-text duration is a travel thing ("2h flight"); stays use nights.
 		let durationInput: HTMLInputElement | null = null;
 		if (!this.stay) {
@@ -282,22 +296,15 @@ export class PlanSimpleItemModal extends FormModal {
 				attr: { type: "text", placeholder: this.placeholders.duration },
 			});
 			durationInput.value = this.initial?.duration ?? "";
+			renderBooking();
 		}
 
-		// Booking status, address and notes — accommodation only.
+		// Address is accommodation-only; notes follow below for both kinds.
 		let addressInput: HTMLInputElement | null = null;
 		let notesInput: HTMLTextAreaElement | null = null;
 		let people: PeopleFieldHandle | null = null;
 		if (this.stay) {
-			this.renderChips(
-				contentEl,
-				"Booking",
-				BOOKING_STATES,
-				() => this.booked,
-				(id) => {
-					this.booked = id;
-				}
-			);
+			renderBooking();
 
 			// Who's staying reads better after the booking status than up
 			// among the dates, so a stay places it here itself.
@@ -333,19 +340,24 @@ export class PlanSimpleItemModal extends FormModal {
 				);
 			});
 
-			contentEl.createDiv({
-				cls: "modal-section-label",
-				text: "Notes (optional)",
-			});
-			notesInput = contentEl.createEl("textarea", {
-				cls: "quick-idea-input plan-notes-input",
-				attr: {
-					rows: "2",
-					placeholder: "e.g. Check in 4pm, check out 10am",
-				},
-			});
-			notesInput.value = this.initial?.notes ?? "";
 		}
+
+		// Notes apply to a leg as much as a stay — a confirmation number is
+		// worth keeping on a flight too, so this sits outside the stay block.
+		contentEl.createDiv({
+			cls: "modal-section-label",
+			text: "Notes (optional)",
+		});
+		notesInput = contentEl.createEl("textarea", {
+			cls: "quick-idea-input plan-notes-input",
+			attr: {
+				rows: "2",
+				placeholder: this.stay
+					? "e.g. Check in 4pm, check out 10am"
+					: "e.g. Confirmation ABC123, seat 14A",
+			},
+		});
+		notesInput.value = this.initial?.notes ?? "";
 
 		contentEl.createDiv({
 			cls: "modal-section-label",
@@ -426,7 +438,7 @@ export class PlanSimpleItemModal extends FormModal {
 				...(duration && { duration }),
 				...(this.stay && { nights: this.nights }),
 				...(address && { address }),
-				...(this.stay && this.booked && { booked: this.booked }),
+				...(this.booked && { booked: this.booked }),
 				...(notes && { notes }),
 				...(cost !== undefined && { cost }),
 			});

@@ -680,9 +680,6 @@ If your plugin does not need CSS, delete this file.
 	border-radius: 4px;
 	color: var(--text-normal);
 }
-.callander-modal-input.relationship-type-input {
-	width: 200px;
-}
 .callander-modal-input:focus {
 	border-color: var(--interactive-accent);
 	outline: none;
@@ -794,36 +791,6 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Capitalize relationship values in table */
-/* Relationship-type rows in the pre-1.13 settings fallback (display()) */
-.callander-relationship-types {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-	gap: 12px;
-}
-
-.callander-relationship-types .setting-item {
-	border: none;
-	padding: 8px;
-	margin: 0;
-	background: var(--background-modifier-form-field);
-	border-radius: 4px;
-}
-
-.callander-relationship-types .setting-item-info {
-	display: none;
-}
-
-.callander-relationship-types .setting-item-control {
-	flex: 1;
-	justify-content: space-between;
-	padding: 0;
-}
-
-.callander-relationship-types .setting-item-control input {
-	text-align: left;
-	text-transform: capitalize;
-}
-
 .callander-relationship-cell {
 	text-transform: capitalize;
 }
@@ -1928,6 +1895,10 @@ If your plugin does not need CSS, delete this file.
 	background: #9a7ef0;
 }
 
+.contact-timeline-dot.type-party {
+	background: #e0559a;
+}
+
 /* Plans */
 .plan-meta {
 	display: flex;
@@ -2143,10 +2114,13 @@ If your plugin does not need CSS, delete this file.
 	gap: 4px;
 	margin-bottom: 8px;
 }
+/* Rows open an edit modal, so they need a row-shaped hover target rather
+   than hugging the text — same vertical rhythm as the idea/quote lists. */
 .contact-funfact-item {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	padding: 7px 0;
 }
 .contact-funfact-text {
 	flex: 1;
@@ -3155,9 +3129,89 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	color: var(--text-warning, #e6a935);
 }
 
+/* A value split that doesn't add up to the total — an outright mismatch
+   rather than percent's softer "not 100% yet", so it reads as an error. */
+.plan-cost-total.is-unbalanced {
+	color: var(--text-error);
+}
+
 .plan-cost-share-suffix {
 	color: var(--text-muted);
 	margin-left: 4px;
+}
+
+.plan-cost-share-prefix {
+	color: var(--text-muted);
+	margin-right: 4px;
+}
+
+/* What a tax/tip percentage — or a receipt line's expression — comes to
+   in dollars, beside its input */
+.plan-cost-addon-amount {
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	margin-right: 4px;
+	white-space: nowrap;
+}
+
+.plan-cost-addon-amount.is-invalid {
+	color: var(--text-error);
+}
+
+/* Separates the receipt's tax/tip rows from the people above them */
+.plan-cost-addon-divider {
+	margin: 10px 0 6px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Expense view modal: what each person's share works out to */
+.plan-cost-view-split {
+	margin-top: 12px;
+}
+
+.plan-cost-view-row {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 5px 0;
+}
+
+.plan-cost-view-row + .plan-cost-view-row {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* "14 (7+7)" under a name — how that line was worked out */
+.plan-cost-view-working {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-top: 1px;
+}
+
+.plan-cost-view-amount {
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+}
+
+/* Receipt mode computes its own total, so it sits at the foot of the
+   modal rather than inline with the split rows. */
+.plan-cost-receipt-total {
+	margin-top: 12px;
+	padding-top: 10px;
+	border-top: 1px solid var(--background-modifier-border);
+	font-size: 1.05em;
+	/* Sits under the split rows' amount column, so it reads as their sum */
+	text-align: right;
+}
+
+.plan-cost-receipt-total.is-hidden {
+	display: none;
+}
+
+/* The amount field is derived in receipt mode, not typed into */
+.callander-modal-input.is-disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
 }
 
 /* Cost split rows: small fixed-width right-aligned number inputs */
@@ -3180,6 +3234,26 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	width: 56px;
 	max-width: 56px;
 	flex: none;
+	text-align: right;
+}
+
+/* Receipt lines hold an expression ("7+7+3.50+12"), not just a figure, so
+   they take the width the row can spare rather than a fixed number-field
+   size. The row's name shrinks first; the input still scrolls once an
+   expression outgrows even that. */
+.modal .plan-cost-expr-row .plan-cost-share-right {
+	flex: 1;
+	min-width: 0;
+	justify-content: flex-end;
+}
+
+.modal .plan-cost-share-input.plan-cost-expr-input {
+	/* Width is set inline as you type (see autosizeExpr). The floor matches
+	   the other modes' field so the row doesn't jump when you switch tabs. */
+	width: 56px;
+	min-width: 56px;
+	max-width: 100%;
+	flex: 0 1 auto;
 	text-align: right;
 }
 
@@ -3655,6 +3729,13 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .someday-subidea-addbtn {
 	margin-top: 8px;
 }
+.someday-view-notes-input {
+	box-sizing: border-box;
+	width: 100%;
+	margin-top: 8px;
+	font-size: 0.9em;
+	resize: vertical;
+}
 .someday-actions {
 	display: flex;
 	flex-wrap: wrap;
@@ -3778,6 +3859,22 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 .someday-view-actions .callander-button {
 	margin-top: 0;
+}
+.someday-view-divider {
+	margin-top: 14px;
+	padding-top: 4px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Plan timeline view: the small muted "Idea"/"Travel"/"Accommodation"
+   label that sits above the name. The h2 after it carries its own top
+   margin, so this only needs to sit tight underneath. */
+.plan-view-kind {
+	color: var(--text-muted);
+	font-size: 0.75em;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	margin-bottom: -6px;
 }
 
 /* Event "Link" row: input + Open button */
@@ -3941,4 +4038,18 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .plan-nights-step:disabled:hover {
 	background: var(--background-primary);
+}
+
+/* Relative-time emphasis on Upcoming/Missed rows: today/tomorrow in purple,
+   anything already past in red. Applied to whichever span carries the
+   timing for that row — .dashboard-upcoming-rel normally, .dashboard-
+   upcoming-person for Missed birthdays, where it's the suffix. */
+.dashboard-rel-soon {
+	color: var(--color-purple);
+	font-weight: 600;
+}
+
+.dashboard-rel-past {
+	color: var(--text-error);
+	font-weight: 600;
 }

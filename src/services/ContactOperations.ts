@@ -543,6 +543,36 @@ export class ContactOperations {
 		);
 	}
 
+	/**
+	 * Patch just an event's description — the auto-saving textarea in
+	 * EventViewModal. Deliberately narrower than updateEventInFile: that
+	 * method always resolves a concrete type (defaulting untyped events to
+	 * "hangout"), which would be a surprising side effect of merely typing
+	 * a description. Matched by deep equality.
+	 */
+	async updateEventDescription(
+		file: TFile,
+		target: FriendEvent,
+		description: string
+	): Promise<void> {
+		await this.writeFrontMatter(file, (fm) => {
+				const events = ContactOperations.eventsOf(fm);
+				const index = events.findIndex(
+					(e) => JSON.stringify(e) === JSON.stringify(target)
+				);
+				if (index === -1) return;
+				if (description) {
+					events[index] = { ...events[index], description };
+				} else {
+					const { description: _drop, ...rest } = events[index];
+					events[index] = rest;
+				}
+				delete fm.interactions;
+				fm.events = events;
+			}
+		);
+	}
+
 	/** A diary entry was renamed — keep event source links pointing at it */
 	async retargetDiarySource(
 		oldPath: string,

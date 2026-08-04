@@ -78,7 +78,13 @@ export class PlanOperations {
 					...(strFieldOf(i, "people") && {
 						people: strFieldOf(i, "people"),
 					}),
+					...(strFieldOf(i, "location") && {
+						location: strFieldOf(i, "location"),
+					}),
 					...(typeof cost === "number" && { cost }),
+					...(strFieldOf(i, "notes") && {
+						notes: strFieldOf(i, "notes"),
+					}),
 				};
 			})
 			.filter((i) => i.text.length > 0);
@@ -155,7 +161,9 @@ export class PlanOperations {
 				emoji: cat?.emoji ?? "💡",
 				...(item.category && { category: item.category }),
 				...(item.priority && { priority: item.priority }),
+				...(item.location && { location: item.location }),
 				...(item.cost !== undefined && { cost: item.cost }),
+				...(item.notes && { notes: item.notes }),
 			});
 		});
 
@@ -184,8 +192,13 @@ export class PlanOperations {
 						...(isStay && item.stay && { stay: item.stay }),
 						...(isStay && item.nights && { nights: item.nights }),
 						...(isStay && item.address && { address: item.address }),
-						...(isStay && item.booked && { booked: item.booked }),
-						...(isStay && item.notes && { notes: item.notes }),
+						// A flight needs booking as much as a hotel does, so
+						// this rides along for legs too — unlike address, which
+						// only means something for a stay.
+						...(item.booked && { booked: item.booked }),
+						// Notes apply to any stay or leg, not just stays —
+						// unlike address/booking, which only make sense there.
+						...(item.notes && { notes: item.notes }),
 						...(item.cost !== undefined && { cost: item.cost }),
 					});
 				}
@@ -213,11 +226,26 @@ export class PlanOperations {
 					amount: Number(fieldOf(c, "amount")) || 0,
 					split: {
 						mode:
-							mode === "shares" || mode === "percent"
+							mode === "shares" ||
+							mode === "percent" ||
+							mode === "value" ||
+							mode === "receipt"
 								? mode
 								: "even",
 						...(isRecord(shares) && {
 							shares: shares as Record<string, number>,
+						}),
+						...(isRecord(fieldOf(split, "exprs")) && {
+							exprs: fieldOf(split, "exprs") as Record<
+								string,
+								string
+							>,
+						}),
+						...(typeof fieldOf(split, "tax") === "number" && {
+							tax: fieldOf(split, "tax") as number,
+						}),
+						...(typeof fieldOf(split, "tip") === "number" && {
+							tip: fieldOf(split, "tip") as number,
 						}),
 					},
 				};
@@ -381,6 +409,24 @@ export class PlanOperations {
 			for (const p of participants) {
 				result[p] = (cost.amount * (shares[p] ?? 0)) / total;
 			}
+		} else if (cost.split.mode === "receipt") {
+			// Each person's own line off the receipt, with tax and tip
+			// added on top in the same proportion. Both are charged
+			// against the subtotal — the tip isn't taxed, and the tax
+			// isn't tipped.
+			const uplift =
+				1 + ((cost.split.tax ?? 0) + (cost.split.tip ?? 0)) / 100;
+			for (const p of participants) {
+				result[p] = (shares[p] ?? 0) * uplift;
+			}
+		} else if (cost.split.mode === "value") {
+			// Exact dollar amounts, taken at face value — a split that
+			// doesn't add up to the total is intentional and visible,
+			// the same way percent mode leaves it to the modal's live
+			// total to keep honest.
+			for (const p of participants) {
+				result[p] = shares[p] ?? 0;
+			}
 		} else if (cost.split.mode === "percent") {
 			// Literal percentages — under/over 100% is intentional and
 			// visible; the modal's live total keeps it honest
@@ -424,6 +470,10 @@ export class PlanOperations {
 			if (cost.split.mode === "shares") {
 				const w = shares[person] ?? 1;
 				descriptor = `${w} ${w === 1 ? "share" : "shares"}`;
+			} else if (cost.split.mode === "receipt") {
+				descriptor = "off the receipt";
+			} else if (cost.split.mode === "value") {
+				descriptor = "set amount";
 			} else if (cost.split.mode === "percent") {
 				descriptor = `${shares[person] ?? 0}%`;
 			} else {

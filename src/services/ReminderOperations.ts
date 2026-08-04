@@ -14,6 +14,7 @@ export interface ReminderFields {
 	type?: ReminderType;
 	location?: string;
 	link?: string;
+	notes?: string;
 }
 
 /** The id as a ReminderType when it's one we know, else undefined. */
@@ -75,6 +76,7 @@ export class ReminderOperations {
 		const type = reminderTypeOf(str("type"));
 		const location = str("location");
 		const link = str("link");
+		const notes = str("notes");
 		const created = str("created");
 		const updated = str("updated");
 		return {
@@ -86,6 +88,7 @@ export class ReminderOperations {
 			...(type && { type }),
 			...(location && { location }),
 			...(link && { link }),
+			...(notes && { notes }),
 			status: str("status") === "done" ? "done" : "open",
 			...(created && { created }),
 			...(updated && { updated }),
@@ -135,6 +138,7 @@ export class ReminderOperations {
 				set("type", fields.type);
 				set("location", fields.location);
 				set("link", fields.link);
+				set("notes", fields.notes);
 				fm.updated = todayISO();
 			}
 		);
@@ -206,6 +210,7 @@ export class ReminderOperations {
 					...(type && { type }),
 					...(r.location ? { location: toText(r.location) } : {}),
 					...(r.link ? { link: toText(r.link) } : {}),
+					...(r.notes ? { notes: toText(r.notes) } : {}),
 					status: r.status === "done" ? "done" : "open",
 					...(r.created ? { created: toText(r.created) } : {}),
 				};
@@ -233,6 +238,7 @@ export class ReminderOperations {
 			...(fields.type && { type: fields.type }),
 			...(fields.location && { location: fields.location }),
 			...(fields.link && { link: fields.link }),
+			...(fields.notes && { notes: fields.notes }),
 		};
 	}
 

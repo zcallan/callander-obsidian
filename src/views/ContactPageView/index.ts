@@ -65,10 +65,13 @@ import {
 	formatTimelineDay,
 	nightsLabel,
 	nightsSummary,
+	shortenPeopleList,
+	splitModeLabel,
 } from "@/utils/planFormat";
 import { ScheduleFieldOptions } from "@/modals/scheduleFields";
 import { InterestModal } from "@/modals/InterestModal";
 import { PlanCostModal } from "@/modals/PlanCostModal";
+import { PlanCostViewModal } from "@/modals/PlanCostViewModal";
 import { PlanCostBreakdownModal } from "@/modals/PlanCostBreakdownModal";
 import { PlanCreditModal } from "@/modals/PlanCreditModal";
 import { CopyEventModal } from "@/modals/CopyEventModal";
@@ -142,6 +145,47 @@ interface ContactFrontmatter {
 	interactions?: unknown;
 	[key: string]: unknown;
 }
+
+/**
+ * Keys this page can clear outright — emptying a list (deleting the last
+ * idea, credit, member…) or blanking an optional scalar drops the key from
+ * `contactData` entirely.
+ *
+ * They need naming because the save is an `Object.assign` onto the existing
+ * frontmatter, which can only add or overwrite: a key removed in memory
+ * would otherwise survive on disk, so the delete would look like it worked
+ * until the note was reopened. Anything listed here gets removed from the
+ * frontmatter too when it's absent in memory.
+ *
+ * Deliberately an allowlist rather than "delete whatever isn't in
+ * contactData" — that would drop keys written by another device or plugin
+ * between load and save, and would wipe the note entirely if a read had
+ * failed and left contactData empty.
+ */
+const CLEARABLE_FIELDS = [
+	// Optional plan scalars
+	"endDate",
+	"location",
+	// Plan lists
+	"items",
+	"travel",
+	"accommodation",
+	"bring",
+	"costs",
+	"credits",
+	"costsPaid",
+	"members",
+	"unconfirmedMembers",
+	// Person lists
+	"drafts",
+	"interests",
+	"funFacts",
+	"insideJokes",
+	"quotes",
+	// Legacy keys: migrated into ideas/events on load, then dropped
+	"giftIdeas",
+	"interactions",
+] as const;
 
 /** YAML-shaped unknown → ContactFrontmatter, coercing bound scalars once. */
 function toContactFrontmatter(parsed: unknown): ContactFrontmatter {
@@ -1196,20 +1240,23 @@ export class ContactPageView extends ItemView {
 		});
 
 		const events = this.eventsList();
+		const planRows = this.planTimelineRows();
 
-		// Add helper text if no events yet
-		if (events.length === 0) {
+		// Add helper text if no events yet — a plan they're on counts, so
+		// someone with only plans still gets a timeline rather than a nudge.
+		if (events.length === 0 && planRows.length === 0) {
 			headerContainer.createDiv({
 				cls: "section-helper-text",
 				text: "Log things that happened — meetups, their life events, memorable outings.",
 			});
 		}
 
-		if (events.length > 0 || this.contactData.met) {
+		if (events.length > 0 || planRows.length > 0 || this.contactData.met) {
 			this.eventTimeline.render(
 				eventsSection,
 				events,
-				this.contactData.met
+				this.contactData.met,
+				planRows
 			);
 		}
 
@@ -1457,33 +1504,16 @@ export class ContactPageView extends ItemView {
 				void this.saveContactData().then(() => this.render());
 				return;
 			}
-			const memberFiles = this.resolvePlanMembers();
+			// Members' timelines list this plan already — derived live from
+			// its membership — so marking it done only has to set the status.
 			new ConfirmModal(
 				this.app,
 				"Mark plan as done",
-				memberFiles.length > 0
-					? `Log "${this.contactData.name}" to ${memberFiles.length} member timeline(s) and archive this plan?`
-					: "Archive this plan?",
+				"Archive this plan? It stays on the timeline of everyone who was on it.",
 				"Done",
 				async () => {
-					const date =
-						this.contactData.date ||
-						new Date().toISOString().split("T")[0];
-					for (const file of memberFiles) {
-						await this.plugin.contactOperations.addEventToFile(
-							file,
-							date,
-							this.contactData.name ?? "",
-							"hangout"
-						);
-					}
 					this.contactData.status = "done";
 					await this.saveContactData();
-					if (memberFiles.length > 0) {
-						new Notice(
-							`🪧 Logged to ${memberFiles.length} timeline(s)`
-						);
-					}
 					this.render();
 				}
 			).open();
@@ -1514,21 +1544,59 @@ export class ContactPageView extends ItemView {
 
 	/** The iMessage-ready version of a plan. Costs stay out of the invite. */
 	private buildPlanShareText(): string {
-		return buildPlanShareText(
-			this.contactData as Record<string, unknown>,
-			{
-				yourName: this.plugin.settings.yourName,
-				members: this.planMemberDisplays(),
-				unconfirmed: this.planMemberDisplays(
-					Array.isArray(this.contactData.unconfirmedMembers)
-						? this.contactData.unconfirmedMembers
-						: []
-				),
-			}
-		);
+		return buildPlanShareText(this.contactData, {
+			yourName: this.plugin.settings.yourName,
+			members: this.planMemberDisplays(),
+			unconfirmed: this.planMemberDisplays(
+				Array.isArray(this.contactData.unconfirmedMembers)
+					? this.contactData.unconfirmedMembers
+					: []
+			),
+		});
 	}
 
 	/** Resolve the plan's wikilink members to contact files */
+	/**
+	 * Plans this person is a member of, shaped as timeline rows.
+	 *
+	 * Derived on every render rather than written onto their note: the plan
+	 * owns its membership, so adding or dropping someone shows up here at
+	 * once, with nothing stored to fall out of step. That's the same
+	 * arrangement PlanOperations.timelineOf uses for a plan's own itinerary.
+	 *
+	 * Covers upcoming plans as well as finished ones — an upcoming plan is
+	 * exactly the kind of thing worth seeing on someone's page, and because
+	 * it's derived it simply disappears if they end up not coming.
+	 */
+	private planTimelineRows(): FriendEvent[] {
+		const file = this._file;
+		// Plan and group pages get their own layouts; only a person's
+		// timeline should list the plans they're on.
+		if (!file || this.isPlanFile() || this.isGroupFile()) return [];
+
+		return this.plugin.planOperations
+			.getPlans()
+			.filter((plan) =>
+				plan.members.some((raw) => {
+					const linktext = String(raw).replace(/^\[\[|\]\]$/g, "");
+					return (
+						this.app.metadataCache.getFirstLinkpathDest(
+							linktext,
+							plan.file.path
+						)?.path === file.path
+					);
+				})
+			)
+			.map((plan) => ({
+				date: plan.date,
+				text: plan.name,
+				type: "hangout" as const,
+				// Marks the row as plan-derived: drives the 🗺️ badge and the
+				// click-through, and is never persisted to the person's note.
+				plan: `[[${plan.file.basename}]]`,
+			}));
+	}
+
 	private resolvePlanMembers(): TFile[] {
 		if (!this._file) return [];
 		const members = asArray(this.contactData.members).map(String);
@@ -2143,7 +2211,13 @@ export class ContactPageView extends ItemView {
 		if (entry.people) {
 			row.createDiv({
 				cls: "plan-travel-people",
-				text: entry.people,
+				// First names only — the row is tight, and the plan roster
+				// disambiguates any shared first name consistently.
+				text: shortenPeopleList(
+					entry.people,
+					this.planParticipants(),
+					this.plugin.settings.yourName
+				),
 			});
 		}
 
@@ -2238,7 +2312,10 @@ export class ContactPageView extends ItemView {
 			this.app,
 			entry,
 			() => this.editTimelineEntry(entry),
-			() => this.deleteTimelineEntry(entry)
+			() => this.deleteTimelineEntry(entry),
+			(notes) => this.saveTimelineEntryNotes(entry, notes),
+			this.planParticipants(),
+			this.plugin.settings.yourName
 		).open();
 	}
 
@@ -2260,6 +2337,39 @@ export class ContactPageView extends ItemView {
 		}
 		await this.saveContactData();
 		this.render();
+	}
+
+	/**
+	 * Patch just the notes on a timeline row's underlying item — the
+	 * auto-saving textarea in PlanTimelineViewModal. No `render()` after:
+	 * the view modal owns its own DOM and floats above this page, so
+	 * rebuilding the page behind it on every debounced keystroke would be
+	 * pure waste (and risks a visible flash/scroll jump for no reason,
+	 * since nothing about the page's own layout depends on this value).
+	 */
+	private async saveTimelineEntryNotes(
+		entry: PlanTimelineEntry,
+		notes: string
+	) {
+		if (entry.source === "idea") {
+			const current = PlanOperations.itemsOf(this.contactData);
+			const item = current[entry.index];
+			if (!item) return;
+			if (notes) item.notes = notes;
+			else delete item.notes;
+			this.contactData.items = current;
+		} else {
+			const current = PlanOperations.simpleListOf(
+				this.contactData,
+				entry.source
+			);
+			const item = current[entry.index];
+			if (!item) return;
+			if (notes) item.notes = notes;
+			else delete item.notes;
+			this.contactData[entry.source] = current;
+		}
+		await this.saveContactData();
 	}
 
 	/** Route a timeline row back to its real item's edit modal. */
@@ -2315,6 +2425,8 @@ export class ContactPageView extends ItemView {
 						time: item.time,
 						people: item.people,
 						duration: item.duration,
+						booked: item.booked,
+						notes: item.notes,
 						cost: item.cost,
 				  }
 				: null,
@@ -2555,7 +2667,16 @@ export class ContactPageView extends ItemView {
 
 		// Running total each person owes across all expenses
 		const owedTotals: Record<string, number> = {};
-		const openCost = (index: number, cost: PlanCost) => {
+		const deleteCost = async (index: number) => {
+			const list = PlanOperations.costsOf(this.contactData);
+			list.splice(index, 1);
+			if (list.length > 0) this.contactData.costs = list;
+			else delete this.contactData.costs;
+			await this.saveContactData();
+			this.render();
+		};
+
+		const editCost = (index: number, cost: PlanCost) => {
 			new PlanCostModal(
 				this.app,
 				participants,
@@ -2567,14 +2688,21 @@ export class ContactPageView extends ItemView {
 					await this.saveContactData();
 					this.render();
 				},
-				async () => {
-					const list = PlanOperations.costsOf(this.contactData);
-					list.splice(index, 1);
-					if (list.length > 0) this.contactData.costs = list;
-					else delete this.contactData.costs;
-					await this.saveContactData();
-					this.render();
-				},
+				() => deleteCost(index),
+				this.plugin.settings.yourName,
+				this.plugin.settings.receiptTaxPercent,
+				this.plugin.settings.receiptTipPercent
+			).open();
+		};
+
+		// Tapping a row reads it first; Edit/Delete live in that view.
+		const openCost = (index: number, cost: PlanCost) => {
+			new PlanCostViewModal(
+				this.app,
+				cost,
+				participants,
+				() => editCost(index, cost),
+				() => deleteCost(index),
 				this.plugin.settings.yourName
 			).open();
 		};
@@ -2621,15 +2749,11 @@ export class ContactPageView extends ItemView {
 				cls: "plan-cost-label",
 				text: cost.label,
 			});
-			const splitLabel =
-				cost.split.mode === "even"
-					? "even"
-					: cost.split.mode === "percent"
-					? "by percent"
-					: "by shares";
 			textEl.createSpan({
 				cls: "plan-item-cost",
-				text: ` · $${cost.amount} · ${splitLabel}`,
+				text: ` · $${cost.amount} · ${splitModeLabel(
+					cost.split.mode
+				).toLowerCase()}`,
 			});
 
 			const owed = PlanOperations.owedFor(cost, participants);
@@ -2787,7 +2911,9 @@ export class ContactPageView extends ItemView {
 					this.render();
 				},
 				undefined,
-				this.plugin.settings.yourName
+				this.plugin.settings.yourName,
+				this.plugin.settings.receiptTaxPercent,
+				this.plugin.settings.receiptTipPercent
 			).open();
 		});
 
@@ -3171,25 +3297,16 @@ export class ContactPageView extends ItemView {
 			const list = section.createDiv({
 				cls: "contact-funfacts-list",
 			});
+			// Tap the row to edit; Delete lives in that modal, so the list
+			// isn't carrying a permanent row of destructive buttons.
 			facts.forEach((fact, index) => {
 				const row = list.createDiv({
-					cls: "contact-funfact-item",
+					cls: "contact-funfact-item plan-clickable-row",
 				});
+				row.addEventListener("click", () =>
+					this.openFunFactModal(index, fact)
+				);
 				row.createSpan({ cls: "contact-funfact-text", text: fact });
-				const del = row.createEl("button", {
-					cls: "callander-button button-icon button-danger",
-					attr: { "aria-label": "Remove fun fact" },
-				});
-				setIcon(del, "trash");
-				const deleteFunFact = async () => {
-					const arr = this.funFactsOf();
-					arr.splice(index, 1);
-					if (arr.length > 0) this.contactData.funFacts = arr;
-					else delete this.contactData.funFacts;
-					await this.saveContactData();
-					this.render();
-				};
-				del.addEventListener("click", () => void deleteFunFact());
 			});
 		}
 
@@ -3199,18 +3316,35 @@ export class ContactPageView extends ItemView {
 		const btn = footer.createEl("button", { cls: "callander-button" });
 		setIcon(btn, "plus");
 		btn.createSpan({ text: "Add fun fact" });
-		btn.addEventListener("click", () => {
-			new FunFactsModal(
-				this.app,
-				this.contactData.displayName || this.contactData.name || "",
-				async (fact) => {
-					if (!fact) return;
-					this.contactData.funFacts = [...this.funFactsOf(), fact];
-					await this.saveContactData();
-					this.render();
-				}
-			).open();
-		});
+		btn.addEventListener("click", () => this.openFunFactModal(null, null));
+	}
+
+	/** Add (index null) or edit a fun fact; Delete is offered when editing. */
+	private openFunFactModal(index: number | null, fact: string | null) {
+		new FunFactsModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name || "",
+			async (value) => {
+				if (!value) return;
+				const arr = this.funFactsOf();
+				if (index === null) arr.push(value);
+				else arr[index] = value;
+				this.contactData.funFacts = arr;
+				await this.saveContactData();
+				this.render();
+			},
+			fact,
+			index === null
+				? undefined
+				: async () => {
+						const arr = this.funFactsOf();
+						arr.splice(index, 1);
+						if (arr.length > 0) this.contactData.funFacts = arr;
+						else delete this.contactData.funFacts;
+						await this.saveContactData();
+						this.render();
+				  }
+		).open();
 	}
 
 	/** Normalized quote list (legacy plain strings read as { text }). */
@@ -3604,12 +3738,10 @@ export class ContactPageView extends ItemView {
 			this._file,
 			(frontmatter: Record<string, unknown>) => {
 				Object.assign(frontmatter, this.contactData);
-				// Legacy keys are migrated on load — remove them from disk
-				if (!("giftIdeas" in this.contactData)) {
-					delete frontmatter.giftIdeas;
-				}
-				if (!("interactions" in this.contactData)) {
-					delete frontmatter.interactions;
+				// Object.assign can't express a removal, so clearing a list
+				// or field has to be applied to the frontmatter separately.
+				for (const key of CLEARABLE_FIELDS) {
+					if (!(key in this.contactData)) delete frontmatter[key];
 				}
 				if (stampUpdated) {
 					frontmatter.updated = todayISO();
