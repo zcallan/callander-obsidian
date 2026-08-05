@@ -9,6 +9,8 @@ import {
 } from "obsidian";
 import type FriendTracker from "@/main";
 import type { FriendTrackerSettings } from "@/types";
+import { HEMISPHERES, RIBBON_ACTIONS } from "@/constants";
+import type { Hemisphere } from "@/constants";
 
 // The declarative settings API arrived in 1.13; below that Obsidian renders
 // display() instead.
@@ -81,6 +83,17 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				},
 			},
 			{
+				name: "Hemisphere",
+				desc: "Which months each season covers, for somedays you've pinned to a season rather than a date",
+				control: {
+					type: "dropdown",
+					key: "hemisphere",
+					options: Object.fromEntries(
+						HEMISPHERES.map((h) => [h.id, h.label])
+					),
+				},
+			},
+			{
 				name: "Open friends in Callander view",
 				desc: "Clicking a friend's note anywhere (file explorer, quick switcher, links, graph) opens their Callander page instead of raw markdown. The Markdown tab still gets you to the underlying note.",
 				control: {
@@ -105,6 +118,14 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					min: 1,
 					max: 60,
 				},
+			},
+			{
+				type: "group",
+				heading: "Quick actions",
+				items: RIBBON_ACTIONS.map(({ key, name }) => ({
+					name,
+					control: { type: "toggle", key },
+				})),
 			},
 			{
 				type: "group",
@@ -218,6 +239,11 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			value = String(value).replace(/[\\/]/g, "-").trim();
 		}
 		Object.assign(this.plugin.settings, { [key]: value });
+		// A ribbon icon is a standing DOM element, not something that just
+		// gets picked up on the next render — flip it live.
+		if (RIBBON_ACTIONS.some((action) => action.key === key)) {
+			this.plugin.refreshRibbonIcons();
+		}
 		return this.plugin.saveSettings();
 	}
 
@@ -245,6 +271,25 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.yourName = value.trim();
 						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Hemisphere")
+			.setDesc(
+				"Which months each season covers, for somedays you've pinned to a season rather than a date"
+			)
+			.addDropdown((dropdown) => {
+				for (const h of HEMISPHERES) {
+					dropdown.addOption(h.id, h.label);
+				}
+				// Not an async handler: unlike addText/addToggle, this
+				// onChange is typed as returning void.
+				dropdown
+					.setValue(this.plugin.settings.hemisphere)
+					.onChange((value) => {
+						this.plugin.settings.hemisphere = value as Hemisphere;
+						void this.plugin.saveSettings();
 					});
 			});
 
@@ -297,6 +342,20 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					}
 				});
 			});
+
+		new Setting(containerEl).setName("Quick actions").setHeading();
+
+		for (const { key, name } of RIBBON_ACTIONS) {
+			new Setting(containerEl).setName(name).addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings[key])
+					.onChange(async (value) => {
+						this.plugin.settings[key] = value;
+						await this.plugin.saveSettings();
+						this.plugin.refreshRibbonIcons();
+					});
+			});
+		}
 
 		new Setting(containerEl).setName("Files and folders").setHeading();
 

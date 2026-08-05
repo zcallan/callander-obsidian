@@ -89,14 +89,28 @@ export function splitModeLabel(
 	}
 }
 
-/** "Riley" — or "Riley P" when two Rileys would otherwise collide. */
-export function shortenMemberNames(fullNames: string[]): string[] {
+/**
+ * "Riley" — or "Riley P" when two Rileys would otherwise collide. A name
+ * with an override in `shortNames` (keyed by full name, lowercased) skips
+ * all of that and renders exactly as given — and doesn't count toward
+ * anyone else's collision either, since it's no longer showing as "Riley"
+ * at all. Two other Rileys still disambiguate against each other; a Riley
+ * with an override never forces that on them.
+ */
+export function shortenMemberNames(
+	fullNames: string[],
+	shortNames: Map<string, string> = new Map()
+): string[] {
+	const overrideFor = (name: string) => shortNames.get(name.trim().toLowerCase());
 	const firstCounts = new Map<string, number>();
 	for (const name of fullNames) {
+		if (overrideFor(name)) continue;
 		const first = name.trim().split(/\s+/)[0].toLowerCase();
 		firstCounts.set(first, (firstCounts.get(first) ?? 0) + 1);
 	}
 	return fullNames.map((name) => {
+		const override = overrideFor(name);
+		if (override) return override;
 		const parts = name.trim().split(/\s+/);
 		const first = parts[0];
 		const isDupe = (firstCounts.get(first.toLowerCase()) ?? 0) > 1;
@@ -105,6 +119,24 @@ export function shortenMemberNames(fullNames: string[]): string[] {
 		}
 		return first;
 	});
+}
+
+/**
+ * `shortNames` for shortenMemberNames/shortenPeopleList, built from
+ * whatever contacts are in view. Only for the user's own reading — never
+ * pass this into plan-share text, where a private nickname would mean
+ * nothing to whoever receives the message (same reasoning as `yourName`
+ * below).
+ */
+export function shortNameOverrides(
+	contacts: Array<{ displayName: string; shortName: string }>
+): Map<string, string> {
+	const map = new Map<string, string>();
+	for (const c of contacts) {
+		const override = c.shortName.trim();
+		if (override) map.set(c.displayName.trim().toLowerCase(), override);
+	}
+	return map;
 }
 
 /**
@@ -120,12 +152,14 @@ export function shortenMemberNames(fullNames: string[]): string[] {
  * `yourName` (from settings) renders as "Me" — you already know who you
  * are, and it reads the way you'd say it. Only for your own views: a plan
  * shared as a message keeps real names, since "Me" means nothing to whoever
- * receives it.
+ * receives it. `shortNames` overrides (see shortNameOverrides) follow the
+ * same rule, for the same reason.
  */
 export function shortenPeopleList(
 	people: string,
 	roster: string[],
-	yourName = ""
+	yourName = "",
+	shortNames: Map<string, string> = new Map()
 ): string {
 	const names = people
 		.split(",")
@@ -139,7 +173,7 @@ export function shortenPeopleList(
 			pool.push(name);
 		}
 	}
-	const shortened = shortenMemberNames(pool);
+	const shortened = shortenMemberNames(pool, shortNames);
 	const byFullName = new Map<string, string>();
 	pool.forEach((full, i) => byFullName.set(full.toLowerCase(), shortened[i]));
 

@@ -1,8 +1,9 @@
 import type { PlanTimelineEntry } from "@/types";
 import { ACCOMMODATION_EMOJI, TRAVEL_TYPE_EMOJI } from "@/constants";
 import { PlanOperations } from "@/services/PlanOperations";
-import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
+import { parseFlexDate, formatFlexDate, monthName } from "@/utils/flexdate";
 import { formatDate } from "@/utils/dateFormat";
+import { toText } from "@/utils/fm";
 import {
 	formatItemTime,
 	formatTimelineDay,
@@ -54,12 +55,15 @@ export function formatPlanDateRange(
 	const endDay = end ? exact(end) : null;
 	if (!startDate) return formatFlexDate(start);
 
+	// The month is built from monthName rather than `month: "short"`:
+	// en-AU abbreviates most months to three letters but leaves June, July
+	// and Sept longer, so a trip spanning them would read "Thu 30 July -
+	// Sun 2 Aug". Weekdays don't have that quirk, so they still come from
+	// the locale. Matches the shortening used on the dashboard and tables.
 	const fmt = (d: Date) =>
-		formatDate(d, {
-			weekday: "short",
-			day: "numeric",
-			month: "short",
-		});
+		`${formatDate(d, { weekday: "short" })} ${d.getDate()} ${monthName(
+			d.getMonth() + 1
+		).slice(0, 3)}`;
 
 	if (!endDay || endDay.getTime() === startDate.getTime()) {
 		return fmt(startDate);
@@ -107,11 +111,15 @@ export function buildPlanShareText(
 	data: Record<string, unknown>,
 	opts: PlanShareOptions
 ): string {
-	const lines: string[] = [String(data.name ?? "")];
+	// toText rather than String(): frontmatter is user-editable, so these
+	// can be any YAML shape, and a stray list or map should read as empty
+	// rather than "[object Object]" in a message you paste to friends.
+	const lines: string[] = [toText(data.name)];
 
 	const range = formatPlanDateRange(data.date, data.endDate);
 	if (range) lines.push(range);
-	if (data.location) lines.push(String(data.location));
+	const location = toText(data.location);
+	if (location) lines.push(location);
 
 	// You're on the trip too — lead with your name, deduped in case you're
 	// also listed as a member.

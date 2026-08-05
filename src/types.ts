@@ -3,6 +3,7 @@ import type {
 	AccommodationType,
 	BookingState,
 	EventType,
+	Hemisphere,
 	IdeaCategory,
 	InterestCategory,
 	PlanIdeaCategory,
@@ -10,6 +11,9 @@ import type {
 	ReminderType,
 	SomedayCompany,
 	SomedayDay,
+	SomedaySort,
+	SomedayTime,
+	SomedayType,
 	TravelType,
 } from "./constants";
 
@@ -43,9 +47,31 @@ export interface FriendTrackerSettings {
 	showChineseZodiac: boolean;
 	/** Included automatically when sharing plans as a message */
 	yourName: string;
+	/** Decides which months each season covers — read when matching a
+	 * someday's chosen seasons against today. */
+	hemisphere: Hemisphere;
 	lastBirthdayNoticeDate: string;
 	/** Sort order for the All friends list, remembered across opens */
 	friendListSort: FriendListSort;
+	/**
+	 * Whether the dashboard's Drafts accordion is collapsed. Open by
+	 * default — drafts are meant to nag — but the choice sticks, since the
+	 * view is rebuilt from scratch every time the dashboard opens and would
+	 * otherwise spring back open. Incidental UI state, so it isn't surfaced
+	 * in the settings tab (like friendListSort).
+	 */
+	draftsCollapsed: boolean;
+	/** Same as draftsCollapsed, for the dashboard's Upcoming birthdays accordion. */
+	birthdaysCollapsed: boolean;
+	/** Sort for the Somedays page; the dashboard's list follows it. Like
+	 * friendListSort, incidental UI state rather than a settings-tab option. */
+	somedaySort: SomedaySort;
+	/** Sidebar ribbon icons, individually toggleable — see RIBBON_ACTIONS. */
+	ribbonDashboard: boolean;
+	ribbonDiary: boolean;
+	ribbonAddIdea: boolean;
+	ribbonSomedays: boolean;
+	ribbonReminder: boolean;
 }
 
 export type FriendListSort =
@@ -78,6 +104,9 @@ export interface ContactWithCountdown extends Contact {
 	birthdayWished: string;
 	/** displayName if set, otherwise name — what the UI should show */
 	displayName: string;
+	/** Override for shortenMemberNames/shortenPeopleList — "Obama" instead
+	 * of a computed "Barack" or disambiguated "Barack O". Empty when unset. */
+	shortName: string;
 	groups: string[];
 	ideas: Idea[];
 	events: FriendEvent[];
@@ -316,6 +345,12 @@ export interface SomedayInfo {
 	seasons: string[];
 	/** Candidate weekdays it could happen on */
 	days: SomedayDay[];
+	/** Time-of-day windows it suits; all three means "any" (see SOMEDAY_TIMES) */
+	times: SomedayTime[];
+	/** Hard deadline (ISO YYYY-MM-DD), or "" — the season ends, the bar
+	 * closes, the show finishes its run. Unlike `date` this isn't when you
+	 * hope to do it, it's when the chance is gone. */
+	finalDate: string;
 	/** Estimated cost, or null when unset */
 	cost: number | null;
 	notes: string;
@@ -326,6 +361,14 @@ export interface SomedayInfo {
 	convertedTo: string;
 	/** Solo or group activity; "" when unset */
 	company: SomedayCompany | "";
+	/** What kind of thing it is; "" when unset */
+	type: SomedayType | "";
+	/**
+	 * Wikilinks to real contacts (e.g. "[[Callan]]"), same storage shape as
+	 * a plan's members — resolved back to a display name wherever it's
+	 * shown. Empty when unset, or when company is "solo".
+	 */
+	people: string[];
 }
 
 export interface DiaryEntry {
@@ -352,6 +395,9 @@ export interface Reminder {
 	type?: ReminderType;
 	location?: string;
 	link?: string;
+	/** Free text, e.g. "Callan, Steve" — shortened/disambiguated for display
+	 * the same way a plan's people field is (see shortenPeopleList). */
+	people?: string;
 	notes?: string;
 	status?: "open" | "done";
 	created?: string;
@@ -383,6 +429,15 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	showBirthFlower: true,
 	showChineseZodiac: false,
 	yourName: "",
+	hemisphere: "northern",
 	lastBirthdayNoticeDate: "",
 	friendListSort: "birthday",
+	draftsCollapsed: false,
+	birthdaysCollapsed: false,
+	somedaySort: "recommended",
+	ribbonDashboard: true,
+	ribbonDiary: false,
+	ribbonAddIdea: false,
+	ribbonSomedays: false,
+	ribbonReminder: false,
 };

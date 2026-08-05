@@ -14,6 +14,11 @@ export default defineConfig([
 			"version-bump.mjs",
 			"vault/",
 			"examples/",
+			// Test scaffolding runs in Node, never inside Obsidian, so the
+			// plugin ruleset doesn't apply — a test runner printing results
+			// is not "unnecessary logging to console". tests/entry.ts is
+			// still type-checked by tsc, which is what matters there.
+			"tests/",
 		],
 	},
 	...obsidianmd.configs.recommended,

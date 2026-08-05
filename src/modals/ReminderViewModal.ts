@@ -6,6 +6,7 @@ import { ConfirmModal } from "@/modals/ConfirmModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
 import { REMINDER_TYPES } from "@/constants";
+import { shortenPeopleList, shortNameOverrides } from "@/utils/planFormat";
 
 /**
  * A read view of a reminder with Mark-as-done / Edit / Delete — mirrors
@@ -73,12 +74,13 @@ export class ReminderViewModal extends Modal {
 			type: r.type,
 			location: r.location,
 			link: r.link,
+			people: r.people,
 			notes: r.notes,
 		});
 		await this.onChange();
 	}
 
-	onOpen() {
+	async onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass("someday-view-modal");
@@ -99,6 +101,23 @@ export class ReminderViewModal extends Modal {
 			contentEl.createDiv({
 				cls: "someday-view-cost",
 				text: `📍 ${r.location}`,
+			});
+		}
+
+		// Shortened/disambiguated against the whole friends roster, and
+		// respecting Short name overrides — same treatment a plan's people
+		// field gets. Only shown here, not on the dashboard row.
+		if (r.people) {
+			const contacts = await this.plugin.contactOperations.getContacts();
+			const shortened = shortenPeopleList(
+				r.people,
+				contacts.map((c) => c.displayName),
+				this.plugin.settings.yourName,
+				shortNameOverrides(contacts)
+			);
+			contentEl.createDiv({
+				cls: "someday-view-cost",
+				text: `👥 ${shortened}`,
 			});
 		}
 

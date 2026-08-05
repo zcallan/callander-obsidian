@@ -51,6 +51,22 @@ export class AddContactModal extends FormModal {
 			cls: "callander-modal-input",
 		});
 
+		// Short name (optional) — overrides the auto-shortened/disambiguated
+		// form used in the Diary and on plans, e.g. "Obama" instead of a
+		// computed "Barack" or "Barack O"
+		const shortField = form.createDiv({
+			cls: "callander-modal-field",
+		});
+		shortField.createEl("label", { text: "Short name (optional)" });
+		const shortInput = shortField.createEl("input", {
+			attr: {
+				type: "text",
+				name: "shortName",
+				placeholder: "For shortened names, e.g. Obama",
+			},
+			cls: "callander-modal-input",
+		});
+
 		// Birthday field (honest imprecision: exact / month+year / month+day)
 		const birthdayField = form.createDiv({
 			cls: "callander-modal-field",
@@ -147,6 +163,9 @@ export class AddContactModal extends FormModal {
 
 			if (displayInput.value.trim()) {
 				data.displayName = displayInput.value.trim();
+			}
+			if (shortInput.value.trim()) {
+				data.shortName = shortInput.value.trim();
 			}
 			if (birthdayValue) data.birthday = birthdayValue;
 			if (metValue) data.met = metValue;

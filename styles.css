@@ -685,6 +685,42 @@ If your plugin does not need CSS, delete this file.
 	outline: none;
 }
 
+/* A collapsible group of fields within a modal — .plan-accordion-header
+   provides the pointer cursor and open/close mechanics; this just lays
+   the label and chevron out side by side, sized to sit among a form's
+   other field labels rather than a page's section headings. */
+.callander-modal-accordion-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 0;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	line-height: 1;
+}
+
+/* The label span needs the same line-height treatment as the chevron
+   (already inline-flex + centered via .plan-accordion-chevron) — without
+   it, the text's own line box is taller than its glyph, so the two read
+   as misaligned even though the row itself is vertically centered. */
+.callander-modal-accordion-header span:first-child {
+	display: inline-flex;
+	align-items: center;
+}
+
+/* The someday modal's "Additional details" section — a divider marks
+   where the always-visible fields end, and it gets a bit more breathing
+   room than the compact Dashboard/Person-page accordions this borrows
+   its open/close mechanics from. */
+.someday-modal-accordion {
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: 12px;
+}
+
+.someday-modal-accordion .plan-accordion-body {
+	padding-top: 10px;
+}
+
 .callander-modal-buttons {
 	margin-top: 24px;
 	display: flex;
@@ -2622,6 +2658,42 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin-top: 5px;
 }
 
+/* Collapsed, the heading is the section's only content, so it sits between
+   this section's top border and the next one's. That space was uneven —
+   15px above against 24px below (its own 6px margin plus the next
+   section's 18px top margin) — leaving the text visibly high. Nudged to
+   20/20. Only when closed: with rows below, the heading spaces itself
+   against them instead. */
+.dashboard-drafts-accordion:not(.is-open) .plan-accordion-header,
+.dashboard-birthdays-accordion:not(.is-open) .plan-accordion-header {
+	padding-top: 5px;
+}
+.dashboard-drafts-accordion:not(.is-open) .plan-accordion-header h3,
+.dashboard-birthdays-accordion:not(.is-open) .plan-accordion-header h3 {
+	margin-bottom: 2px;
+}
+
+/* A count beside a section heading. min-width matches the height so a
+   single digit is a true circle; longer counts stretch to a pill rather
+   than squashing into an oval. */
+.dashboard-count-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	min-width: 20px;
+	height: 20px;
+	padding: 0 6px;
+	margin-left: 8px;
+	border-radius: 999px;
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+	font-size: 0.75em;
+	font-weight: 600;
+	line-height: 1;
+	vertical-align: middle;
+}
+
 .dashboard-missed-section > h3 {
 	margin-top: 0;
 }
@@ -3681,17 +3753,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	flex: 1;
 	min-width: 0;
 }
-.someday-card-titleline {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	flex-wrap: wrap;
-}
-.someday-card-subline {
-	color: var(--text-muted);
-	font-size: 0.85em;
-	margin-top: 2px;
-}
 .someday-header-location {
 	color: var(--text-muted);
 	font-size: 0.85em;
@@ -3806,12 +3867,34 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	gap: 6px;
 	margin-bottom: 6px;
 }
+/* Sits beside the precision dropdown inside .contact-met-controls and
+   takes the rest of the line. min-width:0 lets a date input shrink below
+   its (large) intrinsic width instead of pushing the row wider than the
+   modal; the season chips inside simply wrap within whatever's left. */
 .someday-when-slot {
-	margin-top: 6px;
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+}
+
+/* Both margins, not just the bottom one: the "Any date" helper text
+   carries a 12px top margin of its own, which sat it visibly low against
+   the dropdown beside it rather than centred on the row. */
+.someday-when-slot > * {
+	width: 100%;
+	margin-top: 0;
+	margin-bottom: 0;
 }
 .someday-when-date {
 	-webkit-appearance: none;
 	appearance: none;
+}
+
+/* Sits directly under its input, so it doesn't need the standalone
+   helper text's full 12px lead-in. */
+.someday-final-date-hint {
+	margin: 4px 0 0;
 }
 .someday-timeframe-free {
 	margin-top: 4px;
@@ -3856,6 +3939,34 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* Someday rows are clickable → open the view modal */
 .someday-card.someday-row {
 	cursor: pointer;
+	/* Name (and any deadline) on the left, the timing summary pushed to
+	   the right. One line each, so the list scans as two columns. */
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 16px 2px;
+}
+
+.someday-row-main {
+	min-width: 0;
+	flex: 1;
+}
+
+/* The deadline trails the name, quieter than it — it qualifies the name
+   rather than competing with it. */
+.someday-row-final {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	font-weight: normal;
+}
+
+/* Never wraps: it's short, and letting it wrap would break the column. */
+.someday-row-when {
+	flex: 0 0 auto;
+	color: var(--text-muted);
+	font-size: 0.85em;
+	white-space: nowrap;
 }
 .someday-card.someday-row:hover {
 	background: var(--background-modifier-hover);

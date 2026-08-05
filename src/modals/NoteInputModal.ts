@@ -1,11 +1,18 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
-/** One text field — a quick draft note about a known friend or plan. */
+/**
+ * One text field — a quick draft note about a known friend or plan.
+ *
+ * Pass `initial` to edit an existing draft instead of capturing a new one;
+ * the wording changes to match, since "Save draft" on something already
+ * saved reads like it would make a second one.
+ */
 export class NoteInputModal extends FormModal {
 	constructor(
 		app: App,
 		private targetName: string,
-		private onSubmit: (text: string) => Promise<void>
+		private onSubmit: (text: string) => Promise<void>,
+		private initial?: string
 	) {
 		super(app);
 	}
@@ -13,7 +20,10 @@ export class NoteInputModal extends FormModal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl("h2", { text: `Quick note — ${this.targetName}` });
+		const editing = this.initial !== undefined;
+		contentEl.createEl("h2", {
+			text: editing ? "Edit note" : `Quick note — ${this.targetName}`,
+		});
 
 		const input = contentEl.createEl("textarea", {
 			cls: "note-input-textarea",
@@ -22,12 +32,13 @@ export class NoteInputModal extends FormModal {
 				rows: "4",
 			},
 		});
+		input.value = this.initial ?? "";
 
 		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
 		const saveButton = buttons.createEl("button", {
-			text: "Save draft",
+			text: editing ? "Save" : "Save draft",
 			cls: "callander-modal-button mod-cta",
 		});
 		const submit = async () => {

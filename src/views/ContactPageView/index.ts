@@ -105,6 +105,7 @@ export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 const SCALAR_FIELDS = [
 	"name",
 	"displayName",
+	"shortName",
 	"birthday",
 	"relationship",
 	"met",
@@ -125,6 +126,7 @@ const SCALAR_FIELDS = [
 interface ContactFrontmatter {
 	name?: string;
 	displayName?: string;
+	shortName?: string;
 	birthday?: string;
 	relationship?: string;
 	met?: string;
@@ -1465,6 +1467,33 @@ export class ContactPageView extends ItemView {
 				).open();
 			});
 
+			const editButton = row.createEl("button", {
+				cls: "callander-button button-icon",
+				attr: { "aria-label": "Edit draft" },
+			});
+			setIcon(editButton, "pencil");
+			editButton.addEventListener("click", () => {
+				new NoteInputModal(
+					this.app,
+					this.contactData.displayName || this.contactData.name || "",
+					async (text) => {
+						const list = asArray(this.contactData.drafts);
+						const current = list[index];
+						// Legacy drafts are plain strings; keep the shape the
+						// entry already had, and preserve `created` — editing
+						// the wording doesn't make it a new note.
+						list[index] =
+							typeof current === "string"
+								? text
+								: { ...(current as object), text };
+						this.contactData.drafts = list;
+						await this.saveContactData();
+						this.render();
+					},
+					draftText
+				).open();
+			});
+
 			const deleteButton = row.createEl("button", {
 				cls: "callander-button button-icon button-danger",
 				attr: { "aria-label": "Discard draft" },
@@ -1663,9 +1692,18 @@ export class ContactPageView extends ItemView {
 		});
 	}
 
-	/** "Thu 30 Jul - Sun 2 Aug", "Thu 30 Jul", or just "October" */
-	/** Member display names — resolved contacts use displayName, guests as-is */
-	private planMemberDisplays(list?: string[]): string[] {
+	/**
+	 * Resolves each member wikilink to its contact's displayName + shortName
+	 * (guests with no matching file fall back to the linktext itself, with
+	 * no shortName). The one place that walks the links, so
+	 * planMemberDisplays and planShortNameOverrides can never drift apart.
+	 *
+	 * Distinct from resolvePlanMembers() below, which resolves to TFiles —
+	 * this resolves to the display info those files' frontmatter holds.
+	 */
+	private planMemberInfo(
+		list?: string[]
+	): Array<{ displayName: string; shortName: string }> {
 		const members =
 			list ?? asArray(this.contactData.members).map(String);
 		return members.map((raw) => {
@@ -1676,13 +1714,30 @@ export class ContactPageView extends ItemView {
 						this._file.path
 				  )
 				: null;
-			return dest
-				? String(
-						this.app.metadataCache.getFileCache(dest)?.frontmatter
-							?.displayName ?? dest.basename
-				  )
-				: linktext;
+			if (!dest) return { displayName: linktext, shortName: "" };
+			const fm = this.app.metadataCache.getFileCache(dest)?.frontmatter;
+			return {
+				displayName: String(fm?.displayName ?? dest.basename),
+				shortName: fm?.shortName ? String(fm.shortName).trim() : "",
+			};
 		});
+	}
+
+	/** "Thu 30 Jul - Sun 2 Aug", "Thu 30 Jul", or just "October" */
+	/** Member display names — resolved contacts use displayName, guests as-is */
+	private planMemberDisplays(list?: string[]): string[] {
+		return this.planMemberInfo(list).map((m) => m.displayName);
+	}
+
+	/** shortName overrides for shortenPeopleList — see shortNameOverrides. */
+	private planShortNameOverrides(list?: string[]): Map<string, string> {
+		const map = new Map<string, string>();
+		for (const m of this.planMemberInfo(list)) {
+			if (m.shortName) {
+				map.set(m.displayName.trim().toLowerCase(), m.shortName);
+			}
+		}
+		return map;
 	}
 
 	/** The iMessage-ready version of a plan. Costs stay out of the invite. */
@@ -2359,7 +2414,8 @@ export class ContactPageView extends ItemView {
 				text: shortenPeopleList(
 					entry.people,
 					this.planParticipants(),
-					this.plugin.settings.yourName
+					this.plugin.settings.yourName,
+					this.planShortNameOverrides()
 				),
 			});
 		}
@@ -2458,7 +2514,8 @@ export class ContactPageView extends ItemView {
 			() => this.deleteTimelineEntry(entry),
 			(notes) => this.saveTimelineEntryNotes(entry, notes),
 			this.planParticipants(),
-			this.plugin.settings.yourName
+			this.plugin.settings.yourName,
+			this.planShortNameOverrides()
 		).open();
 	}
 
@@ -2792,6 +2849,7 @@ export class ContactPageView extends ItemView {
 		const costs = PlanOperations.costsOf(this.contactData);
 		const credits = PlanOperations.creditsOf(this.contactData);
 		const participants = this.planParticipants();
+		const shortNames = this.planShortNameOverrides();
 		// You're the one owed — not someone who owes — so you're excluded from
 		// the tally and can't be ticked off. Credits are money others hand you.
 		const yourName = this.plugin.settings.yourName;
@@ -2863,7 +2921,8 @@ export class ContactPageView extends ItemView {
 				() => editCost(index, cost),
 				() => deleteCost(index),
 				this.plugin.settings.yourName,
-				(settled) => toggleCostSettled(index, settled)
+				(settled) => toggleCostSettled(index, settled),
+				shortNames
 			).open();
 		};
 

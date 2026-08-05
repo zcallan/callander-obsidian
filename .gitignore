@@ -28,3 +28,6 @@ examples/example-vault/.obsidian
 
 # Local dev vault (wired via .vault-plugin-path)
 vault/
+
+# Test bundle, rebuilt on every `npm test`
+tests/.build/
