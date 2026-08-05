@@ -18,7 +18,9 @@ export class PlanCostViewModal extends Modal {
 		private onDelete: () => Promise<void>,
 		/** Rendered as "Me", so the split reads the way you'd say it. */
 		private yourName = "",
-		private onToggleSettled: (settled: boolean) => Promise<void>
+		private onToggleSettled: (settled: boolean) => Promise<void>,
+		/** Per-friend shortenPeopleList overrides — see shortNameOverrides. */
+		private shortNames: Map<string, string> = new Map()
 	) {
 		super(app);
 	}
@@ -86,7 +88,12 @@ export class PlanCostViewModal extends Modal {
 				const row = list.createDiv({ cls: "plan-cost-view-row" });
 				const nameEl = row.createDiv({ cls: "plan-cost-view-name" });
 				nameEl.createSpan({
-					text: shortenPeopleList(p, this.participants, this.yourName),
+					text: shortenPeopleList(
+						p,
+						this.participants,
+						this.yourName,
+						this.shortNames
+					),
 				});
 				// How their line was arrived at — "14 (7+7)" — so a wrong
 				// figure or a missed item is findable later.

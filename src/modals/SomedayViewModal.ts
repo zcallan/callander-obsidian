@@ -1,13 +1,17 @@
 import { App, Modal, Notice, setIcon } from "obsidian";
 import type FriendTracker from "@/main";
-import type { SomedayInfo, SomedaySubIdea } from "@/types";
+import type { ContactWithCountdown, SomedayInfo, SomedaySubIdea } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
+import { splitLeadingEmoji } from "@/components/EventTimeline";
+import { shortenMemberNames, shortNameOverrides } from "@/utils/planFormat";
 import {
 	formatSomedayDays,
 	formatSomedaySeasons,
+	formatSomedayTimes,
 	somedayCompany,
+	somedayType,
 } from "@/constants";
 
 /**
@@ -21,6 +25,9 @@ export class SomedayViewModal extends Modal {
 	private subIdeas: SomedaySubIdea[];
 	private notesSaveTimer: number | null = null;
 	private notesDirty = false;
+	/** Fetched once in onOpen(), not per render() — render() runs again on
+	 * every sub-idea toggle, and the roster doesn't change mid-modal. */
+	private contacts: ContactWithCountdown[] = [];
 
 	constructor(
 		app: App,
@@ -39,7 +46,29 @@ export class SomedayViewModal extends Modal {
 		return formatSomedaySeasons(this.someday.seasons) || "Any time";
 	}
 
-	onOpen() {
+	/** Suggested-people wikilinks resolved to display names, shortened and
+	 * disambiguated against the whole friends roster (Short name-aware) —
+	 * same treatment a plan's people field gets. A link to a renamed or
+	 * deleted file is silently dropped, same as the modal's own picker. */
+	private shortenedPeopleNames(): string[] {
+		const names = this.someday.people
+			.map((raw) => {
+				const linktext = raw.replace(/^\[\[|\]\]$/g, "");
+				const dest = this.app.metadataCache.getFirstLinkpathDest(
+					linktext,
+					this.someday.file.path
+				);
+				const match = dest
+					? this.contacts.find((c) => c.file.path === dest.path)
+					: undefined;
+				return match?.displayName;
+			})
+			.filter((n): n is string => !!n);
+		return shortenMemberNames(names, shortNameOverrides(this.contacts));
+	}
+
+	async onOpen() {
+		this.contacts = await this.plugin.contactOperations.getContacts();
 		this.render();
 	}
 
@@ -49,16 +78,36 @@ export class SomedayViewModal extends Modal {
 		contentEl.addClass("someday-view-modal");
 		const s = this.someday;
 
-		contentEl.createEl("h2", { text: s.name });
+		// The type emoji leads the title unless the name brings its own —
+		// mirrors ReminderViewModal's treatment of its own type emoji.
+		const typeInfo = somedayType(s.type);
+		const title =
+			typeInfo && !splitLeadingEmoji(s.name)
+				? `${typeInfo.emoji} ${s.name}`
+				: s.name;
+		contentEl.createEl("h2", { text: title });
 
-		// When + candidate days, one line: "📅 Sometime in Oct • Weekends"
+		// When + candidate days + time of day, one line:
+		// "📅 Sometime in Oct • Weekends • Night"
 		const daysLabel = formatSomedayDays(s.days);
+		const timesLabel = formatSomedayTimes(s.times);
 		contentEl.createDiv({
 			cls: "someday-view-meta",
-			text: `📅 ${[this.whenLabel(), daysLabel]
+			text: `📅 ${[this.whenLabel(), daysLabel, timesLabel]
 				.filter(Boolean)
 				.join(" • ")}`,
 		});
+
+		// A deadline gets its own line rather than joining the 📅 one — it's
+		// a different kind of fact (when the chance is gone, not when you'd
+		// like to go) and shouldn't read as just another timing preference.
+		const finalFlex = parseFlexDate(s.finalDate);
+		if (finalFlex) {
+			contentEl.createDiv({
+				cls: "someday-view-meta",
+				text: `⏳ By ${formatFlexDate(finalFlex)}`,
+			});
+		}
 
 		// Company + cost, one line — the company's own emoji leads it, so
 		// "Solo"/"Group"/"Either" carry their existing 🧍/👥/🔀 glyph rather
@@ -71,6 +120,13 @@ export class SomedayViewModal extends Modal {
 				text: `${comp?.emoji ?? "💵"} ${[comp?.label, costLabel]
 					.filter(Boolean)
 					.join(" • ")}`,
+			});
+		}
+
+		if (s.people.length > 0) {
+			contentEl.createDiv({
+				cls: "someday-view-meta",
+				text: `👥 ${this.shortenedPeopleNames().join(", ")}`,
 			});
 		}
 
@@ -253,7 +309,7 @@ export class SomedayViewModal extends Modal {
 		button(
 			progressRow,
 			isDone ? "rotate-ccw" : "check",
-			isDone ? "Reopen" : "Mark done",
+			isDone ? "Reopen" : "Done",
 			async () => {
 				this.status = isDone ? "open" : "done";
 				this.someday.status = this.status;
@@ -263,7 +319,7 @@ export class SomedayViewModal extends Modal {
 			}
 		);
 		if (!s.convertedTo) {
-			button(progressRow, "map", "Convert to plan", () => {
+			button(progressRow, "map", "Make plan", () => {
 				this.close();
 				void this.plugin.convertSomedayToPlan(s);
 			});
@@ -273,11 +329,22 @@ export class SomedayViewModal extends Modal {
 	private buildText(): string {
 		const s = this.someday;
 		const lines: string[] = [s.name, `When: ${this.whenLabel()}`];
+		const typeInfo = somedayType(s.type);
+		if (typeInfo) lines.push(typeInfo.label);
 		const days = formatSomedayDays(s.days);
 		if (days) lines.push(`Best days: ${days}`);
+		const timesText = formatSomedayTimes(s.times);
+		if (timesText) lines.push(`Best time: ${timesText}`);
+		const finalFlexText = parseFlexDate(s.finalDate);
+		if (finalFlexText) {
+			lines.push(`By: ${formatFlexDate(finalFlexText)}`);
+		}
 		const comp = somedayCompany(s.company);
 		if (comp) lines.push(comp.label);
 		if (s.cost !== null) lines.push(`~$${s.cost}`);
+		if (s.people.length > 0) {
+			lines.push(`With: ${this.shortenedPeopleNames().join(", ")}`);
+		}
 		if (s.notes) lines.push("", s.notes);
 		if (this.subIdeas.length > 0) {
 			lines.push("", "Ideas:");

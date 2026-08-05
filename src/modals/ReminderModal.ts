@@ -2,6 +2,7 @@ import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
+import { appendPeopleField } from "@/modals/scheduleFields";
 import type FriendTracker from "@/main";
 import type { Reminder } from "@/types";
 import type { ReminderFields } from "@/services/ReminderOperations";
@@ -108,6 +109,9 @@ export class ReminderModal extends FormModal {
 		});
 		locInput.value = this.existing?.location ?? "";
 
+		// ---- People ----
+		const people = appendPeopleField(contentEl, this.existing?.people);
+
 		// ---- Link ----
 		const linkField = contentEl.createDiv({
 			cls: "callander-modal-field",
@@ -177,6 +181,7 @@ export class ReminderModal extends FormModal {
 				type: this.type,
 				location: locInput.value.trim(),
 				link: linkInput.value.trim(),
+				people: people.value(),
 			};
 			const ops = this.plugin.reminderOperations;
 			if (this.existing) {

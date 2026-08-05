@@ -5,6 +5,7 @@ import { REMINDERS_BASENAME, REMINDER_TYPES } from "@/constants";
 import type { ReminderType } from "@/constants";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import { todayISO } from "@/utils/flexdate";
+import { metadataSettled } from "@/utils/metadataSettled";
 
 /** The editable fields of a reminder — used for both create and update. */
 export interface ReminderFields {
@@ -14,6 +15,7 @@ export interface ReminderFields {
 	type?: ReminderType;
 	location?: string;
 	link?: string;
+	people?: string;
 	notes?: string;
 }
 
@@ -76,6 +78,7 @@ export class ReminderOperations {
 		const type = reminderTypeOf(str("type"));
 		const location = str("location");
 		const link = str("link");
+		const people = str("people");
 		const notes = str("notes");
 		const created = str("created");
 		const updated = str("updated");
@@ -88,6 +91,7 @@ export class ReminderOperations {
 			...(type && { type }),
 			...(location && { location }),
 			...(link && { link }),
+			...(people && { people }),
 			...(notes && { notes }),
 			status: str("status") === "done" ? "done" : "open",
 			...(created && { created }),
@@ -125,6 +129,30 @@ export class ReminderOperations {
 		file: TFile,
 		fields: ReminderFields
 	): Promise<void> {
+		// Reminders are read back through the metadata cache, so this can't
+		// return until that cache reflects the write — the dashboard
+		// refreshes the moment the modal closes, and would otherwise render
+		// the reminder with no type and no date until it was reopened.
+		//
+		// Matched against the values themselves rather than just "an index
+		// happened": creating a reminder writes the file twice, and the
+		// first write's index event would otherwise satisfy the wait while
+		// the fields below are still missing.
+		const optional = (
+			fm: Record<string, unknown> | undefined,
+			key: string,
+			value: string | undefined
+		) => (value ? fm?.[key] === value : fm?.[key] === undefined);
+		const settled = metadataSettled(this.app, file.path, {
+			until: (fm) =>
+				fm?.name === fields.name &&
+				optional(fm, "date", fields.date) &&
+				optional(fm, "time", fields.time) &&
+				optional(fm, "type", fields.type) &&
+				optional(fm, "location", fields.location) &&
+				optional(fm, "link", fields.link) &&
+				optional(fm, "people", fields.people),
+		});
 		await this.app.fileManager.processFrontMatter(
 			file,
 			(fm: Record<string, unknown>) => {
@@ -138,10 +166,12 @@ export class ReminderOperations {
 				set("type", fields.type);
 				set("location", fields.location);
 				set("link", fields.link);
+				set("people", fields.people);
 				set("notes", fields.notes);
 				fm.updated = todayISO();
 			}
 		);
+		await settled;
 	}
 
 	// ---- Routing: a Reminder knows which store it lives in ----
@@ -210,6 +240,7 @@ export class ReminderOperations {
 					...(type && { type }),
 					...(r.location ? { location: toText(r.location) } : {}),
 					...(r.link ? { link: toText(r.link) } : {}),
+					...(r.people ? { people: toText(r.people) } : {}),
 					...(r.notes ? { notes: toText(r.notes) } : {}),
 					status: r.status === "done" ? "done" : "open",
 					...(r.created ? { created: toText(r.created) } : {}),
@@ -238,6 +269,7 @@ export class ReminderOperations {
 			...(fields.type && { type: fields.type }),
 			...(fields.location && { location: fields.location }),
 			...(fields.link && { link: fields.link }),
+			...(fields.people && { people: fields.people }),
 			...(fields.notes && { notes: fields.notes }),
 		};
 	}

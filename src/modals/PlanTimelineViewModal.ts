@@ -37,7 +37,9 @@ export class PlanTimelineViewModal extends Modal {
 		 * as it does on the timeline row. */
 		private roster: string[] = [],
 		/** Your own name from settings, rendered as "Me". */
-		private yourName = ""
+		private yourName = "",
+		/** Per-friend shortenPeopleList overrides — see shortNameOverrides. */
+		private shortNames: Map<string, string> = new Map()
 	) {
 		super(app);
 		this.pendingNotes = entry.notes ?? "";
@@ -185,7 +187,12 @@ export class PlanTimelineViewModal extends Modal {
 		const rows: string[] = [];
 		if (e.people) {
 			rows.push(
-				`👥 ${shortenPeopleList(e.people, this.roster, this.yourName)}`
+				`👥 ${shortenPeopleList(
+					e.people,
+					this.roster,
+					this.yourName,
+					this.shortNames
+				)}`
 			);
 		}
 		if (e.duration) rows.push(`⏳ ${e.duration}`);

@@ -209,9 +209,10 @@ export function appendScheduleFields(
 export function appendPeopleField(
 	container: HTMLElement,
 	initial: string | undefined,
-	options?: string[]
+	options?: string[],
+	label = "People"
 ): PeopleFieldHandle {
-	container.createDiv({ cls: "modal-section-label", text: "People" });
+	container.createDiv({ cls: "modal-section-label", text: label });
 
 	if (options && options.length > 0) {
 		const peopleOptions = options;

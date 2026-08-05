@@ -10,7 +10,15 @@ import {
 } from "obsidian";
 import { FriendTrackerSettings, DEFAULT_SETTINGS, SomedayInfo } from "./types";
 import { fieldOf, isRecord, toText } from "@/utils/fm";
-import { IdeaCategory, formatSomedaySeasons, formatSomedayDays } from "@/constants";
+import {
+	IdeaCategory,
+	formatSomedaySeasons,
+	formatSomedayDays,
+	formatSomedayTimes,
+	somedayType,
+	RIBBON_ACTIONS,
+	type RibbonActionKey,
+} from "@/constants";
 import {
 	CaptureTargetModal,
 	CaptureTarget,
@@ -114,6 +122,7 @@ import { SomedayModal } from "@/modals/SomedayModal";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { ReminderModal } from "@/modals/ReminderModal";
 import { daysFromToday, parseFlexDate, todayISO } from "@/utils/flexdate";
+import { metadataSettled } from "@/utils/metadataSettled";
 
 export default class FriendTracker extends Plugin {
 	settings: FriendTrackerSettings;
@@ -124,6 +133,10 @@ export default class FriendTracker extends Plugin {
 	public reminderOperations: ReminderOperations;
 	public lastQuickIdeaCategory: IdeaCategory = "gift";
 	private statusBarEl: HTMLElement | null = null;
+	/** Currently-added ribbon icons, keyed by their settings key — lets
+	 * refreshRibbonIcons() add/remove individual ones as their toggle
+	 * flips, rather than tearing down and rebuilding the whole ribbon. */
+	private ribbonIcons = new Map<RibbonActionKey, HTMLElement>();
 
 	/** True when this install carries the .hotreload dev marker —
 	 * gates the dev-only build-stamp notice. */
@@ -178,22 +191,9 @@ export default class FriendTracker extends Plugin {
 				(leaf) => new SomedaysView(leaf, this)
 			);
 
-			// Ribbon: the dashboard is the front door
-			this.addRibbonIcon("heart-handshake", "Open Callander", () =>
-				this.activateDashboard()
-			);
-			this.addRibbonIcon("book-open", "Open diary", () =>
-				this.activateDiaryView()
-			);
-			this.addRibbonIcon("lightbulb", "Add idea for a friend", () =>
-				this.openQuickIdeaCapture()
-			);
-			this.addRibbonIcon("sparkles", "Open somedays", () =>
-				this.activateSomedays()
-			);
-			this.addRibbonIcon("bell", "New reminder", () =>
-				this.openReminderModal()
-			);
+			// Ribbon: the dashboard is the front door. Each icon is
+			// individually toggleable from settings (Quick actions).
+			this.refreshRibbonIcons();
 
 			// Commands
 			this.addCommand({
@@ -329,6 +329,7 @@ export default class FriendTracker extends Plugin {
 			// One-time data migration: birthplace values move to the new
 			// hometown field (the birthplace field itself remains)
 			await this.migrateBirthplaceValues();
+			await this.migrateSomedayTypes();
 
 			// The idea inbox's old standalone file becomes the dashboard file
 			await this.contactOperations.migrateLegacyInboxFile();
@@ -353,6 +354,43 @@ export default class FriendTracker extends Plugin {
 			const message =
 				error instanceof Error ? error.message : String(error);
 			new Notice("Callander failed to load: " + message);
+		}
+	}
+
+	// ---- Ribbon icons ----
+
+	/** What each ribbon icon actually does — kept apart from RIBBON_ACTIONS'
+	 * icon/label metadata since a callback isn't settings-tab data. */
+	private ribbonCallbacks(): Record<RibbonActionKey, () => void | Promise<void>> {
+		return {
+			ribbonDashboard: () => this.activateDashboard(),
+			ribbonDiary: () => this.activateDiaryView(),
+			ribbonAddIdea: () => this.openQuickIdeaCapture(),
+			ribbonSomedays: () => this.activateSomedays(),
+			ribbonReminder: () => this.openReminderModal(),
+		};
+	}
+
+	/**
+	 * Adds or removes each ribbon icon to match its current setting.
+	 * Called once at load, and again whenever a Quick actions toggle
+	 * changes — Obsidian has no show/hide for a ribbon icon, only add and
+	 * remove, so a toggle turning back on has to re-add it from scratch.
+	 */
+	public refreshRibbonIcons() {
+		const callbacks = this.ribbonCallbacks();
+		for (const action of RIBBON_ACTIONS) {
+			const visible = this.settings[action.key];
+			const existing = this.ribbonIcons.get(action.key);
+			if (visible && !existing) {
+				const el = this.addRibbonIcon(action.icon, action.name, () =>
+					void callbacks[action.key]()
+				);
+				this.ribbonIcons.set(action.key, el);
+			} else if (!visible && existing) {
+				existing.remove();
+				this.ribbonIcons.delete(action.key);
+			}
 		}
 	}
 
@@ -766,20 +804,30 @@ export default class FriendTracker extends Plugin {
 				priority: "maybe",
 			});
 		}
-		// Fuzzy fields (timeframe, days, budget, notes) don't fit a plan's
-		// concrete model — seed them into the plan's notes as a starting brief.
+		// Fuzzy fields (type, timeframe, days, budget, notes) don't fit a
+		// plan's concrete model — seed them into the plan's notes as a
+		// starting brief rather than lose them outright. Suggested people
+		// aren't fuzzy, though — they're already wikilinks, the exact shape
+		// a plan's own members list uses, so they become real members
+		// instead of just a mention in the notes.
 		const seed: string[] = [];
+		const typeInfo = somedayType(someday.type);
+		if (typeInfo) seed.push(`Type: ${typeInfo.label}`);
 		const seasonLabel = formatSomedaySeasons(someday.seasons);
 		if (seasonLabel) seed.push(`Season: ${seasonLabel}`);
 		const daysLabel = formatSomedayDays(someday.days);
 		if (daysLabel) seed.push(`Good days: ${daysLabel}`);
+		const timesLabel = formatSomedayTimes(someday.times);
+		if (timesLabel) seed.push(`Good time: ${timesLabel}`);
+		if (someday.finalDate) seed.push(`Must happen by: ${someday.finalDate}`);
 		if (someday.cost !== null) seed.push(`Rough budget: ~$${someday.cost}`);
 		if (someday.notes) seed.push(someday.notes);
-		if (seed.length > 0) {
+		if (seed.length > 0 || someday.people.length > 0) {
 			await this.app.fileManager.processFrontMatter(
 				plan,
 				(fm: Record<string, unknown>) => {
-					fm.notes = seed.join("\n");
+					if (seed.length > 0) fm.notes = seed.join("\n");
+					if (someday.people.length > 0) fm.members = someday.people;
 				}
 			);
 		}
@@ -1036,10 +1084,6 @@ export default class FriendTracker extends Plugin {
 				created: today,
 				updated: today,
 			});
-			const file = await this.app.vault.create(
-				examplePath,
-				`---\n${yaml}\n---\n`
-			);
 			// getContacts() reads frontmatter from the metadata cache, not
 			// the file — deliberately, since a cache read costs nothing
 			// while a cold file read can mean a network fetch on a
@@ -1049,25 +1093,10 @@ export default class FriendTracker extends Plugin {
 			// refresh() right after this returns — without waiting here,
 			// that first render could miss the friend it just seeded, only
 			// showing it after the dashboard is closed and reopened.
-			await this.waitForMetadata(file);
+			const settled = metadataSettled(this.app, examplePath);
+			await this.app.vault.create(examplePath, `---\n${yaml}\n---\n`);
+			await settled;
 		}
-	}
-
-	/** Resolves once the metadata cache has indexed `file`, or after a
-	 * short timeout — bounded so a missed event can't hang the caller. */
-	private async waitForMetadata(file: TFile): Promise<void> {
-		if (this.app.metadataCache.getFileCache(file)?.frontmatter) return;
-		await new Promise<void>((resolve) => {
-			const done = () => {
-				window.clearTimeout(timeout);
-				this.app.metadataCache.offref(ref);
-				resolve();
-			};
-			const timeout = window.setTimeout(done, 2000);
-			const ref = this.app.metadataCache.on("changed", (changed) => {
-				if (changed.path === file.path) done();
-			});
-		});
 	}
 
 	// ---- Birthday calendar export ----
@@ -1374,6 +1403,51 @@ export default class FriendTracker extends Plugin {
 					}
 				);
 			}
+		}
+	}
+
+	/**
+	 * Someday types were regrouped into fewer, broader categories after
+	 * real somedays already existed under the old ids — remap each one so
+	 * an existing someday doesn't quietly lose its type (its emoji, its
+	 * filter membership) the moment this ships. "Date" had no clean
+	 * one-to-one replacement and was dropped as a concept entirely, so
+	 * it's cleared rather than guessed at.
+	 */
+	private async migrateSomedayTypes() {
+		const REMAP: Record<string, string | null> = {
+			bar: "drinks",
+			cafe: "food",
+			hike: "activity",
+			market: "shopping",
+			movie: "show",
+			park: "nature",
+			sports: "game",
+			date: null,
+		};
+		const folder = this.app.vault.getFolderByPath(
+			this.somedayOperations.getSomedaysFolderPath()
+		);
+		if (!folder) return;
+		for (const child of folder.children) {
+			if (!(child instanceof TFile) || child.extension !== "md") {
+				continue;
+			}
+			const fm: unknown =
+				this.app.metadataCache.getFileCache(child)?.frontmatter;
+			const current = fieldOf(fm, "type");
+			if (typeof current !== "string" || !(current in REMAP)) continue;
+			await this.app.fileManager.processFrontMatter(
+				child,
+				(frontmatter: Record<string, unknown>) => {
+					// Re-check against the live value — it may have changed
+					// between the read above and this write actually landing.
+					if (frontmatter.type !== current) return;
+					const next = REMAP[current];
+					if (next) frontmatter.type = next;
+					else delete frontmatter.type;
+				}
+			);
 		}
 	}
 

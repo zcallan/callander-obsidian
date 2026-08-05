@@ -874,6 +874,7 @@ export class ContactOperations {
 						name: str("name") || "Unknown",
 						displayName:
 							str("displayName") || str("name") || "Unknown",
+						shortName: str("shortName"),
 						birthday,
 						formattedBirthday: this.formatBirthday(birthday),
 						relationship: str("relationship"),

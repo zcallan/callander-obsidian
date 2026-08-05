@@ -135,6 +135,12 @@ function upsertCore(
 		...(keptAfter.length ? ["", ...keptAfter] : []),
 	];
 
+	// Blank lines inside the section were dropped above so they can't
+	// accumulate — but the one separating us from whatever follows is
+	// structural, so put it back. Without this, every save would creep the
+	// next heading one line closer until it sat against our last bullet.
+	if (span.end < lines.length) rebuilt.push("");
+
 	return [...lines.slice(0, span.start), ...rebuilt, ...lines.slice(span.end)]
 		.join("\n")
 		.replace(/\n{3,}/g, "\n\n");

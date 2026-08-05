@@ -37,6 +37,8 @@ import {
 } from "@/utils/flexdate";
 import { PlanModal } from "@/modals/PlanModal";
 import { formatDate } from "@/utils/dateFormat";
+import { shortenMemberNames, shortNameOverrides } from "@/utils/planFormat";
+import { sortSomedays } from "@/utils/somedaySort";
 import { PlanOperations } from "@/services/PlanOperations";
 
 /**
@@ -52,6 +54,9 @@ export class DashboardView extends ItemView {
 	private contacts: ContactWithCountdown[] = [];
 	private searchQuery = "";
 	private showAllUpcomingEvents = false;
+	// Only used when the Somedays sort is "Random" — fixed for the life of
+	// this dashboard so the list doesn't reshuffle on every refresh.
+	private somedayRandomSeed = Math.floor(Math.random() * 2 ** 31);
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -166,11 +171,7 @@ export class DashboardView extends ItemView {
 		await this.renderDrafts(container);
 
 		// Birthdays: upcoming + missed (not yet wished)
-		const upcomingSection = container.createDiv({
-			cls: "dashboard-section",
-		});
-		upcomingSection.createEl("h3", { text: "🎂 Upcoming birthdays" });
-		this.renderUpcomingBirthdays(upcomingSection);
+		this.renderUpcomingBirthdays(container);
 		this.renderMissedBirthdays(container);
 
 		// Future-dated events + reminders coming up
@@ -302,10 +303,38 @@ export class DashboardView extends ItemView {
 
 		if (all.length === 0) return;
 
-		const section = container.createDiv({
-			cls: "dashboard-section",
+		const wrap = container.createDiv({
+			cls: "dashboard-section plan-accordion dashboard-drafts-accordion",
 		});
-		section.createEl("h3", { text: "✏️ Drafts" });
+		const header = wrap.createDiv({
+			cls: "dashboard-section-header plan-accordion-header",
+		});
+		// Count in the heading so a collapsed section still says how much is
+		// waiting — otherwise collapsing it hides the fact there's anything
+		// to triage at all.
+		const heading = header.createEl("h3", { text: "✏️ Drafts" });
+		heading.createSpan({
+			cls: "dashboard-count-badge",
+			text: String(all.length),
+		});
+		setIcon(
+			header.createSpan({ cls: "plan-accordion-chevron" }),
+			"chevron-down"
+		);
+		const section = wrap.createDiv({ cls: "plan-accordion-body" });
+
+		const applyOpen = () =>
+			wrap.toggleClass("is-open", !this.plugin.settings.draftsCollapsed);
+		applyOpen();
+		header.addEventListener("click", () => {
+			this.plugin.settings.draftsCollapsed =
+				!this.plugin.settings.draftsCollapsed;
+			applyOpen();
+			// Persisted rather than held on the view: the dashboard is torn
+			// down and rebuilt on every open, so in-memory state would spring
+			// back open each time.
+			void this.plugin.saveSettings();
+		});
 
 		for (const item of all) {
 			const row = section.createDiv({ cls: "dashboard-row" });
@@ -583,6 +612,13 @@ export class DashboardView extends ItemView {
 					r.date ?? "",
 					now
 				);
+				// A same-day reminder starting at or after 6pm reads better
+				// as "tonight" — "today" undersells something you're about
+				// to walk out the door for.
+				const isTonight =
+					relative === "today" &&
+					!!r.time &&
+					Number(r.time.split(":")[0]) >= 18;
 				// Legacy Reminders.md rows wear the migration warning instead
 				// of their own icon (goes away with the legacy store)
 				const legacy = !r.file;
@@ -595,7 +631,7 @@ export class DashboardView extends ItemView {
 					time: r.time ? this.formatReminderTime(r.time) : "",
 					name: legacy || !lead ? r.name : lead.rest,
 					suffix: r.location ?? "",
-					relative,
+					relative: isTonight ? "tonight" : relative,
 					tone,
 					onClick: () =>
 						new ReminderViewModal(this.app, this.plugin, r, () =>
@@ -951,23 +987,18 @@ export class DashboardView extends ItemView {
 	}
 
 	private renderSomedays(container: HTMLElement) {
-		const somedays = this.plugin.somedayOperations
-			.getSomedays()
-			.filter((s) => s.status !== "done" && !s.convertedTo)
-			.sort((a, b) => {
-				const fa = parseFlexDate(a.date);
-				const fb = parseFlexDate(b.date);
-				const ka =
-					fa && fa.year !== null
-						? flexSortKey(fa)
-						: Number.MAX_SAFE_INTEGER;
-				const kb =
-					fb && fb.year !== null
-						? flexSortKey(fb)
-						: Number.MAX_SAFE_INTEGER;
-				if (ka !== kb) return ka - kb;
-				return a.name.localeCompare(b.name);
-			});
+		// Ordered by whatever sort the Somedays page is set to, so the five
+		// shown here are the five that page would lead with.
+		const somedays = sortSomedays(
+			this.plugin.somedayOperations
+				.getSomedays()
+				.filter((s) => s.status !== "done" && !s.convertedTo),
+			this.plugin.settings.somedaySort,
+			{
+				randomSeed: this.somedayRandomSeed,
+				hemisphere: this.plugin.settings.hemisphere,
+			}
+		);
 
 		const section = container.createDiv({
 			cls: "dashboard-section",
@@ -1082,6 +1113,16 @@ export class DashboardView extends ItemView {
 		}
 
 		const resolvedLinks = this.app.metadataCache.resolvedLinks;
+		// Shortened against every friend, not per entry: disambiguation has
+		// to be stable, or the same person would read "Riley" on an entry
+		// where she's alone and "Riley S" on one she shares with another
+		// Riley. Built once — the roster doesn't change between rows.
+		const shortByPath = new Map(
+			shortenMemberNames(
+				this.contacts.map((c) => c.displayName),
+				shortNameOverrides(this.contacts)
+			).map((short, i) => [this.contacts[i].file.path, short])
+		);
 		for (const entry of entries) {
 			const row = section.createDiv({
 				cls: "dashboard-row dashboard-row-clickable dashboard-diary-row",
@@ -1095,7 +1136,7 @@ export class DashboardView extends ItemView {
 			const links = resolvedLinks[entry.file.path] ?? {};
 			const tagged = this.contacts
 				.filter((c) => (links[c.file.path] ?? 0) > 0)
-				.map((c) => c.displayName);
+				.map((c) => shortByPath.get(c.file.path) ?? c.displayName);
 			const detailParts: string[] = [];
 			if (tagged.length > 0) {
 				detailParts.push(`with ${tagged.join(", ")}`);
@@ -1193,7 +1234,7 @@ export class DashboardView extends ItemView {
 		}
 	}
 
-	private renderUpcomingBirthdays(section: HTMLElement) {
+	private renderUpcomingBirthdays(container: HTMLElement) {
 		const HORIZON = 30;
 
 		const upcoming = this.contacts
@@ -1203,6 +1244,43 @@ export class DashboardView extends ItemView {
 					c.daysUntilBirthday <= HORIZON
 			)
 			.sort((a, b) => a.daysUntilBirthday! - b.daysUntilBirthday!);
+
+		const wrap = container.createDiv({
+			cls: "dashboard-section plan-accordion dashboard-birthdays-accordion",
+		});
+		const header = wrap.createDiv({
+			cls: "dashboard-section-header plan-accordion-header",
+		});
+		const heading = header.createEl("h3", {
+			text: "🎂 Upcoming birthdays",
+		});
+		if (upcoming.length > 0) {
+			heading.createSpan({
+				cls: "dashboard-count-badge",
+				text: String(upcoming.length),
+			});
+		}
+		setIcon(
+			header.createSpan({ cls: "plan-accordion-chevron" }),
+			"chevron-down"
+		);
+		const section = wrap.createDiv({ cls: "plan-accordion-body" });
+
+		const applyOpen = () =>
+			wrap.toggleClass(
+				"is-open",
+				!this.plugin.settings.birthdaysCollapsed
+			);
+		applyOpen();
+		header.addEventListener("click", () => {
+			this.plugin.settings.birthdaysCollapsed =
+				!this.plugin.settings.birthdaysCollapsed;
+			applyOpen();
+			// Persisted rather than held on the view: the dashboard is torn
+			// down and rebuilt on every open, so in-memory state would
+			// spring back open each time.
+			void this.plugin.saveSettings();
+		});
 
 		if (upcoming.length === 0) {
 			section.createDiv({

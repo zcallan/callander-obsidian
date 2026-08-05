@@ -10,36 +10,38 @@ import type FriendTracker from "@/main";
 import type { SomedayInfo } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
-import { parseFlexDate, formatFlexDate, flexSortKey } from "@/utils/flexdate";
+import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
+import { splitLeadingEmoji } from "@/components/EventTimeline";
 import {
 	formatSomedayDays,
-	formatSomedaySeasons,
-	somedayCompany,
+	formatSomedaySeasonDeadline,
+	somedayType,
 	SOMEDAY_DAYS,
 	SOMEDAY_SEASONS,
 	SOMEDAY_COMPANY,
+	SOMEDAY_TYPES,
+	SOMEDAY_SORTS,
 	SomedayDay,
 	SomedayCompany,
+	SomedaySort,
+	SomedayType,
 } from "@/constants";
+import {
+	sortSomedays,
+	finalDateLabel,
+	dateDeadlineLabel,
+	WEEKDAY_BY_INDEX,
+} from "@/utils/somedaySort";
 
 export const VIEW_TYPE_SOMEDAYS = "callander-somedays";
 
 type DayFilter = "today" | "tomorrow" | "weekend";
-/** JS getDay() (0=Sun) → our weekday ids */
-const WEEKDAY_BY_INDEX: SomedayDay[] = [
-	"sun",
-	"mon",
-	"tue",
-	"wed",
-	"thu",
-	"fri",
-	"sat",
-];
 
 /**
  * The full page of Somedays — the wishlist. Each idea is a plain row; clicking
  * one opens a view modal. A filter bar narrows by when (Today / Weekend / a
- * specific day / a season) and by party (solo vs group).
+ * specific day / a season), by party (solo vs group) and by type, and a
+ * sort the dashboard's own Somedays list follows.
  */
 export class SomedaysView extends ItemView {
 	private somedays: SomedayInfo[] = [];
@@ -52,6 +54,11 @@ export class SomedaysView extends ItemView {
 	private specificDay: SomedayDay | "" = "";
 	private season = "";
 	private company: SomedayCompany | "" = "";
+	private type: SomedayType | "" = "";
+	// Reshuffles the Random sort. Set once per page open (and when Random is
+	// picked) rather than per render, so the list holds still while you type
+	// in the search box or flip a filter.
+	private randomSeed = Math.floor(Math.random() * 2 ** 31);
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -71,6 +78,8 @@ export class SomedaysView extends ItemView {
 	}
 
 	async onOpen() {
+		// A fresh shuffle each time the page is opened.
+		this.randomSeed = Math.floor(Math.random() * 2 ** 31);
 		const folder = this.plugin.somedayOperations.getSomedaysFolderPath();
 		const inScope = (path: string) =>
 			path === folder || path.startsWith(folder + "/");
@@ -124,6 +133,9 @@ export class SomedaysView extends ItemView {
 	}
 
 	private matchesFilters(s: SomedayInfo): boolean {
+		// Type — exact match; unset is excluded like every other filter here.
+		if (this.type && s.type !== this.type) return false;
+
 		// Party — solo/group, with "either" matching both. Unset is excluded.
 		if (
 			this.company === "solo" &&
@@ -164,13 +176,6 @@ export class SomedaysView extends ItemView {
 		return preds.some((p) => p);
 	}
 
-	/** Active (open, un-converted) first; dated before undated; done/converted last. */
-	private rank(s: SomedayInfo): number {
-		if (s.status === "done" || s.convertedTo) return 3;
-		const f = parseFlexDate(s.date);
-		return f && f.year !== null ? 1 : 2;
-	}
-
 	private sorted(): SomedayInfo[] {
 		const q = this.searchQuery.trim().toLowerCase();
 		const matches = this.somedays.filter((s) => {
@@ -179,20 +184,13 @@ export class SomedaysView extends ItemView {
 			return (
 				s.name.toLowerCase().includes(q) ||
 				s.notes.toLowerCase().includes(q) ||
+				s.people.some((p) => p.toLowerCase().includes(q)) ||
 				s.subIdeas.some((sub) => sub.text.toLowerCase().includes(q))
 			);
 		});
-		return matches.sort((a, b) => {
-			const ra = this.rank(a);
-			const rb = this.rank(b);
-			if (ra !== rb) return ra - rb;
-			if (ra === 1) {
-				return (
-					flexSortKey(parseFlexDate(a.date)!) -
-					flexSortKey(parseFlexDate(b.date)!)
-				);
-			}
-			return a.name.localeCompare(b.name);
+		return sortSomedays(matches, this.plugin.settings.somedaySort, {
+			randomSeed: this.randomSeed,
+			hemisphere: this.plugin.settings.hemisphere,
 		});
 	}
 
@@ -333,7 +331,7 @@ export class SomedaysView extends ItemView {
 		const row2 = wrap.createDiv({ cls: "someday-filter-row" });
 		row2.createSpan({ cls: "someday-filter-label", text: "Party" });
 		const opts2 = row2.createDiv({ cls: "someday-filter-options" });
-		(["solo", "group"] as const).forEach((id) => {
+		(["group", "solo"] as const).forEach((id) => {
 			const c = SOMEDAY_COMPANY.find((x) => x.id === id)!;
 			this.filterPill(
 				opts2,
@@ -345,6 +343,53 @@ export class SomedaysView extends ItemView {
 				}
 			);
 		});
+
+		// Type — a dropdown rather than pills; 16 options is too many to
+		// scan as a row, same reasoning as the modal's own Type field.
+		const row3 = wrap.createDiv({ cls: "someday-filter-row" });
+		row3.createSpan({ cls: "someday-filter-label", text: "Type" });
+		const opts3 = row3.createDiv({ cls: "someday-filter-options" });
+		const typeSel = opts3.createEl("select", {
+			cls: "dropdown someday-filter-select",
+		});
+		typeSel.createEl("option", { value: "", text: "Type…" });
+		SOMEDAY_TYPES.forEach((t) =>
+			typeSel.createEl("option", {
+				value: t.id,
+				text: `${t.emoji} ${t.label}`,
+			})
+		);
+		typeSel.value = this.type;
+		typeSel.addEventListener("change", () => {
+			this.type = typeSel.value as SomedayType | "";
+			this.render();
+		});
+
+		// Sort — persisted, because the dashboard's Somedays list follows it.
+		const row4 = wrap.createDiv({ cls: "someday-filter-row" });
+		row4.createSpan({ cls: "someday-filter-label", text: "Sort" });
+		const opts4 = row4.createDiv({ cls: "someday-filter-options" });
+		const sortSel = opts4.createEl("select", {
+			cls: "dropdown someday-filter-select",
+		});
+		SOMEDAY_SORTS.forEach((s) =>
+			sortSel.createEl("option", { value: s.id, text: s.label })
+		);
+		sortSel.value = this.plugin.settings.somedaySort;
+		const handleSortChange = async () => {
+			const next = sortSel.value as SomedaySort;
+			// Re-picking Random deals a new order, rather than leaving the
+			// same shuffle sitting there looking like nothing happened.
+			if (next === "random") {
+				this.randomSeed = Math.floor(Math.random() * 2 ** 31);
+			}
+			this.plugin.settings.somedaySort = next;
+			await this.plugin.saveSettings();
+			this.render();
+			// The dashboard follows this sort, so bring it along.
+			this.plugin.refreshDashboards();
+		};
+		sortSel.addEventListener("change", () => void handleSortChange());
 	}
 
 	private renderList() {
@@ -374,10 +419,24 @@ export class SomedaysView extends ItemView {
 		}
 	}
 
-	private whenLabel(s: SomedayInfo): string {
-		const f = parseFlexDate(s.date);
-		if (f) return formatFlexDate(f);
-		return formatSomedaySeasons(s.seasons) || "Any time";
+	/**
+	 * The right-hand summary: "Sat / Sun", "Any day · Sat 12 Sep", or
+	 * nothing at all.
+	 *
+	 * Seasons and a month/year-precision date are deliberately absent —
+	 * they read as a deadline beside the name ("by end of Fall", "by end
+	 * of Sep") rather than as timing here; see dateDeadlineLabel. An
+	 * unconstrained someday says nothing rather than "Any time", which
+	 * every row would otherwise carry.
+	 */
+	private whenSummary(s: SomedayInfo): string {
+		const days = formatSomedayDays(s.days);
+		const flex = parseFlexDate(s.date);
+		if (flex && flex.day !== null) {
+			const when = formatFlexDate(flex);
+			return days ? `${days} · ${when}` : when;
+		}
+		return days;
 	}
 
 	private renderRow(container: HTMLElement, someday: SomedayInfo) {
@@ -387,20 +446,39 @@ export class SomedaysView extends ItemView {
 				inactive ? " someday-inactive" : ""
 			}`,
 		});
-		row.createDiv({ cls: "someday-card-titleline" }).createSpan({
-			cls: "someday-title",
-			text: someday.name,
-		});
 
-		const subParts: string[] = [this.whenLabel(someday)];
-		const comp = somedayCompany(someday.company);
-		if (comp) subParts.push(comp.label);
-		const days = formatSomedayDays(someday.days);
-		if (days) subParts.push(days);
-		row.createDiv({
-			cls: "someday-card-subline",
-			text: subParts.filter(Boolean).join(" · "),
-		});
+		// The type emoji leads the title unless the name brings its own —
+		// same treatment as the view modal, so the row and its detail match.
+		const typeInfo = somedayType(someday.type);
+		const title =
+			typeInfo && !splitLeadingEmoji(someday.name)
+				? `${typeInfo.emoji} ${someday.name}`
+				: someday.name;
+		const main = row.createDiv({ cls: "someday-row-main" });
+		main.createSpan({ cls: "someday-title", text: title });
+
+		// Deadlines ride with the name rather than the timing summary —
+		// they're about this someday running out, not about when it suits.
+		// A final date leads: it's the firmer of the three. The date and
+		// season entries never both fire — the modal keeps them mutually
+		// exclusive.
+		const now = new Date();
+		const deadlines = [
+			finalDateLabel(someday.finalDate, now),
+			dateDeadlineLabel(someday.date, now),
+			formatSomedaySeasonDeadline(someday.seasons),
+		].filter(Boolean);
+		if (deadlines.length > 0) {
+			main.createSpan({
+				cls: "someday-row-final",
+				text: ` • ${deadlines.join(" • ")}`,
+			});
+		}
+
+		const when = this.whenSummary(someday);
+		if (when) {
+			row.createDiv({ cls: "someday-row-when", text: when });
+		}
 
 		row.addEventListener("click", () => this.openViewModal(someday));
 	}
