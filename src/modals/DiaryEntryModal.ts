@@ -74,7 +74,8 @@ export class DiaryEntryModal extends FormModal {
 				void this.submit();
 			}
 		});
-		window.setTimeout(() => titleInput!.focus(), 0);
+		if (this.values.title) this.blurInitialFocus();
+		else window.setTimeout(() => titleInput!.focus(), 0);
 	}
 
 	private async submit() {

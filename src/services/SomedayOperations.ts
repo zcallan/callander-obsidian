@@ -10,6 +10,7 @@ import {
 	SOMEDAY_DAYS,
 	SOMEDAY_SEASONS,
 	SOMEDAY_TIMES,
+	SOMEDAY_TYPES,
 	somedayType,
 } from "@/constants";
 import type { SomedayInfo, SomedaySubIdea } from "@/types";
@@ -24,12 +25,13 @@ export interface SomedayFields {
 	seasons?: string[];
 	days?: SomedayDay[];
 	times?: SomedayTime[];
-	/** Hard deadline, ISO YYYY-MM-DD */
-	finalDate?: string;
+	/** "Within dates" window bounds, ISO YYYY-MM-DD; either may be blank */
+	fromDate?: string;
+	untilDate?: string;
 	cost?: number | null;
 	notes?: string;
 	company?: SomedayCompany | "";
-	type?: SomedayType | "";
+	types?: SomedayType[];
 	/** Wikilinks to real contacts, e.g. ["[[Callan]]"] — same shape as a
 	 * plan's members. */
 	people?: string[];
@@ -136,6 +138,26 @@ export class SomedayOperations {
 			.filter((s) => s.text.length > 0);
 	}
 
+	/** Chosen types — deduped and normalised to SOMEDAY_TYPES' natural
+	 * order, so `types[0]` is always the lead type wherever it's read.
+	 * Folds the legacy single `type` key from before somedays could be
+	 * several things at once. */
+	static typesOf(metadata: unknown): SomedayType[] {
+		const chosen = new Set(
+			asArray(fieldOf(metadata, "types"))
+				.map((t) => somedayType(String(t))?.id)
+				.filter((t): t is SomedayType => !!t)
+		);
+		if (chosen.size === 0) {
+			const legacy = fieldOf(metadata, "type");
+			const id = somedayType(
+				typeof legacy === "string" ? legacy : undefined
+			)?.id;
+			return id ? [id] : [];
+		}
+		return SOMEDAY_TYPES.filter((t) => chosen.has(t.id)).map((t) => t.id);
+	}
+
 	static costOf(metadata: unknown): number | null {
 		const cost = fieldOf(metadata, "cost");
 		return typeof cost === "number" ? cost : null;
@@ -162,14 +184,15 @@ export class SomedayOperations {
 			seasons: SomedayOperations.seasonsOf(fm),
 			days: SomedayOperations.daysOf(fm),
 			times: SomedayOperations.timesOf(fm),
-			finalDate: str("finalDate"),
+			fromDate: str("fromDate"),
+			untilDate: str("untilDate"),
 			cost: SomedayOperations.costOf(fm),
 			notes: str("notes"),
 			subIdeas: SomedayOperations.subIdeasOf(fm),
 			status: str("status") || "open",
 			convertedTo: str("convertedTo"),
 			company: company === "solo" || company === "group" ? company : "",
-			type: somedayType(str("type"))?.id ?? "",
+			types: SomedayOperations.typesOf(fm),
 			people: SomedayOperations.peopleOf(fm),
 		};
 	}
@@ -244,15 +267,18 @@ export class SomedayOperations {
 		}
 		if (patch.days !== undefined) expected.days = resolved(patch.days);
 		if (patch.times !== undefined) expected.times = resolved(patch.times);
-		if (patch.finalDate !== undefined) {
-			expected.finalDate = resolved(patch.finalDate);
+		if (patch.fromDate !== undefined) {
+			expected.fromDate = resolved(patch.fromDate);
+		}
+		if (patch.untilDate !== undefined) {
+			expected.untilDate = resolved(patch.untilDate);
 		}
 		if (patch.cost !== undefined) expected.cost = resolved(patch.cost);
 		if (patch.notes !== undefined) expected.notes = resolved(patch.notes);
 		if (patch.company !== undefined) {
 			expected.company = resolved(patch.company);
 		}
-		if (patch.type !== undefined) expected.type = resolved(patch.type);
+		if (patch.types !== undefined) expected.types = resolved(patch.types);
 		if (patch.people !== undefined) expected.people = resolved(patch.people);
 
 		await this.writeSomeday(
@@ -271,15 +297,21 @@ export class SomedayOperations {
 				}
 				if (patch.days !== undefined) set("days", patch.days);
 				if (patch.times !== undefined) set("times", patch.times);
-				if (patch.finalDate !== undefined) {
-					set("finalDate", patch.finalDate);
+				if (patch.fromDate !== undefined) {
+					set("fromDate", patch.fromDate);
+				}
+				if (patch.untilDate !== undefined) {
+					set("untilDate", patch.untilDate);
 				}
 				// A numeric 0 is a legitimate "free" estimate, not "unset" —
 				// resolved() only treats null/undefined/"" as removal.
 				if (patch.cost !== undefined) set("cost", patch.cost);
 				if (patch.notes !== undefined) set("notes", patch.notes);
 				if (patch.company !== undefined) set("company", patch.company);
-				if (patch.type !== undefined) set("type", patch.type);
+				if (patch.types !== undefined) {
+					set("types", patch.types);
+					delete fm.type; // retire the legacy single-type key
+				}
 				if (patch.people !== undefined) set("people", patch.people);
 			},
 			(fm) =>

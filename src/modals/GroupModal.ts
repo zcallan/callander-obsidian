@@ -108,6 +108,8 @@ export class GroupModal extends FormModal {
 			this.close();
 		};
 		saveButton.addEventListener("click", () => void handleSave());
+
+		if (this.existing) this.blurInitialFocus();
 	}
 
 	onClose() {

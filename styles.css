@@ -3689,11 +3689,120 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* ---- Somedays: filter bar + wishlist rows + editor chips ---- */
+/* One line of chrome above the list: Search stretches, Sort and Filters
+   hug the right. */
+.someday-toolbar {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin: 10px 0 4px;
+}
+.someday-toolbar-search {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+/* All three controls share one height so the row reads as a single line.
+   Min and max are pinned too — a theme's own min-height on text inputs
+   would otherwise beat a bare height. */
+.someday-toolbar input.contact-field-input,
+.someday-toolbar select.someday-filter-select,
+.someday-toolbar .someday-filter-toggle {
+	height: var(--input-height, 40px);
+	min-height: var(--input-height, 40px);
+	max-height: var(--input-height, 40px);
+	box-sizing: border-box;
+	margin: 0;
+}
+.someday-filter-toggle {
+	min-width: var(--input-height, 40px);
+	padding: 0 10px;
+}
+.someday-filter-toggle.is-open {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+/* Active-filter count on the toggle — visible even with the panel shut,
+   so a narrowed list is never a mystery. Inverts while the button itself
+   is accent-coloured. */
+.someday-filter-count {
+	font-size: 0.75em;
+	line-height: 1;
+	padding: 2px 6px;
+	border-radius: 999px;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+.someday-filter-toggle.is-open .someday-filter-count {
+	background: var(--text-on-accent);
+	color: var(--interactive-accent);
+}
+
+/* The always-visible day filters, on their own line under the search bar. */
+.someday-quick-days {
+	margin: 10px 0 8px;
+}
+
+/* Promote-someday confirmation: the name being promoted, and the
+   mark-done checkbox row. */
+.convert-someday-name {
+	color: var(--text-muted);
+	margin: 0 0 10px;
+}
+.convert-someday-check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	margin: 4px 0 8px;
+}
+
+/* A day preset lights up while the picked days are exactly its set. */
+.someday-day-presets .callander-button.selected {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+/* "Results (3)" + ghost ✕ Clear over a searched/filtered list. */
+.someday-results-head {
+	display: flex;
+	align-items: baseline;
+	gap: 12px;
+	margin: 20px 0 2px;
+}
+.someday-results-heading {
+	font-size: 1.1em;
+	font-weight: 600;
+	margin: 0;
+}
+/* Ghost: no fill, no shadow — the doubled-up selector outranks themes'
+   own `.theme-dark button` styling, which a bare class loses to. */
+.someday-results-head .someday-clear-button {
+	background: none;
+	border: none;
+	box-shadow: none;
+	padding: 2px 4px;
+	color: var(--text-muted);
+	font-size: 0.85em;
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+}
+.someday-results-head .someday-clear-button:hover {
+	background: none;
+	box-shadow: none;
+	color: var(--text-normal);
+}
+
+/* The expanded panel reads as part of the toolbar above it; the rule
+   under it marks where the chrome stops and the list begins. */
 .someday-filters {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	margin: 10px 0 4px;
+	margin: 0 0 4px;
+	padding-bottom: 14px;
+	border-bottom: 1px solid var(--background-modifier-border);
 }
 .someday-filter-row {
 	display: flex;
@@ -3891,10 +4000,26 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	appearance: none;
 }
 
-/* Sits directly under its input, so it doesn't need the standalone
-   helper text's full 12px lead-in. */
-.someday-final-date-hint {
-	margin: 4px 0 0;
+/* "Within dates": From/Until side by side, halving the slot. Their labels
+   are smaller than the field's own ("Best date", on the line above) —
+   they only tell the two twins apart. The labels make the slot taller
+   than the dropdown, so the row bottom-aligns: dropdown flush with the
+   inputs, labels floating above. */
+.contact-met-controls.someday-when-within {
+	align-items: flex-end;
+}
+.someday-when-range {
+	display: flex;
+	gap: 8px;
+	min-width: 0;
+}
+.someday-when-range-field {
+	flex: 1 1 0;
+	min-width: 0;
+}
+.someday-when-range-field label {
+	font-size: 0.75em;
+	margin-bottom: 2px;
 }
 .someday-timeframe-free {
 	margin-top: 4px;
@@ -3972,10 +4097,25 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	background: var(--background-modifier-hover);
 	border-radius: 6px;
 }
-.someday-footer-note {
-	margin-top: 16px;
-	padding-top: 12px;
-	border-top: 1px solid var(--background-modifier-border);
+/* The page's one-line intro, tucked under the "Somedays" heading. Left-
+   aligned even on phones, where helper text otherwise centres. */
+.someday-intro-note {
+	margin: 0 0 12px;
+	text-align: left;
+}
+
+/* Phone: the page actions hold the heading's line, pinned to the right —
+   and Surprise me slims down to its dice. */
+.is-phone .somedays-container .dashboard-header {
+	flex-wrap: nowrap;
+	gap: 10px;
+}
+.is-phone .somedays-container .dashboard-actions {
+	flex-wrap: nowrap;
+	margin-left: auto;
+}
+.is-phone .someday-surprise .someday-surprise-label {
+	display: none;
 }
 
 /* Someday view modal */

@@ -704,6 +704,8 @@ export class PlanCostModal extends FormModal {
 			this.close();
 		};
 		saveButton.addEventListener("click", () => void handleSave());
+
+		if (this.initial) this.blurInitialFocus();
 	}
 
 	onClose() {

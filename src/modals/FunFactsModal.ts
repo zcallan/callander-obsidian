@@ -74,7 +74,8 @@ export class FunFactsModal extends FormModal {
 				void submit();
 			}
 		});
-		window.setTimeout(() => input.focus(), 0);
+		if (this.initial) this.blurInitialFocus();
+		else window.setTimeout(() => input.focus(), 0);
 	}
 
 	onClose() {

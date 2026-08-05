@@ -22,9 +22,10 @@ export interface SortableSomeday {
 	date: string;
 	seasons: string[];
 	days: SomedayDay[];
-	finalDate: string;
+	fromDate: string;
+	untilDate: string;
 	cost: number | null;
-	type: string;
+	types: string[];
 	people: string[];
 	status: string;
 	convertedTo: string;
@@ -76,14 +77,11 @@ export function seasonOfDate(
 }
 
 /**
- * Whole days from `now` to a final date; null when it isn't a real
- * day-precision date. Negative once the date has passed.
+ * Whole days from `now` to a day-precision date; null when it isn't one
+ * (blank, or too coarse). Negative once the date has passed.
  */
-export function daysUntilFinalDate(
-	finalDate: string,
-	now: Date
-): number | null {
-	const flex = parseFlexDate(finalDate);
+export function daysUntil(iso: string, now: Date): number | null {
+	const flex = parseFlexDate(iso);
 	if (!flex || flex.year === null || flex.month === null || flex.day === null) {
 		return null;
 	}
@@ -95,16 +93,16 @@ export function daysUntilFinalDate(
 }
 
 /**
- * The final date, as a deadline phrase at whatever precision it's
+ * The until date, as a deadline phrase at whatever precision it's
  * recorded: "before 12 Sep" for an exact day (day-first, like every other
  * date in this app), "by end of August" for a month, "by end of 2026" for
  * a bare year. "" when unset.
  *
  * A year only shows on the day/month forms when it isn't `now`'s year —
- * the Final date field is always day-precision today, so month/year only
+ * the Until date field is always day-precision today, so month/year only
  * arise from a hand-edited note, but the display stays correct either way.
  */
-export function finalDateLabel(iso: string, now: Date): string {
+export function untilDateLabel(iso: string, now: Date): string {
 	const f = parseFlexDate(iso);
 	if (!f) return "";
 	const distantYear =
@@ -119,6 +117,37 @@ export function finalDateLabel(iso: string, now: Date): string {
 		return `by end of ${f.year}`;
 	}
 	return "";
+}
+
+/**
+ * The from date as a not-open-yet phrase — "from 12 Sep" (day-first, and
+ * abbreviated, to sit beside untilDateLabel's "before 12 Sep"), "from
+ * Sep", "from 2027" — or "" once it has arrived: a start in the past
+ * constrains nothing worth flagging. Year only shows when it isn't
+ * `now`'s; like the until date, coarser precisions only arise from a
+ * hand-edited note.
+ */
+export function fromDateLabel(iso: string, now: Date): string {
+	const f = parseFlexDate(iso);
+	if (!f || f.year === null) return "";
+	const y = now.getFullYear();
+	const future =
+		f.year > y ||
+		(f.year === y &&
+			f.month !== null &&
+			(f.month > now.getMonth() + 1 ||
+				(f.month === now.getMonth() + 1 &&
+					f.day !== null &&
+					f.day > now.getDate())));
+	if (!future) return "";
+	const distantYear = f.year !== y ? ` ${f.year}` : "";
+	if (f.month !== null && f.day !== null) {
+		return `from ${f.day} ${monthName(f.month).slice(0, 3)}${distantYear}`;
+	}
+	if (f.month !== null) {
+		return `from ${monthName(f.month).slice(0, 3)}${distantYear}`;
+	}
+	return `from ${f.year}`;
 }
 
 /**
@@ -146,8 +175,9 @@ export function dateDeadlineLabel(iso: string, now: Date): string {
 
 /**
  * Could this be done today? Weekday first (no chosen days means any day
- * suits), then whichever of season/date is set — the modal makes those
- * two mutually exclusive, and "Any date" constrains nothing.
+ * suits), then the "Within dates" window, then whichever of season/date
+ * is set — the modal keeps the modes mutually exclusive, and "Any date"
+ * constrains nothing.
  *
  * Time of day is deliberately ignored: "possible today" is about the
  * calendar, and every someday suits some part of a day.
@@ -159,6 +189,13 @@ export function possibleToday(
 ): boolean {
 	const weekday = WEEKDAY_BY_INDEX[now.getDay()];
 	if (s.days.length > 0 && !s.days.includes(weekday)) return false;
+
+	// A window gates it like any other calendar constraint: not yet open,
+	// or already closed, means not today.
+	const from = daysUntil(s.fromDate, now);
+	if (from !== null && from > 0) return false;
+	const until = daysUntil(s.untilDate, now);
+	if (until !== null && until < 0) return false;
 
 	if (s.seasons.length > 0) {
 		const season = seasonOfDate(now, hemisphere);
@@ -173,7 +210,9 @@ export function possibleToday(
 	return true;
 }
 
-const TRIP_TYPES = new Set(["shortTrip", "longTrip"]);
+// Only LONG trips sink — a short trip is still a plausible answer to
+// "what shall we do this weekend?".
+const TRIP_TYPES = new Set(["longTrip"]);
 const EAT_DRINK_TYPES = new Set(["food", "drinks"]);
 
 /** How near a final date has to be to count as urgent. */
@@ -184,13 +223,17 @@ const URGENT_WINDOW_DAYS = 30;
  * factor only breaks ties the ones above it left open.
  *
  * Slots, in the priority they were specified:
- *   0  a final date inside the next 30 days
- *   1  ...and how near it is, so the soonest deadline leads that group
- *   2  possible today (weekday / date / season all permitting)
- *   3  trips sink — they're rarely the answer to "what shall we do?"
- *   4  food and drinks lead
- *   5  has suggested people
- *   6  cheapest first; an unrecorded cost sorts last rather than as free
+ *   0  not yet open — a "Within dates" someday whose From is still ahead
+ *      can't be done however appealing, so it sinks below everything live
+ *   1  ...ordered by how soon it opens (and then by the slots below), so
+ *      the next to unlock leads the deferred group
+ *   2  an until date inside the next 30 days
+ *   3  ...and how near it is, so the soonest deadline leads that group
+ *   4  possible today (weekday / window / date / season all permitting)
+ *   5  long trips sink — they're rarely the answer to "what shall we do?"
+ *   6  food and drinks lead
+ *   7  has suggested people
+ *   8  cheapest first; an unrecorded cost sorts last rather than as free
  *
  * A passed deadline is NOT urgent: the chance is gone, so promoting it
  * would crowd out things that can still be done.
@@ -200,14 +243,20 @@ function recommendedKey(
 	now: Date,
 	hemisphere: Hemisphere
 ): number[] {
-	const until = daysUntilFinalDate(s.finalDate, now);
+	const from = daysUntil(s.fromDate, now);
+	const notYetOpen = from !== null && from > 0;
+	const until = daysUntil(s.untilDate, now);
 	const urgent = until !== null && until >= 0 && until <= URGENT_WINDOW_DAYS;
 	return [
+		notYetOpen ? 1 : 0,
+		notYetOpen ? from : 0,
 		urgent ? 0 : 1,
 		urgent ? until : 0,
 		possibleToday(s, now, hemisphere) ? 0 : 1,
-		TRIP_TYPES.has(s.type) ? 1 : 0,
-		EAT_DRINK_TYPES.has(s.type) ? 0 : 1,
+		// Multi-type somedays take every applicable slot: carrying a trip
+		// type sinks it, carrying a food/drinks type leads it.
+		s.types.some((t) => TRIP_TYPES.has(t)) ? 1 : 0,
+		s.types.some((t) => EAT_DRINK_TYPES.has(t)) ? 0 : 1,
 		s.people.length > 0 ? 0 : 1,
 		s.cost ?? Number.MAX_SAFE_INTEGER,
 	];
@@ -312,7 +361,9 @@ export function sortSomedays<T extends SortableSomeday>(
 			case "nameDesc":
 				return byName(b, a);
 			case "type": {
-				const rank = typeRank(a.type) - typeRank(b.type);
+				// Ranked by the lead (first natural-order) type.
+				const rank =
+					typeRank(a.types[0] ?? "") - typeRank(b.types[0] ?? "");
 				// Within a type, name keeps it readable (and stable).
 				return rank !== 0 ? rank : byName(a, b);
 			}

@@ -120,6 +120,7 @@ import { IdeaSearchModal } from "@/modals/IdeaSearchModal";
 import { MergeFriendsModal } from "@/modals/MergeFriendsModal";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
+import { PlanModal } from "@/modals/PlanModal";
 import { ReminderModal } from "@/modals/ReminderModal";
 import { daysFromToday, parseFlexDate, todayISO } from "@/utils/flexdate";
 import { metadataSettled } from "@/utils/metadataSettled";
@@ -789,13 +790,39 @@ export default class FriendTracker extends Plugin {
 		}).open();
 	}
 
-	/** Promote a Someday into a full Plan, seeding it from the idea's fields. */
-	public async convertSomedayToPlan(someday: SomedayInfo) {
-		const plan = await this.planOperations.createPlan(
+	/**
+	 * Promote a Someday into a full Plan: confirm first (with a mark-done
+	 * choice), then open the New plan modal pre-filled. Nothing is created
+	 * until that modal's own Create — cancelling leaves the someday alone.
+	 */
+	public convertSomedayToPlan(someday: SomedayInfo) {
+		new ConvertSomedayModal(
+			this.app,
+			"Make a plan from this someday?",
 			someday.name,
-			someday.date,
-			""
-		);
+			(markDone) => {
+				const flex = parseFlexDate(someday.date);
+				new PlanModal(
+					this.app,
+					this,
+					(plan) => void this.seedPlanFromSomeday(plan, someday, markDone),
+					{
+						name: someday.name,
+						// The plan form offers month/day precision only — a
+						// bare-year someday date starts the field blank.
+						date: flex && flex.month !== null ? someday.date : "",
+					}
+				).open();
+			}
+		).open();
+	}
+
+	/** Carry a someday's substance into its freshly created plan. */
+	private async seedPlanFromSomeday(
+		plan: TFile,
+		someday: SomedayInfo,
+		markDone: boolean
+	) {
 		// Sub-ideas become the plan's idea menu
 		for (const sub of someday.subIdeas) {
 			await this.planOperations.addItem(plan, {
@@ -811,15 +838,22 @@ export default class FriendTracker extends Plugin {
 		// a plan's own members list uses, so they become real members
 		// instead of just a mention in the notes.
 		const seed: string[] = [];
-		const typeInfo = somedayType(someday.type);
-		if (typeInfo) seed.push(`Type: ${typeInfo.label}`);
+		const typeLabels = someday.types
+			.map((t) => somedayType(t)?.label)
+			.filter((l): l is NonNullable<typeof l> => !!l);
+		if (typeLabels.length > 0) {
+			seed.push(`Type: ${typeLabels.join(", ")}`);
+		}
 		const seasonLabel = formatSomedaySeasons(someday.seasons);
 		if (seasonLabel) seed.push(`Season: ${seasonLabel}`);
 		const daysLabel = formatSomedayDays(someday.days);
 		if (daysLabel) seed.push(`Good days: ${daysLabel}`);
 		const timesLabel = formatSomedayTimes(someday.times);
 		if (timesLabel) seed.push(`Good time: ${timesLabel}`);
-		if (someday.finalDate) seed.push(`Must happen by: ${someday.finalDate}`);
+		if (someday.fromDate) seed.push(`Earliest date: ${someday.fromDate}`);
+		if (someday.untilDate) {
+			seed.push(`Must happen by: ${someday.untilDate}`);
+		}
 		if (someday.cost !== null) seed.push(`Rough budget: ~$${someday.cost}`);
 		if (someday.notes) seed.push(someday.notes);
 		if (seed.length > 0 || someday.people.length > 0) {
@@ -831,15 +865,12 @@ export default class FriendTracker extends Plugin {
 				}
 			);
 		}
-		// Link the someday to the plan it became — a breadcrumb if kept.
+		// Link the someday to the plan it became — a breadcrumb on both ends.
 		await this.somedayOperations.markConverted(someday.file, plan.path);
-
-		new ConvertSomedayModal(this.app, someday.name, async (keep) => {
-			if (!keep) {
-				await this.somedayOperations.deleteSomeday(someday.file);
-			}
-			await this.openContactPage(plan);
-		}).open();
+		if (markDone) {
+			await this.somedayOperations.setStatus(someday.file, "done");
+		}
+		await this.openContactPage(plan);
 	}
 
 	/** Create a reminder, then refresh any open dashboards. */

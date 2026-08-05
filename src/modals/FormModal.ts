@@ -53,6 +53,22 @@ export class FormModal extends Modal {
 		this.ftDoc.addEventListener("click", this.ftGuard, true);
 	}
 
+	/**
+	 * Undo whatever focus the modal opened with. Landing focus in the
+	 * first field is right for a blank "add" form, but wrong for an edit —
+	 * any field is as likely a target as the first, and on mobile the
+	 * surprise keyboard covers half the form. Call from onOpen() when the
+	 * form opens pre-filled.
+	 */
+	protected blurInitialFocus() {
+		window.setTimeout(() => {
+			const el = this.containerEl.ownerDocument.activeElement;
+			if (el instanceof HTMLElement && this.containerEl.contains(el)) {
+				el.blur();
+			}
+		}, 0);
+	}
+
 	close() {
 		this.ftDoc.removeEventListener("mousedown", this.ftGuard, true);
 		this.ftDoc.removeEventListener("click", this.ftGuard, true);

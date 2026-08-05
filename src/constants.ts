@@ -426,12 +426,12 @@ export type SomedayType = (typeof SOMEDAY_TYPES)[number]["id"];
 // mirrored by the dashboard's own list — see sortSomedays().
 export const SOMEDAY_SORTS = [
 	{ id: "recommended", label: "Recommended" },
-	{ id: "random", label: "Random" },
 	{ id: "newest", label: "Newest" },
 	{ id: "oldest", label: "Oldest" },
+	{ id: "type", label: "Type" },
+	{ id: "random", label: "Random" },
 	{ id: "nameAsc", label: "Name (A-Z)" },
 	{ id: "nameDesc", label: "Name (Z-A)" },
-	{ id: "type", label: "Type" },
 ] as const;
 
 export type SomedaySort = (typeof SOMEDAY_SORTS)[number]["id"];

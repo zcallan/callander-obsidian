@@ -8,7 +8,10 @@ export class PlanModal extends FormModal {
 	constructor(
 		app: App,
 		private plugin: FriendTracker,
-		private onCreated: (file: import("obsidian").TFile) => void
+		private onCreated: (file: import("obsidian").TFile) => void,
+		/** Starting values — e.g. seeded from a Someday being promoted.
+		 * Nothing is written until Create. */
+		private prefill?: { name?: string; date?: string }
 	) {
 		super(app);
 	}
@@ -26,15 +29,16 @@ export class PlanModal extends FormModal {
 			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Weekend in Maine" },
 		});
+		nameInput.value = this.prefill?.name ?? "";
 
-		let dateValue = "";
+		let dateValue = this.prefill?.date ?? "";
 		const dateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		dateField.createEl("label", { text: "When (as rough as you like)" });
 		createFlexDateInput(
 			dateField,
-			"",
+			dateValue,
 			(v) => {
 				dateValue = v;
 			},
@@ -100,7 +104,9 @@ export class PlanModal extends FormModal {
 				void submit();
 			}
 		});
-		window.setTimeout(() => nameInput.focus(), 0);
+		// A pre-filled form counts as an edit for focus purposes.
+		if (this.prefill?.name) this.blurInitialFocus();
+		else window.setTimeout(() => nameInput.focus(), 0);
 	}
 
 	onClose() {

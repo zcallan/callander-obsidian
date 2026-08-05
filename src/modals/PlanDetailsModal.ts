@@ -115,6 +115,9 @@ export class PlanDetailsModal extends FormModal {
 			this.close();
 		};
 		saveButton.addEventListener("click", () => void handleSave());
+
+		// Always an edit — every field arrives filled, so none deserves focus.
+		this.blurInitialFocus();
 	}
 
 	onClose() {

@@ -93,7 +93,8 @@ export class PlanCreditModal extends FormModal {
 				}
 			});
 		}
-		window.setTimeout(() => amountInput.focus(), 0);
+		if (this.initial) this.blurInitialFocus();
+		else window.setTimeout(() => amountInput.focus(), 0);
 	}
 
 	onClose() {
