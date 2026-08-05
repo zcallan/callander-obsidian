@@ -466,7 +466,8 @@ export class PlanSimpleItemModal extends FormModal {
 				}
 			});
 		}
-		window.setTimeout(() => textInput.focus(), 0);
+		if (this.initial) this.blurInitialFocus();
+		else window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

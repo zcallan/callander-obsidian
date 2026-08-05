@@ -3,6 +3,8 @@ import type FriendTracker from "@/main";
 import type { ContactWithCountdown, SomedayInfo, SomedaySubIdea } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
+import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
+import { ReminderModal } from "@/modals/ReminderModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/planFormat";
@@ -78,9 +80,9 @@ export class SomedayViewModal extends Modal {
 		contentEl.addClass("someday-view-modal");
 		const s = this.someday;
 
-		// The type emoji leads the title unless the name brings its own —
-		// mirrors ReminderViewModal's treatment of its own type emoji.
-		const typeInfo = somedayType(s.type);
+		// The lead type's emoji fronts the title unless the name brings its
+		// own — mirrors ReminderViewModal's treatment of its type emoji.
+		const typeInfo = somedayType(s.types[0]);
 		const title =
 			typeInfo && !splitLeadingEmoji(s.name)
 				? `${typeInfo.emoji} ${s.name}`
@@ -98,14 +100,24 @@ export class SomedayViewModal extends Modal {
 				.join(" • ")}`,
 		});
 
-		// A deadline gets its own line rather than joining the 📅 one — it's
-		// a different kind of fact (when the chance is gone, not when you'd
-		// like to go) and shouldn't read as just another timing preference.
-		const finalFlex = parseFlexDate(s.finalDate);
-		if (finalFlex) {
+		// The doable window gets its own line rather than joining the 📅 one —
+		// it's a different kind of fact (when the chance opens and closes, not
+		// when you'd like to go) and shouldn't read as just another timing
+		// preference.
+		const fromFlex = parseFlexDate(s.fromDate);
+		const untilFlex = parseFlexDate(s.untilDate);
+		const window =
+			fromFlex && untilFlex
+				? `${formatFlexDate(fromFlex)} – ${formatFlexDate(untilFlex)}`
+				: fromFlex
+				? `From ${formatFlexDate(fromFlex)}`
+				: untilFlex
+				? `By ${formatFlexDate(untilFlex)}`
+				: "";
+		if (window) {
 			contentEl.createDiv({
 				cls: "someday-view-meta",
-				text: `⏳ By ${formatFlexDate(finalFlex)}`,
+				text: `⏳ ${window}`,
 			});
 		}
 
@@ -321,23 +333,68 @@ export class SomedayViewModal extends Modal {
 		if (!s.convertedTo) {
 			button(progressRow, "map", "Make plan", () => {
 				this.close();
-				void this.plugin.convertSomedayToPlan(s);
+				this.plugin.convertSomedayToPlan(s);
+			});
+			button(progressRow, "alarm-clock", "Make reminder", () => {
+				this.close();
+				new ConvertSomedayModal(
+					this.app,
+					"Make a reminder from this someday?",
+					s.name,
+					(markDone) => this.makeReminder(markDone)
+				).open();
 			});
 		}
+	}
+
+	/** Open the New reminder modal seeded from this someday — nothing is
+	 * written until its own Save, which also honours the mark-done choice
+	 * made in the confirmation step. */
+	private makeReminder(markDone: boolean) {
+		const s = this.someday;
+		new ReminderModal(
+			this.app,
+			this.plugin,
+			null,
+			async () => {
+				if (markDone) {
+					await this.plugin.somedayOperations.setStatus(
+						s.file,
+						"done"
+					);
+				}
+				await this.onChange();
+			},
+			undefined,
+			{
+				name: s.name,
+				// A dated someday carries its date over; a "Within dates"
+				// window carries its opening day.
+				date: s.date || s.fromDate,
+				// Someday people are wikilinks; reminders keep plain text.
+				people: this.shortenedPeopleNames().join(", "),
+			}
+		).open();
 	}
 
 	private buildText(): string {
 		const s = this.someday;
 		const lines: string[] = [s.name, `When: ${this.whenLabel()}`];
-		const typeInfo = somedayType(s.type);
-		if (typeInfo) lines.push(typeInfo.label);
+		const typeLabels = s.types
+			.map((t) => somedayType(t)?.label)
+			.filter((l): l is NonNullable<typeof l> => !!l);
+		if (typeLabels.length > 0) lines.push(typeLabels.join(", "));
 		const days = formatSomedayDays(s.days);
 		if (days) lines.push(`Best days: ${days}`);
 		const timesText = formatSomedayTimes(s.times);
 		if (timesText) lines.push(`Best time: ${timesText}`);
-		const finalFlexText = parseFlexDate(s.finalDate);
-		if (finalFlexText) {
-			lines.push(`By: ${formatFlexDate(finalFlexText)}`);
+		const fromFlexText = parseFlexDate(s.fromDate);
+		if (fromFlexText) {
+			lines.push(`From: ${formatFlexDate(fromFlexText)}`);
+		}
+		const untilFlexText = parseFlexDate(s.untilDate);
+		if (untilFlexText) {
+			lines.push(`By: ${formatFlexDate(untilFlexText)}`);
 		}
 		const comp = somedayCompany(s.company);
 		if (comp) lines.push(comp.label);

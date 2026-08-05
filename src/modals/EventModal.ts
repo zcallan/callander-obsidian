@@ -232,7 +232,8 @@ export class EventModal extends FormModal {
 			}
 		});
 
-		window.setTimeout(() => textInput.focus(), 0);
+		if (this.event) this.blurInitialFocus();
+		else window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

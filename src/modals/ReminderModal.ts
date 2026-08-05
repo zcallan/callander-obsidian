@@ -18,10 +18,13 @@ export class ReminderModal extends FormModal {
 		private plugin: FriendTracker,
 		private existing: Reminder | null,
 		private onSaved: () => void | Promise<void>,
-		private onDeleted?: () => void | Promise<void>
+		private onDeleted?: () => void | Promise<void>,
+		/** Starting values for a NEW reminder — e.g. seeded from a Someday.
+		 * Nothing is written until Save. Ignored when editing. */
+		private prefill?: Partial<ReminderFields>
 	) {
 		super(app);
-		this.type = existing?.type ?? "task";
+		this.type = existing?.type ?? prefill?.type ?? "task";
 	}
 
 	onOpen() {
@@ -40,7 +43,7 @@ export class ReminderModal extends FormModal {
 			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Laura's birthday" },
 		});
-		nameInput.value = this.existing?.name ?? "";
+		nameInput.value = this.existing?.name ?? this.prefill?.name ?? "";
 
 		// ---- Type: one row of emoji buttons, task is the default ----
 		const typeRow = contentEl.createDiv({
@@ -69,7 +72,7 @@ export class ReminderModal extends FormModal {
 		});
 
 		// ---- Date ----
-		let dateValue = this.existing?.date ?? "";
+		let dateValue = this.existing?.date ?? this.prefill?.date ?? "";
 		const dateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
@@ -110,7 +113,10 @@ export class ReminderModal extends FormModal {
 		locInput.value = this.existing?.location ?? "";
 
 		// ---- People ----
-		const people = appendPeopleField(contentEl, this.existing?.people);
+		const people = appendPeopleField(
+			contentEl,
+			this.existing?.people ?? this.prefill?.people
+		);
 
 		// ---- Link ----
 		const linkField = contentEl.createDiv({
@@ -199,7 +205,10 @@ export class ReminderModal extends FormModal {
 				void submit();
 			}
 		});
-		window.setTimeout(() => nameInput.focus(), 0);
+		// A pre-filled form counts as an edit for focus purposes: the name
+		// is already there, so no field deserves the keyboard.
+		if (this.existing || this.prefill?.name) this.blurInitialFocus();
+		else window.setTimeout(() => nameInput.focus(), 0);
 	}
 
 	onClose() {

@@ -16,15 +16,21 @@ import {
 	SomedayTime,
 	SomedayType,
 } from "@/constants";
-import { parseFlexDate, toFlexString, flexPrecision } from "@/utils/flexdate";
+import {
+	parseFlexDate,
+	toFlexString,
+	flexPrecision,
+	todayISO,
+} from "@/utils/flexdate";
 
-type WhenMode = "anytime" | "year" | "month" | "day" | "season";
+type WhenMode = "anytime" | "within" | "year" | "month" | "day" | "season";
 
 /**
  * Create or edit a Someday — a wishlist idea. Deliberately lighter than a plan:
- * a name, a type, a rough when (a calendar date at any precision, or one/more
- * seasons), which days suit it, an estimated cost, solo/group, suggested
- * people, and notes. Sub-ideas are managed on the full page.
+ * a name, a type, a rough when (a calendar date at any precision, a from/until
+ * window, or one/more seasons), which days suit it, an estimated cost,
+ * solo/group, suggested people, and notes. Sub-ideas are managed on the full
+ * page.
  */
 export class SomedayModal extends FormModal {
 	constructor(
@@ -66,15 +72,15 @@ export class SomedayModal extends FormModal {
 		const typeField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
-		typeField.createEl("label", { text: "Type (optional)" });
-		let type: SomedayType | "" = this.existing?.type ?? "";
+		typeField.createEl("label", { text: "Types (optional)" });
+		const types = new Set<SomedayType>(this.existing?.types ?? []);
 		const typeRow = typeField.createDiv({
 			cls: "someday-timeframe-chips",
 		});
 		const typeButtons = new Map<SomedayType, HTMLButtonElement>();
 		const refreshType = () =>
 			typeButtons.forEach((el, id) =>
-				el.toggleClass("selected", type === id)
+				el.toggleClass("selected", types.has(id))
 			);
 		SOMEDAY_TYPES.forEach((t) => {
 			const btn = typeRow.createEl("button", {
@@ -87,9 +93,10 @@ export class SomedayModal extends FormModal {
 			});
 			btn.createSpan({ text: t.label });
 			btn.addEventListener("click", () => {
-				// Optional, unlike Solo/group — clicking the selected chip
-				// again clears it rather than forcing a permanent choice.
-				type = type === t.id ? "" : t.id;
+				// Multi-select — one someday can be a few things at once
+				// (a food stop on a short trip). Click again to drop one.
+				if (types.has(t.id)) types.delete(t.id);
+				else types.add(t.id);
 				refreshType();
 			});
 			typeButtons.set(t.id, btn);
@@ -103,11 +110,15 @@ export class SomedayModal extends FormModal {
 		whenField.createEl("label", { text: "Best date" });
 
 		let dateValue = this.existing?.date ?? "";
+		let fromValue = this.existing?.fromDate ?? "";
+		let untilValue = this.existing?.untilDate ?? "";
 		const seasons = new Set<string>(this.existing?.seasons ?? []);
 		const initialFlex = parseFlexDate(dateValue);
 		let whenMode: WhenMode =
 			seasons.size > 0
 				? "season"
+				: fromValue || untilValue
+				? "within"
 				: initialFlex
 				? flexPrecision(initialFlex)
 				: "anytime";
@@ -121,10 +132,11 @@ export class SomedayModal extends FormModal {
 		(
 			[
 				["anytime", "Any date"],
-				["year", "Year only"],
-				["month", "Month"],
+				["within", "Within dates"],
 				["day", "Exact day"],
 				["season", "Season"],
+				["month", "Month"],
+				["year", "Year"],
 			] as Array<[WhenMode, string]>
 		).forEach(([id, label]) =>
 			modeSelect.createEl("option", { value: id, text: label })
@@ -139,10 +151,21 @@ export class SomedayModal extends FormModal {
 		});
 		const pad = (n: number) => String(n).padStart(2, "0");
 
+		// Each mode owns the slot's state: rendering one zeroes the others',
+		// so whatever is on screen is exactly what a save will store.
 		const renderWhenSlot = () => {
 			whenSlot.empty();
+			// The From/Until labels sit above their inputs, making the slot
+			// taller than the dropdown — bottom-align the row so the dropdown
+			// lines up with the inputs, not the labels.
+			whenControls.toggleClass(
+				"someday-when-within",
+				whenMode === "within"
+			);
 			if (whenMode === "anytime") {
 				dateValue = "";
+				fromValue = "";
+				untilValue = "";
 				seasons.clear();
 				whenSlot.createDiv({
 					cls: "section-helper-text",
@@ -150,8 +173,60 @@ export class SomedayModal extends FormModal {
 				});
 				return;
 			}
+			if (whenMode === "within") {
+				// A window, not a point — it can open later ("tickets go on
+				// sale") and it can close ("last day of the show"). Either
+				// side may stay blank: from now / no deadline.
+				dateValue = "";
+				seasons.clear();
+				const range = whenSlot.createDiv({
+					cls: "someday-when-range",
+				});
+				// Assigned after both inputs exist; the change listeners fire
+				// long after that, this just keeps the declarations tidy.
+				let syncBounds = () => {};
+				const half = (
+					label: string,
+					value: string,
+					apply: (v: string) => void
+				) => {
+					const field = range.createDiv({
+						cls: "someday-when-range-field",
+					});
+					field.createEl("label", { text: label });
+					const input = field.createEl("input", {
+						cls: "callander-modal-input someday-when-date",
+						attr: { type: "date" },
+					});
+					input.value = value;
+					input.addEventListener("change", () => {
+						apply(input.value.trim());
+						syncBounds();
+					});
+					return input;
+				};
+				const fromInput = half(
+					"From date",
+					fromValue,
+					(v) => (fromValue = v)
+				);
+				const untilInput = half(
+					"Until date",
+					untilValue,
+					(v) => (untilValue = v)
+				);
+				// Native pickers grey out the impossible half of the range.
+				syncBounds = () => {
+					untilInput.min = fromValue;
+					fromInput.max = untilValue;
+				};
+				syncBounds();
+				return;
+			}
 			if (whenMode === "season") {
 				dateValue = ""; // a date and seasons are mutually exclusive
+				fromValue = "";
+				untilValue = "";
 				const pills = whenSlot.createDiv({
 					cls: "someday-timeframe-chips",
 				});
@@ -175,6 +250,8 @@ export class SomedayModal extends FormModal {
 				});
 			} else {
 				seasons.clear();
+				fromValue = "";
+				untilValue = "";
 				const input = whenSlot.createEl("input", {
 					cls: "callander-modal-input someday-when-date",
 				});
@@ -209,11 +286,12 @@ export class SomedayModal extends FormModal {
 			}
 		};
 
+		const DATE_MODES: WhenMode[] = ["year", "month", "day"];
 		modeSelect.addEventListener("change", () => {
 			const prev = whenMode;
 			whenMode = modeSelect.value as WhenMode;
 			// Moving to a coarser date precision truncates the stored value
-			if (whenMode !== "season" && prev !== "season") {
+			if (DATE_MODES.includes(whenMode) && DATE_MODES.includes(prev)) {
 				const parsed = parseFlexDate(dateValue);
 				if (parsed) {
 					const t = { ...parsed };
@@ -225,6 +303,12 @@ export class SomedayModal extends FormModal {
 					}
 					dateValue = toFlexString(t);
 				}
+			}
+			// Picking "Within dates" starts the window at today — the common
+			// case is "from now until X", so the From half comes pre-filled.
+			// (Only on a fresh pick: an existing window keeps its own From.)
+			if (whenMode === "within" && !fromValue) {
+				fromValue = todayISO();
 			}
 			renderWhenSlot();
 		});
@@ -298,10 +382,23 @@ export class SomedayModal extends FormModal {
 		const days = new Set<SomedayDay>(this.existing?.days ?? []);
 		const dayRow = daysField.createDiv({ cls: "someday-day-chips" });
 		const dayButtons = new Map<SomedayDay, HTMLButtonElement>();
-		const refreshDays = () =>
+		// Preset buttons light up while the selection is exactly their set —
+		// hand-picking Sat+Sun reads as "Weekend" without using the button.
+		const presetButtons: Array<{
+			el: HTMLButtonElement;
+			set: readonly SomedayDay[];
+		}> = [];
+		const refreshDays = () => {
 			dayButtons.forEach((el, id) =>
 				el.toggleClass("is-on", days.has(id))
 			);
+			presetButtons.forEach(({ el, set }) =>
+				el.toggleClass(
+					"selected",
+					days.size === set.length && set.every((d) => days.has(d))
+				)
+			);
+		};
 		SOMEDAY_DAYS.forEach((d) => {
 			const btn = dayRow.createEl("button", {
 				cls: "someday-day-chip",
@@ -328,6 +425,7 @@ export class SomedayModal extends FormModal {
 				preset.days.forEach((d) => days.add(d));
 				refreshDays();
 			});
+			presetButtons.push({ el: btn, set: preset.days });
 		});
 		const allBtn = presetRow.createEl("button", {
 			cls: "callander-button",
@@ -337,6 +435,10 @@ export class SomedayModal extends FormModal {
 		allBtn.addEventListener("click", () => {
 			SOMEDAY_DAYS.forEach((d) => days.add(d.id));
 			refreshDays();
+		});
+		presetButtons.push({
+			el: allBtn,
+			set: SOMEDAY_DAYS.map((d) => d.id),
 		});
 		const clearBtn = presetRow.createEl("button", {
 			cls: "callander-button",
@@ -348,25 +450,6 @@ export class SomedayModal extends FormModal {
 			refreshDays();
 		});
 		refreshDays();
-
-		// ---- Final date ----
-		// A deadline, not a target: the season ends, the bar closes, the show
-		// finishes its run. Separate from "Best date" (when you'd like to do
-		// it) because the two answer different questions and a someday can
-		// easily have one without the other.
-		const finalDateField = contentEl.createDiv({
-			cls: "callander-modal-field",
-		});
-		finalDateField.createEl("label", { text: "Final date (optional)" });
-		const finalDateInput = finalDateField.createEl("input", {
-			cls: "callander-modal-input",
-			attr: { type: "date" },
-		});
-		finalDateInput.value = this.existing?.finalDate ?? "";
-		finalDateField.createDiv({
-			cls: "section-helper-text someday-final-date-hint",
-			text: "Last day to do this — end of season, last date of show...",
-		});
 
 		// ---- Additional details: solo/group, suggested people, cost, notes
 		// — collapsed by default so the form leads with what/type/when/time/
@@ -618,11 +701,16 @@ export class SomedayModal extends FormModal {
 					: SOMEDAY_TIMES.filter((t) => times.has(t.id)).map(
 							(t) => t.id
 					  ),
-				finalDate: finalDateInput.value.trim(),
+				fromDate: whenMode === "within" ? fromValue : "",
+				untilDate: whenMode === "within" ? untilValue : "",
 				cost,
 				notes: notesInput.value.trim(),
 				company,
-				type,
+				// Saved in SOMEDAY_TYPES' natural order, so types[0] is
+				// always the lead wherever it's shown.
+				types: SOMEDAY_TYPES.filter((t) => types.has(t.id)).map(
+					(t) => t.id
+				),
 				// A solo activity never persists suggested people, even if
 				// some were picked before switching to Solo — toggling
 				// company back and forth mid-edit shouldn't lose them
@@ -648,7 +736,8 @@ export class SomedayModal extends FormModal {
 			}
 		});
 
-		window.setTimeout(() => nameInput.focus(), 0);
+		if (this.existing) this.blurInitialFocus();
+		else window.setTimeout(() => nameInput.focus(), 0);
 	}
 
 	onClose() {

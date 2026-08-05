@@ -112,7 +112,8 @@ export class InterestModal extends FormModal {
 		textInput.addEventListener("keydown", onEnter);
 		detailInput.addEventListener("keydown", onEnter);
 
-		window.setTimeout(() => textInput.focus(), 0);
+		if (this.initialText) this.blurInitialFocus();
+		else window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

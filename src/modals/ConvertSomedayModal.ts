@@ -1,16 +1,18 @@
 import { App, Modal } from "obsidian";
 
 /**
- * Shown right after a Someday has been promoted into a Plan. The plan already
- * exists and the someday is already linked to it; this only asks whether to
- * keep the someday around as a breadcrumb or remove it. Dismissing (Esc / ✕)
- * keeps it — the safe default.
+ * The pre-flight question for promoting a Someday into something firmer —
+ * a plan, a reminder. Yes hands off to the pre-filled creation modal (via
+ * `onYes`); nothing at all is written here. The checkbox — ticked by
+ * default — asks that the someday be marked done once the promotion
+ * actually saves, so cancelling the follow-up modal leaves it untouched.
  */
 export class ConvertSomedayModal extends Modal {
 	constructor(
 		app: App,
+		private title: string,
 		private somedayName: string,
-		private onChoice: (keep: boolean) => void | Promise<void>
+		private onYes: (markDone: boolean) => void | Promise<void>
 	) {
 		super(app);
 	}
@@ -18,32 +20,38 @@ export class ConvertSomedayModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl("h2", { text: "Opened as a plan" });
+		contentEl.createEl("h2", { text: this.title });
 		contentEl.createEl("p", {
-			text: `"${this.somedayName}" is now a plan. Keep the someday as a reminder, or remove it?`,
+			cls: "convert-someday-name",
+			text: `"${this.somedayName}"`,
 		});
+
+		const checkRow = contentEl.createEl("label", {
+			cls: "convert-someday-check",
+		});
+		const box = checkRow.createEl("input", {
+			attr: { type: "checkbox" },
+		});
+		box.checked = true;
+		checkRow.createSpan({ text: "Mark this someday as done" });
 
 		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
-		const removeBtn = buttons.createEl("button", {
-			text: "Remove someday",
+		const noBtn = buttons.createEl("button", {
+			text: "No",
 			cls: "callander-modal-button",
 		});
-		const handleRemove = async () => {
-			await this.onChoice(false);
-			this.close();
-		};
-		removeBtn.addEventListener("click", () => void handleRemove());
-		const keepBtn = buttons.createEl("button", {
-			text: "Keep it",
+		noBtn.addEventListener("click", () => this.close());
+		const yesBtn = buttons.createEl("button", {
+			text: "Yes",
 			cls: "callander-modal-button mod-cta",
 		});
-		const handleKeep = async () => {
-			await this.onChoice(true);
+		yesBtn.addEventListener("click", () => {
+			const markDone = box.checked;
 			this.close();
-		};
-		keepBtn.addEventListener("click", () => void handleKeep());
+			void this.onYes(markDone);
+		});
 	}
 
 	onClose() {

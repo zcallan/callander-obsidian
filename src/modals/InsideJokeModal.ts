@@ -90,7 +90,8 @@ export class InsideJokeModal extends FormModal {
 				void submit();
 			}
 		});
-		window.setTimeout(() => textInput.focus(), 0);
+		if (this.initial) this.blurInitialFocus();
+		else window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

@@ -72,7 +72,8 @@ export class PlanItemModal extends FormModal {
 			},
 		});
 		textInput.value = this.initial?.text ?? "";
-		textInput.focus();
+		if (this.initial) this.blurInitialFocus();
+		else textInput.focus();
 
 		// Category picker (type=button so chips don't submit the form)
 		const catField = form.createDiv({ cls: "callander-modal-field" });

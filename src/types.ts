@@ -347,10 +347,13 @@ export interface SomedayInfo {
 	days: SomedayDay[];
 	/** Time-of-day windows it suits; all three means "any" (see SOMEDAY_TIMES) */
 	times: SomedayTime[];
-	/** Hard deadline (ISO YYYY-MM-DD), or "" — the season ends, the bar
-	 * closes, the show finishes its run. Unlike `date` this isn't when you
-	 * hope to do it, it's when the chance is gone. */
-	finalDate: string;
+	/** Start of the doable window (ISO YYYY-MM-DD), or "" — tickets go on
+	 * sale, the exhibit opens. Blank means it's already doable. */
+	fromDate: string;
+	/** End of the doable window (ISO YYYY-MM-DD), or "" — the season ends,
+	 * the bar closes, the show finishes its run. Unlike `date` this isn't
+	 * when you hope to do it, it's when the chance is gone. */
+	untilDate: string;
 	/** Estimated cost, or null when unset */
 	cost: number | null;
 	notes: string;
@@ -361,8 +364,10 @@ export interface SomedayInfo {
 	convertedTo: string;
 	/** Solo or group activity; "" when unset */
 	company: SomedayCompany | "";
-	/** What kind of thing it is; "" when unset */
-	type: SomedayType | "";
+	/** What kinds of thing it is — one someday can be several (a food stop
+	 * on a short trip). Kept in SOMEDAY_TYPES' natural order; the first is
+	 * the lead, whose emoji fronts the row when the name brings none. */
+	types: SomedayType[];
 	/**
 	 * Wikilinks to real contacts (e.g. "[[Callan]]"), same storage shape as
 	 * a plan's members — resolved back to a display name wherever it's
