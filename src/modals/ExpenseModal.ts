@@ -1,15 +1,31 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
-import type { PlanCost } from "@/types";
-import { PlanOperations } from "@/services/PlanOperations";
+import type { ContactWithCountdown, Expense } from "@/types";
+import { owedFor, percentFromInput } from "@/utils/expenseMath";
 import { evaluateAmount } from "@/utils/calc";
+import {
+	appendContactPicker,
+	type ContactPickerHandle,
+} from "@/components/ContactPicker";
+import { resolvePeopleNames } from "@/utils/people";
+
+/**
+ * Where the people splitting this come from. Supplied only for a standalone
+ * expense, which carries its own list and so shows a People field; without
+ * it the participants are fixed by whoever passed them in.
+ */
+export interface ExpensePeopleSource {
+	contacts: ContactWithCountdown[];
+	/** For resolving picked wikilinks — the note the expense lives on. */
+	sourcePath: string;
+}
 
 /**
  * Add/edit a shared expense: a label, an amount, who's splitting it, and
  * how — evenly, by integer shares (nights, drinks…), or by explicit
  * percent. Each mode keeps its own values so switching never bleeds.
  */
-export class PlanCostModal extends FormModal {
+export class ExpenseModal extends FormModal {
 	private mode: "even" | "shares" | "percent" | "value" | "receipt";
 	private included: Set<string>;
 	private weights: Record<string, number> = {};
@@ -25,17 +41,21 @@ export class PlanCostModal extends FormModal {
 	/** Receipt mode: sales tax / tip %, or null when not being applied. */
 	private tax: number | null = null;
 	private tip: number | null = null;
+	/** The People field's handle — only set for a standalone expense. */
+	private peopleHandle?: ContactPickerHandle;
 
 	constructor(
 		app: App,
 		private participants: string[],
-		private initial: PlanCost | null,
-		private onSubmit: (cost: PlanCost) => Promise<void>,
+		private initial: Expense | null,
+		private onSubmit: (cost: Expense) => Promise<void>,
 		private onDelete?: () => Promise<void>,
-		defaultParticipant?: string,
+		private defaultParticipant?: string,
 		/** Pre-filled tax/tip % when those boxes are first ticked. */
 		private taxDefault = 6.25,
-		private tipDefault = 20
+		private tipDefault = 20,
+		/** Set to show a People field and take participants from it. */
+		private peopleSource?: ExpensePeopleSource
 	) {
 		super(app);
 		this.mode = initial?.split.mode ?? "even";
@@ -60,6 +80,36 @@ export class PlanCostModal extends FormModal {
 					: this.participants[0];
 			this.included = new Set(you ? [you] : []);
 		}
+	}
+
+	/**
+	 * True when the People field decides who's splitting this. Naming
+	 * someone there is already the decision, so the per-person ticks below
+	 * follow it rather than offering a second, contradictable answer.
+	 */
+	private get peopleAreFixed(): boolean {
+		return !!this.peopleSource;
+	}
+
+	/**
+	 * Rebuild the participant list from the People field. You're always on
+	 * it — you're the one doing the splitting — the same way your name sits
+	 * alongside the members anywhere else people are listed.
+	 */
+	private syncParticipants() {
+		if (!this.peopleHandle || !this.peopleSource) return;
+		const picked = resolvePeopleNames(
+			this.app,
+			this.peopleSource.sourcePath,
+			this.peopleHandle.wikilinks()
+		);
+		const you = this.defaultParticipant?.trim();
+		this.participants =
+			you && !picked.some((p) => p.toLowerCase() === you.toLowerCase())
+				? [you, ...picked]
+				: picked;
+		// Everyone named is in, by definition — no separate ticking.
+		this.included = new Set(this.participants);
 	}
 
 	/** Sum of the per-person lines, before tax and tip. */
@@ -148,12 +198,38 @@ export class PlanCostModal extends FormModal {
 		});
 		if (this.initial) amountInput.value = String(this.initial.amount);
 
+		// Who's in on it. Only for a standalone expense — when the people are
+		// already fixed by whatever this belongs to, there's nothing to pick.
+		if (this.peopleSource) {
+			const peopleField = contentEl.createDiv({
+				cls: "callander-modal-field",
+			});
+			peopleField.createEl("label", { text: "People" });
+			this.peopleHandle = appendContactPicker(
+				peopleField,
+				this.app,
+				this.peopleSource.contacts,
+				this.initial?.people ?? [],
+				this.peopleSource.sourcePath,
+				{
+					allowGuests: true,
+					// The split rows below are built from the participant
+					// list, so they have to be rebuilt whenever it changes.
+					onChange: () => {
+						this.syncParticipants();
+						renderShares();
+					},
+				}
+			);
+			this.syncParticipants();
+		}
+
 		const modeRow = contentEl.createDiv({
 			cls: "quick-idea-categories",
 		});
 		const modeButtons = new Map<string, HTMLButtonElement>();
 		const sharesWrap = contentEl.createDiv({
-			cls: "plan-cost-shares",
+			cls: "expense-shares",
 		});
 		(
 			[
@@ -228,14 +304,14 @@ export class PlanCostModal extends FormModal {
 		const refreshOwed = () => {
 			const amount = Number(amountInput.value) || 0;
 			const shares = this.buildShares();
-			const cost: PlanCost = {
+			const cost: Expense = {
 				label: labelInput.value,
 				amount,
 				split: { mode: this.mode, ...(shares && { shares }) },
 			};
 			const owed =
 				amount > 0
-					? PlanOperations.owedFor(cost, this.participants)
+					? owedFor(cost, this.participants)
 					: {};
 			for (const [p, span] of owedSpans) {
 				const v = owed[p] ?? 0;
@@ -269,42 +345,66 @@ export class PlanCostModal extends FormModal {
 			const isMoney = isValue || isReceipt;
 
 			const head = sharesWrap.createDiv({
-				cls: "plan-cost-shares-head",
+				cls: "expense-shares-head",
 			});
+			// Second wording drops the "tick who's in" instruction: with the
+			// People field deciding that, the only thing left to say is what
+			// the numbers beside each name mean.
+			const HELPERS = {
+				percent: [
+					"Tick who's splitting this. Percentages should add up to 100%.",
+					"Percentages should add up to 100%.",
+				],
+				shares: [
+					"Tick who's in; weights divide the cost (e.g. nights, drinks).",
+					"Weights divide the cost (e.g. nights, drinks).",
+				],
+				receipt: [
+					"Tick who's in, then enter each person's own line off the receipt.",
+					"Enter each person's own line off the receipt.",
+				],
+				value: [
+					"Tick who's in, then set what each of them owes.",
+					"Set what each of them owes.",
+				],
+				even: [
+					"Tick who's splitting this evenly.",
+					"Split evenly between everyone above.",
+				],
+			} as const;
 			head.createDiv({
 				cls: "section-helper-text",
-				text: isPercent
-					? "Tick who's splitting this. Percentages should add up to 100%."
-					: isShares
-					? "Tick who's in; weights divide the cost (e.g. nights, drinks)."
-					: isReceipt
-					? "Tick who's in, then enter each person's own line off the receipt."
-					: isValue
-					? "Tick who's in, then set what each of them owes."
-					: "Tick who's splitting this evenly.",
+				text: HELPERS[this.mode][this.peopleAreFixed ? 1 : 0],
 			});
-			const allChecked = this.included.size === this.participants.length;
-			const checkAllBtn = head.createEl("button", {
-				cls: "callander-button plan-cost-checkall",
-				text: allChecked ? "Uncheck all" : "Check all",
-			});
-			checkAllBtn.addEventListener("click", () => {
-				if (allChecked) {
-					this.included.clear();
-					this.weights = {};
-					this.percents = {};
-					touched.clear();
-					this.values = {};
-					this.exprs = {};
-				} else {
-					this.participants.forEach((p) => this.included.add(p));
-				}
-				renderShares();
-			});
+			// Nothing to check or uncheck when the People field already
+			// settles who's in — the button would only ever be a no-op.
+			if (!this.peopleAreFixed) {
+				const allChecked =
+					this.included.size === this.participants.length;
+				const checkAllBtn = head.createEl("button", {
+					cls: "callander-button expense-checkall",
+					text: allChecked ? "Uncheck all" : "Check all",
+				});
+				checkAllBtn.addEventListener("click", () => {
+					if (allChecked) {
+						this.included.clear();
+						this.weights = {};
+						this.percents = {};
+						touched.clear();
+						this.values = {};
+						this.exprs = {};
+					} else {
+						this.participants.forEach((p) =>
+							this.included.add(p)
+						);
+					}
+					renderShares();
+				});
+			}
 
 			const totalEl =
 				isPercent || isValue
-					? sharesWrap.createDiv({ cls: "plan-cost-total" })
+					? sharesWrap.createDiv({ cls: "expense-total" })
 					: null;
 			refreshTotal = () => {
 				if (!totalEl) return;
@@ -354,29 +454,35 @@ export class PlanCostModal extends FormModal {
 
 			for (const p of this.participants) {
 				const row = sharesWrap.createDiv({
-					cls: `plan-cost-share-row${
-						isReceipt ? " plan-cost-expr-row" : ""
+					cls: `expense-share-row${
+						isReceipt ? " expense-expr-row" : ""
 					}`,
 				});
 				const nameLabel = row.createEl("label", {
-					cls: "plan-cost-share-name plan-cost-check",
+					cls: `expense-share-name expense-check${
+						this.peopleAreFixed ? " is-fixed" : ""
+					}`,
 				});
 				const box = nameLabel.createEl("input", {
 					attr: { type: "checkbox" },
 				});
 				box.checked = this.included.has(p);
+				// Kept for consistency with the plan version, but there's
+				// nothing to decide here: removing someone means taking
+				// them out of the People field above.
+				box.disabled = this.peopleAreFixed;
 				nameLabel.createSpan({ text: p });
 				// Receipt rows show their running sum beside the input
 				// instead, so the name stays clean.
 				if (!isReceipt) {
 					owedSpans.set(
 						p,
-						nameLabel.createSpan({ cls: "plan-cost-owed" })
+						nameLabel.createSpan({ cls: "expense-owed" })
 					);
 				}
 
 				const right = row.createDiv({
-					cls: "plan-cost-share-right",
+					cls: "expense-share-right",
 				});
 				if (isShares || isPercent || isMoney) {
 					const active = this.included.has(p);
@@ -384,18 +490,18 @@ export class PlanCostModal extends FormModal {
 					// ahead of the field's own "$", so it reads as its own
 					// number rather than a second prefix.
 					const preview = isReceipt
-						? right.createSpan({ cls: "plan-cost-addon-amount" })
+						? right.createSpan({ cls: "expense-addon-amount" })
 						: null;
 					// Value mode reads as money, so the $ leads the field
 					if (isMoney) {
 						right.createSpan({
-							cls: "plan-cost-share-prefix",
+							cls: "expense-share-prefix",
 							text: "$",
 						});
 					}
 					const input = right.createEl("input", {
-						cls: `contact-field-input plan-cost-share-input ${
-							isReceipt ? "plan-cost-expr-input" : ""
+						cls: `contact-field-input expense-share-input ${
+							isReceipt ? "expense-expr-input" : ""
 						} ${active ? "" : "is-disabled"}`,
 						attr: isReceipt
 							? {
@@ -429,7 +535,7 @@ export class PlanCostModal extends FormModal {
 					if (isPercent) {
 						percentInputs.set(p, input);
 						right.createSpan({
-							cls: "plan-cost-share-suffix",
+							cls: "expense-share-suffix",
 							text: "%",
 						});
 					}
@@ -481,14 +587,17 @@ export class PlanCostModal extends FormModal {
 							? evaluateAmount(raw) ?? NaN
 							: Number(raw);
 						if (isPercent) {
-							if (raw === "") {
-								// Cleared → unlock, let it auto-fill again
-								touched.delete(p);
-								delete this.percents[p];
-							} else if (Number.isFinite(v) && v >= 0) {
-								touched.add(p);
-								this.percents[p] = v;
-							}
+							// An empty field is an answer — 0% — and stays
+							// locked like any other. Treating it as "unlock
+							// me" instead made the field impossible to clear:
+							// unlocking put it back in the auto-fill pool, and
+							// the rebalance immediately wrote a figure back
+							// into the box you were trying to empty.
+							//
+							// "Distribute evenly" is the way back to auto-fill.
+							touched.add(p);
+							const pct = percentFromInput(raw);
+							if (pct !== null) this.percents[p] = pct;
 							rebalancePercents();
 						} else {
 							// Shares and value both take the number as given
@@ -524,7 +633,7 @@ export class PlanCostModal extends FormModal {
 			if (isReceipt) {
 				// Tax and tip are charges on the bill rather than people, so
 				// a rule separates them from the diners above.
-				sharesWrap.createDiv({ cls: "plan-cost-addon-divider" });
+				sharesWrap.createDiv({ cls: "expense-addon-divider" });
 
 				// Same row shape as a person, so they scan as part of the
 				// same list — just a % rather than a $.
@@ -535,10 +644,10 @@ export class PlanCostModal extends FormModal {
 					fallback: number
 				) => {
 					const row = sharesWrap.createDiv({
-						cls: "plan-cost-share-row",
+						cls: "expense-share-row",
 					});
 					const nameLabel = row.createEl("label", {
-						cls: "plan-cost-share-name plan-cost-check",
+						cls: "expense-share-name expense-check",
 					});
 					const box = nameLabel.createEl("input", {
 						attr: { type: "checkbox" },
@@ -547,18 +656,18 @@ export class PlanCostModal extends FormModal {
 					nameLabel.createSpan({ text: label });
 
 					const right = row.createDiv({
-						cls: "plan-cost-share-right",
+						cls: "expense-share-right",
 					});
 					// What this percentage actually comes to, so the bill
 					// is readable without doing the sums yourself
 					addOnAmounts.push({
 						el: right.createSpan({
-							cls: "plan-cost-addon-amount",
+							cls: "expense-addon-amount",
 						}),
 						percent: get,
 					});
 					const input = right.createEl("input", {
-						cls: `contact-field-input plan-cost-share-input ${
+						cls: `contact-field-input expense-share-input ${
 							box.checked ? "" : "is-disabled"
 						}`,
 						attr: { type: "number", min: "0", placeholder: "%" },
@@ -566,7 +675,7 @@ export class PlanCostModal extends FormModal {
 					input.disabled = !box.checked;
 					if (get() !== null) input.value = String(get());
 					right.createSpan({
-						cls: "plan-cost-share-suffix",
+						cls: "expense-share-suffix",
 						text: "%",
 					});
 
@@ -630,7 +739,7 @@ export class PlanCostModal extends FormModal {
 		// Receipt mode computes its own total from the lines, so the amount
 		// field is along for the ride rather than an input.
 		const receiptTotalEl = contentEl.createDiv({
-			cls: "plan-cost-total plan-cost-receipt-total is-balanced",
+			cls: "expense-total expense-receipt-total is-balanced",
 		});
 		syncReceipt = () => {
 			const isReceipt = this.mode === "receipt";
@@ -690,9 +799,11 @@ export class PlanCostModal extends FormModal {
 			if (!label || !Number.isFinite(amount) || amount <= 0) return;
 			const shares = this.buildShares();
 			const exprs = this.buildExprs();
+			const people = this.peopleHandle?.wikilinks();
 			await this.onSubmit({
 				label,
 				amount,
+				...(people && { people }),
 				split: {
 					mode: this.mode,
 					...(shares && { shares }),

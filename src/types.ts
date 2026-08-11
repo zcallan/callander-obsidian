@@ -8,7 +8,6 @@ import type {
 	InterestCategory,
 	PlanIdeaCategory,
 	PlanPriority,
-	ReminderType,
 	SomedayCompany,
 	SomedayDay,
 	SomedaySort,
@@ -16,10 +15,15 @@ import type {
 	SomedayType,
 	TravelType,
 } from "./constants";
+import type { EventSort } from "./utils/eventRow";
+import type {
+	EventStatus,
+	EventVariant,
+} from "./services/EventOperations";
 
 export interface FriendTrackerSettings {
 	/** Holds all Callander data: the People, Groups, Plans, Somedays and
-	 * Reminders folders plus the dashboard file. */
+	 * Events folders plus the dashboard file. */
 	baseFolder: string;
 	diaryFolder: string;
 	/** Basename of the note (in the base folder) that opens the Callander
@@ -32,6 +36,8 @@ export interface FriendTrackerSettings {
 	belatedBirthdayDays: number;
 	/** How far ahead the dashboard's Upcoming section looks, in days */
 	upcomingDays: number;
+	/** How many somedays the dashboard's shortlist shows before "+N more" */
+	dashboardSomedayCount: number;
 	/** Default sales tax %, offered on a "by receipt" expense split */
 	receiptTaxPercent: number;
 	/** Default tip %, offered on a "by receipt" expense split */
@@ -66,11 +72,14 @@ export interface FriendTrackerSettings {
 	/** Sort for the Somedays page; the dashboard's list follows it. Like
 	 * friendListSort, incidental UI state rather than a settings-tab option. */
 	somedaySort: SomedaySort;
+	/** Sort for the Events page — incidental UI state, same as somedaySort. */
+	eventSort: EventSort;
 	/** Sidebar ribbon icons, individually toggleable — see RIBBON_ACTIONS. */
 	ribbonDashboard: boolean;
 	ribbonDiary: boolean;
 	ribbonAddIdea: boolean;
 	ribbonSomedays: boolean;
+	ribbonEvents: boolean;
 	ribbonReminder: boolean;
 }
 
@@ -109,7 +118,7 @@ export interface ContactWithCountdown extends Contact {
 	shortName: string;
 	groups: string[];
 	ideas: Idea[];
-	events: FriendEvent[];
+	events: EventInfo[];
 	drafts: Draft[];
 }
 
@@ -120,6 +129,12 @@ export interface ContactWithCountdown extends Contact {
 export interface Draft {
 	text: string;
 	created: string; // YYYY-MM-DD
+	/**
+	 * A day on the plan this belongs to, when it has one. Dated drafts show
+	 * on the plan timeline alongside the ideas — an unfinished thought about
+	 * Thursday is still a thing about Thursday.
+	 */
+	date?: string;
 }
 
 export interface PlanItem {
@@ -172,7 +187,7 @@ export interface PlanSimpleItem {
  * edits/deletes route to it; there is no duplicate to keep in sync.
  */
 export interface PlanTimelineEntry {
-	source: "idea" | "travel" | "accommodation";
+	source: "idea" | "travel" | "accommodation" | "draft";
 	index: number;
 	date: string;
 	time?: string;
@@ -202,12 +217,28 @@ export interface PlanTimelineEntry {
  * "shares" divides by integer weights (Austin 3, Riley 2 nights, etc.) —
  * generic units, so it works for nights, drinks, gas, anything.
  */
-export interface PlanCost {
+export interface Expense {
 	label: string;
 	amount: number;
 	/** Squared up already — excluded from "Who owes what" and its
 	 * per-person breakdown, and shown struck through in the view modal. */
 	settled?: boolean;
+	/**
+	 * Who's splitting this, as "[[Wikilinks]]" for real contacts and bare
+	 * names for anyone else. Only ad-hoc expenses carry their own people;
+	 * on a plan it's absent and the participants come from plan members.
+	 */
+	people?: string[];
+	/**
+	 * Who's squared up, by display name — the ticked boxes in the read view.
+	 * `settled` is what this adds up to: tick everyone and the expense
+	 * settles itself.
+	 *
+	 * Absent means nothing's been recorded yet, which is not the same as an
+	 * empty list: absent falls back to you being ticked (you're the one who
+	 * paid), while `[]` is an expense explicitly marked unsettled.
+	 */
+	paid?: string[];
 	split: {
 		mode: "even" | "shares" | "percent" | "value" | "receipt";
 		/** Per-person weights (shares), percentages, or exact dollar
@@ -230,7 +261,7 @@ export interface PlanCost {
  * Money a person has already handed over (a transfer, or covering something
  * else) — deducted from what they owe. Not split; it applies to one person.
  */
-export interface PlanCredit {
+export interface Credit {
 	person: string;
 	amount: number;
 	/** Optional context, e.g. "Venmo", "covered petrol". */
@@ -265,9 +296,50 @@ export interface SortConfig {
 }
 
 /**
- * Something that happened: a meetup, a life event of theirs, a memorable
- * outing. The date is a flex string — "2026-05-12", "2026-05", or "2026" —
- * because you often only remember roughly when.
+ * Something on the calendar, past or future: a meetup, a booking, a life
+ * event, a person-less task. One markdown note per event in an Events/
+ * folder; linked people's timelines derive from the `people` wikilinks.
+ */
+export interface EventInfo {
+	file: TFile;
+	name: string;
+	/** Flex date ("2026-05-12" | "2026-05" | "2026"), or "" for undated */
+	date: string;
+	/** 24-hour "HH:MM", or "" */
+	time: string;
+	/** Merged event/reminder vocabulary; "" renders neutral */
+	type: EventType | "";
+	/** Wikilinks to people/groups whose timelines this event shows on */
+	people: string[];
+	location: string;
+	link: string;
+	/** Shown under the name on timelines */
+	description: string;
+	/**
+	 * open | done | cancelled. Done is only offered for tasks and undated
+	 * events (a dated event is implicitly done once its date passes);
+	 * cancelled is the record of something that isn't happening after all —
+	 * kept rather than deleted, so the history stays honest.
+	 */
+	status: EventStatus;
+	/** Calendar entry vs a record of someone — decides whether it shows
+	 * on the dashboard and the Events page. See EventVariant. */
+	variant: EventVariant;
+	/** Whether the people on it see it on their own timelines. True unless
+	 * the note explicitly opts out, so events predating the flag behave as
+	 * they always did. */
+	showOnTimelines: boolean;
+	/** Path of the diary entry this event was logged from, if any —
+	 * used to update instead of duplicate when re-logging */
+	source: string;
+	created: string;
+	updated: string;
+}
+
+/**
+ * LEGACY: the embedded shape events had when they lived inside a person's
+ * frontmatter. Only the migration (and the plan-timeline rows, which fake
+ * this shape) still read it.
  */
 export interface FriendEvent {
 	date: string;
@@ -384,34 +456,6 @@ export interface DiaryEntry {
 	body: string; // markdown body (without frontmatter)
 }
 
-/**
- * A lightweight scheduled reminder — "Laura's birthday" — surfaced on the
- * dashboard's Upcoming section. Stored together in a single Reminders.md file.
- */
-export interface Reminder {
-	/** File path for folder reminders; a random id for legacy Reminders.md rows */
-	id: string;
-	name: string;
-	/** FlexDate string; absent for an undated reminder */
-	date?: string;
-	/** 24-hour "HH:MM" */
-	time?: string;
-	/** What kind of thing it is; typeless (legacy) reminders render neutral */
-	type?: ReminderType;
-	location?: string;
-	link?: string;
-	/** Free text, e.g. "Callan, Steve" — shortened/disambiguated for display
-	 * the same way a plan's people field is (see shortenPeopleList). */
-	people?: string;
-	notes?: string;
-	status?: "open" | "done";
-	created?: string;
-	updated?: string;
-	/** Set for reminders that live as their own file under Reminders/;
-	 * absent for legacy rows still inside Reminders.md */
-	file?: TFile;
-}
-
 export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	baseFolder: "Friends",
 	diaryFolder: "Friends/Diary",
@@ -422,6 +466,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	defaultActiveTab: "notes",
 	belatedBirthdayDays: 14,
 	upcomingDays: 30,
+	dashboardSomedayCount: 10,
 	receiptTaxPercent: 6.25,
 	receiptTipPercent: 20,
 	showBirthdayReminders: true,
@@ -440,9 +485,11 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	draftsCollapsed: false,
 	birthdaysCollapsed: false,
 	somedaySort: "recommended",
+	eventSort: "natural",
 	ribbonDashboard: true,
 	ribbonDiary: false,
 	ribbonAddIdea: false,
 	ribbonSomedays: false,
+	ribbonEvents: false,
 	ribbonReminder: false,
 };

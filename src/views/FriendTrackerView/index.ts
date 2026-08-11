@@ -37,6 +37,10 @@ export class FriendTrackerView extends ItemView {
 		return this.contactOps;
 	}
 
+	get callander() {
+		return this.plugin;
+	}
+
 	// ... rest of the implementation from earlier
 
 	public async openAddContactModal() {

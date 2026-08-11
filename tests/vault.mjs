@@ -13,7 +13,15 @@ import {
 	stringifyYaml,
 	normalizePath,
 	ContactOperations,
+	EventOperations,
+	EventMigration,
 } from "./.build/callander.mjs";
+
+// EventOperations waits on the metadata cache via window timers; Node has
+// the same timer functions on globalThis, so alias it once for the bundle.
+if (typeof globalThis.window === "undefined") {
+	globalThis.window = globalThis;
+}
 
 const DEFAULT_SETTINGS = {
 	baseFolder: "Friends",
@@ -44,6 +52,12 @@ export async function createTestVault(settings = {}) {
 	const app = new FakeApp();
 	const plugin = new FakePlugin(app, settings);
 	const contacts = new ContactOperations(plugin);
+	const events = new EventOperations(plugin);
+	const migration = new EventMigration(plugin);
+	// The services reach each other through the plugin, same as production.
+	plugin.contactOperations = contacts;
+	plugin.eventOperations = events;
+	plugin.refreshDashboards = () => {};
 
 	const base = normalizePath(plugin.settings.baseFolder);
 	await app.vault.createFolder(base);
@@ -54,6 +68,8 @@ export async function createTestVault(settings = {}) {
 		app,
 		plugin,
 		contacts,
+		events,
+		migration,
 		vault: app.vault,
 
 		/** Write a person note from plain frontmatter data. */

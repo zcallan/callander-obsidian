@@ -108,12 +108,15 @@ export class GroupEventModal extends FormModal {
 			const targets = this.contacts.filter((c) =>
 				checked.has(c.file.path)
 			);
+			// One shared event, everyone linked — not a copy per person.
+			await this.plugin.eventOperations.createEvent({
+				name: text,
+				date: dateValue,
+				type: "hangout",
+				people: targets.map((c) => `[[${c.file.basename}]]`),
+			});
 			for (const c of targets) {
-				await this.plugin.contactOperations.addEventToFile(
-					c.file,
-					dateValue,
-					text
-				);
+				await this.plugin.refreshOpenContactPages(c.file);
 			}
 			new Notice(`Logged for ${targets.length} friend(s)`);
 			this.close();

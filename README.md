@@ -6,7 +6,7 @@ We all want to be better friends than our memory allows. You forget a birthday. 
 
 Callander is a quiet, personal space where you jot down the little things that help you show up well for the people you care about — and it resurfaces them when they matter.
 
-You can also create reminders on the dashboard, manage a list of "Somedays" which are loose plans you'd like to do solo or in a group someday soon, and create full plans with as precise or imprecise of a timeline as you like, with a full cost breakdown tool and note taking.
+You can also add events on the dashboard (upcoming bookings, tasks, anything worth keeping in view — with or without people attached), manage a list of "Somedays" which are loose plans you'd like to do solo or in a group someday soon, and create full plans with as precise or imprecise of a timeline as you like, with a full cost breakdown tool and note taking.
 
 This plugin is not designed to store opinions about people, ratings, or really even intimate details. It stores your _fascinations and excitements toward them_ — things you want to do, say, give, or remember.
 

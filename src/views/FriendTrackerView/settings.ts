@@ -184,6 +184,16 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 							max: 365,
 						},
 					},
+					{
+						name: "Somedays shown",
+						desc: 'How many somedays the dashboard lists before the rest become a "+N more" link',
+						control: {
+							type: "number",
+							key: "dashboardSomedayCount",
+							min: 1,
+							max: 50,
+						},
+					},
 				],
 			},
 			{
@@ -447,6 +457,29 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					if (Number.isFinite(parsed)) {
 						this.plugin.settings.upcomingDays = Math.min(
 							365,
+							Math.max(1, Math.round(parsed))
+						);
+						await this.plugin.saveSettings();
+					}
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Somedays shown")
+			.setDesc(
+				'How many somedays the dashboard lists before the rest become a "+N more" link'
+			)
+			.addText((text) => {
+				text.inputEl.type = "number";
+				text.inputEl.min = "1";
+				text.inputEl.max = "50";
+				text.setValue(
+					String(this.plugin.settings.dashboardSomedayCount)
+				).onChange(async (value) => {
+					const parsed = Number(value);
+					if (Number.isFinite(parsed)) {
+						this.plugin.settings.dashboardSomedayCount = Math.min(
+							50,
 							Math.max(1, Math.round(parsed))
 						);
 						await this.plugin.saveSettings();

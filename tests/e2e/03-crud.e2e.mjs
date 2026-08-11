@@ -63,7 +63,7 @@ export async function run({ cdp }) {
 		["A nice mug", "Saltie Girl"]
 	);
 	ok("ideas written to the note body", added.raw.includes("## Ideas"));
-	ok("grouped under category headings", added.raw.includes("### 🎁 Gifts"));
+	ok("grouped under category headings", added.raw.includes("### 🎁 Gift"));
 	ok(
 		"not left in frontmatter",
 		!/^ideas:/m.test(added.raw.split("---")[1] ?? "")

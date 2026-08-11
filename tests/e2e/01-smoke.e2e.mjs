@@ -30,7 +30,7 @@ export async function run({ cdp }) {
 				contact: !!plugin?.contactOperations,
 				plan: !!plugin?.planOperations,
 				someday: !!plugin?.somedayOperations,
-				reminder: !!plugin?.reminderOperations,
+				event: !!plugin?.eventOperations,
 				diary: !!plugin?.diaryOperations,
 			},
 		};
@@ -53,7 +53,7 @@ export async function run({ cdp }) {
 	for (const id of [
 		"callander:open-dashboard",
 		"callander:add-friend",
-		"callander:add-reminder",
+		"callander:add-event",
 		"callander:open-somedays",
 		"callander:add-someday",
 	]) {

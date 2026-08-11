@@ -4,6 +4,8 @@ import { formatDate, ordinalDay } from "@/utils/dateFormat";
 /**
  * Display helpers shared by the plan timeline and its read view, so a stay
  * that reads "3 nights (Thu-Sun)" in one place reads the same in the other.
+ *
+ * Name shortening lives in @/utils/nameFormat — it's used well beyond plans.
  */
 
 /** "Thursday 30 July" from an ISO date. */
@@ -69,119 +71,4 @@ export function nightsLabel(nights: number): string {
 /** True when the text already leads with an emoji/pictograph. */
 export function startsWithEmoji(text: string): boolean {
 	return /^\p{Extended_Pictographic}/u.test(text.trim());
-}
-
-/** How an expense is divided, for display: "By receipt", "Split evenly"… */
-export function splitModeLabel(
-	mode: "even" | "shares" | "percent" | "value" | "receipt"
-): string {
-	switch (mode) {
-		case "percent":
-			return "By percent";
-		case "shares":
-			return "By shares";
-		case "value":
-			return "By value";
-		case "receipt":
-			return "By receipt";
-		default:
-			return "Split evenly";
-	}
-}
-
-/**
- * "Riley" — or "Riley P" when two Rileys would otherwise collide. A name
- * with an override in `shortNames` (keyed by full name, lowercased) skips
- * all of that and renders exactly as given — and doesn't count toward
- * anyone else's collision either, since it's no longer showing as "Riley"
- * at all. Two other Rileys still disambiguate against each other; a Riley
- * with an override never forces that on them.
- */
-export function shortenMemberNames(
-	fullNames: string[],
-	shortNames: Map<string, string> = new Map()
-): string[] {
-	const overrideFor = (name: string) => shortNames.get(name.trim().toLowerCase());
-	const firstCounts = new Map<string, number>();
-	for (const name of fullNames) {
-		if (overrideFor(name)) continue;
-		const first = name.trim().split(/\s+/)[0].toLowerCase();
-		firstCounts.set(first, (firstCounts.get(first) ?? 0) + 1);
-	}
-	return fullNames.map((name) => {
-		const override = overrideFor(name);
-		if (override) return override;
-		const parts = name.trim().split(/\s+/);
-		const first = parts[0];
-		const isDupe = (firstCounts.get(first.toLowerCase()) ?? 0) > 1;
-		if (isDupe && parts.length > 1) {
-			return `${first} ${parts[1].charAt(0).toUpperCase()}`;
-		}
-		return first;
-	});
-}
-
-/**
- * `shortNames` for shortenMemberNames/shortenPeopleList, built from
- * whatever contacts are in view. Only for the user's own reading — never
- * pass this into plan-share text, where a private nickname would mean
- * nothing to whoever receives the message (same reasoning as `yourName`
- * below).
- */
-export function shortNameOverrides(
-	contacts: Array<{ displayName: string; shortName: string }>
-): Map<string, string> {
-	const map = new Map<string, string>();
-	for (const c of contacts) {
-		const override = c.shortName.trim();
-		if (override) map.set(c.displayName.trim().toLowerCase(), override);
-	}
-	return map;
-}
-
-/**
- * An item's comma-separated `people` as first names — "Austin Philleo,
- * Riley Sorensen" reads "Austin, Riley".
- *
- * Disambiguated against the whole plan roster rather than just this row, so
- * a plan with two Rileys renders "Riley S" on every row that has her, not
- * a bare "Riley" on rows where she happens to be the only one. Names typed
- * free-hand (not on the roster) still shorten, and fold into the same
- * collision check.
- *
- * `yourName` (from settings) renders as "Me" — you already know who you
- * are, and it reads the way you'd say it. Only for your own views: a plan
- * shared as a message keeps real names, since "Me" means nothing to whoever
- * receives it. `shortNames` overrides (see shortNameOverrides) follow the
- * same rule, for the same reason.
- */
-export function shortenPeopleList(
-	people: string,
-	roster: string[],
-	yourName = "",
-	shortNames: Map<string, string> = new Map()
-): string {
-	const names = people
-		.split(",")
-		.map((n) => n.trim())
-		.filter(Boolean);
-	if (names.length === 0) return "";
-
-	const pool = [...roster];
-	for (const name of names) {
-		if (!pool.some((p) => p.toLowerCase() === name.toLowerCase())) {
-			pool.push(name);
-		}
-	}
-	const shortened = shortenMemberNames(pool, shortNames);
-	const byFullName = new Map<string, string>();
-	pool.forEach((full, i) => byFullName.set(full.toLowerCase(), shortened[i]));
-
-	const you = yourName.trim().toLowerCase();
-	return names
-		.map((name) => {
-			if (you && name.toLowerCase() === you) return "Me";
-			return byFullName.get(name.toLowerCase()) ?? name;
-		})
-		.join(", ");
 }

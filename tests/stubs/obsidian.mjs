@@ -187,6 +187,12 @@ export class FakeVault {
 	async delete(file) {
 		this.nodes.delete(file.path);
 		this.contents.delete(file.path);
+		// Unlink from the parent folder, or `children` walks find ghosts —
+		// and an emptied folder never looks empty.
+		if (file.parent instanceof TFolder) {
+			const i = file.parent.children.indexOf(file);
+			if (i !== -1) file.parent.children.splice(i, 1);
+		}
 		this.writeLog.push({ op: "delete", path: file.path });
 		this.trigger("delete", file);
 	}
@@ -280,11 +286,39 @@ export class FakeFileManager {
 		await this.vault.delete(file);
 	}
 
+	/** Faithful to the real API: the SAME TFile object survives the rename
+	 * with its path fields updated — callers hold references across it. */
 	async renameFile(file, newPath) {
 		const normalized = normalizePath(newPath);
-		const content = this.vault.contents.get(file.path);
-		await this.vault.delete(file);
-		await this.vault.create(normalized, content ?? "");
+		const oldPath = file.path;
+		const content = this.vault.contents.get(oldPath);
+
+		this.vault.nodes.delete(oldPath);
+		this.vault.contents.delete(oldPath);
+		if (file.parent instanceof TFolder) {
+			const i = file.parent.children.indexOf(file);
+			if (i !== -1) file.parent.children.splice(i, 1);
+		}
+
+		const parentPath = normalized.split("/").slice(0, -1).join("/");
+		if (parentPath && !this.vault.nodes.has(parentPath)) {
+			await this.vault.createFolder(parentPath);
+		}
+
+		file.path = normalized;
+		file.name = normalized.split("/").pop() ?? normalized;
+		const dot = file.name.lastIndexOf(".");
+		file.basename = dot > 0 ? file.name.slice(0, dot) : file.name;
+		file.extension = dot > 0 ? file.name.slice(dot + 1) : "";
+
+		this.vault.nodes.set(normalized, file);
+		if (content !== undefined) this.vault.contents.set(normalized, content);
+		const parent = parentPath ? this.vault.nodes.get(parentPath) : null;
+		if (parent instanceof TFolder && !parent.children.includes(file)) {
+			parent.children.push(file);
+			file.parent = parent;
+		}
+		this.vault.trigger("rename", file, oldPath);
 	}
 }
 

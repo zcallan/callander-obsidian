@@ -1,7 +1,11 @@
 import { setIcon } from "obsidian";
 import type { FriendTrackerView } from "./index";
 import type { ContactWithCountdown, FriendListSort } from "@/types";
-import { parseFlexDate, flexSortKey, monthName } from "@/utils/flexdate";
+import {
+	parseFlexDate,
+	flexSortKey,
+	formatShortFlexDate,
+} from "@/utils/flexdate";
 import { GlanceModal } from "@/modals/GlanceModal";
 
 const SORT_OPTIONS: Array<{ id: FriendListSort; label: string }> = [
@@ -238,7 +242,11 @@ export class TableView {
 			});
 			glanceButton.addEventListener("click", (e) => {
 				e.stopPropagation();
-				new GlanceModal(this.view.app, contact).open();
+				new GlanceModal(
+					this.view.app,
+					this.view.callander,
+					contact
+				).open();
 			});
 		}
 	}
@@ -246,13 +254,6 @@ export class TableView {
 	/** Birthday as a plain date: "21 Aug 1997", "21 Aug", or "Aug 1997". */
 	private birthdayDate(contact: ContactWithCountdown): string {
 		const p = parseFlexDate(contact.birthday);
-		if (!p || p.month === null) return "";
-		const shortMonth = monthName(p.month).slice(0, 3);
-		if (p.day === null) {
-			return p.year !== null ? `${shortMonth} ${p.year}` : shortMonth;
-		}
-		return p.year !== null
-			? `${p.day} ${shortMonth} ${p.year}`
-			: `${p.day} ${shortMonth}`;
+		return p ? formatShortFlexDate(p) : "";
 	}
 }

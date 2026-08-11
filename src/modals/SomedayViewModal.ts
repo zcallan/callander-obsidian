@@ -4,10 +4,10 @@ import type { ContactWithCountdown, SomedayInfo, SomedaySubIdea } from "@/types"
 import { SomedayModal } from "@/modals/SomedayModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
-import { ReminderModal } from "@/modals/ReminderModal";
+import { EventModal } from "@/modals/EventModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
-import { shortenMemberNames, shortNameOverrides } from "@/utils/planFormat";
+import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
 import {
 	formatSomedayDays,
 	formatSomedaySeasons,
@@ -331,28 +331,28 @@ export class SomedayViewModal extends Modal {
 			}
 		);
 		if (!s.convertedTo) {
+			button(progressRow, "calendar-plus", "Make event", () => {
+				this.close();
+				new ConvertSomedayModal(
+					this.app,
+					"Make an event from this someday?",
+					s.name,
+					(markDone) => this.makeEvent(markDone)
+				).open();
+			});
 			button(progressRow, "map", "Make plan", () => {
 				this.close();
 				this.plugin.convertSomedayToPlan(s);
 			});
-			button(progressRow, "alarm-clock", "Make reminder", () => {
-				this.close();
-				new ConvertSomedayModal(
-					this.app,
-					"Make a reminder from this someday?",
-					s.name,
-					(markDone) => this.makeReminder(markDone)
-				).open();
-			});
 		}
 	}
 
-	/** Open the New reminder modal seeded from this someday — nothing is
+	/** Open the Add event modal seeded from this someday — nothing is
 	 * written until its own Save, which also honours the mark-done choice
 	 * made in the confirmation step. */
-	private makeReminder(markDone: boolean) {
+	private makeEvent(markDone: boolean) {
 		const s = this.someday;
-		new ReminderModal(
+		new EventModal(
 			this.app,
 			this.plugin,
 			null,
@@ -365,14 +365,13 @@ export class SomedayViewModal extends Modal {
 				}
 				await this.onChange();
 			},
-			undefined,
 			{
 				name: s.name,
 				// A dated someday carries its date over; a "Within dates"
 				// window carries its opening day.
 				date: s.date || s.fromDate,
-				// Someday people are wikilinks; reminders keep plain text.
-				people: this.shortenedPeopleNames().join(", "),
+				// Both sides keep people as wikilinks — straight across.
+				people: s.people,
 			}
 		).open();
 	}

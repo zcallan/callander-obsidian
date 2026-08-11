@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, setIcon } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { AccommodationType, BookingState, TravelType } from "@/constants";
 import { ACCOMMODATION_TYPES, BOOKING_STATES } from "@/constants";
@@ -300,11 +300,6 @@ export class PlanSimpleItemModal extends FormModal {
 				attr: { type: "text", placeholder: this.placeholders.duration },
 			});
 			durationInput.value = this.initial?.duration ?? "";
-			people = appendPeopleField(
-				contentEl,
-				this.initial?.people,
-				this.scheduleOptions.people
-			);
 			renderBooking();
 		}
 
@@ -313,14 +308,6 @@ export class PlanSimpleItemModal extends FormModal {
 		let notesInput: HTMLTextAreaElement | null = null;
 		if (this.stay) {
 			renderBooking();
-
-			// Who's staying reads better after the booking status than up
-			// among the dates, so a stay places it here itself.
-			people = appendPeopleField(
-				contentEl,
-				this.initial?.people,
-				this.scheduleOptions.people
-			);
 
 			contentEl.createDiv({
 				cls: "modal-section-label",
@@ -351,44 +338,94 @@ export class PlanSimpleItemModal extends FormModal {
 		}
 
 		// Notes apply to a leg as much as a stay — a confirmation number is
-		// worth keeping on a flight too, so this sits outside the stay block.
-		contentEl.createDiv({
-			cls: "modal-section-label",
-			text: "Notes (optional)",
-		});
-		notesInput = contentEl.createEl("textarea", {
-			cls: "quick-idea-input plan-notes-input",
-			attr: {
-				rows: "2",
-				placeholder: this.stay
-					? "e.g. Check in 4pm, check out 10am"
-					: "e.g. Confirmation ABC123, seat 14A",
-			},
-		});
-		notesInput.value = this.initial?.notes ?? "";
+		// worth keeping on a flight too. Only the placeholder differs.
+		const buildNotes = (host: HTMLElement) => {
+			host.createDiv({
+				cls: "modal-section-label",
+				text: "Notes (optional)",
+			});
+			const el = host.createEl("textarea", {
+				cls: "quick-idea-input plan-notes-input",
+				attr: {
+					rows: "2",
+					placeholder: this.stay
+						? "e.g. Check in 4pm, check out 10am"
+						: "e.g. Confirmation ABC123, seat 14A",
+				},
+			});
+			el.value = this.initial?.notes ?? "";
+			return el;
+		};
 
-		contentEl.createDiv({
-			cls: "modal-section-label",
-			text: this.stay
-				? "Cost for the whole stay (blank if unknown)"
-				: "Cost (0 = free, blank if unknown)",
-		});
-		const costWrap = contentEl.createDiv({
-			cls: "plan-cost-input-wrap",
-		});
-		costWrap.createSpan({ cls: "plan-cost-input-prefix", text: "$" });
-		const costInput = costWrap.createEl("input", {
-			cls: "quick-idea-input plan-cost-input",
-			attr: {
-				type: "number",
-				min: "0",
-				inputmode: "decimal",
-				placeholder: "0 = free",
-			},
-		});
-		// Distinguish an explicit 0 (free) from blank (unknown) — 0 is falsy.
-		if (this.initial?.cost !== undefined) {
-			costInput.value = String(this.initial.cost);
+		const buildCost = (host: HTMLElement) => {
+			host.createDiv({
+				cls: "modal-section-label",
+				text: this.stay
+					? "Cost for the whole stay (blank if unknown)"
+					: "Cost (0 = free, blank if unknown)",
+			});
+			const wrap = host.createDiv({ cls: "expense-input-wrap" });
+			wrap.createSpan({ cls: "expense-input-prefix", text: "$" });
+			const el = wrap.createEl("input", {
+				cls: "quick-idea-input expense-input",
+				attr: {
+					type: "number",
+					min: "0",
+					inputmode: "decimal",
+					placeholder: "0 = free",
+				},
+			});
+			// Distinguish an explicit 0 (free) from blank (unknown) — 0 is
+			// falsy, so `!== undefined` is the test that keeps them apart.
+			if (this.initial?.cost !== undefined) {
+				el.value = String(this.initial.cost);
+			}
+			return el;
+		};
+
+		let costInput: HTMLInputElement;
+		{
+			// Both kinds fold their optional extras away, the same as an
+			// idea does — what/kind/when/booking (and an address, or a
+			// duration) is the form, and the rest is detail you fill in
+			// when you have it.
+			const detailsWrap = contentEl.createDiv({
+				cls: "callander-modal-field plan-accordion callander-modal-accordion",
+			});
+			const detailsHeader = detailsWrap.createDiv({
+				cls: "plan-accordion-header callander-modal-accordion-header",
+			});
+			detailsHeader.createSpan({ text: "Additional details" });
+			setIcon(
+				detailsHeader.createSpan({ cls: "plan-accordion-chevron" }),
+				"chevron-down"
+			);
+			const detailsBody = detailsWrap.createDiv({
+				cls: "plan-accordion-body",
+			});
+			detailsHeader.addEventListener("click", () => {
+				detailsWrap.toggleClass(
+					"is-open",
+					!detailsWrap.hasClass("is-open")
+				);
+			});
+			// Opens showing saved detail rather than hiding it behind a lid.
+			detailsWrap.toggleClass(
+				"is-open",
+				!!(
+					this.initial?.people ||
+					this.initial?.notes ||
+					this.initial?.cost !== undefined
+				)
+			);
+
+			people = appendPeopleField(
+				detailsBody,
+				this.initial?.people,
+				this.scheduleOptions.people
+			);
+			costInput = buildCost(detailsBody);
+			notesInput = buildNotes(detailsBody);
 		}
 
 		const buttons = contentEl.createDiv({

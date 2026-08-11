@@ -12,11 +12,11 @@ updated: 2026-08-03
 
 ## Ideas
 
-### 🎁 Gifts
+### 🎁 Gift
 
 - [ ] Ricer for mashed potatoes
 - [x] Cookbook ⏳ 2026-03
 
-### 📍 Places
+### 📍 Place
 
 - [ ] Saltie Girl in Back Bay

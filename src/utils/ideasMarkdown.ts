@@ -18,12 +18,12 @@ import {
  *
  *     ## Ideas
  *
- *     ### 🎁 Gifts
+ *     ### 🎁 Gift
  *
  *     - [ ] Ricer for mashed potatoes
  *     - [x] Cookbook ⏳ 2026-03
  *
- *     ### 📍 Places
+ *     ### 📍 Place
  *
  *     - [ ] Saltie Girl in Back Bay
  *
@@ -49,9 +49,24 @@ const GROUP_HEADING = /^###\s+(.*)$/;
  */
 const RESURFACE = /\s*⏳\s*(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s*$/;
 
+/**
+ * Labels as they read before categories were singularised. A note written
+ * under the old labels keeps them until its Ideas section is next
+ * rewritten (upsert regenerates every heading from the current label) —
+ * until then, a plain rename here would silently reclassify existing
+ * gifts/conversations/activities/places/recommendations as "other".
+ */
+const LEGACY_LABELS: Record<string, IdeaCategory> = {
+	gifts: "gift",
+	conversations: "conversation",
+	activities: "activity",
+	places: "place",
+	recommendations: "recommendation",
+};
+
 function categoryFromHeading(heading: string): IdeaCategory | null {
 	// The emoji is decoration — match on the label so a hand-typed
-	// "### Gifts" works exactly as well as the emoji form.
+	// "### Gift" works exactly as well as the emoji form.
 	const cleaned = heading
 		.replace(/[\p{Extended_Pictographic}️]/gu, "")
 		.trim()
@@ -59,7 +74,8 @@ function categoryFromHeading(heading: string): IdeaCategory | null {
 	const found = IDEA_CATEGORIES.find(
 		(c) => c.label.toLowerCase() === cleaned
 	);
-	return found ? found.id : null;
+	if (found) return found.id;
+	return LEGACY_LABELS[cleaned] ?? null;
 }
 
 export function isIdeaLine(line: string): boolean {

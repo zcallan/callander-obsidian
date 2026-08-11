@@ -4,7 +4,7 @@ import type { App } from "obsidian";
  * Resolves once the metadata cache has caught up with a write.
  *
  * Obsidian indexes frontmatter on an async pass, so anything that reads
- * through `metadataCache` — `getReminders()`, `getContacts()` — can run
+ * through `metadataCache` — `getEvents()`, `getContacts()` — can run
  * before the write it just made is visible, and quietly render stale data.
  *
  * Two modes:
@@ -14,7 +14,7 @@ import type { App } from "obsidian";
  *
  * Prefer `until` whenever the caller knows what it wrote. Waiting for "an
  * index event happened" is not enough when a file is written twice in
- * quick succession — creating a reminder does exactly that, `vault.create`
+ * quick succession — creating an event does exactly that, `vault.create`
  * then `processFrontMatter` — because the *first* write's event can land
  * after the second write was issued and resolve the wait against
  * frontmatter that is still missing the fields from it.

@@ -13,6 +13,7 @@ import { ContactFields } from "@/components/ContactFields";
 import { EventTimeline } from "@/components/EventTimeline";
 import type {
 	ContactWithCountdown,
+	EventInfo,
 	FriendEvent,
 	Idea,
 	InsideJoke,
@@ -43,8 +44,9 @@ import {
 	BOOKING_STATES,
 } from "@/constants";
 import type {
-	PlanCost,
-	PlanCredit,
+	Draft,
+	Expense,
+	Credit,
 	PlanItem,
 	PlanSimpleItem,
 	PlanTimelineEntry,
@@ -65,16 +67,27 @@ import {
 	formatTimelineDay,
 	nightsLabel,
 	nightsSummary,
-	shortenPeopleList,
-	splitModeLabel,
 } from "@/utils/planFormat";
+import { shortenPeopleList } from "@/utils/nameFormat";
+import { formatDate } from "@/utils/dateFormat";
+import { ContactOperations } from "@/services/ContactOperations";
+import { PlanDraftViewModal } from "@/modals/PlanDraftViewModal";
+import { resolvePeopleInfo, type PersonInfo } from "@/utils/people";
+import { appendExpenseRow } from "@/components/ExpenseRow";
+import {
+	breakdownFor,
+	creditTotalFor,
+	creditsOf,
+	expensesOf,
+	isPaidBy,
+	owedFor,
+} from "@/utils/expenseMath";
 import { ScheduleFieldOptions } from "@/modals/scheduleFields";
 import { InterestModal } from "@/modals/InterestModal";
-import { PlanCostModal } from "@/modals/PlanCostModal";
-import { PlanCostViewModal } from "@/modals/PlanCostViewModal";
-import { PlanCostBreakdownModal } from "@/modals/PlanCostBreakdownModal";
-import { PlanCreditModal } from "@/modals/PlanCreditModal";
-import { CopyEventModal } from "@/modals/CopyEventModal";
+import { ExpenseModal } from "@/modals/ExpenseModal";
+import { ExpenseViewModal } from "@/modals/ExpenseViewModal";
+import { ExpenseBreakdownModal } from "@/modals/ExpenseBreakdownModal";
+import { CreditModal } from "@/modals/CreditModal";
 import { NoteInputModal } from "@/modals/NoteInputModal";
 import { FunFactsModal } from "@/modals/FunFactsModal";
 import { QuoteModal } from "@/modals/QuoteModal";
@@ -83,7 +96,6 @@ import {
 	parseFlexDate,
 	formatFlexDate,
 	formatTimeSince,
-	flexSortKey,
 	monthName,
 	todayISO,
 } from "@/utils/flexdate";
@@ -246,9 +258,11 @@ export class ContactPageView extends ItemView {
 		return this.plugin.settings.relationshipTypes;
 	}
 
-	/** In-memory events, post-migration — the same array reference. */
-	private eventsList(): FriendEvent[] {
-		return asArray(this.contactData.events) as FriendEvent[];
+	/** This page's events, derived from the Events/ files that link here. */
+	private eventsList(): EventInfo[] {
+		return this._file
+			? this.plugin.eventOperations.eventsFor(this._file)
+			: [];
 	}
 
 	/**
@@ -369,6 +383,34 @@ export class ContactPageView extends ItemView {
 				}
 			})
 		);
+
+		// The timeline derives from Events/ files — re-render when any of
+		// them change, so an edit made elsewhere (dashboard, another pane)
+		// shows up here without a reopen.
+		const eventsTouched = (path: string) =>
+			this.plugin.eventOperations.isEventFile(path);
+		const rerenderOnEvent = (path: string, oldPath?: string) => {
+			if (!this._file) return;
+			if (!eventsTouched(path) && !(oldPath && eventsTouched(oldPath))) {
+				return;
+			}
+			if (this.isEditingInView()) return;
+			this.render();
+		};
+		this.registerEvent(
+			this.app.vault.on("modify", (f) => rerenderOnEvent(f.path))
+		);
+		this.registerEvent(
+			this.app.vault.on("create", (f) => rerenderOnEvent(f.path))
+		);
+		this.registerEvent(
+			this.app.vault.on("delete", (f) => rerenderOnEvent(f.path))
+		);
+		this.registerEvent(
+			this.app.vault.on("rename", (f, old) =>
+				rerenderOnEvent(f.path, old)
+			)
+		);
 	}
 
 	/** True if an input/textarea inside this view has focus (mid-edit) */
@@ -438,7 +480,6 @@ export class ContactPageView extends ItemView {
 			this.bodyQuotes = parseQuotesSection(body);
 			this.bodyIdeas = parseIdeasSection(body);
 			this.migrateLegacyGiftIdeas();
-			this.migrateLegacyInteractions();
 			this.migratePlanStructure();
 			await this.migrateQuotesToBody();
 			await this.migrateIdeasToBody();
@@ -549,7 +590,7 @@ export class ContactPageView extends ItemView {
 				"Add accommodation"
 			);
 			this.renderPlanBring(planSection("backpack", "What to bring"));
-			this.renderPlanCosts(planSection("dollar-sign", "Cost breakdown"));
+			this.renderExpenses(planSection("dollar-sign", "Cost breakdown"));
 			this.renderNotesSection(planSection("pencil", "Notes"));
 			void this.renderExtrasSection(
 				planSection("document", "Links & details")
@@ -1693,34 +1734,16 @@ export class ContactPageView extends ItemView {
 	}
 
 	/**
-	 * Resolves each member wikilink to its contact's displayName + shortName
-	 * (guests with no matching file fall back to the linktext itself, with
-	 * no shortName). The one place that walks the links, so
-	 * planMemberDisplays and planShortNameOverrides can never drift apart.
+	 * This plan's members as display info — see resolvePeopleInfo, which does
+	 * the resolving. Kept as a method so planMemberDisplays and
+	 * planShortNameOverrides share one source and can never drift apart.
 	 *
 	 * Distinct from resolvePlanMembers() below, which resolves to TFiles —
 	 * this resolves to the display info those files' frontmatter holds.
 	 */
-	private planMemberInfo(
-		list?: string[]
-	): Array<{ displayName: string; shortName: string }> {
-		const members =
-			list ?? asArray(this.contactData.members).map(String);
-		return members.map((raw) => {
-			const linktext = String(raw).replace(/^\[\[|\]\]$/g, "");
-			const dest = this._file
-				? this.app.metadataCache.getFirstLinkpathDest(
-						linktext,
-						this._file.path
-				  )
-				: null;
-			if (!dest) return { displayName: linktext, shortName: "" };
-			const fm = this.app.metadataCache.getFileCache(dest)?.frontmatter;
-			return {
-				displayName: String(fm?.displayName ?? dest.basename),
-				shortName: fm?.shortName ? String(fm.shortName).trim() : "",
-			};
-		});
+	private planMemberInfo(list?: string[]): PersonInfo[] {
+		const members = list ?? asArray(this.contactData.members).map(String);
+		return resolvePeopleInfo(this.app, this._file?.path ?? "", members);
 	}
 
 	/** "Thu 30 Jul - Sun 2 Aug", "Thu 30 Jul", or just "October" */
@@ -2066,6 +2089,104 @@ export class ContactPageView extends ItemView {
 		});
 	}
 
+	/**
+	 * Edit a draft in place — its text and, on a plan, the day it sits on.
+	 * Clearing the day takes it back off the timeline without discarding it,
+	 * which is the difference between this and Discard.
+	 */
+	private openPlanDraftModal(index: number) {
+		const drafts = ContactOperations.draftsOf(this.contactData);
+		const draft = drafts[index];
+		if (!draft) return;
+		new NoteInputModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name || "",
+			async (text, date) => {
+				const list = ContactOperations.draftsOf(this.contactData);
+				const current = list[index];
+				if (!current) return;
+				list[index] = {
+					...current,
+					text,
+					...(date ? { date } : {}),
+				};
+				if (!date) delete list[index].date;
+				this.contactData.drafts = list;
+				await this.saveContactData();
+				this.render();
+			},
+			draft.text,
+			this.planScheduleOptions().dayOptions,
+			draft.date
+		).open();
+	}
+
+	/** Read/edit a dated draft from the timeline, and act on it. */
+	private openPlanDraftView(index: number) {
+		const draft = ContactOperations.draftsOf(this.contactData)[index];
+		if (!draft) return;
+		const dayOptions = this.planScheduleOptions().dayOptions;
+
+		const writeDraft = async (patch: Partial<Draft>) => {
+			const list = ContactOperations.draftsOf(this.contactData);
+			const current = list[index];
+			if (!current) return;
+			list[index] = { ...current, ...patch };
+			if (!list[index].date) delete list[index].date;
+			this.contactData.drafts = list;
+			await this.saveContactData();
+			this.render();
+		};
+
+		// Consumed by whatever it becomes: the draft goes first, then the
+		// real form opens carrying its text and day. Cancelling that form
+		// loses the draft — which is what the confirmation warned about.
+		const convert = async (
+			text: string,
+			open: (text: string, date?: string) => void
+		) => {
+			// The day is written the moment it changes, so the store is
+			// current for it; the text may still be mid-edit, so it comes
+			// from the modal rather than from disk.
+			const date =
+				ContactOperations.draftsOf(this.contactData)[index]?.date;
+			this.removeFromList("drafts", index);
+			await this.saveContactData();
+			this.render();
+			open(text, date);
+		};
+
+		new PlanDraftViewModal(
+			this.app,
+			draft.text,
+			draft.date,
+			dayOptions,
+			(text) => writeDraft({ text }),
+			(date) => writeDraft({ date }),
+			(text) =>
+				convert(text, (text, date) =>
+					this.openPlanIdeaModal(null, {
+						category: "activity",
+						priority: "must",
+						text,
+						...(date && { date }),
+					})
+				),
+			(text) =>
+				convert(text, (text, date) =>
+					this.openPlanTravelModal(null, {
+						text,
+						...(date && { date }),
+					})
+				),
+			async () => {
+				this.removeFromList("drafts", index);
+				await this.saveContactData();
+				this.render();
+			}
+		).open();
+	}
+
 	private renderPlanIdeas(container: HTMLElement) {
 		const section = container.createDiv({
 			cls: "contact-ideas-section plan-items-section",
@@ -2116,7 +2237,7 @@ export class ContactPageView extends ItemView {
 				});
 				if (item.cost !== undefined) {
 					textEl.createSpan({
-						cls: "plan-item-cost",
+						cls: "item-cost",
 						text: ` · ${formatItemCost(item.cost)}`,
 					});
 				}
@@ -2207,7 +2328,7 @@ export class ContactPageView extends ItemView {
 			}
 			if (item.cost !== undefined) {
 				textEl.createSpan({
-					cls: "plan-item-cost",
+					cls: "item-cost",
 					text: ` · ${formatItemCost(item.cost)}`,
 				});
 			}
@@ -2384,6 +2505,14 @@ export class ContactPageView extends ItemView {
 			cls: "contact-timeline-text",
 			text: showEmoji ? `${entry.emoji} ${entry.text}` : entry.text,
 		});
+		// A draft says so, in its own colour — it's on the timeline because
+		// it has a day, not because it's a decision anyone has made yet.
+		if (entry.source === "draft") {
+			textEl.createSpan({
+				cls: "plan-timeline-draft-tag",
+				text: " • Draft",
+			});
+		}
 		const metaBits: string[] = [];
 		if (entry.duration) metaBits.push(entry.duration);
 		// Answers "when do we leave?" without a second timeline row.
@@ -2507,6 +2636,12 @@ export class ContactPageView extends ItemView {
 
 	/** Tapping a timeline row reads it first; Edit/Delete live in that view. */
 	private openTimelineEntry(entry: PlanTimelineEntry) {
+		// A draft has its own view — the shared one is built around fields
+		// it doesn't have, and would label it as accommodation besides.
+		if (entry.source === "draft") {
+			this.openPlanDraftView(entry.index);
+			return;
+		}
 		new PlanTimelineViewModal(
 			this.app,
 			entry,
@@ -2521,6 +2656,12 @@ export class ContactPageView extends ItemView {
 
 	/** Remove a timeline row's underlying item from the plan. */
 	private async deleteTimelineEntry(entry: PlanTimelineEntry) {
+		if (entry.source === "draft") {
+			this.removeFromList("drafts", entry.index);
+			await this.saveContactData();
+			this.render();
+			return;
+		}
 		if (entry.source === "idea") {
 			const current = PlanOperations.itemsOf(this.contactData);
 			current.splice(entry.index, 1);
@@ -2574,6 +2715,10 @@ export class ContactPageView extends ItemView {
 
 	/** Route a timeline row back to its real item's edit modal. */
 	private editTimelineEntry(entry: PlanTimelineEntry) {
+		if (entry.source === "draft") {
+			this.openPlanDraftModal(entry.index);
+			return;
+		}
 		if (entry.source === "idea") {
 			const item =
 				PlanOperations.itemsOf(this.contactData)[entry.index] ?? null;
@@ -2604,6 +2749,10 @@ export class ContactPageView extends ItemView {
 			opts.dayOptions = this.daysBetween(startISO, endISO).map((d) => ({
 				value: d,
 				label: formatTimelineDay(d),
+				// What a pill shows when the range is short enough for them.
+				short: formatDate(new Date(`${d}T00:00:00`), {
+					weekday: "long",
+				}),
 			}));
 			opts.lastDay = endISO;
 		}
@@ -2842,12 +2991,12 @@ export class ContactPageView extends ItemView {
 		return names;
 	}
 
-	private renderPlanCosts(container: HTMLElement) {
+	private renderExpenses(container: HTMLElement) {
 		const section = container.createDiv({
 			cls: "contact-ideas-section plan-items-section",
 		});
-		const costs = PlanOperations.costsOf(this.contactData);
-		const credits = PlanOperations.creditsOf(this.contactData);
+		const costs = expensesOf(this.contactData);
+		const credits = creditsOf(this.contactData);
 		const participants = this.planParticipants();
 		const shortNames = this.planShortNameOverrides();
 		// You're the one owed — not someone who owes — so you're excluded from
@@ -2869,7 +3018,7 @@ export class ContactPageView extends ItemView {
 		// Running total each person owes across all expenses
 		const owedTotals: Record<string, number> = {};
 		const deleteCost = async (index: number) => {
-			const list = PlanOperations.costsOf(this.contactData);
+			const list = expensesOf(this.contactData);
 			list.splice(index, 1);
 			if (list.length > 0) this.contactData.costs = list;
 			else delete this.contactData.costs;
@@ -2877,13 +3026,13 @@ export class ContactPageView extends ItemView {
 			this.render();
 		};
 
-		const editCost = (index: number, cost: PlanCost) => {
-			new PlanCostModal(
+		const editCost = (index: number, cost: Expense) => {
+			new ExpenseModal(
 				this.app,
 				participants,
 				cost,
 				async (updated) => {
-					const list = PlanOperations.costsOf(this.contactData);
+					const list = expensesOf(this.contactData);
 					list[index] = updated;
 					this.contactData.costs = list;
 					await this.saveContactData();
@@ -2896,14 +3045,18 @@ export class ContactPageView extends ItemView {
 			).open();
 		};
 
-		// Persists the toggle and refreshes the page underneath — the view
+		// Persists the tick state and refreshes the page underneath — the view
 		// modal is a separate overlay, so this never disturbs it; it updates
 		// its own display itself once the save resolves.
-		const toggleCostSettled = async (index: number, settled: boolean) => {
-			const list = PlanOperations.costsOf(this.contactData);
+		const toggleCostSettled = async (
+			index: number,
+			paid: string[],
+			settled: boolean
+		) => {
+			const list = expensesOf(this.contactData);
 			const current = list[index];
 			if (!current) return;
-			const updated: PlanCost = { ...current };
+			const updated: Expense = { ...current, paid };
 			if (settled) updated.settled = true;
 			else delete updated.settled;
 			list[index] = updated;
@@ -2913,29 +3066,29 @@ export class ContactPageView extends ItemView {
 		};
 
 		// Tapping a row reads it first; Edit/Delete live in that view.
-		const openCost = (index: number, cost: PlanCost) => {
-			new PlanCostViewModal(
+		const openCost = (index: number, cost: Expense) => {
+			new ExpenseViewModal(
 				this.app,
 				cost,
 				participants,
 				() => editCost(index, cost),
 				() => deleteCost(index),
 				this.plugin.settings.yourName,
-				(settled) => toggleCostSettled(index, settled),
+				({ paid, settled }) => toggleCostSettled(index, paid, settled),
 				shortNames
 			).open();
 		};
 
 		const openCredit = (
 			index: number | null,
-			credit: PlanCredit | null
+			credit: Credit | null
 		) => {
-			new PlanCreditModal(
+			new CreditModal(
 				this.app,
 				creditPeople,
 				credit,
 				async (updated) => {
-					const list = PlanOperations.creditsOf(this.contactData);
+					const list = creditsOf(this.contactData);
 					if (index === null) list.push(updated);
 					else list[index] = updated;
 					this.contactData.credits = list;
@@ -2945,7 +3098,7 @@ export class ContactPageView extends ItemView {
 				index === null
 					? undefined
 					: async () => {
-							const list = PlanOperations.creditsOf(
+							const list = creditsOf(
 								this.contactData
 							);
 							list.splice(index, 1);
@@ -2959,32 +3112,19 @@ export class ContactPageView extends ItemView {
 		};
 
 		costs.forEach((cost, index) => {
-			const row = section.createDiv({
-				cls: "contact-idea-item plan-cost-row plan-clickable-row",
-			});
-			row.addEventListener("click", () => openCost(index, cost));
-			const textEl = row.createDiv({ cls: "contact-idea-text" });
-			textEl.createSpan({
-				cls: "plan-cost-label",
-				text: cost.label,
-			});
-			textEl.createSpan({
-				cls: "plan-item-cost",
-				text: ` · $${cost.amount} · `,
-			});
-			textEl.createSpan({
-				cls: cost.settled
-					? "plan-item-cost plan-cost-settled-label"
-					: "plan-item-cost",
-				text: cost.settled
-					? "Settled"
-					: splitModeLabel(cost.split.mode).toLowerCase(),
+			appendExpenseRow(section, cost, participants, {
+				yourName,
+				onClick: () => openCost(index, cost),
 			});
 
 			// Settled — already squared up, so it drops out of "Who owes what".
 			if (cost.settled) return;
-			const owed = PlanOperations.owedFor(cost, participants);
+			const owed = owedFor(cost, participants);
 			for (const p of participants) {
+				// Ticked off on this expense specifically: they've handed
+				// their share over even though the expense as a whole is
+				// still waiting on someone else.
+				if (isPaidBy(cost, p)) continue;
 				owedTotals[p] = (owedTotals[p] ?? 0) + (owed[p] ?? 0);
 			}
 		});
@@ -2992,16 +3132,16 @@ export class ContactPageView extends ItemView {
 		// Credits — money already handed over, shown after the expenses
 		credits.forEach((credit, index) => {
 			const row = section.createDiv({
-				cls: "contact-idea-item plan-cost-row plan-credit-row plan-clickable-row",
+				cls: "contact-idea-item expense-row plan-credit-row plan-clickable-row",
 			});
 			row.addEventListener("click", () => openCredit(index, credit));
 			const textEl = row.createDiv({ cls: "contact-idea-text" });
 			textEl.createSpan({
-				cls: "plan-cost-label",
+				cls: "expense-label",
 				text: `↩ ${credit.person}`,
 			});
 			textEl.createSpan({
-				cls: "plan-item-cost plan-credit-amount",
+				cls: "item-cost plan-credit-amount",
 				text: ` · ${money(-credit.amount)}${
 					credit.note ? ` · ${credit.note}` : ""
 				}`,
@@ -3019,11 +3159,11 @@ export class ContactPageView extends ItemView {
 				: [];
 
 			const details = section.createEl("details", {
-				cls: "plan-cost-summary",
+				cls: "expense-summary",
 			});
 			// Collapsed by default — expand to see who owes what.
 			const summaryEl = details.createEl("summary", {
-				cls: "plan-cost-summary-total",
+				cls: "expense-summary-total",
 			});
 			const totalSpan = summaryEl.createSpan();
 			// Outstanding total = net owed by everyone not yet ticked off.
@@ -3039,31 +3179,69 @@ export class ContactPageView extends ItemView {
 						(s, p) =>
 							s +
 							((owedTotals[p] ?? 0) -
-								PlanOperations.creditTotalFor(p, credits)),
+								creditTotalFor(p, credits)),
 						0
 					);
-				totalSpan.setText(`Who owes what · ${money(outstanding)}`);
+				totalSpan.setText(`Who owes what · ${money(outstanding)} left`);
 			};
 			refreshTotal();
 
-			const owedList = details.createDiv({
-				cls: "plan-cost-owed-list",
-			});
-			for (const p of participants) {
-				const rowEl = owedList.createDiv({
-					cls: `plan-cost-owed-row${paid.includes(p) ? " paid" : ""}`,
+			// Rounds the way the row does, so someone displaying "$0.00"
+			// counts as settled even if a float left a fraction of a cent.
+			const isSquare = (p: string) =>
+				Math.abs(
+					(owedTotals[p] ?? 0) - creditTotalFor(p, credits)
+				) < 0.005;
+			const outstandingPeople = participants.filter((p) => !isSquare(p));
+			const settledPeople = participants.filter(isSquare);
+
+			// What's left to chase leads; whoever's square folds away into
+			// its own accordion, still there to check.
+			const owedList = details.createDiv({ cls: "expense-owed-list" });
+			let settledList: HTMLElement | null = null;
+			if (settledPeople.length > 0) {
+				const settledWrap = details.createEl("details", {
+					cls: "expense-settled-group",
+				});
+				const settledSummary = settledWrap.createEl("summary", {
+					cls: "expense-settled-summary",
+				});
+				setIcon(
+					settledSummary.createSpan({
+						cls: "expense-settled-chevron",
+					}),
+					"chevron-down"
+				);
+				settledSummary.createSpan({ text: "Show settled people" });
+				settledList = settledWrap.createDiv({
+					cls: "expense-owed-list",
+				});
+			}
+
+			for (const p of [...outstandingPeople, ...settledPeople]) {
+				// Each list bands independently, which is what lets plain
+				// :nth-child do it — nothing is hidden inside either one.
+				// Owing nothing IS settled — the tick just says so, with
+				// nothing left for it to toggle.
+				const square = isSquare(p);
+				const list = square ? settledList ?? owedList : owedList;
+				const done = paid.includes(p) || square;
+				const rowEl = list.createDiv({
+					cls: `expense-owed-row${done ? " paid" : ""}`,
 				});
 				// Checkbox + name in a label so tapping either toggles "paid".
 				const check = rowEl.createEl("label", {
-					cls: "plan-cost-owed-check",
+					cls: "expense-owed-check",
 				});
 				const checkbox = check.createEl("input", {
 					attr: { type: "checkbox", "aria-label": `Mark ${p} paid` },
 				});
-				checkbox.checked = paid.includes(p);
-				// You can't owe yourself — leave your own row un-tickable.
-				checkbox.disabled = isYou(p);
-				check.toggleClass("is-disabled", isYou(p));
+				checkbox.checked = done;
+				// You can't owe yourself, and there's nothing to tick off
+				// someone who owes nothing — both rows stay read-only.
+				const locked = isYou(p) || square;
+				checkbox.disabled = locked;
+				check.toggleClass("is-disabled", locked);
 				const togglePaid = async () => {
 					const current: string[] = Array.isArray(
 						this.contactData.costsPaid
@@ -3083,15 +3261,29 @@ export class ContactPageView extends ItemView {
 				};
 				checkbox.addEventListener("change", () => void togglePaid());
 				check.createSpan({
-					cls: "plan-cost-owed-name",
+					cls: "expense-owed-name",
 					text: isYou(p) ? `${p} (Me)` : p,
 				});
 
+				// The label only covers its own text, leaving the row's
+				// padding and the space out by the amount dead to a click.
+				// Forwarding from the row picks all of that up.
+				if (!checkbox.disabled) {
+					rowEl.addClass("is-clickable");
+					rowEl.addEventListener("click", (ev) => {
+						const target = ev.target as HTMLElement | null;
+						// The label toggles it natively and Breakdown opens a
+						// modal — forwarding either would undo or hijack it.
+						if (target?.closest("label, button")) return;
+						checkbox.click();
+					});
+				}
+
 				const owedGross = owedTotals[p] ?? 0;
-				const credited = PlanOperations.creditTotalFor(p, credits);
+				const credited = creditTotalFor(p, credits);
 				const net = owedGross - credited;
 				rowEl.createSpan({
-					cls: "plan-cost-owed-amount",
+					cls: "expense-owed-amount",
 					text: money(net),
 				});
 
@@ -3100,19 +3292,19 @@ export class ContactPageView extends ItemView {
 				// rather than on the amount owed: once everything of theirs is
 				// settled they owe nothing, but the settled lines are exactly
 				// what you'd open this to check.
-				const breakdownRows = PlanOperations.breakdownFor(
+				const breakdownRows = breakdownFor(
 					p,
 					costs,
 					participants,
 					credits
 				);
 				const breakdownBtn = rowEl.createEl("button", {
-					cls: "callander-button plan-breakdown-btn",
+					cls: "callander-button expense-breakdown-btn",
 					text: "Breakdown",
 				});
 				if (breakdownRows.length > 0) {
 					breakdownBtn.addEventListener("click", () => {
-						new PlanCostBreakdownModal(
+						new ExpenseBreakdownModal(
 							this.app,
 							p,
 							breakdownRows
@@ -3122,10 +3314,11 @@ export class ContactPageView extends ItemView {
 					breakdownBtn.disabled = true;
 				}
 			}
+
 		}
 
 		const footer = section.createDiv({
-			cls: "contact-section-footer plan-cost-footer",
+			cls: "contact-section-footer expense-footer",
 		});
 		const addButton = footer.createEl("button", {
 			cls: "callander-button",
@@ -3133,12 +3326,12 @@ export class ContactPageView extends ItemView {
 		setIcon(addButton, "plus");
 		addButton.createSpan({ text: "Add expense" });
 		addButton.addEventListener("click", () => {
-			new PlanCostModal(
+			new ExpenseModal(
 				this.app,
 				this.planParticipants(),
 				null,
 				async (cost) => {
-					const list = PlanOperations.costsOf(this.contactData);
+					const list = expensesOf(this.contactData);
 					list.push(cost);
 					this.contactData.costs = list;
 					await this.saveContactData();
@@ -3325,22 +3518,6 @@ export class ContactPageView extends ItemView {
 		if (travel.length > 0) this.contactData.travel = travel;
 	}
 
-	private migrateLegacyInteractions() {
-		const legacy = asArray(this.contactData.interactions);
-		if (legacy.length > 0) {
-			const migrated = legacy.map((i): FriendEvent => {
-				const date = fieldOf(i, "date");
-				const text = fieldOf(i, "text");
-				return {
-					date: toText(date),
-					text: text == null ? toText(i) : toText(text),
-				};
-			});
-			this.contactData.events = [...this.eventsList(), ...migrated];
-		}
-		delete this.contactData.interactions;
-	}
-
 	private normalizeCategory(idea: Idea): IdeaCategory {
 		return IDEA_CATEGORIES.some((c) => c.id === idea.category)
 			? idea.category
@@ -3377,7 +3554,7 @@ export class ContactPageView extends ItemView {
 			});
 			group.createDiv({
 				cls: "contact-idea-group-header",
-				text: `${cat.emoji} ${cat.label}`,
+				text: `${cat.emoji} ${cat.plural}`,
 			});
 
 			for (const { idea, index } of items) {
@@ -3470,15 +3647,25 @@ export class ContactPageView extends ItemView {
 	// Capture a raw draft about this friend/plan — appears in the drafts
 	// strip to triage later
 	private openQuickNote() {
+		// A plan's days are offerable; a person's note has no day to sit on.
+		const dayOptions = this.isPlanFile()
+			? this.planScheduleOptions().dayOptions
+			: undefined;
 		new NoteInputModal(
 			this.app,
 			this.contactData.displayName || this.contactData.name || "",
-			async (text) => {
+			async (text, date) => {
 				const created = new Date().toISOString().split("T")[0];
-				this.pushToList("drafts", { text, created });
+				this.pushToList("drafts", {
+					text,
+					created,
+					...(date && { date }),
+				});
 				await this.saveContactData();
 				this.render();
-			}
+			},
+			undefined,
+			dayOptions
 		).open();
 	}
 
@@ -4015,22 +4202,6 @@ export class ContactPageView extends ItemView {
 		// don't reload on top of ourselves
 		this.writingUntil = Date.now() + 1500;
 
-		// Sort events by date in descending order (newest first),
-		// respecting flexible-precision dates
-		if (Array.isArray(this.contactData.events)) {
-			this.contactData.events.sort((a: FriendEvent, b: FriendEvent) => {
-				const emptyFlex = {
-					year: null,
-					month: null,
-					day: null,
-				};
-				return (
-					flexSortKey(parseFlexDate(b.date) ?? emptyFlex) -
-					flexSortKey(parseFlexDate(a.date) ?? emptyFlex)
-				);
-			});
-		}
-
 		// People and plans carry a last-updated stamp; group pages don't
 		const path = this._file.path;
 		const stampUpdated =
@@ -4070,96 +4241,51 @@ export class ContactPageView extends ItemView {
 		modal.open();
 	}
 
-	private async openAddEventModal() {
-		const modal = new EventModal(
+	private openAddEventModal() {
+		const file = this._file;
+		if (!file) return;
+		new EventModal(
 			this.app,
+			this.plugin,
 			null,
-			async (date, text, type, location, link, description) => {
-				await this.addEvent(
-					date,
-					text,
-					type,
-					location,
-					link,
-					description
-				);
-			}
-		);
-		modal.open();
+			() => this.render(),
+			{
+				// The event lands on this page's timeline; more people can be
+				// picked in the modal, and it reaches their timelines too.
+				people: [`[[${file.basename}]]`],
+				// Started from someone's page, so it's a record of them by
+				// default — the modal's tick opts it onto your calendar too.
+				variant: "timeline",
+			},
+			// Removing them would leave the event with nowhere to land.
+			[`[[${file.basename}]]`]
+		).open();
 	}
 
-	public async addEvent(
-		date: string,
-		text: string,
-		type: EventType,
-		location?: string,
-		link?: string,
-		description?: string
-	) {
-		this.pushToList("events", {
+	/** Log a quick event on this page's timeline (idea done → timeline). */
+	public async addEvent(date: string, text: string, type: EventType) {
+		const file = this._file;
+		if (!file) return;
+		await this.plugin.eventOperations.createEvent({
+			name: text,
 			date,
-			text,
 			type,
-			...(location && { location }),
-			...(link && { link }),
-			...(description && { description }),
+			people: [`[[${file.basename}]]`],
+			// Added from someone's page: a record of them, not a calendar
+			// entry, so it stays on their timeline.
+			variant: "timeline",
 		});
-		await this.saveContactData();
 		this.render();
 	}
 
-	public async openEditEventModal(index: number, event: FriendEvent) {
-		const modal = new EventModal(
-			this.app,
-			event,
-			async (date, text, type, location, link, description) => {
-				const events = this.eventsList();
-				this.contactData.events = events;
-				// Preserve extra properties (e.g. diary source link)
-				events[index] = {
-					...events[index],
-					date,
-					text,
-					type,
-				};
-				if (location) {
-					events[index].location = location;
-				} else {
-					delete events[index].location;
-				}
-				if (link) {
-					events[index].link = link;
-				} else {
-					delete events[index].link;
-				}
-				if (description) {
-					events[index].description = description;
-				} else {
-					delete events[index].description;
-				}
-				await this.saveContactData();
-				this.render();
-			},
-			async () => {
-				await this.deleteEvent(index);
-			},
-			() => {
-				if (this._file) {
-					new CopyEventModal(
-						this.app,
-						this.plugin,
-						event,
-						this._file.path
-					).open();
-				}
-			}
-		);
-		modal.open();
+	public openEditEventModal(event: EventInfo) {
+		new EventModal(this.app, this.plugin, event, () =>
+			this.render()
+		).open();
 	}
 
-	public async deleteEvent(index: number) {
-		this.eventsList().splice(index, 1);
-		await this.saveContactData();
+	public async deleteEvent(event: EventInfo) {
+		await this.plugin.eventOperations.deleteEvent(event.file);
 		this.render();
 	}
 

@@ -10,12 +10,7 @@ import type FriendTracker from "@/main";
 import type { SomedayInfo } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
-import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
-import { splitLeadingEmoji } from "@/components/EventTimeline";
 import {
-	formatSomedayDays,
-	formatSomedaySeasonDeadline,
-	somedayType,
 	SOMEDAY_DAYS,
 	SOMEDAY_SEASONS,
 	SOMEDAY_COMPANY,
@@ -29,11 +24,10 @@ import {
 import {
 	sortSomedays,
 	possibleToday,
-	fromDateLabel,
-	untilDateLabel,
-	dateDeadlineLabel,
 	WEEKDAY_BY_INDEX,
 } from "@/utils/somedaySort";
+import { somedayRowParts } from "@/utils/somedayRow";
+import { buildSomedayRow } from "@/components/SomedayRow";
 
 export const VIEW_TYPE_SOMEDAYS = "callander-somedays";
 
@@ -601,26 +595,6 @@ export class SomedaysView extends ItemView {
 		}
 	}
 
-	/**
-	 * The right-hand summary: "Sat / Sun", "Any day · Sat 12 Sep", or
-	 * nothing at all.
-	 *
-	 * Seasons and a month/year-precision date are deliberately absent —
-	 * they read as a deadline beside the name ("by end of Fall", "by end
-	 * of Sep") rather than as timing here; see dateDeadlineLabel. An
-	 * unconstrained someday says nothing rather than "Any time", which
-	 * every row would otherwise carry.
-	 */
-	private whenSummary(s: SomedayInfo): string {
-		const days = formatSomedayDays(s.days);
-		const flex = parseFlexDate(s.date);
-		if (flex && flex.day !== null) {
-			const when = formatFlexDate(flex);
-			return days ? `${days} · ${when}` : when;
-		}
-		return days;
-	}
-
 	private renderRow(container: HTMLElement, someday: SomedayInfo) {
 		const inactive = someday.status === "done" || !!someday.convertedTo;
 		const row = container.createDiv({
@@ -628,42 +602,7 @@ export class SomedaysView extends ItemView {
 				inactive ? " someday-inactive" : ""
 			}`,
 		});
-
-		// The lead type's emoji fronts the title unless the name brings its
-		// own — same treatment as the view modal, so row and detail match.
-		const typeInfo = somedayType(someday.types[0]);
-		const title =
-			typeInfo && !splitLeadingEmoji(someday.name)
-				? `${typeInfo.emoji} ${someday.name}`
-				: someday.name;
-		const main = row.createDiv({ cls: "someday-row-main" });
-		main.createSpan({ cls: "someday-title", text: title });
-
-		// Deadlines ride with the name rather than the timing summary —
-		// they're about this someday's window, not about when it suits.
-		// A not-yet-open window leads ("from 12 Sep") since it explains why
-		// the row sits low under Recommended; then the firmer until-date.
-		// The date and season entries never fire alongside those — the
-		// modal keeps every mode mutually exclusive.
-		const now = new Date();
-		const deadlines = [
-			fromDateLabel(someday.fromDate, now),
-			untilDateLabel(someday.untilDate, now),
-			dateDeadlineLabel(someday.date, now),
-			formatSomedaySeasonDeadline(someday.seasons),
-		].filter(Boolean);
-		if (deadlines.length > 0) {
-			main.createSpan({
-				cls: "someday-row-final",
-				text: ` • ${deadlines.join(" • ")}`,
-			});
-		}
-
-		const when = this.whenSummary(someday);
-		if (when) {
-			row.createDiv({ cls: "someday-row-when", text: when });
-		}
-
+		buildSomedayRow(row, somedayRowParts(someday, new Date()));
 		row.addEventListener("click", () => this.openViewModal(someday));
 	}
 
