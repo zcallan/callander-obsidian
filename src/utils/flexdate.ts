@@ -7,6 +7,8 @@
  * precision it was recorded, never pretending to know more.
  */
 
+import { formatDate } from "@/utils/dateFormat";
+
 export interface FlexDate {
 	year: number | null;
 	month: number | null; // 1-12
@@ -115,6 +117,40 @@ export function formatFlexDate(date: FlexDate): string {
 }
 
 /**
+ * Compact, day-first display at the recorded precision: "28 Nov 1997" |
+ * "28 Nov" | "Nov 1997" | "Nov" | "1997".
+ *
+ * The month is abbreviated by hand rather than through Intl — en-AU's
+ * "short" month renders "July" in full, so the locale can't be trusted
+ * to actually shorten it.
+ */
+export function formatShortFlexDate(date: FlexDate): string {
+	if (date.month === null) {
+		return date.year !== null ? String(date.year) : "";
+	}
+	const month = MONTH_NAMES[date.month - 1].slice(0, 3);
+	const parts = [
+		date.day !== null ? String(date.day) : "",
+		month,
+		date.year !== null ? String(date.year) : "",
+	];
+	return parts.filter(Boolean).join(" ");
+}
+
+/**
+ * "Thu 30 Jul" — a real calendar Date (not a FlexDate: this is for the
+ * exact-day case only), weekday from the locale, month abbreviated by
+ * hand for the same reason as formatShortFlexDate above. No year — this
+ * is for a compact share/copy line, not a record meant to survive years
+ * of scrollback.
+ */
+export function formatShortWeekdayDate(d: Date): string {
+	return `${formatDate(d, { weekday: "short" })} ${d.getDate()} ${monthName(
+		d.getMonth() + 1
+	).slice(0, 3)}`;
+}
+
+/**
  * Numeric sort key for chronological ordering. Coarser dates sort before
  * finer ones within the same period ("2026" < "2026-05" < "2026-05-12").
  */
@@ -138,6 +174,111 @@ export function isFlexUpcoming(date: FlexDate, now = new Date()): boolean {
 	if (date.month !== m) return date.month > m;
 	if (date.day === null) return true;
 	return date.day >= now.getDate();
+}
+
+/**
+ * Is this flex date in the recent past — within `months` back, but not
+ * upcoming? The inverse partner to isFlexUpcoming, for "what happened
+ * lately" lists.
+ *
+ * A coarse date is read at the start of its period (a bare "2026" counts
+ * from 1 January), which errs towards dropping the vaguest entries rather
+ * than showing something that may well be outside the window.
+ */
+export function isFlexWithinLastMonths(
+	date: FlexDate,
+	months: number,
+	now = new Date()
+): boolean {
+	if (date.year === null) return false;
+	if (isFlexUpcoming(date, now)) return false;
+	const when = new Date(date.year, (date.month ?? 1) - 1, date.day ?? 1);
+	const cutoff = new Date(now);
+	cutoff.setMonth(cutoff.getMonth() - months);
+	cutoff.setHours(0, 0, 0, 0);
+	return when >= cutoff;
+}
+
+/**
+ * Which end of a date span speaks for it, and where the span sits
+ * relative to now.
+ *
+ * While any of it is still ahead the start is what matters ("in 3 days");
+ * once the whole span is behind you the end is — a four-day trip that
+ * finished yesterday reads "yesterday", not "4 days ago".
+ *
+ * Only a day-precision end counts: a month-precision one can't say
+ * whether the span has finished, so the start keeps both jobs. Callers
+ * that split past from future on `past` are guaranteed to place a span in
+ * exactly one of the two, since both answers come from this one flag.
+ */
+export function resolveSpan(
+	start: FlexDate,
+	end: FlexDate | null,
+	now = new Date()
+): { date: FlexDate; past: boolean; underway: boolean } {
+	const exactEnd =
+		end && end.year !== null && end.month !== null && end.day !== null
+			? end
+			: null;
+	const started = !isFlexUpcoming(start, now);
+	const past = exactEnd ? !isFlexUpcoming(exactEnd, now) : started;
+	return {
+		date: past && exactEnd ? exactEnd : start,
+		past,
+		underway: !!exactEnd && started && !past,
+	};
+}
+
+/**
+ * How far off a date is, in words: "today", "in 5 days", "2 months ago",
+ * "3 years ago". Reads at the date's own precision — a month-only date
+ * never claims a day count — and "" without a year to measure from.
+ *
+ * Unlike formatTimeSince this looks forwards as well as back, and counts
+ * exact days for a day-precision date, so something last week doesn't
+ * round up to "1 month ago".
+ */
+export function formatRelativeFlex(date: FlexDate, now = new Date()): string {
+	if (date.year === null) return "";
+
+	const phrase = (n: number, unit: string) => {
+		const size = Math.abs(n);
+		const plural = `${size} ${unit}${size === 1 ? "" : "s"}`;
+		return n < 0 ? `${plural} ago` : `in ${plural}`;
+	};
+	// Math.round breaks .5 towards +Infinity, so rounding the magnitude
+	// keeps a date 45 days back and one 45 days ahead the same distance.
+	const scale = (n: number, per: number) =>
+		Math.sign(n) * Math.round(Math.abs(n) / per);
+
+	if (date.month !== null && date.day !== null) {
+		const target = new Date(date.year, date.month - 1, date.day);
+		target.setHours(0, 0, 0, 0);
+		const today = new Date(now);
+		today.setHours(0, 0, 0, 0);
+		const days = Math.round(
+			(target.getTime() - today.getTime()) / 86400000
+		);
+		if (days === 0) return "today";
+		if (days === 1) return "tomorrow";
+		if (days === -1) return "yesterday";
+		if (Math.abs(days) <= 30) return phrase(days, "day");
+		if (Math.abs(days) < 365) return phrase(scale(days, 30), "month");
+		return phrase(scale(days, 365), "year");
+	}
+
+	if (date.month !== null) {
+		const months =
+			(date.year - now.getFullYear()) * 12 +
+			(date.month - (now.getMonth() + 1));
+		if (months === 0) return "this month";
+		if (Math.abs(months) < 12) return phrase(months, "month");
+		return phrase(scale(months, 12), "year");
+	}
+
+	const years = date.year - now.getFullYear();
+	return years === 0 ? "this year" : phrase(years, "year");
 }
 
 /**

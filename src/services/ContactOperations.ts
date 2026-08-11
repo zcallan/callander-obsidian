@@ -3,13 +3,19 @@ import type FriendTracker from "@/main";
 import type {
 	ContactWithCountdown,
 	Draft,
-	FriendEvent,
+	Expense,
 	GroupInfo,
 	Quote,
 	Idea,
 } from "@/types";
-import type { EventType, IdeaCategory } from "@/constants";
-import { parseFlexDate, formatFlexDate, todayISO } from "@/utils/flexdate";
+import { expensesOf } from "@/utils/expenseMath";
+import type { IdeaCategory } from "@/constants";
+import {
+	parseFlexDate,
+	formatFlexDate,
+	flexSortKey,
+	todayISO,
+} from "@/utils/flexdate";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import {
 	joinFrontmatter,
@@ -173,26 +179,17 @@ export class ContactOperations {
 		return [...ideas, ...legacy];
 	}
 
-	/** Merge modern + legacy event keys into one normalized list */
-	static eventsOf(metadata: unknown): FriendEvent[] {
-		// Events pass through by reference — extra keys (source, link,
-		// hiddenFromUpcoming) must survive frontmatter round-trips untouched
-		const events = asArray(fieldOf(metadata, "events")) as FriendEvent[];
-		const legacy = asArray(
-			fieldOf(metadata, "interactions")
-		) as FriendEvent[];
-		return [...events, ...legacy];
-	}
-
 	static draftsOf(metadata: unknown): Draft[] {
 		return asArray(fieldOf(metadata, "drafts"))
 			.map((d): Draft => {
 				if (typeof d === "string") return { text: d, created: "" };
 				const text = fieldOf(d, "text");
 				const created = fieldOf(d, "created");
+				const date = fieldOf(d, "date");
 				return {
 					text: typeof text === "string" ? text : "",
 					created: typeof created === "string" ? created : "",
+					...(typeof date === "string" && date ? { date } : {}),
 				};
 			})
 			.filter((d) => d.text.length > 0);
@@ -498,6 +495,41 @@ export class ContactOperations {
 		return ContactOperations.ideasOf(metadata);
 	}
 
+	// ---- Ad-hoc expenses (also on the dashboard file) ----
+
+	/**
+	 * One-off shared expenses, kept under `expenses` on the dashboard file —
+	 * separate from the `costs` key a trip carries, so the two never collide
+	 * if a dashboard note is ever reused for something else.
+	 */
+	async getExpenses(): Promise<Expense[]> {
+		const file = this.app.vault.getAbstractFileByPath(
+			this.getDashboardFilePath()
+		);
+		if (!(file instanceof TFile)) return [];
+		const metadata =
+			this.app.metadataCache.getFileCache(file)?.frontmatter;
+		return expensesOf(metadata, "expenses");
+	}
+
+	/**
+	 * Read-modify-write the expense list. Creates the dashboard file if it
+	 * isn't there yet, so the first expense doesn't need one to exist, and
+	 * drops the key entirely once the last expense goes — an empty list is
+	 * noise in a note you might actually open.
+	 */
+	async writeExpenses(
+		mutate: (list: Expense[]) => void
+	): Promise<void> {
+		const file = await this.ensureDashboardFile();
+		await this.writeFrontMatter(file, (fm) => {
+			const list = expensesOf(fm, "expenses");
+			mutate(list);
+			if (list.length > 0) fm.expenses = list;
+			else delete fm.expenses;
+		});
+	}
+
 	/** Move an inbox idea onto a friend (or group) file */
 	async moveInboxIdea(index: number, target: TFile): Promise<Idea | null> {
 		const inbox = this.app.vault.getAbstractFileByPath(this.getDashboardFilePath());
@@ -522,184 +554,6 @@ export class ContactOperations {
 			await this.writeFrontMatter(target, () => undefined);
 		}
 		return moved;
-	}
-
-	// ---- Events ----
-
-	/** Append an event to any file's frontmatter (friend or group) */
-	async addEventToFile(
-		file: TFile,
-		date: string,
-		text: string,
-		type: EventType = "hangout",
-		location?: string
-	): Promise<void> {
-		await this.writeFrontMatter(file, (fm) => {
-				const events = ContactOperations.eventsOf(fm);
-				delete fm.interactions;
-				fm.events = [
-					...events,
-					{ date, text, type, ...(location && { location }) },
-				];
-			}
-		);
-	}
-
-	/**
-	 * Add or update a timeline event that originates from a diary entry.
-	 * Keyed by source path, so re-logging updates rather than duplicates.
-	 */
-	async upsertDiaryEvent(
-		file: TFile,
-		source: string,
-		date: string,
-		text: string
-	): Promise<void> {
-		await this.writeFrontMatter(file, (fm) => {
-				const events = ContactOperations.eventsOf(fm);
-				const existing = events.findIndex((e) => e.source === source);
-				if (existing >= 0) {
-					// Update in place; a manually adjusted type is preserved
-					events[existing] = { ...events[existing], date, text };
-				} else {
-					events.push({ date, text, type: "hangout", source });
-				}
-				delete fm.interactions;
-				fm.events = events;
-			}
-		);
-	}
-
-	/** Remove the event that came from a given diary entry, if present */
-	async removeDiaryEvent(file: TFile, source: string): Promise<void> {
-		await this.writeFrontMatter(file, (fm) => {
-				const events = ContactOperations.eventsOf(fm);
-				const kept = events.filter((e) => e.source !== source);
-				if (kept.length !== events.length) {
-					delete fm.interactions;
-					if (kept.length > 0) fm.events = kept;
-					else delete fm.events;
-				}
-			}
-		);
-	}
-
-	/** Update an event on a friend/group file, matched by deep equality */
-	async updateEventInFile(
-		file: TFile,
-		original: FriendEvent,
-		updated: {
-			date: string;
-			text: string;
-			type: EventType;
-			location?: string;
-			link?: string;
-			description?: string;
-		}
-	): Promise<void> {
-		await this.writeFrontMatter(file, (fm) => {
-				const events = ContactOperations.eventsOf(fm);
-				const index = events.findIndex(
-					(e) => JSON.stringify(e) === JSON.stringify(original)
-				);
-				if (index === -1) return;
-				events[index] = {
-					...events[index],
-					date: updated.date,
-					text: updated.text,
-					type: updated.type,
-				};
-				if (updated.location) events[index].location = updated.location;
-				else delete events[index].location;
-				if (updated.link) events[index].link = updated.link;
-				else delete events[index].link;
-				if (updated.description)
-					events[index].description = updated.description;
-				else delete events[index].description;
-				delete fm.interactions;
-				fm.events = events;
-			}
-		);
-	}
-
-	/** Delete an event from a friend/group file, matched by deep equality */
-	async deleteEventFromFile(file: TFile, target: FriendEvent): Promise<void> {
-		await this.writeFrontMatter(file, (fm) => {
-				const events = ContactOperations.eventsOf(fm);
-				const kept = events.filter(
-					(e) => JSON.stringify(e) !== JSON.stringify(target)
-				);
-				if (kept.length !== events.length) {
-					delete fm.interactions;
-					if (kept.length > 0) fm.events = kept;
-					else delete fm.events;
-				}
-			}
-		);
-	}
-
-	/**
-	 * Hide an event from the dashboard's Upcoming section only — the
-	 * timeline on the person's page is unaffected. Matched by deep equality.
-	 */
-	async hideEventFromUpcoming(file: TFile, target: FriendEvent): Promise<void> {
-		await this.writeFrontMatter(file, (fm) => {
-				const events = ContactOperations.eventsOf(fm);
-				const index = events.findIndex(
-					(e) => JSON.stringify(e) === JSON.stringify(target)
-				);
-				if (index === -1) return;
-				events[index] = { ...events[index], hiddenFromUpcoming: true };
-				delete fm.interactions;
-				fm.events = events;
-			}
-		);
-	}
-
-	/**
-	 * Patch just an event's description — the auto-saving textarea in
-	 * EventViewModal. Deliberately narrower than updateEventInFile: that
-	 * method always resolves a concrete type (defaulting untyped events to
-	 * "hangout"), which would be a surprising side effect of merely typing
-	 * a description. Matched by deep equality.
-	 */
-	async updateEventDescription(
-		file: TFile,
-		target: FriendEvent,
-		description: string
-	): Promise<void> {
-		await this.writeFrontMatter(file, (fm) => {
-				const events = ContactOperations.eventsOf(fm);
-				const index = events.findIndex(
-					(e) => JSON.stringify(e) === JSON.stringify(target)
-				);
-				if (index === -1) return;
-				if (description) {
-					events[index] = { ...events[index], description };
-				} else {
-					const { description: _drop, ...rest } = events[index];
-					events[index] = rest;
-				}
-				delete fm.interactions;
-				fm.events = events;
-			}
-		);
-	}
-
-	/** A diary entry was renamed — keep event source links pointing at it */
-	async retargetDiarySource(
-		oldPath: string,
-		newPath: string
-	): Promise<void> {
-		await this.forEachContactFile((file, fm) => {
-			const events = ContactOperations.eventsOf(fm);
-			if (events.some((e) => e.source === oldPath)) {
-				delete fm.interactions;
-				fm.events = events.map((e) =>
-					e.source === oldPath ? { ...e, source: newPath } : e
-				);
-			}
-		});
 	}
 
 	/** Record that this year's birthday wish was sent (dashboard "Missed") */
@@ -746,10 +600,6 @@ export class ContactOperations {
 						fm[key] = value;
 					}
 				}
-				fm.events = [
-					...ContactOperations.eventsOf(fm),
-					...ContactOperations.eventsOf(dupMeta),
-				];
 				delete fm.ideas;
 				delete fm.giftIdeas;
 				delete fm.quotes;
@@ -785,6 +635,10 @@ export class ContactOperations {
 			}
 			return joinFrontmatter(frontmatter, next);
 		});
+
+		// Events link to people rather than living inside them — repoint
+		// the duplicate's links at the kept friend before it goes.
+		await this.plugin.eventOperations.retargetPerson(duplicate, keep);
 
 		await this.app.fileManager.trashFile(duplicate);
 	}
@@ -836,6 +690,11 @@ export class ContactOperations {
 		);
 		const contacts: ContactWithCountdown[] = [];
 
+		// Events live as files now — one pass over the Events folder builds
+		// everyone's list, instead of resolving links per contact.
+		const eventsByPerson =
+			this.plugin.eventOperations.eventsByPersonPath();
+
 		for (const file of files) {
 			if (!(file instanceof TFile)) continue;
 
@@ -852,14 +711,23 @@ export class ContactOperations {
 						return v ? toText(v) : "";
 					};
 
-					// Events are stored newest-first; fall back to the legacy
-					// interactions key for contacts not yet migrated
-					const latest =
-						asArray(metadata.events)[0] ??
-						asArray(metadata.interactions)[0] ??
-						null;
-					const lastInteraction = latest
-						? this.formatDaysAgo(toText(fieldOf(latest, "date")))
+					const events = eventsByPerson.get(file.path) ?? [];
+
+					// The most recent (largest) event date stands in for
+					// "last interaction", matching the old newest-first read.
+					let latestDate = "";
+					let latestKey = -1;
+					for (const e of events) {
+						const p = parseFlexDate(e.date);
+						if (!p || p.year === null) continue;
+						const k = flexSortKey(p);
+						if (k > latestKey) {
+							latestKey = k;
+							latestDate = e.date;
+						}
+					}
+					const lastInteraction = latestDate
+						? this.formatDaysAgo(latestDate)
 						: null;
 
 					// Ideas live in the note body, so unlike everything else
@@ -889,7 +757,7 @@ export class ContactOperations {
 						birthdayWished: str("birthdayWished"),
 						groups: ContactOperations.groupsOf(metadata),
 						ideas,
-						events: ContactOperations.eventsOf(metadata),
+						events,
 						drafts: ContactOperations.draftsOf(metadata),
 						file,
 					});

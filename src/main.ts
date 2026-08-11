@@ -9,7 +9,8 @@ import {
 	stringifyYaml,
 } from "obsidian";
 import { FriendTrackerSettings, DEFAULT_SETTINGS, SomedayInfo } from "./types";
-import { fieldOf, isRecord, toText } from "@/utils/fm";
+import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
+import { classifyExistingEvent } from "@/utils/eventRow";
 import {
 	IdeaCategory,
 	formatSomedaySeasons,
@@ -29,7 +30,8 @@ import { QuickNoteModal } from "@/modals/QuickNoteModal";
 import { PlanItemModal } from "@/modals/PlanItemModal";
 import { PlanOperations } from "@/services/PlanOperations";
 import { SomedayOperations } from "@/services/SomedayOperations";
-import { ReminderOperations } from "@/services/ReminderOperations";
+import { EventOperations } from "@/services/EventOperations";
+import { EventMigration } from "@/services/EventMigration";
 import {
 	FriendTrackerView,
 	VIEW_TYPE_FRIEND_TRACKER,
@@ -92,6 +94,22 @@ function createSetViewStateOverride(
 			plugin.settings.openContactsInCallanderView &&
 			viewState.type === "markdown" &&
 			typeof path === "string" &&
+			plugin.shouldOpenAsEvent(path)
+		) {
+			return original.call(
+				this,
+				{
+					...viewState,
+					type: VIEW_TYPE_EVENTS,
+					state: { focusPath: path },
+				},
+				eventState
+			);
+		}
+		if (
+			plugin.settings.openContactsInCallanderView &&
+			viewState.type === "markdown" &&
+			typeof path === "string" &&
 			plugin.shouldOpenAsContact(path)
 		) {
 			return original.call(
@@ -112,6 +130,7 @@ import { DiaryOperations } from "@/services/DiaryOperations";
 import { DiaryView, VIEW_TYPE_DIARY } from "@/views/DiaryView";
 import { DashboardView, VIEW_TYPE_DASHBOARD } from "@/views/DashboardView";
 import { SomedaysView, VIEW_TYPE_SOMEDAYS } from "@/views/SomedaysView";
+import { EventsView, VIEW_TYPE_EVENTS } from "@/views/EventsView";
 import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { GlanceModal } from "@/modals/GlanceModal";
@@ -121,7 +140,7 @@ import { MergeFriendsModal } from "@/modals/MergeFriendsModal";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { PlanModal } from "@/modals/PlanModal";
-import { ReminderModal } from "@/modals/ReminderModal";
+import { EventModal } from "@/modals/EventModal";
 import { daysFromToday, parseFlexDate, todayISO } from "@/utils/flexdate";
 import { metadataSettled } from "@/utils/metadataSettled";
 
@@ -131,7 +150,8 @@ export default class FriendTracker extends Plugin {
 	public diaryOperations: DiaryOperations;
 	public planOperations: PlanOperations;
 	public somedayOperations: SomedayOperations;
-	public reminderOperations: ReminderOperations;
+	public eventOperations: EventOperations;
+	private eventMigration: EventMigration;
 	public lastQuickIdeaCategory: IdeaCategory = "gift";
 	private statusBarEl: HTMLElement | null = null;
 	/** Currently-added ribbon icons, keyed by their settings key — lets
@@ -149,7 +169,8 @@ export default class FriendTracker extends Plugin {
 		this.diaryOperations = new DiaryOperations(this);
 		this.planOperations = new PlanOperations(this);
 		this.somedayOperations = new SomedayOperations(this);
-		this.reminderOperations = new ReminderOperations(this);
+		this.eventOperations = new EventOperations(this);
+		this.eventMigration = new EventMigration(this);
 
 		// On mobile, we should wait for layout-ready
 		this.app.workspace.onLayoutReady(() => {
@@ -190,6 +211,10 @@ export default class FriendTracker extends Plugin {
 			this.registerView(
 				VIEW_TYPE_SOMEDAYS,
 				(leaf) => new SomedaysView(leaf, this)
+			);
+			this.registerView(
+				VIEW_TYPE_EVENTS,
+				(leaf) => new EventsView(leaf, this)
 			);
 
 			// Ribbon: the dashboard is the front door. Each icon is
@@ -233,9 +258,14 @@ export default class FriendTracker extends Plugin {
 				callback: () => this.openSomedayModal(),
 			});
 			this.addCommand({
-				id: "add-reminder",
-				name: "New reminder",
-				callback: () => this.openReminderModal(),
+				id: "open-events",
+				name: "Open events",
+				callback: () => this.activateEvents(),
+			});
+			this.addCommand({
+				id: "add-event",
+				name: "New event",
+				callback: () => this.openEventModal(),
 			});
 			this.addCommand({
 				id: "quick-note",
@@ -314,7 +344,7 @@ export default class FriendTracker extends Plugin {
 						file instanceof TFile &&
 						this.diaryOperations.isDiaryFile(file.path)
 					) {
-						void this.contactOperations.retargetDiarySource(
+						void this.eventOperations.retargetDiarySource(
 							oldPath,
 							file.path
 						);
@@ -334,6 +364,23 @@ export default class FriendTracker extends Plugin {
 
 			// The idea inbox's old standalone file becomes the dashboard file
 			await this.contactOperations.migrateLegacyInboxFile();
+
+			// The reminders→events merge: move embedded person events and
+			// reminder files into Events/. Detection-based, so re-running on
+			// every cache settle is a cheap no-op once done — and exactly
+			// what catches an old-format file syncing in from a device that
+			// hasn't updated yet.
+			this.registerEvent(
+				this.app.metadataCache.on("resolved", () => {
+					void this.eventMigration.run();
+				})
+			);
+			await this.eventMigration.run();
+
+			// Classify anything the reminders→events merge just landed (and
+			// anything older) as a calendar entry or a person's timeline
+			// record — must follow that merge, which creates the files.
+			await this.migrateEventVariants();
 
 			// Check for birthdays after everything is initialized — and
 			// keep checking (hourly + on focus) so a Mac waking up with
@@ -368,7 +415,8 @@ export default class FriendTracker extends Plugin {
 			ribbonDiary: () => this.activateDiaryView(),
 			ribbonAddIdea: () => this.openQuickIdeaCapture(),
 			ribbonSomedays: () => this.activateSomedays(),
-			ribbonReminder: () => this.openReminderModal(),
+			ribbonEvents: () => this.activateEvents(),
+			ribbonReminder: () => this.openEventModal(),
 		};
 	}
 
@@ -565,7 +613,7 @@ export default class FriendTracker extends Plugin {
 		if (!path.endsWith(".md")) return false;
 		// Callander pages are identified purely by folder: People/, Plans/
 		// and Groups/ under the base folder. Everything else there —
-		// Reminders, the Idea Inbox, recaps, diary entries — is a plain
+		// Events, the Idea Inbox, recaps, diary entries — is a plain
 		// note. No metadata-cache lookup, so freshly created files route
 		// correctly before they're indexed.
 		return (
@@ -585,6 +633,11 @@ export default class FriendTracker extends Plugin {
 	public shouldOpenAsSomeday(path: string): boolean {
 		if (this.markdownBypass.has(path)) return false;
 		return this.somedayOperations.isSomedayFile(path);
+	}
+
+	public shouldOpenAsEvent(path: string): boolean {
+		if (this.markdownBypass.has(path)) return false;
+		return this.eventOperations.isEventFile(path);
 	}
 
 	/** The dashboard file opens the dashboard view, not its raw markdown. */
@@ -639,6 +692,24 @@ export default class FriendTracker extends Plugin {
 			)) {
 				const view = leaf.view;
 				if (view instanceof SomedaysView) {
+					await view.setState({ focusPath }, { history: false });
+					break;
+				}
+			}
+		}
+	}
+
+	public async activateEvents(focusPath?: string) {
+		await this.activateLeafOfType(
+			VIEW_TYPE_EVENTS,
+			(v) => v instanceof EventsView
+		);
+		if (focusPath) {
+			for (const leaf of this.app.workspace.getLeavesOfType(
+				VIEW_TYPE_EVENTS
+			)) {
+				const view = leaf.view;
+				if (view instanceof EventsView) {
 					await view.setState({ focusPath }, { history: false });
 					break;
 				}
@@ -873,9 +944,9 @@ export default class FriendTracker extends Plugin {
 		await this.openContactPage(plan);
 	}
 
-	/** Create a reminder, then refresh any open dashboards. */
-	public openReminderModal() {
-		new ReminderModal(this.app, this, null, () =>
+	/** Create an event, then refresh any open dashboards. */
+	public openEventModal() {
+		new EventModal(this.app, this, null, () =>
 			this.refreshDashboards()
 		).open();
 	}
@@ -914,11 +985,9 @@ export default class FriendTracker extends Plugin {
 		const cache = this.app.metadataCache.getFileCache(file);
 		if (!cache) return; // not indexed yet — don't act on partial data
 
-		const contacts = await this.contactOperations.getContacts();
-		const loggedTo = contacts.filter((c) =>
-			c.events.some((e) => e.source === file.path)
-		);
-		if (loggedTo.length === 0) return;
+		// Only entries logged before (one event carries their path) sync.
+		const existing = this.eventOperations.findBySource(file.path);
+		if (!existing) return;
 
 		const fm = cache.frontmatter;
 		const date = fm?.date ? String(fm.date) : "";
@@ -926,29 +995,27 @@ export default class FriendTracker extends Plugin {
 		if (!date) return;
 
 		const resolved = this.app.metadataCache.resolvedLinks[file.path] ?? {};
+		const contacts = await this.contactOperations.getContacts();
 		const mentioned = contacts.filter(
 			(c) => (resolved[c.file.path] ?? 0) > 0
 		);
 
-		for (const m of mentioned) {
-			await this.contactOperations.upsertDiaryEvent(
-				m.file,
-				file.path,
-				date,
-				title
-			);
-			await this.refreshOpenContactPages(m.file);
-		}
-		// Mentions that were removed from the entry come off the timeline
-		const mentionedPaths = new Set(mentioned.map((m) => m.file.path));
-		for (const gone of loggedTo) {
-			if (!mentionedPaths.has(gone.file.path)) {
-				await this.contactOperations.removeDiaryEvent(
-					gone.file,
-					file.path
-				);
-				await this.refreshOpenContactPages(gone.file);
-			}
+		// One shared event carries the whole entry — added and removed
+		// mentions are both just its people list changing.
+		const before = this.eventOperations.peoplePaths(existing);
+		await this.eventOperations.syncDiaryEvent(
+			file.path,
+			date,
+			title,
+			mentioned.map((m) => `[[${m.file.basename}]]`)
+		);
+		const touched = new Set([
+			...before,
+			...mentioned.map((m) => m.file.path),
+		]);
+		for (const path of touched) {
+			const f = this.app.vault.getFileByPath(path);
+			if (f) await this.refreshOpenContactPages(f);
 		}
 	}
 
@@ -978,13 +1045,13 @@ export default class FriendTracker extends Plugin {
 			return;
 		}
 
+		await this.eventOperations.syncDiaryEvent(
+			file.path,
+			date,
+			title,
+			mentioned.map((m) => `[[${m.file.basename}]]`)
+		);
 		for (const m of mentioned) {
-			await this.contactOperations.upsertDiaryEvent(
-				m.file,
-				file.path,
-				date,
-				title
-			);
 			await this.refreshOpenContactPages(m.file);
 		}
 		new Notice(
@@ -999,7 +1066,7 @@ export default class FriendTracker extends Plugin {
 		new ContactSuggestModal(
 			this.app,
 			contacts,
-			(contact) => new GlanceModal(this.app, contact).open(),
+			(contact) => new GlanceModal(this.app, this, contact).open(),
 			"Who are you about to see?"
 		).open();
 	}
@@ -1101,7 +1168,7 @@ export default class FriendTracker extends Plugin {
 		await ensureFolder(this.contactOperations.getGroupsFolderPath());
 		await ensureFolder(this.planOperations.getPlansFolderPath());
 		await ensureFolder(this.somedayOperations.getSomedaysFolderPath());
-		await ensureFolder(this.reminderOperations.getRemindersFolderPath());
+		await ensureFolder(this.eventOperations.getEventsFolderPath());
 
 		const examplePath = normalizePath(
 			`${this.contactOperations.getPeopleFolderPath()}/Example Friend.md`
@@ -1477,6 +1544,51 @@ export default class FriendTracker extends Plugin {
 					const next = REMAP[current];
 					if (next) frontmatter.type = next;
 					else delete frontmatter.type;
+				}
+			);
+		}
+	}
+
+	/**
+	 * Events gained a `variant` telling a calendar entry apart from a
+	 * record of someone — see EventVariant. Everything written before it
+	 * existed has to be classified from its shape, since the provenance
+	 * that would have answered it is already gone.
+	 *
+	 * The absent field is the "not yet done" marker, so this writes the
+	 * default out explicitly too and is a no-op on the second run.
+	 */
+	private async migrateEventVariants() {
+		const folder = this.app.vault.getFolderByPath(
+			this.eventOperations.getEventsFolderPath()
+		);
+		if (!folder) return;
+		const now = new Date();
+		for (const child of folder.children) {
+			if (!(child instanceof TFile) || child.extension !== "md") {
+				continue;
+			}
+			const fm: unknown =
+				this.app.metadataCache.getFileCache(child)?.frontmatter;
+			if (fieldOf(fm, "variant") !== undefined) continue;
+			const variant = classifyExistingEvent(
+				{
+					date: toText(fieldOf(fm, "date")),
+					type: toText(fieldOf(fm, "type")),
+					people: asArray(fieldOf(fm, "people")).map(String),
+					source: toText(fieldOf(fm, "source")),
+					hideFromDashboard: !!fieldOf(fm, "hideFromDashboard"),
+				},
+				now
+			);
+			await this.app.fileManager.processFrontMatter(
+				child,
+				(frontmatter: Record<string, unknown>) => {
+					// Re-check the live value — another device may have
+					// classified it between the read above and this write.
+					if (frontmatter.variant !== undefined) return;
+					frontmatter.variant = variant;
+					delete frontmatter.hideFromDashboard;
 				}
 			);
 		}

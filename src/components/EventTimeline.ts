@@ -1,6 +1,6 @@
 import { setIcon } from "obsidian";
 import type { ContactPageView } from "@/views/ContactPageView";
-import type { FriendEvent } from "@/types";
+import type { EventInfo, FriendEvent } from "@/types";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { EVENT_TYPES } from "@/constants";
 import {
@@ -10,10 +10,70 @@ import {
 	isFlexUpcoming,
 } from "@/utils/flexdate";
 
-import { splitLeadingEmoji } from "@/utils/emoji";
-// Re-exported: this used to live here, and several modals still reach for
-// it at this path.
-export { splitLeadingEmoji };
+/**
+ * If the text opens with an emoji (incl. variation selectors, skin tones,
+ * ZWJ sequences, flags and keycaps), split it off so it can stand in for
+ * the type emoji.
+ */
+export function splitLeadingEmoji(
+	text: string
+): { emoji: string; rest: string } | null {
+	const trimmed = text.trimStart();
+	// Three shapes, in order: a flag (a pair of regional-indicator letters —
+	// 🇺🇸 is "U"+"S", which Unicode does NOT class as pictographic); a keycap
+	// (starts with an ASCII digit/#/*); or a base pictographic plus any
+	// joiners, variation selectors and skin tones that follow it.
+	const match = trimmed.match(
+		/^(\p{Regional_Indicator}{2}|[0-9#*]️?⃣|\p{Extended_Pictographic}(?:‍\p{Extended_Pictographic}|[︀-️]|[\u{1F3FB}-\u{1F3FF}])*)/u
+	);
+	if (!match) return null;
+	const emoji = match[1];
+	return { emoji, rest: trimmed.slice(emoji.length).trimStart() };
+}
+
+/**
+ * What one timeline row needs to draw itself — the common ground between
+ * an event file and a row derived from a Plan (which isn't stored on this
+ * page and so can't be edited or deleted here).
+ */
+interface RowContent {
+	name: string;
+	date: string;
+	type: string;
+	location: string;
+	description: string;
+	source: string;
+	/** Wikilink to the plan a derived row came from; "" otherwise. */
+	plan: string;
+	/** The backing event file; null for derived plan rows. */
+	event: EventInfo | null;
+}
+
+function fromEvent(e: EventInfo): RowContent {
+	return {
+		name: e.name,
+		date: e.date,
+		type: e.type,
+		location: e.location,
+		description: e.description,
+		source: e.source,
+		plan: "",
+		event: e,
+	};
+}
+
+function fromPlanRow(e: FriendEvent): RowContent {
+	return {
+		name: e.text,
+		date: e.date,
+		type: e.type ?? "",
+		location: e.location ?? "",
+		description: e.description ?? "",
+		source: e.source ?? "",
+		plan: e.plan ?? "",
+		event: null,
+	};
+}
 
 /**
  * The story of the friendship so far: future events surface at the top under
@@ -25,10 +85,8 @@ export class EventTimeline {
 
 	render(
 		container: HTMLElement,
-		events: FriendEvent[],
+		events: EventInfo[],
 		met: string | number | undefined,
-		/** Plans this person is on — derived on every render, never stored
-		 * on their note, so they can't go stale when membership changes. */
 		planEvents: FriendEvent[] = []
 	) {
 		const timeline = container.createDiv({
@@ -38,14 +96,8 @@ export class EventTimeline {
 		const empty = { year: null, month: null, day: null };
 		type Row =
 			| {
-					kind: "event";
-					event: FriendEvent;
-					index: number;
-					parsed: ReturnType<typeof parseFlexDate>;
-			  }
-			| {
-					kind: "plan";
-					event: FriendEvent;
+					kind: "row";
+					content: RowContent;
 					parsed: ReturnType<typeof parseFlexDate>;
 			  }
 			| {
@@ -53,20 +105,22 @@ export class EventTimeline {
 					parsed: NonNullable<ReturnType<typeof parseFlexDate>>;
 			  };
 
-		const rows: Row[] = events.map((event, index) => ({
-			kind: "event",
-			event,
-			index,
-			parsed: parseFlexDate(event.date),
-		}));
-
-		for (const event of planEvents) {
-			rows.push({
-				kind: "plan",
-				event,
-				parsed: parseFlexDate(event.date),
-			});
-		}
+		const rows: Row[] = [
+			...events.map(
+				(e): Row => ({
+					kind: "row",
+					content: fromEvent(e),
+					parsed: parseFlexDate(e.date),
+				})
+			),
+			...planEvents.map(
+				(e): Row => ({
+					kind: "row",
+					content: fromPlanRow(e),
+					parsed: parseFlexDate(e.date),
+				})
+			),
+		];
 
 		// The origin — where the friendship began — sorts in like any dated row
 		// rather than being pinned to the bottom.
@@ -95,16 +149,8 @@ export class EventTimeline {
 
 		// Upcoming events — soonest first, at the top, each tagged "Upcoming".
 		for (const row of upcoming) {
-			if (row.kind === "event") {
-				this.renderEventItem(
-					timeline,
-					row.event,
-					row.index,
-					row.parsed,
-					true
-				);
-			} else if (row.kind === "plan") {
-				this.renderEventItem(timeline, row.event, null, row.parsed, true);
+			if (row.kind === "row") {
+				this.renderEventItem(timeline, row.content, row.parsed, true);
 			}
 		}
 
@@ -125,22 +171,8 @@ export class EventTimeline {
 				});
 			}
 
-			if (row.kind === "event") {
-				this.renderEventItem(
-					timeline,
-					row.event,
-					row.index,
-					row.parsed,
-					false
-				);
-			} else if (row.kind === "plan") {
-				this.renderEventItem(
-					timeline,
-					row.event,
-					null,
-					row.parsed,
-					false
-				);
+			if (row.kind === "row") {
+				this.renderEventItem(timeline, row.content, row.parsed, false);
 			} else {
 				const origin = timeline.createDiv({
 					cls: "contact-timeline-item contact-timeline-origin",
@@ -154,19 +186,15 @@ export class EventTimeline {
 		}
 	}
 
-	/**
-	 * `index` is the event's position in the person's own `events` list —
-	 * or null for a row derived from a Plan, which isn't stored here and so
-	 * can't be edited or deleted from this page. Those open the plan instead.
-	 */
 	private renderEventItem(
 		container: HTMLElement,
-		event: FriendEvent,
-		index: number | null,
+		content: RowContent,
 		parsed: ReturnType<typeof parseFlexDate>,
 		upcoming: boolean
 	) {
-		const derived = index === null;
+		// A row derived from a Plan isn't stored on this page, so it can't
+		// be edited or deleted here — it opens the plan instead.
+		const derived = content.event === null;
 		const item = container.createDiv({
 			cls: `contact-timeline-item${upcoming ? " upcoming" : ""}${
 				derived ? " contact-timeline-derived" : ""
@@ -174,21 +202,20 @@ export class EventTimeline {
 		});
 
 		// Tapping the item opens the edit modal (the only path on mobile,
-		// where the hover action buttons don't exist). A derived plan row has
-		// nothing to edit here, so it opens the plan itself.
+		// where the hover action buttons don't exist).
 		item.addEventListener("click", () => {
-			if (derived) {
-				const target = (event.plan ?? "").replace(/^\[\[|\]\]$/g, "");
-				if (target) {
-					void this.view.app.workspace.openLinkText(target, "", true);
-				}
+			if (content.event) {
+				this.view.openEditEventModal(content.event);
 				return;
 			}
-			void this.view.openEditEventModal(index, event);
+			const target = content.plan.replace(/^\[\[|\]\]$/g, "");
+			if (target) {
+				void this.view.app.workspace.openLinkText(target, "", true);
+			}
 		});
 
 		// Typed events get a colored dot; untyped render neutral
-		const type = EVENT_TYPES.find((t) => t.id === event.type);
+		const type = EVENT_TYPES.find((t) => t.id === content.type);
 		item.createDiv({
 			cls: `contact-timeline-dot${type ? ` type-${type.id}` : ""}`,
 		});
@@ -198,15 +225,15 @@ export class EventTimeline {
 		const dateLabel = upcoming
 			? parsed
 				? formatFlexDate(parsed)
-				: String(event.date || "")
+				: String(content.date || "")
 			: parsed
 			? parsed.month !== null
 				? formatFlexDate({ ...parsed, year: null })
 				: "Sometime that year"
-			: String(event.date || "");
+			: String(content.date || "");
 
 		// A leading emoji in the text stands in for the type emoji.
-		const lead = splitLeadingEmoji(event.text);
+		const lead = splitLeadingEmoji(content.name);
 		const badge = lead ? lead.emoji : type ? type.emoji : "";
 
 		const dateEl = item.createDiv({
@@ -222,30 +249,30 @@ export class EventTimeline {
 
 		const textEl = item.createDiv({
 			cls: "contact-timeline-text",
-			text: lead ? lead.rest : event.text,
+			text: lead ? lead.rest : content.name,
 		});
 
 		// Where it happened, as a bullet after the text
-		if (event.location) {
+		if (content.location) {
 			textEl.createSpan({
 				cls: "contact-timeline-location",
-				text: ` · ${event.location}`,
+				text: ` · ${content.location}`,
 			});
 		}
 
 		// Details sit under the name, styled like the date line
-		if (event.description) {
+		if (content.description) {
 			item.createDiv({
 				cls: "contact-timeline-desc",
-				text: event.description,
+				text: content.description,
 			});
 		}
 
 		// Provenance badge: this event came from a plan being marked done.
 		// The stored value is a wikilink, so strip the brackets to get the
 		// link target Obsidian expects.
-		if (event.plan) {
-			const target = event.plan.replace(/^\[\[|\]\]$/g, "");
+		if (content.plan) {
+			const target = content.plan.replace(/^\[\[|\]\]$/g, "");
 			const badgeEl = textEl.createSpan({
 				cls: "contact-timeline-source",
 				text: " 🗺️",
@@ -258,7 +285,8 @@ export class EventTimeline {
 		}
 
 		// Provenance badge: this event came from a diary entry
-		if (event.source) {
+		if (content.source) {
+			const source = content.source;
 			const badgeEl = textEl.createSpan({
 				cls: "contact-timeline-source",
 				text: " 📖",
@@ -266,17 +294,14 @@ export class EventTimeline {
 			});
 			badgeEl.addEventListener("click", (e) => {
 				e.stopPropagation();
-				void this.view.app.workspace.openLinkText(
-					event.source!,
-					"",
-					true
-				);
+				void this.view.app.workspace.openLinkText(source, "", true);
 			});
 		}
 
 		// Actions — a derived plan row has no stored event behind it, so
 		// there's nothing here to edit or delete. Change it on the plan.
-		if (derived) return;
+		const event = content.event;
+		if (!event) return;
 
 		const actions = item.createDiv({
 			cls: "contact-timeline-actions",
@@ -289,7 +314,7 @@ export class EventTimeline {
 		setIcon(editBtn, "pencil");
 		editBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
-			void this.view.openEditEventModal(index, event);
+			this.view.openEditEventModal(event);
 		});
 
 		const deleteBtn = actions.createEl("button", {
@@ -300,15 +325,15 @@ export class EventTimeline {
 		deleteBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
 			const preview =
-				event.text.length > 80
-					? event.text.slice(0, 80) + "…"
-					: event.text;
+				event.name.length > 80
+					? event.name.slice(0, 80) + "…"
+					: event.name;
 			new ConfirmModal(
 				this.view.app,
 				"Delete event",
 				`Delete "${preview}" from the timeline?`,
 				"Delete",
-				() => this.view.deleteEvent(index)
+				() => void this.view.deleteEvent(event)
 			).open();
 		});
 	}

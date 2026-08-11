@@ -1,52 +1,81 @@
-import { App, Modal, setIcon } from "obsidian";
+import { App, Modal, Notice, setIcon } from "obsidian";
 import type FriendTracker from "@/main";
-import type { ContactWithCountdown, FriendEvent } from "@/types";
-import { EVENT_TYPES } from "@/constants";
+import type { ContactWithCountdown, EventInfo } from "@/types";
 import { EventModal } from "@/modals/EventModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
+import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
+import { EVENT_TYPES } from "@/constants";
+import { buildEventShareText } from "@/utils/eventShare";
+import { normalizeUrl } from "@/utils/url";
 
 /**
- * A read view of a friend/group event with View person / Edit / Hide /
- * Delete — mirrors ReminderViewModal. Mutates `contact.events` directly (the
- * same array reference the dashboard renders from) so the change shows up
- * immediately, rather than waiting on a metadata-cache re-read after the
- * frontmatter write. `onChange` re-renders the dashboard behind it.
+ * A read view of an event with Edit / Done / Hide / Delete — mirrors
+ * SomedayViewModal. `onChange` re-renders whatever opened it.
  */
 export class EventViewModal extends Modal {
 	private descSaveTimer: number | null = null;
 	private descDirty = false;
-	/** A copy of `event` matching what's actually on disk right now — the
-	 * deep-equality target for the next save. `event` itself updates as
-	 * soon as you type (so anything reading it, like a freshly-opened Edit
-	 * form, sees your latest text); this snapshot only advances once a
-	 * write actually lands, which is what the file's own content needs to
-	 * match for the lookup in updateEventDescription to succeed. */
-	private diskEvent: FriendEvent;
+	private description: string;
+	/** Fetched once in onOpen(), for resolving people links to names. */
+	private contacts: ContactWithCountdown[] = [];
 
 	constructor(
 		app: App,
 		private plugin: FriendTracker,
-		private contact: ContactWithCountdown,
-		private event: FriendEvent,
+		private event: EventInfo,
 		private onChange: () => void | Promise<void>
 	) {
 		super(app);
-		this.diskEvent = { ...event };
+		this.description = event.description;
+	}
+
+	private formatTime(t: string): string {
+		const [h, m] = t.split(":").map(Number);
+		if (Number.isNaN(h)) return t;
+		const period = h < 12 ? "AM" : "PM";
+		const hr = h % 12 === 0 ? 12 : h % 12;
+		return `${hr}:${String(m || 0).padStart(2, "0")} ${period}`;
 	}
 
 	private whenLabel(): string {
-		const parsed = parseFlexDate(this.event.date);
-		return parsed ? formatFlexDate(parsed) : String(this.event.date || "");
+		const parts: string[] = [];
+		const f = parseFlexDate(this.event.date);
+		if (f) parts.push(formatFlexDate(f));
+		if (this.event.time) parts.push(this.formatTime(this.event.time));
+		return parts.join(" · ") || "No date";
+	}
+
+	/** People links resolved to display names, shortened/disambiguated the
+	 * same way a plan's members are. Dead links fall back to their text. */
+	private peopleNames(): string[] {
+		const names = this.event.people.map((raw) => {
+			const linktext = raw
+				.replace(/^\[\[|\]\]$/g, "")
+				.split("|")[0]
+				.trim();
+			const dest = this.app.metadataCache.getFirstLinkpathDest(
+				linktext,
+				this.event.file.path
+			);
+			const match = dest
+				? this.contacts.find((c) => c.file.path === dest.path)
+				: undefined;
+			return match?.displayName ?? linktext;
+		});
+		return shortenMemberNames(names, shortNameOverrides(this.contacts));
+	}
+
+	/** Done only means something for tasks and undated events — everything
+	 * else is implicitly done once its date passes. */
+	private hasDoneState(): boolean {
+		return this.event.type === "task" || !this.event.date;
 	}
 
 	/** Debounced write: keeps typing from hitting disk on every keystroke. */
 	private scheduleDescriptionSave(value: string) {
-		// Update the live object right away — a "Edit" click before the
-		// debounce fires should still see this text, not what's on disk yet.
-		if (value) this.event.description = value;
-		else delete this.event.description;
+		this.description = value;
 		this.descDirty = true;
 		if (this.descSaveTimer !== null) {
 			window.clearTimeout(this.descSaveTimer);
@@ -66,50 +95,63 @@ export class EventViewModal extends Modal {
 		}
 		if (!this.descDirty) return;
 		this.descDirty = false;
-		const value = this.event.description ?? "";
-		await this.plugin.contactOperations.updateEventDescription(
-			this.contact.file,
-			this.diskEvent,
-			value
+		await this.plugin.eventOperations.setDescription(
+			this.event.file,
+			this.description.trim()
 		);
-		// The write succeeded against diskEvent's old shape — advance the
-		// snapshot so the *next* save's lookup still matches the file.
-		if (value) this.diskEvent.description = value;
-		else delete this.diskEvent.description;
 		await this.onChange();
 	}
 
-	onOpen() {
+	async onOpen() {
+		this.contacts = await this.plugin.contactOperations.getContacts();
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.addClass("someday-view-modal");
-		const event = this.event;
-		const lead = splitLeadingEmoji(event.text);
-		const type = EVENT_TYPES.find((t) => t.id === event.type);
-		const badge = lead ? lead.emoji : type ? type.emoji : "";
+		const e = this.event;
 
-		contentEl.createEl("h2", { text: lead ? lead.rest : event.text });
+		// Type first, small and muted, above the name — same treatment as
+		// a plan timeline row's kind (Idea/Travel/Accommodation). The type
+		// still leads the title as an emoji too, unless the name brings
+		// its own; between the two, showing the label a third time in the
+		// meta line below would just repeat it.
+		const type = EVENT_TYPES.find((t) => t.id === e.type);
+		if (type) {
+			contentEl.createDiv({ cls: "view-kind", text: type.label });
+		}
+		const title =
+			type && !splitLeadingEmoji(e.name)
+				? `${type.emoji} ${e.name}`
+				: e.name;
+		contentEl.createEl("h2", { text: title });
 		contentEl.createDiv({
 			cls: "someday-view-meta",
-			text: `${badge ? badge + " " : ""}${this.whenLabel()}${
-				type ? " · " + type.label : ""
-			} · ${this.contact.displayName}`,
+			text: this.whenLabel(),
 		});
-		if (event.location) {
+		if (e.location) {
 			contentEl.createDiv({
 				cls: "someday-view-cost",
-				text: `📍 ${event.location}`,
+				text: `📍 ${e.location}`,
+			});
+		}
+		if (e.people.length > 0) {
+			contentEl.createDiv({
+				cls: "someday-view-cost",
+				text: `👥 ${this.peopleNames().join(", ")}`,
+			});
+		}
+		if (e.variant === "timeline") {
+			contentEl.createDiv({
+				cls: "someday-view-cost",
+				text: "🙈 Hidden from the dashboard and Events page",
 			});
 		}
 
-		if (event.link) {
-			const url = /^[a-z][a-z0-9+.-]*:\/\//i.test(event.link)
-				? event.link
-				: `https://${event.link}`;
+		if (e.link) {
+			const url = normalizeUrl(e.link);
 			const linkRow = contentEl.createDiv({
 				cls: "event-link-row reminder-view-linkrow",
 			});
-			linkRow.createSpan({ cls: "reminder-view-link", text: event.link });
+			linkRow.createSpan({ cls: "reminder-view-link", text: e.link });
 			const openBtn = linkRow.createEl("button", {
 				cls: "callander-button event-link-open",
 				text: "Open",
@@ -118,13 +160,22 @@ export class EventViewModal extends Modal {
 			openBtn.addEventListener("click", () => window.open(url, "_blank"));
 		}
 
-		// Description — edits live here, saving itself shortly after you
-		// stop typing (not shown on the dashboard row, only in this view).
+		// Called off. Sits last of the status lines, right above the notes,
+		// since it qualifies everything above it.
+		if (e.status === "cancelled") {
+			contentEl.createDiv({
+				cls: "someday-view-cost event-cancelled-note",
+				text: "❌ Cancelled",
+			});
+		}
+
+		// Notes — edits live here, saving itself shortly after you stop
+		// typing (not shown on the dashboard row, only in this view).
 		const descInput = contentEl.createEl("textarea", {
 			cls: "someday-view-notes-input",
-			attr: { placeholder: "Description (optional)", rows: "3" },
+			attr: { placeholder: "Notes (optional)", rows: "3" },
 		});
-		descInput.value = event.description ?? "";
+		descInput.value = this.description;
 		descInput.addEventListener("input", () => {
 			this.scheduleDescriptionSave(descInput.value);
 		});
@@ -134,142 +185,167 @@ export class EventViewModal extends Modal {
 		// the keyboard on mobile or steal focus from the actual buttons.
 		window.setTimeout(() => descInput.blur(), 0);
 
-		// Actions
-		const actions = contentEl.createDiv({
-			cls: "someday-view-actions",
-		});
-		const button = (icon: string, label: string, onClick: () => void) => {
-			const btn = actions.createEl("button", {
-				cls: "callander-button",
+		// Actions — housekeeping (edit the note, hide it, delete it) above
+		// a divider, then what moves it forward, mirroring SomedayViewModal.
+		const button = (
+			row: HTMLElement,
+			icon: string,
+			label: string,
+			onClick: () => void | Promise<void>,
+			opts: { iconOnly?: boolean; danger?: boolean } = {}
+		) => {
+			const btn = row.createEl("button", {
+				cls: [
+					"callander-button",
+					opts.iconOnly && "button-icon",
+					opts.danger && "button-danger",
+				]
+					.filter(Boolean)
+					.join(" "),
+				attr: opts.iconOnly ? { "aria-label": label } : {},
 			});
 			setIcon(btn, icon);
-			btn.createSpan({ text: label });
-			btn.addEventListener("click", onClick);
+			if (!opts.iconOnly) btn.createSpan({ text: label });
+			btn.addEventListener("click", () => void onClick());
+			return btn;
 		};
 
-		button("user", "View person", () => {
+		const editRow = contentEl.createDiv({ cls: "someday-view-actions" });
+		button(editRow, "pencil", "Edit details", async () => {
+			await this.flushDescription();
 			this.close();
-			void this.plugin.openContactPage(this.contact.file);
+			new EventModal(this.app, this.plugin, e, this.onChange).open();
 		});
 
-		button("pencil", "Edit", () => void this.handleEdit(event));
-
-		const hide = actions.createEl("button", {
-			cls: "callander-button button-icon",
-			attr: { "aria-label": "Hide from Upcoming" },
-		});
-		setIcon(hide, "eye-off");
-		hide.addEventListener("click", () => void this.handleHide(event));
-
-		const del = actions.createEl("button", {
-			cls: "callander-button button-icon button-danger",
-			attr: { "aria-label": "Delete" },
-		});
-		setIcon(del, "trash");
-		del.addEventListener("click", () => void this.handleDelete(event));
-	}
-
-	/**
-	 * Every action below that touches the event's own frontmatter row
-	 * flushes any pending description save first — otherwise a click right
-	 * after typing (before the 600ms debounce fires) would match against
-	 * `event` as the UI now shows it, not what's still on disk, and the
-	 * deep-equality lookup in ContactOperations would silently find nothing.
-	 * `diskEvent` is the flushed, disk-accurate shape to match against.
-	 */
-	private async handleEdit(event: FriendEvent) {
-		await this.flushDescription();
-		this.close();
-		new EventModal(
-			this.app,
-			event,
-			async (date, text, eventType, location, link, description) => {
-				await this.plugin.contactOperations.updateEventInFile(
-					this.contact.file,
-					this.diskEvent,
-					{
-						date,
-						text,
-						type: eventType,
-						location,
-						link,
-						description,
-					}
-				);
-				// Same object reference the dashboard's contact list holds —
-				// mutate it in place so the change is visible immediately.
-				event.date = date;
-				event.text = text;
-				event.type = eventType;
-				if (location) event.location = location;
-				else delete event.location;
-				if (link) event.link = link;
-				else delete event.link;
-				if (description) event.description = description;
-				else delete event.description;
-				await this.onChange();
-			},
+		// Called off, but kept. Undoable, so no confirmation — unlike Delete
+		// beside it, nothing is lost by pressing this.
+		const isCancelled = e.status === "cancelled";
+		button(
+			editRow,
+			isCancelled ? "rotate-ccw" : "circle-slash",
+			isCancelled ? "Restore" : "Cancel",
 			async () => {
-				await this.plugin.contactOperations.deleteEventFromFile(
-					this.contact.file,
-					this.diskEvent
+				await this.flushDescription();
+				await this.plugin.eventOperations.setStatus(
+					e.file,
+					isCancelled ? "open" : "cancelled"
 				);
-				this.removeFromContact();
-				await this.onChange();
-			}
-		).open();
-	}
-
-	private async handleHide(event: FriendEvent) {
-		await this.flushDescription();
-		const preview =
-			event.text.length > 80
-				? event.text.slice(0, 80) + "…"
-				: event.text;
-		new ConfirmModal(
-			this.app,
-			"Hide from Upcoming",
-			`Hide "${preview}" from the dashboard's Upcoming section? It'll still show on ${this.contact.displayName}'s timeline.`,
-			"Hide",
-			async () => {
-				await this.plugin.contactOperations.hideEventFromUpcoming(
-					this.contact.file,
-					this.diskEvent
+				new Notice(
+					isCancelled
+						? "Restored"
+						: "Cancelled — still on the Events page"
 				);
-				event.hiddenFromUpcoming = true;
 				await this.onChange();
 				this.close();
 			}
-		).open();
-	}
+		);
 
-	private async handleDelete(event: FriendEvent) {
-		await this.flushDescription();
-		const preview =
-			event.text.length > 80
-				? event.text.slice(0, 80) + "…"
-				: event.text;
-		new ConfirmModal(
-			this.app,
-			"Delete event",
-			`Delete "${preview}" from the timeline?`,
+		button(editRow, "copy", "Copy", async () => {
+			// this.description rather than e.description: whatever's on
+			// screen right now, including an edit not yet flushed to disk.
+			await navigator.clipboard.writeText(
+				buildEventShareText({
+					name: e.name,
+					type: e.type,
+					date: e.date,
+					time: e.time,
+					location: e.location,
+					description: this.description,
+					link: e.link,
+				})
+			);
+			new Notice("📋 Copied");
+		}, { iconOnly: true });
+
+		// The same switch as the modal's tick box, for an event already
+		// saved: hidden keeps it to the timelines of whoever's on it.
+		//
+		// Only offered when there IS such a timeline. Hiding an event with
+		// nobody on it would leave it nowhere at all, so the dashboard and
+		// the Events page are the only places it can live. Un-hiding is
+		// always offered, so nothing can get stuck out of sight.
+		const isTimeline = e.variant === "timeline";
+		if (isTimeline || e.people.length > 0) {
+			button(
+				editRow,
+				isTimeline ? "eye" : "eye-off",
+				isTimeline ? "Show on dashboard" : "Hide from dashboard",
+				async () => {
+					await this.flushDescription();
+					await this.plugin.eventOperations.setVariant(
+						e.file,
+						isTimeline ? "reminder" : "timeline"
+					);
+					new Notice(
+						isTimeline
+							? "Shown on the dashboard and Events page again"
+							: "Hidden — timelines still show it"
+					);
+					await this.onChange();
+					this.close();
+				},
+				{ iconOnly: true }
+			);
+		}
+
+		button(
+			editRow,
+			"trash",
 			"Delete",
-			async () => {
-				await this.plugin.contactOperations.deleteEventFromFile(
-					this.contact.file,
-					this.diskEvent
-				);
-				this.removeFromContact();
-				await this.onChange();
-				this.close();
-			}
-		).open();
-	}
+			() => {
+				new ConfirmModal(
+					this.app,
+					"Delete event",
+					`Delete "${e.name}"?`,
+					"Delete",
+					async () => {
+						this.descDirty = false; // nothing left to save to
+						await this.plugin.eventOperations.deleteEvent(e.file);
+						await this.onChange();
+						this.close();
+					}
+				).open();
+			},
+			{ iconOnly: true, danger: true }
+		);
 
-	/** Drop the event from the in-memory contact the dashboard is rendering from */
-	private removeFromContact() {
-		const index = this.contact.events.indexOf(this.event);
-		if (index !== -1) this.contact.events.splice(index, 1);
+		contentEl.createDiv({ cls: "someday-view-divider" });
+
+		const progressRow = contentEl.createDiv({
+			cls: "someday-view-actions",
+		});
+
+		if (this.hasDoneState()) {
+			const isDone = e.status === "done";
+			button(
+				progressRow,
+				isDone ? "rotate-ccw" : "check",
+				isDone ? "Reopen" : "Done",
+				async () => {
+					await this.flushDescription();
+					await this.plugin.eventOperations.setStatus(
+						e.file,
+						isDone ? "open" : "done"
+					);
+					await this.onChange();
+					this.close();
+				}
+			);
+		}
+
+		// The first linked person's page, one tap away.
+		const firstPerson = this.plugin.eventOperations.peoplePaths(e)[0];
+		if (firstPerson) {
+			button(progressRow, "user", "View person", () => {
+				const file = this.app.vault.getFileByPath(firstPerson);
+				if (!file) return;
+				this.close();
+				void this.plugin.openContactPage(file);
+			});
+		}
+
+		// Not wired up yet — a next step once the layout itself is right.
+		button(progressRow, "map", "Make plan", () => {});
 	}
 
 	onClose() {

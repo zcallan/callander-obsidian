@@ -1,7 +1,7 @@
 import { App, Modal } from "obsidian";
 
 /** Read-only: how one person's total splits across each expense. */
-export class PlanCostBreakdownModal extends Modal {
+export class ExpenseBreakdownModal extends Modal {
 	constructor(
 		app: App,
 		private person: string,
@@ -28,38 +28,38 @@ export class PlanCostBreakdownModal extends Modal {
 			return;
 		}
 
-		const list = contentEl.createDiv({ cls: "plan-breakdown-list" });
+		const list = contentEl.createDiv({ cls: "expense-breakdown-list" });
 		let total = 0;
 		for (const r of this.rows) {
 			// Settled lines are history — shown, but already squared up, so
 			// they don't add to what's still owed.
 			if (!r.settled) total += r.amount;
-			const row = list.createDiv({ cls: "plan-breakdown-row" });
+			const row = list.createDiv({ cls: "expense-breakdown-row" });
 			row.createSpan({
-				cls: "plan-breakdown-label",
+				cls: "expense-breakdown-label",
 				text: `${r.label} · ${r.descriptor}`,
 			});
 			if (r.settled) {
 				row.createSpan({
-					cls: "plan-breakdown-settled",
+					cls: "expense-breakdown-settled",
 					text: "Settled",
 				});
 			}
 			row.createSpan({
-				cls: `plan-breakdown-amount${r.settled ? " is-settled" : ""}`,
+				cls: `expense-breakdown-amount${r.settled ? " is-settled" : ""}`,
 				text: `$${r.amount.toFixed(2)}`,
 			});
 		}
 
 		const totalRow = list.createDiv({
-			cls: "plan-breakdown-row plan-breakdown-total",
+			cls: "expense-breakdown-row expense-breakdown-total",
 		});
 		totalRow.createSpan({
-			cls: "plan-breakdown-label",
+			cls: "expense-breakdown-label",
 			text: "Total",
 		});
 		totalRow.createSpan({
-			cls: "plan-breakdown-amount",
+			cls: "expense-breakdown-amount",
 			text: `$${total.toFixed(2)}`,
 		});
 	}

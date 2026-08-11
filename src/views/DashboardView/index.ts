@@ -3,22 +3,14 @@ import type FriendTracker from "@/main";
 import type {
 	ContactWithCountdown,
 	Draft,
-	FriendEvent,
+	EventInfo,
+	Expense,
 	Idea,
-	Reminder,
-	SomedayInfo,
 } from "@/types";
-import {
-	IDEA_CATEGORIES,
-	EVENT_TYPES,
-	REMINDER_TYPES,
-	formatSomedayDays,
-	formatSomedaySeasons,
-} from "@/constants";
+import { IDEA_CATEGORIES } from "@/constants";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
-import { ReminderModal } from "@/modals/ReminderModal";
-import { ReminderViewModal } from "@/modals/ReminderViewModal";
+import { EventModal } from "@/modals/EventModal";
 import { EventViewModal } from "@/modals/EventViewModal";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
 import {
@@ -30,30 +22,36 @@ import { GroupModal } from "@/modals/GroupModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import {
 	parseFlexDate,
-	formatFlexDate,
 	flexSortKey,
 	isFlexUpcoming,
 	monthName,
 } from "@/utils/flexdate";
 import { PlanModal } from "@/modals/PlanModal";
 import { formatDate } from "@/utils/dateFormat";
-import { shortenMemberNames, shortNameOverrides } from "@/utils/planFormat";
+import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
+import { resolvePeopleNames } from "@/utils/people";
+import { partitionExpenses } from "@/utils/expenseMath";
+import { ExpenseModal } from "@/modals/ExpenseModal";
+import { ExpenseViewModal } from "@/modals/ExpenseViewModal";
+import { appendExpenseRow } from "@/components/ExpenseRow";
 import { sortSomedays } from "@/utils/somedaySort";
+import { somedayRowParts } from "@/utils/somedayRow";
+import { buildSomedayRow } from "@/components/SomedayRow";
+import { eventRowFields } from "@/utils/eventRow";
+import { buildUpcomingRow } from "@/components/UpcomingRow";
+import {
+	daysUntilFlex,
+	conversationalLabel,
+	relativeFromDays,
+	upcomingWhen,
+} from "@/utils/upcomingWhen";
 import { PlanOperations } from "@/services/PlanOperations";
-
-/**
- * Emphasis for a row's relative-time text: "soon" is today/tomorrow, "past"
- * is anything already gone by. Derived from the day count, never by reading
- * the rendered string back.
- */
-type RowTone = "soon" | "past";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
 export class DashboardView extends ItemView {
 	private contacts: ContactWithCountdown[] = [];
 	private searchQuery = "";
-	private showAllUpcomingEvents = false;
 	// Only used when the Somedays sort is "Random" — fixed for the life of
 	// this dashboard so the list doesn't reshuffle on every refresh.
 	private somedayRandomSeed = Math.floor(Math.random() * 2 ** 31);
@@ -174,7 +172,7 @@ export class DashboardView extends ItemView {
 		this.renderUpcomingBirthdays(container);
 		this.renderMissedBirthdays(container);
 
-		// Future-dated events + reminders coming up
+		// Future-dated events coming up
 		this.renderUpcoming(container);
 
 		// Anniversaries — events from this same day in past years
@@ -219,6 +217,10 @@ export class DashboardView extends ItemView {
 
 		// Idea inbox
 		await this.renderInbox(container);
+
+		// Shared expenses — last, so it's the thing you scroll to the bottom
+		// for rather than something you pass on the way down.
+		await this.renderExpenses(container);
 
 		container.scrollTop = scrollTop;
 	}
@@ -458,57 +460,42 @@ export class DashboardView extends ItemView {
 		}
 	}
 
-	/** Future events + reminders, merged and sorted; soonest (and undated) first. */
+	/** Future events, sorted; soonest (and undated) first. */
 	private renderUpcoming(container: HTMLElement) {
 		const now = new Date();
-		type Item = (
-			| {
-					kind: "event";
-					contact: ContactWithCountdown;
-					event: FriendEvent;
-			  }
-			| { kind: "reminder"; reminder: Reminder }
-		) & {
+		type Item = {
+			event: EventInfo;
 			key: number;
 			/** Days from today; null when the date is too coarse to count. */
 			days: number | null;
 		};
 		const items: Item[] = [];
 
-		for (const c of this.contacts) {
-			for (const event of c.events) {
-				if (event.hiddenFromUpcoming) continue;
-				const p = parseFlexDate(event.date);
-				if (p && isFlexUpcoming(p, now)) {
-					items.push({
-						kind: "event",
-						contact: c,
-						event,
-						key: flexSortKey(p),
-						days: this.daysUntilFlex(event.date, now),
-					});
-				}
-			}
-		}
-		for (const r of this.plugin.reminderOperations.getReminders()) {
-			if (r.status === "done") continue;
-			const p = parseFlexDate(r.date);
+		for (const e of this.plugin.eventOperations.getEvents()) {
+			// Timeline entries are records of a person, not your calendar —
+			// they live on that person's page and nowhere else.
+			if (e.variant === "timeline") continue;
+			if (e.status === "done") continue;
+			// Called off — still on the record and on the Events page, but
+			// the dashboard is for what's actually happening.
+			if (e.status === "cancelled") continue;
+			const p = parseFlexDate(e.date);
 			if (!p || p.year === null) {
 				// Undated ("Anytime") — actionable now, so never out of window.
-				items.push({ kind: "reminder", reminder: r, key: 0, days: null });
+				items.push({ event: e, key: 0, days: null });
 				continue;
 			}
 			if (isFlexUpcoming(p, now)) {
 				items.push({
-					kind: "reminder",
-					reminder: r,
+					event: e,
 					key: flexSortKey(p),
-					days: this.daysUntilFlex(r.date, now),
+					days: daysUntilFlex(e.date, now),
 				});
 				continue;
 			}
-			// Recently passed (≤7 days) so it can still be dismissed
-			if (p.month !== null && p.day !== null) {
+			// A passed date is implicitly done for most events — but a task
+			// keeps asking for a week, so it can still be ticked off.
+			if (e.type === "task" && p.month !== null && p.day !== null) {
 				const target = new Date(p.year, p.month - 1, p.day);
 				target.setHours(0, 0, 0, 0);
 				const today = new Date(now);
@@ -518,8 +505,7 @@ export class DashboardView extends ItemView {
 				);
 				if (passed >= 0 && passed <= 7) {
 					items.push({
-						kind: "reminder",
-						reminder: r,
+						event: e,
 						key: flexSortKey(p),
 						days: -passed,
 					});
@@ -535,45 +521,39 @@ export class DashboardView extends ItemView {
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "📌 Upcoming" });
-		const addButton = header.createEl("button", {
+		const buttons = header.createDiv({
+			cls: "dashboard-section-buttons",
+		});
+		const addButton = buttons.createEl("button", {
 			cls: "callander-button",
-			text: "Add reminder",
+			text: "Add event",
 		});
 		addButton.addEventListener("click", () => {
-			new ReminderModal(this.app, this.plugin, null, () =>
+			new EventModal(this.app, this.plugin, null, () =>
 				this.refresh()
 			).open();
 		});
-
-		// Reminders moved from the single Reminders.md store to one file
-		// each under Reminders/. Old rows still work, but nudge people to
-		// move across. TODO(~2026-09): remove along with the legacy store.
-		const legacyCount =
-			this.plugin.reminderOperations.legacyReminderCount();
-		if (legacyCount > 0) {
-			section.createDiv({
-				cls: "section-helper-text dashboard-migration-note",
-				text: `⚠️ Reminders now live in their own folder, and ${
-					legacyCount === 1
-						? "1 of yours is"
-						: `${legacyCount} of yours are`
-				} still in the old Reminders.md. Re-add each with "Add reminder", delete the old one here, then remove Reminders.md.`,
-			});
-		}
+		const allButton = buttons.createEl("button", {
+			cls: "callander-button",
+			text: "See all",
+		});
+		allButton.addEventListener("click", () =>
+			void this.plugin.activateEvents()
+		);
 
 		if (items.length === 0) {
 			section.createDiv({
 				cls: "section-helper-text",
-				text: "Nothing coming up. Add a reminder — a birthday, a booking, anything worth keeping in view.",
+				text: "Nothing coming up. Add an event — a birthday, a booking, anything worth keeping in view.",
 			});
 			return;
 		}
 
-		// Default to a near horizon; anything further out waits behind the
-		// toggle, so a booking eight months away doesn't crowd out this week.
+		// Default to a near horizon; anything further out lives on the Events
+		// page, so a booking eight months away doesn't crowd out this week.
 		const windowDays = this.plugin.settings.upcomingDays;
 		const near = items.filter((i) => i.days === null || i.days <= windowDays);
-		const shown = this.showAllUpcomingEvents ? items : near.slice(0, 10);
+		const shown = near.slice(0, 10);
 
 		if (shown.length === 0) {
 			section.createDiv({
@@ -582,242 +562,53 @@ export class DashboardView extends ItemView {
 			});
 		}
 		for (const item of shown) {
-			if (item.kind === "event") {
-				const lead = splitLeadingEmoji(item.event.text);
-				const type = EVENT_TYPES.find((t) => t.id === item.event.type);
-				const { date, relative, tone } = this.upcomingWhen(
-					item.event.date,
-					now
-				);
-				this.renderUpcomingRow(section, {
-					icon: lead ? lead.emoji : type ? type.emoji : "",
-					date,
-					name: lead ? lead.rest : item.event.text,
-					suffix: item.contact.displayName,
-					relative,
-					tone,
-					onClick: () =>
-						new EventViewModal(
-							this.app,
-							this.plugin,
-							item.contact,
-							item.event,
-							() => this.render()
-						).open(),
-				});
-			} else {
-				const r = item.reminder;
-				const lead = splitLeadingEmoji(r.name);
-				const { date, relative, tone } = this.upcomingWhen(
-					r.date ?? "",
-					now
-				);
-				// A same-day reminder starting at or after 6pm reads better
-				// as "tonight" — "today" undersells something you're about
-				// to walk out the door for.
-				const isTonight =
-					relative === "today" &&
-					!!r.time &&
-					Number(r.time.split(":")[0]) >= 18;
-				// Legacy Reminders.md rows wear the migration warning instead
-				// of their own icon (goes away with the legacy store)
-				const legacy = !r.file;
-				const typeEmoji = REMINDER_TYPES.find(
-					(t) => t.id === r.type
-				)?.emoji;
-				this.renderUpcomingRow(section, {
-					icon: legacy ? "⚠️" : lead ? lead.emoji : typeEmoji ?? "⏰",
-					date: date || "Anytime",
-					time: r.time ? this.formatReminderTime(r.time) : "",
-					name: legacy || !lead ? r.name : lead.rest,
-					suffix: r.location ?? "",
-					relative: isTonight ? "tonight" : relative,
-					tone,
-					onClick: () =>
-						new ReminderViewModal(this.app, this.plugin, r, () =>
-							this.refresh()
-						).open(),
-				});
-			}
-		}
-
-		if (items.length > shown.length || this.showAllUpcomingEvents) {
-			const hidden = items.length - shown.length;
-			const toggle = section.createEl("button", {
-				cls: "callander-button",
-				text: this.showAllUpcomingEvents
-					? "Show fewer"
-					: `Show all (${items.length})`,
-				attr: {
-					"aria-label": `${hidden} further ahead`,
-				},
-			});
-			toggle.addEventListener("click", () => {
-				this.showAllUpcomingEvents = !this.showAllUpcomingEvents;
-				void this.render();
+			const e = item.event;
+			buildUpcomingRow(section, {
+				...eventRowFields(
+					e,
+					now,
+					e.people.length > 0 ? this.eventPeopleNames(e) : "",
+					// The dashboard is a "what's next" view — anything inside
+					// a fortnight reads better by weekday than by date.
+					{ conversational: true }
+				),
+				onClick: () =>
+					new EventViewModal(this.app, this.plugin, e, () =>
+						this.refresh()
+					).open(),
 			});
 		}
-	}
 
-	private renderUpcomingRow(
-		section: HTMLElement,
-		opts: {
-			icon: string;
-			date: string;
-			time?: string;
-			name: string;
-			suffix: string;
-			relative: string;
-			/** Emphasis for the relative text (right-hand side) */
-			tone?: RowTone;
-			/** Emphasis for the suffix — rows whose timing lives there */
-			suffixTone?: RowTone;
-			onClick: () => void;
-			/** Right-hand button, shown in place of the relative text */
-			action?: {
-				icon: string;
-				label: string;
-				ariaLabel: string;
-				onClick: (e: MouseEvent) => void;
-			};
-		}
-	) {
-		const row = section.createDiv({
-			cls: "dashboard-row dashboard-row-clickable dashboard-upcoming-row",
-		});
-		const mainCol = row.createDiv({ cls: "dashboard-upcoming-main" });
-		// Rows without a date (missed birthdays) are single-line — skip the
-		// when line entirely rather than leaving an empty gap above the name
-		if (opts.icon || opts.date || opts.time) {
-			mainCol.createDiv({
-				cls: "dashboard-upcoming-when",
-				text: `${opts.icon ? opts.icon + " " : ""}${opts.date}${
-					opts.time ? " · " + opts.time : ""
-				}`,
+		if (items.length > shown.length) {
+			const more = section.createDiv({
+				cls: "section-helper-text dashboard-row-clickable",
+				text: `+${items.length - shown.length} more on the Events page`,
 			});
-		}
-		const nameEl = mainCol.createDiv({
-			cls: "dashboard-upcoming-name",
-		});
-		nameEl.createSpan({ text: opts.name });
-		if (opts.suffix) {
-			nameEl.createSpan({
-				cls: `dashboard-upcoming-person${
-					opts.suffixTone ? ` dashboard-rel-${opts.suffixTone}` : ""
-				}`,
-				text: ` • ${opts.suffix}`,
-			});
-		}
-		if (opts.action) {
-			const button = row.createEl("button", {
-				cls: "callander-button dashboard-row-action",
-				attr: { "aria-label": opts.action.ariaLabel },
-			});
-			setIcon(button, opts.action.icon);
-			button.createSpan({ text: opts.action.label });
-			button.addEventListener("click", opts.action.onClick);
-		} else if (opts.relative) {
-			row.createSpan({
-				cls: `dashboard-upcoming-rel${
-					opts.tone ? ` dashboard-rel-${opts.tone}` : ""
-				}`,
-				text: opts.relative,
-			});
-		}
-		row.addEventListener("click", opts.onClick);
-	}
-
-	private formatReminderTime(t: string): string {
-		const [h, m] = t.split(":").map(Number);
-		if (Number.isNaN(h)) return t;
-		const period = h < 12 ? "AM" : "PM";
-		const hr = h % 12 === 0 ? 12 : h % 12;
-		return `${hr}:${String(m || 0).padStart(2, "0")} ${period}`;
-	}
-
-	/** Split "when" into a date ("Friday Aug 21") and a relative ("in 25 days"). */
-	/**
-	 * Days from today to a flex date. Coarse dates anchor to the start of
-	 * their period (a bare "August 2026" counts from the 1st) — good enough
-	 * for a window test, where being a few days out never flips the answer.
-	 * Null when there's no year at all, which the caller treats as "always
-	 * show": an undated reminder is actionable now, not far off.
-	 */
-	private daysUntilFlex(dateStr: string | undefined, now: Date): number | null {
-		const p = parseFlexDate(dateStr ?? "");
-		if (!p || p.year === null) return null;
-		const target = new Date(p.year, (p.month ?? 1) - 1, p.day ?? 1);
-		target.setHours(0, 0, 0, 0);
-		const today = new Date(now);
-		today.setHours(0, 0, 0, 0);
-		return Math.round((target.getTime() - today.getTime()) / 86400000);
-	}
-
-	/** "today" / "4 days ago" / "in 12 days" (etc.) and its tone, from an
-	 * exact day offset — the piece day-precision dates and a plan's end
-	 * date both need. */
-	private relativeFromDays(days: number): {
-		relative: string;
-		tone?: RowTone;
-	} {
-		let relative: string;
-		if (days === 0) relative = "today";
-		else if (days === 1) relative = "tomorrow";
-		else if (days === -1) relative = "yesterday";
-		else if (days < 0) relative = `${-days} days ago`;
-		else if (days <= 90) relative = `in ${days} days`;
-		else relative = `in ${Math.round(days / 30)} months`;
-		const tone: RowTone | undefined =
-			days < 0 ? "past" : days <= 1 ? "soon" : undefined;
-		return { relative, tone };
-	}
-
-	private upcomingWhen(
-		dateStr: string,
-		now: Date
-	): { date: string; relative: string; tone?: RowTone } {
-		const p = parseFlexDate(dateStr);
-		if (!p) return { date: "", relative: "" };
-		if (p.year !== null && p.month !== null && p.day !== null) {
-			const target = new Date(p.year, p.month - 1, p.day);
-			target.setHours(0, 0, 0, 0);
-			const today = new Date(now);
-			today.setHours(0, 0, 0, 0);
-			const days = Math.round(
-				(target.getTime() - today.getTime()) / 86400000
+			more.addEventListener("click", () =>
+				void this.plugin.activateEvents()
 			);
-			// Intl's en-AU "short" month doesn't actually abbreviate (renders
-			// "July" in full) — build the short form ourselves rather than
-			// trust it, the same way TableView's birthdayDate() does.
-			const weekday = formatDate(target, { weekday: "long" });
-			const year =
-				p.year !== now.getFullYear() ? ` ${p.year}` : "";
-			const date = `${weekday} ${p.day} ${monthName(p.month).slice(
-				0,
-				3
-			)}${year}`;
-			return { date, ...this.relativeFromDays(days) };
 		}
-		// Month precision ("August 2026"): counting days would imply a
-		// precision we don't have, so compare whole months instead.
-		if (p.year !== null && p.month !== null) {
-			const months =
-				(p.year - now.getFullYear()) * 12 +
-				(p.month - (now.getMonth() + 1));
-			let relative: string;
-			if (months === 0) relative = "this month";
-			else if (months === 1) relative = "next month";
-			else if (months === -1) relative = "last month";
-			else if (months < 0) relative = `${-months} months ago`;
-			else relative = `in ${months} months`;
-			// A whole month is never "today" — only the past end gets emphasis.
-			return {
-				date: formatFlexDate(p),
-				relative,
-				tone: months < 0 ? "past" : undefined,
-			};
-		}
-		return { date: formatFlexDate(p), relative: "" };
+	}
+
+	/** Linked people as display names, resolved against the contact list
+	 * the dashboard already holds; dead links fall back to their text. */
+	private eventPeopleNames(e: EventInfo): string {
+		return e.people
+			.map((raw) => {
+				const linktext = raw
+					.replace(/^\[\[|\]\]$/g, "")
+					.split("|")[0]
+					.trim();
+				const dest = this.app.metadataCache.getFirstLinkpathDest(
+					linktext,
+					e.file.path
+				);
+				const match = dest
+					? this.contacts.find((c) => c.file.path === dest.path)
+					: undefined;
+				return match?.displayName ?? linktext;
+			})
+			.join(", ");
 	}
 
 	/** Events from this same calendar day in earlier years — a warm callback. */
@@ -841,7 +632,7 @@ export class DashboardView extends ItemView {
 				if (p.month === month && p.day === day && p.year < thisYear) {
 					hits.push({
 						contact: c,
-						text: event.text,
+						text: event.name,
 						yearsAgo: thisYear - p.year,
 					});
 				}
@@ -914,7 +705,7 @@ export class DashboardView extends ItemView {
 		for (const plan of plans) {
 			// A leading emoji in the plan name stands in as the row icon
 			const lead = splitLeadingEmoji(plan.name);
-			const { date, relative, tone } = this.upcomingWhen(plan.date, now);
+			const { date, relative, tone } = upcomingWhen(plan.date, now);
 
 			const startFlex = parseFlexDate(plan.date);
 			const endFlex = parseFlexDate(plan.endDate);
@@ -964,7 +755,7 @@ export class DashboardView extends ItemView {
 						(endDay.getTime() - today.getTime()) / 86400000
 					);
 					({ relative: relativeText, tone: relativeTone } =
-						this.relativeFromDays(daysUntilEnd));
+						relativeFromDays(daysUntilEnd));
 				}
 			}
 
@@ -974,7 +765,7 @@ export class DashboardView extends ItemView {
 			const est = PlanOperations.estimate({ items: plan.items });
 			if (est > 0) details.push(`~$${est}`);
 
-			this.renderUpcomingRow(section, {
+			buildUpcomingRow(section, {
 				icon: lead ? lead.emoji : "🗺️",
 				date: when || "No date yet",
 				name: lead ? lead.rest : plan.name,
@@ -1035,44 +826,30 @@ export class DashboardView extends ItemView {
 			return;
 		}
 
-		for (const s of somedays.slice(0, 5)) {
+		// Same row as the Somedays page, at the dashboard's own smaller
+		// type — see .dashboard-somedays in styles.css.
+		const now = new Date();
+		const shown = this.plugin.settings.dashboardSomedayCount;
+		for (const s of somedays.slice(0, shown)) {
 			const row = section.createDiv({
-				cls: "dashboard-row dashboard-row-clickable",
+				cls: "dashboard-row dashboard-row-clickable dashboard-someday-row",
 			});
-			row.createSpan({ text: s.name });
-			const metaParts: string[] = [];
-			const when = this.somedayWhen(s);
-			if (when) metaParts.push(when);
-			const daysLabel = formatSomedayDays(s.days);
-			if (daysLabel) metaParts.push(daysLabel);
-			if (s.cost !== null) metaParts.push(`~$${s.cost}`);
-			if (metaParts.length > 0) {
-				row.createSpan({
-					cls: "dashboard-row-meta",
-					text: metaParts.join(" · "),
-				});
-			}
+			buildSomedayRow(row, somedayRowParts(s, now));
 			row.addEventListener("click", () => {
 				new SomedayViewModal(this.app, this.plugin, s, () =>
 					this.refresh()
 				).open();
 			});
 		}
-		if (somedays.length > 5) {
+		if (somedays.length > shown) {
 			const more = section.createDiv({
 				cls: "section-helper-text dashboard-row-clickable",
-				text: `+${somedays.length - 5} more on the Somedays page`,
+				text: `+${somedays.length - shown} more on the Somedays page`,
 			});
 			more.addEventListener("click", () =>
 				void this.plugin.activateSomedays()
 			);
 		}
-	}
-
-	private somedayWhen(s: SomedayInfo): string {
-		const f = parseFlexDate(s.date);
-		if (f) return formatFlexDate(f);
-		return formatSomedaySeasons(s.seasons);
 	}
 
 	private renderDiary(container: HTMLElement) {
@@ -1295,7 +1072,7 @@ export class DashboardView extends ItemView {
 			const giftCount = c.ideas.filter(
 				(i) => !i.done && i.category === "gift"
 			).length;
-			this.renderUpcomingRow(section, {
+			buildUpcomingRow(section, {
 				icon: "",
 				date: this.formatDayDate(days),
 				name: c.displayName,
@@ -1303,11 +1080,15 @@ export class DashboardView extends ItemView {
 					giftCount > 0
 						? `${giftCount} gift idea${giftCount > 1 ? "s" : ""}`
 						: "no gift ideas yet",
+				// The date label already says "Tomorrow", so the count goes
+				// here rather than repeating it. Today keeps the cake — a
+				// birthday has no time to count down to, so an event's
+				// "in 3 hours" has no equivalent here.
 				relative:
 					days === 0
 						? "today! 🎂"
 						: days === 1
-						? "tomorrow"
+						? "in 1 day"
 						: `in ${days} days`,
 				// This list is upcoming-only — never a past day — so soon is
 				// the only tone that applies here.
@@ -1317,11 +1098,15 @@ export class DashboardView extends ItemView {
 		}
 	}
 
-	/** Human date offset from today, e.g. "Monday 16 Aug" */
+	/** Human date offset from today: "Monday", "Next Monday", "Monday 16 Aug" */
 	private formatDayDate(offsetDays: number): string {
 		const d = new Date();
 		d.setHours(0, 0, 0, 0);
 		d.setDate(d.getDate() + offsetDays);
+		// Close by, the weekday alone says it — same rule the Upcoming
+		// section reads by, so the two lists agree.
+		const near = conversationalLabel(d, offsetDays);
+		if (near) return near;
 		// Self-built short month — Intl's en-AU "short" doesn't actually
 		// abbreviate (renders "August" in full). See upcomingWhen's note.
 		const weekday = formatDate(d, { weekday: "long" });
@@ -1378,7 +1163,7 @@ export class DashboardView extends ItemView {
 				new Notice(`🎈 Nice — ${c.displayName} checked off`);
 				await this.refresh();
 			};
-			this.renderUpcomingRow(section, {
+			buildUpcomingRow(section, {
 				icon: "",
 				date: "",
 				name: c.displayName,
@@ -1469,5 +1254,150 @@ export class DashboardView extends ItemView {
 				).open();
 			});
 		}
+	}
+
+	/**
+	 * Shared expenses that don't belong to anything — dinner last night, a
+	 * taxi split three ways. Recorded straight from here, so splitting one
+	 * cost doesn't mean inventing something to hang it off.
+	 */
+	private async renderExpenses(container: HTMLElement) {
+		const ops = this.plugin.contactOperations;
+		const expenses = await ops.getExpenses();
+		const sourcePath = ops.getDashboardFilePath();
+		const yourName = this.plugin.settings.yourName;
+		const shortNames = shortNameOverrides(this.contacts);
+
+		const section = container.createDiv({ cls: "dashboard-section" });
+		section.createEl("h3", { text: "💵 Expenses" });
+
+		// Everything still owed, then everything squared up — the settled
+		// ones stay reachable but out of the way.
+		const { open, settled } = partitionExpenses(expenses);
+
+		if (expenses.length === 0) {
+			section.createDiv({
+				cls: "section-helper-text",
+				text: "Split a one-off cost — dinner, a taxi, the groceries. Divide it evenly, by shares, or line by line off the receipt.",
+			});
+		}
+
+		// The participant list an expense is scored against: whoever it names,
+		// plus you. Resolved per expense, since each carries its own people.
+		const participantsFor = (expense: Expense): string[] => {
+			const picked = resolvePeopleNames(
+				this.app,
+				sourcePath,
+				expense.people ?? []
+			);
+			const you = yourName.trim();
+			return you && !picked.some((p) => p.toLowerCase() === you.toLowerCase())
+				? [you, ...picked]
+				: picked;
+		};
+
+		const saveAt = async (index: number, updated: Expense) => {
+			await ops.writeExpenses((list) => {
+				list[index] = updated;
+			});
+			await this.refresh();
+		};
+
+		const deleteAt = async (index: number) => {
+			await ops.writeExpenses((list) => {
+				list.splice(index, 1);
+			});
+			await this.refresh();
+		};
+
+		const edit = (index: number, expense: Expense) => {
+			new ExpenseModal(
+				this.app,
+				participantsFor(expense),
+				expense,
+				(updated) => saveAt(index, updated),
+				() => deleteAt(index),
+				yourName,
+				this.plugin.settings.receiptTaxPercent,
+				this.plugin.settings.receiptTipPercent,
+				{ contacts: this.contacts, sourcePath }
+			).open();
+		};
+
+		// Tapping a row reads it first; Edit/Delete/Settle live in that view.
+		const openView = (index: number, expense: Expense) => {
+			new ExpenseViewModal(
+				this.app,
+				expense,
+				participantsFor(expense),
+				() => edit(index, expense),
+				() => deleteAt(index),
+				yourName,
+				async ({ paid, settled: isSettled }) => {
+					await ops.writeExpenses((list) => {
+						const current = list[index];
+						if (!current) return;
+						current.paid = paid;
+						if (isSettled) current.settled = true;
+						else delete current.settled;
+					});
+					await this.refresh();
+				},
+				shortNames
+			).open();
+		};
+
+		for (const { expense, index } of open) {
+			appendExpenseRow(section, expense, participantsFor(expense), {
+				yourName,
+				onClick: () => openView(index, expense),
+			});
+		}
+
+		// Settled ones fold away — still there to check, never in the way.
+		if (settled.length > 0) {
+			const details = section.createEl("details", {
+				cls: "expense-settled-group",
+			});
+			const summary = details.createEl("summary", {
+				cls: "expense-settled-summary",
+			});
+			setIcon(
+				summary.createSpan({ cls: "expense-settled-chevron" }),
+				"chevron-down"
+			);
+			summary.createSpan({ text: `Settled (${settled.length})` });
+			for (const { expense, index } of settled) {
+				appendExpenseRow(details, expense, participantsFor(expense), {
+					yourName,
+					onClick: () => openView(index, expense),
+				});
+			}
+		}
+
+		const footer = section.createDiv({
+			cls: "contact-section-footer expense-footer",
+		});
+		const addButton = footer.createEl("button", { cls: "callander-button" });
+		setIcon(addButton, "plus");
+		addButton.createSpan({ text: "New expense" });
+		addButton.addEventListener("click", () => {
+			new ExpenseModal(
+				this.app,
+				yourName ? [yourName] : [],
+				null,
+				async (expense) => {
+					await ops.writeExpenses((list) => {
+						list.push(expense);
+					});
+					await this.refresh();
+				},
+				undefined,
+				yourName,
+				this.plugin.settings.receiptTaxPercent,
+				this.plugin.settings.receiptTipPercent,
+				{ contacts: this.contacts, sourcePath }
+			).open();
+		});
 	}
 }

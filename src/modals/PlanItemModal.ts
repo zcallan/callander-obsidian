@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, setIcon } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import {
 	PLAN_IDEA_CATEGORIES,
@@ -144,32 +144,45 @@ export class PlanItemModal extends FormModal {
 			);
 		});
 
-		const costField = form.createDiv({ cls: "callander-modal-field" });
+		// Additional details — the same accordion the event modal uses, so
+		// the form leads with what/category/when and folds the rest away.
+		const detailsWrap = form.createDiv({
+			cls: "callander-modal-field plan-accordion callander-modal-accordion",
+		});
+		const detailsHeader = detailsWrap.createDiv({
+			cls: "plan-accordion-header callander-modal-accordion-header",
+		});
+		detailsHeader.createSpan({ text: "Additional details" });
+		setIcon(
+			detailsHeader.createSpan({ cls: "plan-accordion-chevron" }),
+			"chevron-down"
+		);
+		const detailsBody = detailsWrap.createDiv({
+			cls: "plan-accordion-body",
+		});
+		detailsHeader.addEventListener("click", () => {
+			detailsWrap.toggleClass("is-open", !detailsWrap.hasClass("is-open"));
+		});
+		// An edit that already has any of these opens showing them, rather
+		// than hiding saved detail behind a closed lid.
+		detailsWrap.toggleClass(
+			"is-open",
+			!!(this.initial?.cost || this.initial?.notes)
+		);
+
+		const costField = detailsBody.createDiv({ cls: "callander-modal-field" });
 		costField.createEl("label", { text: "Approx. cost (optional)" });
 		const costWrap = costField.createDiv({
-			cls: "plan-cost-input-wrap",
+			cls: "expense-input-wrap",
 		});
-		costWrap.createSpan({ cls: "plan-cost-input-prefix", text: "$" });
+		costWrap.createSpan({ cls: "expense-input-prefix", text: "$" });
 		const costInput = costWrap.createEl("input", {
-			cls: "callander-modal-input plan-cost-input",
+			cls: "callander-modal-input expense-input",
 			attr: { type: "number", name: "cost", min: "0", placeholder: "0" },
 		});
 		if (this.initial?.cost) costInput.value = String(this.initial.cost);
 
-		const notesField = form.createDiv({ cls: "callander-modal-field" });
-		notesField.createEl("label", { text: "Notes (optional)" });
-		const notesInput = notesField.createEl("textarea", {
-			cls: "callander-modal-input plan-notes-input",
-			attr: {
-				name: "notes",
-				rows: "2",
-				placeholder: "e.g. Booked for 7pm under Callan",
-			},
-		});
-		notesInput.value = this.initial?.notes ?? "";
-
-		// Priority picker — at the bottom, above the buttons
-		const priField = form.createDiv({ cls: "callander-modal-field" });
+		const priField = detailsBody.createDiv({ cls: "callander-modal-field" });
 		priField.createEl("label", { text: "Priority" });
 		const priRow = priField.createDiv({
 			cls: "quick-idea-categories plan-priority-row",
@@ -195,6 +208,20 @@ export class PlanItemModal extends FormModal {
 			});
 			priButtons.set(p.id, button);
 		});
+
+		const notesField = detailsBody.createDiv({
+			cls: "callander-modal-field",
+		});
+		notesField.createEl("label", { text: "Notes (optional)" });
+		const notesInput = notesField.createEl("textarea", {
+			cls: "callander-modal-input plan-notes-input",
+			attr: {
+				name: "notes",
+				rows: "2",
+				placeholder: "e.g. Booked for 7pm under Callan",
+			},
+		});
+		notesInput.value = this.initial?.notes ?? "";
 
 		const buttonRow = form.createDiv({
 			cls: "callander-modal-buttons",

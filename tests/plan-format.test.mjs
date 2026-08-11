@@ -3,6 +3,8 @@ import {
 	shortenMemberNames,
 	shortenPeopleList,
 	shortNameOverrides,
+	roughTime,
+	timeSortValue,
 } from "./.build/callander.mjs";
 
 /**
@@ -123,6 +125,20 @@ export function run() {
 		"Obama"
 	);
 	eq("no entry for a contact without one", map.has("riley sorensen"), false);
+
+	// ---------- "All day" ----------
+	// Not a time of day but an answer to the same question, so it resolves
+	// like any rough time and leads its day rather than trailing the untimed.
+	eq("all-day resolves to a label", roughTime("all-day")?.label, "All day");
+	eq("...and sorts to the head of the day", timeSortValue("all-day"), "00:00");
+	eq(
+		"...ahead of the earliest hour",
+		timeSortValue("all-day") < timeSortValue("early-morning"),
+		true
+	);
+	eq("no time still sorts last", timeSortValue(""), "99:99");
+	eq("an ordinary rough time is unaffected", roughTime("dinner")?.label, "Dinner time");
+	eq("nonsense is still nothing", roughTime("banana"), undefined);
 
 	return result();
 }

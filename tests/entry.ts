@@ -11,14 +11,28 @@ export * from "@/utils/markdownSection";
 export * from "@/utils/quotesMarkdown";
 export * from "@/utils/ideasMarkdown";
 export * from "@/utils/planFormat";
+export * from "@/utils/nameFormat";
+export * from "@/utils/expenseMath";
+export * from "@/utils/people";
 export * from "@/utils/somedaySort";
+export * from "@/utils/somedayRow";
+export * from "@/utils/eventRow";
+export * from "@/utils/upcomingWhen";
+export * from "@/utils/eventShare";
+export * from "@/utils/url";
 export * from "@/utils/emoji";
 export {
 	formatSomedayDays,
 	formatSomedaySeasons,
 	formatSomedaySeasonDeadline,
 	formatSomedayTimes,
+	roughTime,
+	timeSortValue,
+	ALL_DAY_TIME,
+	ROUGH_TIMES,
 } from "@/constants";
 export * from "@/utils/planShare";
 export { PlanOperations } from "@/services/PlanOperations";
 export { ContactOperations } from "@/services/ContactOperations";
+export { EventOperations } from "@/services/EventOperations";
+export { EventMigration } from "@/services/EventMigration";

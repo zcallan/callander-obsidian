@@ -712,12 +712,13 @@ If your plugin does not need CSS, delete this file.
    where the always-visible fields end, and it gets a bit more breathing
    room than the compact Dashboard/Person-page accordions this borrows
    its open/close mechanics from. */
-.someday-modal-accordion {
+/* Shared by the Someday and Event modals' "Additional details" lids */
+.callander-modal-accordion {
 	border-top: 1px solid var(--background-modifier-border);
 	padding-top: 12px;
 }
 
-.someday-modal-accordion .plan-accordion-body {
+.callander-modal-accordion .plan-accordion-body {
 	padding-top: 10px;
 }
 
@@ -1547,9 +1548,26 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Glance modal */
-.glance-modal .glance-met {
+
+/* Each block of the glance (who they are / ideas / timeline / actions) is
+   a group; the rule between them comes from the adjacency, so a group
+   that renders nothing simply leaves and takes its divider with it. */
+.glance-group + .glance-group {
+	margin-top: 14px;
+	padding-top: 14px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.glance-fact {
+	display: flex;
+	gap: 8px;
+	padding: 2px 0;
+}
+
+.glance-fact-label {
 	color: var(--text-muted);
-	margin-bottom: 8px;
+	flex-shrink: 0;
+	min-width: 74px;
 }
 
 .glance-section-header {
@@ -1559,9 +1577,48 @@ If your plugin does not need CSS, delete this file.
 	margin: 12px 0 2px;
 }
 
+/* The first header in a group already has the group's own spacing above it */
+.glance-group > .glance-section-header:first-child {
+	margin-top: 0;
+}
+
+/* Idea categories — a rung below the section header they sit under.
+   Subordinate through size and weight rather than contrast: --text-faint
+   is for metadata you skim past, and these are labels you actually read. */
+.glance-subheader {
+	font-size: 0.85em;
+	font-weight: 500;
+	color: var(--text-muted);
+	margin: 8px 0 0;
+}
+
 .glance-list {
 	margin: 4px 0;
 	padding-left: 20px;
+}
+
+/* The shared helper text is deliberately lopsided (12 above, 8 below) for
+   the page sections it was written for; in here it sits between a header
+   and a divider, where the asymmetry reads as a mistake. */
+.glance-group .section-helper-text {
+	margin: 4px 0;
+}
+
+/* "• 2 months ago" trails the thing it describes, so it recedes */
+.glance-when {
+	color: var(--text-muted);
+}
+
+.glance-actions {
+	display: flex;
+	gap: 8px;
+}
+
+/* The group's own padding is the whole gap above the button — the shared
+   button margin would stack on top of it and sit the row lower than the
+   modal's matching padding underneath. */
+.glance-actions .callander-button {
+	margin-top: 0;
 }
 
 /* Resurface badge + diary mentions */
@@ -1935,6 +1992,27 @@ If your plugin does not need CSS, delete this file.
 	background: #e0559a;
 }
 
+/* The reminder types that joined the merged vocabulary */
+.contact-timeline-dot.type-concert {
+	background: #d95757;
+}
+
+.contact-timeline-dot.type-movie {
+	background: #dcc22e;
+}
+
+.contact-timeline-dot.type-comedy {
+	background: #45b8ac;
+}
+
+.contact-timeline-dot.type-event {
+	background: #8f9aa5;
+}
+
+.contact-timeline-dot.type-task {
+	background: #6c7a89;
+}
+
 /* Plans */
 .plan-meta {
 	display: flex;
@@ -1949,7 +2027,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 
-.plan-item-cost {
+.item-cost {
 	color: var(--text-muted);
 	font-size: 0.9em;
 }
@@ -2188,16 +2266,16 @@ If your plugin does not need CSS, delete this file.
 	height: 13px;
 }
 
-.plan-cost-field {
+.expense-field {
 	max-width: 70px;
 	flex: 0 0 auto;
 }
 
-.plan-cost-input {
+.expense-input {
 	margin-top: 8px;
 }
 
-.is-phone .plan-cost-field {
+.is-phone .expense-field {
 	max-width: none;
 }
 
@@ -2411,6 +2489,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
    inputs, and letting flex-row children actually shrink */
 .modal .callander-modal-input,
 .modal .contact-field-input,
+.modal .contact-event-text-input,
 .modal .quick-idea-input {
 	box-sizing: border-box;
 	width: 100%;
@@ -2567,6 +2646,18 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	padding: 8px 0;
 }
 
+/* The Ideas list reads as one clean stack, not a bordered table — a
+   little tighter than the shared row padding, and no divider rule
+   between items. Scoped to this section so Plan checklists and
+   Interests (which also use .contact-idea-item) are untouched. */
+.contact-ideas-section .contact-idea-item {
+	padding: 2px 0;
+}
+
+.contact-ideas-section .contact-idea-item + .contact-idea-item {
+	border-top: none;
+}
+
 /* Dashboard section dividers */
 .dashboard-section {
 	border-top: 1px solid var(--background-modifier-border);
@@ -2618,14 +2709,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .dashboard-diary-tagged {
 	color: var(--text-muted);
 	font-size: 0.85em;
-}
-
-/* Temporary migration nudge in the Upcoming section (see
-   ReminderOperations — remove ~2026-09 with the legacy store) */
-.dashboard-migration-note {
-	border-left: 2px solid var(--color-yellow);
-	padding-left: 8px;
-	margin-bottom: 8px;
 }
 
 /* Diary rows */
@@ -3001,39 +3084,56 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* Cost breakdown */
-.plan-cost-label {
+.expense-label {
 	font-weight: 600;
 }
 
 /* No border here — the last expense row's own divider separates it, so a
    border-top would read as a double line. */
-.plan-cost-summary {
+.expense-summary {
 	margin-top: 12px;
 }
 
-.plan-cost-summary-total {
+.expense-summary-total {
 	cursor: pointer;
 	font-weight: 600;
 	padding: 4px 0;
 }
 
-.plan-cost-owed-list {
+.expense-owed-list {
 	margin-top: 4px;
 	display: flex;
 	flex-direction: column;
 }
 
-.plan-cost-owed-row {
+.expense-owed-row {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	padding: 5px 0;
+	padding: 6px 8px;
+	border-radius: 4px;
 	color: var(--text-muted);
 	font-size: 0.92em;
 }
 
+/* Barely-there banding. The name and its amount sit at opposite ends of a
+   wide row, and a faint stripe is what stops the eye sliding a line as it
+   crosses the gap. Deliberately weak — it's a reading aid, not a state.
+
+   Settled people live in their own list inside the accordion, so neither
+   list has hidden rows and :nth-child bands each correctly on its own. */
+.expense-owed-row:nth-child(even) {
+	background: var(--background-modifier-hover);
+}
+
+/* The whole row toggles "paid", not just the label's own text — see the
+   click forwarding in renderPlanCosts. */
+.expense-owed-row.is-clickable {
+	cursor: pointer;
+}
+
 /* Checkbox + name toggle "paid"; the rest of the row does not */
-.plan-cost-owed-check {
+.expense-owed-check {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -3045,7 +3145,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* Sized explicitly (not just the disabled state below) so the gap to the
    name reads the same on every row — native checkboxes carry their own
    implicit spacing that doesn't match the disabled box's. */
-.plan-cost-owed-check input[type="checkbox"] {
+.expense-owed-check input[type="checkbox"] {
 	width: 16px;
 	height: 16px;
 	flex: 0 0 auto;
@@ -3053,7 +3153,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* Your own row can't be ticked — show a clear disabled grey box */
-.plan-cost-owed-check input[type="checkbox"]:disabled {
+.expense-owed-check input[type="checkbox"]:disabled {
 	-webkit-appearance: none;
 	appearance: none;
 	border: 1px solid var(--background-modifier-border);
@@ -3063,47 +3163,151 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	cursor: not-allowed;
 }
 
-.plan-cost-owed-check.is-disabled {
+.expense-owed-check.is-disabled {
 	cursor: default;
 }
 
-.plan-cost-owed-name {
+.expense-owed-name {
 	flex: 1 1 auto;
 }
 
-.plan-cost-owed-amount {
+.expense-owed-amount {
 	flex: 0 0 auto;
 	font-variant-numeric: tabular-nums;
 }
 
-.plan-breakdown-btn {
+.expense-breakdown-btn {
 	flex: 0 0 auto;
 	margin-top: 0;
 	padding: 3px 9px;
 	font-size: 0.8em;
 }
 
-.plan-cost-owed-row.paid .plan-cost-owed-name,
-.plan-cost-owed-row.paid .plan-cost-owed-amount {
+.expense-owed-row.paid .expense-owed-name,
+.expense-owed-row.paid .expense-owed-amount {
 	text-decoration: line-through;
 	opacity: 0.6;
 }
 
 /* Credit rows: money already handed over (deducted from what's owed).
-   Shares plan-item-cost sizing; just recolour. */
+   Shares item-cost sizing; just recolour. */
 .plan-credit-amount {
 	color: var(--color-green);
 }
 
 /* Settled expense, in the cost view modal: only the word goes green — the
    amount stays a plain figure, since it's still what the expense cost. */
-.plan-cost-settled-label {
+.expense-settled-label {
 	color: var(--color-green, #5cb870);
+}
+
+/* An expense over two lines: name and progress up top, cost and split
+   below. Rules between them, since the two-line block needs a boundary to
+   read as one item rather than four loose lines. */
+.expense-row {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 10px 0;
+	cursor: pointer;
+}
+
+/* Between rows only. `:first-of-type` would be wrong here — it matches the
+   first div among its siblings, and these sections open with a heading and
+   helper text, so the first expense is rarely the first div. */
+.expense-row + .expense-row {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.expense-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Label left, tally right — the gap between them is what makes the
+   right-hand column scannable down a list. */
+.expense-row-line {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+/* Long names wrap rather than shoving the tally off the row. `min-width: 0`
+   alone isn't enough: a flex item still won't shrink past its longest
+   unbroken word, so a run-on name overflows the row and collides with the
+   tally. `anywhere` lets that word break. */
+.expense-label {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.expense-row-status {
+	flex: 0 0 auto;
+	color: var(--text-muted);
+	font-size: 0.85em;
+	font-variant-numeric: tabular-nums;
+}
+
+/* Both are single-class selectors, so source order alone decides the
+   colour — and this rule sits later in the file than .expense-settled-label.
+   Scoped through the status class to win on specificity instead. */
+.expense-row-status.expense-settled-label {
+	color: var(--color-green, #5cb870);
+}
+
+.expense-row-meta {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+/* Settled expenses, folded away beneath the open ones. Closed by default:
+   they're the record, not the to-do. */
+.expense-settled-group {
+	margin-top: 12px;
+}
+
+.expense-settled-summary {
+	cursor: pointer;
+	padding: 4px 0;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	list-style: none;
+}
+
+.expense-settled-summary::-webkit-details-marker {
+	display: none;
+}
+
+/* A real chevron from the icon set rather than a "▸" glyph, which renders
+   at whatever size and baseline the font happens to give it. Sized in em
+   so it tracks the summary's own type. */
+.expense-settled-summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.expense-settled-chevron {
+	display: inline-flex;
+	align-items: center;
+	flex: 0 0 auto;
+	color: var(--text-muted);
+	transition: transform 0.15s ease;
+	transform: rotate(-90deg);
+}
+
+.expense-settled-chevron .svg-icon {
+	width: 1.1em;
+	height: 1.1em;
+}
+
+.expense-settled-group[open] .expense-settled-chevron {
+	transform: rotate(0deg);
 }
 
 /* Cost section footer: "Add expense" + "Add credit". Side by side on desktop,
    stacked on mobile, with room above it from the "Who owes what" summary. */
-.plan-cost-footer {
+.expense-footer {
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
@@ -3112,23 +3316,23 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin-top: 18px;
 }
 
-.plan-cost-footer .callander-button {
+.expense-footer .callander-button {
 	margin-top: 0;
 }
 
-.is-phone .plan-cost-footer {
+.is-phone .expense-footer {
 	flex-direction: column;
 	align-items: flex-start;
 }
 
 /* Per-person breakdown modal */
-.plan-breakdown-list {
+.expense-breakdown-list {
 	margin-top: 10px;
 	display: flex;
 	flex-direction: column;
 }
 
-.plan-breakdown-row {
+.expense-breakdown-row {
 	display: flex;
 	align-items: baseline;
 	justify-content: space-between;
@@ -3137,40 +3341,40 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.plan-breakdown-label {
+.expense-breakdown-label {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.plan-breakdown-amount {
+.expense-breakdown-amount {
 	flex: 0 0 auto;
 	font-variant-numeric: tabular-nums;
 }
 
 /* A settled line in the breakdown: "Settled" in green ahead of the figure,
    the figure struck through since it no longer counts toward the total. */
-.plan-breakdown-settled {
+.expense-breakdown-settled {
 	flex: 0 0 auto;
 	color: var(--color-green, #5cb870);
 	font-size: 0.85em;
 }
 
-.plan-breakdown-amount.is-settled {
+.expense-breakdown-amount.is-settled {
 	text-decoration: line-through;
 	opacity: 0.6;
 }
 
-.plan-breakdown-total {
+.expense-breakdown-total {
 	font-weight: 600;
 	border-bottom: none;
 	margin-top: 2px;
 }
 
-.plan-cost-shares {
+.expense-shares {
 	margin: 8px 0;
 }
 
-.plan-cost-share-row {
+.expense-share-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -3178,15 +3382,15 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	padding: 4px 0;
 }
 
-.plan-cost-share-name {
+.expense-share-name {
 	font-weight: 500;
 }
 
-.plan-cost-share-input {
+.expense-share-input {
 	max-width: 90px;
 }
 
-.plan-cost-preview {
+.expense-preview {
 	margin-top: 10px;
 	padding: 8px 10px;
 	background: var(--background-secondary);
@@ -3214,60 +3418,60 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* Cost split percent: live total + suffix */
-.plan-cost-total {
+.expense-total {
 	font-weight: 600;
 	margin: 6px 0;
 }
 
-.plan-cost-total.is-balanced {
+.expense-total.is-balanced {
 	color: var(--color-green, #5cb870);
 }
 
-.plan-cost-total.is-off {
+.expense-total.is-off {
 	color: var(--text-warning, #e6a935);
 }
 
 /* A value split that doesn't add up to the total — an outright mismatch
    rather than percent's softer "not 100% yet", so it reads as an error. */
-.plan-cost-total.is-unbalanced {
+.expense-total.is-unbalanced {
 	color: var(--text-error);
 }
 
-.plan-cost-share-suffix {
+.expense-share-suffix {
 	color: var(--text-muted);
 	margin-left: 4px;
 }
 
-.plan-cost-share-prefix {
+.expense-share-prefix {
 	color: var(--text-muted);
 	margin-right: 4px;
 }
 
 /* What a tax/tip percentage — or a receipt line's expression — comes to
    in dollars, beside its input */
-.plan-cost-addon-amount {
+.expense-addon-amount {
 	color: var(--text-muted);
 	font-variant-numeric: tabular-nums;
 	margin-right: 4px;
 	white-space: nowrap;
 }
 
-.plan-cost-addon-amount.is-invalid {
+.expense-addon-amount.is-invalid {
 	color: var(--text-error);
 }
 
 /* Separates the receipt's tax/tip rows from the people above them */
-.plan-cost-addon-divider {
+.expense-addon-divider {
 	margin: 10px 0 6px;
 	border-top: 1px solid var(--background-modifier-border);
 }
 
 /* Expense view modal: what each person's share works out to */
-.plan-cost-view-split {
+.expense-view-split {
 	margin-top: 12px;
 }
 
-.plan-cost-view-row {
+.expense-view-row {
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
@@ -3275,25 +3479,45 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	padding: 5px 0;
 }
 
-.plan-cost-view-row + .plan-cost-view-row {
+.expense-view-row + .expense-view-row {
 	border-top: 1px solid var(--background-modifier-border);
 }
 
 /* "14 (7+7)" under a name — how that line was worked out */
-.plan-cost-view-working {
+.expense-view-working {
 	color: var(--text-muted);
 	font-size: 0.85em;
 	margin-top: 1px;
 }
 
-.plan-cost-view-amount {
+.expense-view-amount {
 	font-variant-numeric: tabular-nums;
 	color: var(--text-muted);
 }
 
+/* Tick someone off as they square up. The name takes the slack so the box
+   stays beside it and the amount stays pinned right — with three children,
+   the row's space-between would otherwise strand the box on its own. */
+.expense-view-name {
+	flex: 1;
+	min-width: 0;
+}
+
+.expense-view-check {
+	flex-shrink: 0;
+	margin: 3px 0 0 0;
+	cursor: pointer;
+}
+
+/* Paid up — struck through, so a glance down the list shows who's left. */
+.expense-view-amount.is-paid {
+	text-decoration: line-through;
+	opacity: 0.6;
+}
+
 /* Receipt mode computes its own total, so it sits at the foot of the
    modal rather than inline with the split rows. */
-.plan-cost-receipt-total {
+.expense-receipt-total {
 	margin-top: 12px;
 	padding-top: 10px;
 	border-top: 1px solid var(--background-modifier-border);
@@ -3302,7 +3526,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	text-align: right;
 }
 
-.plan-cost-receipt-total.is-hidden {
+.expense-receipt-total.is-hidden {
 	display: none;
 }
 
@@ -3313,7 +3537,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* Cost split rows: small fixed-width right-aligned number inputs */
-.plan-cost-share-row {
+.expense-share-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -3321,14 +3545,14 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	padding: 4px 0;
 }
 
-.plan-cost-share-right {
+.expense-share-right {
 	display: flex;
 	align-items: center;
 	gap: 4px;
 	flex-shrink: 0;
 }
 
-.modal .plan-cost-share-input {
+.modal .expense-share-input {
 	width: 56px;
 	max-width: 56px;
 	flex: none;
@@ -3339,13 +3563,13 @@ body.is-mobile.callander-kb-open .modal-content > * {
    they take the width the row can spare rather than a fixed number-field
    size. The row's name shrinks first; the input still scrolls once an
    expression outgrows even that. */
-.modal .plan-cost-expr-row .plan-cost-share-right {
+.modal .expense-expr-row .expense-share-right {
 	flex: 1;
 	min-width: 0;
 	justify-content: flex-end;
 }
 
-.modal .plan-cost-share-input.plan-cost-expr-input {
+.modal .expense-share-input.expense-expr-input {
 	/* Width is set inline as you type (see autosizeExpr). The floor matches
 	   the other modes' field so the row doesn't jump when you switch tabs. */
 	width: 56px;
@@ -3355,19 +3579,72 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	text-align: right;
 }
 
-.modal .plan-cost-share-input.is-disabled {
+.modal .expense-share-input.is-disabled {
 	background: transparent;
 	opacity: 0.5;
 }
 
-.plan-cost-check {
+.expense-check {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	cursor: pointer;
 }
 
-.plan-cost-shares-head {
+/* Everyone in the People field is in by definition, so the tick is a
+   statement rather than a control — shown for consistency with the plan
+   version, but nothing here responds to a click. */
+.expense-check.is-fixed {
+	cursor: default;
+}
+
+.expense-check.is-fixed input[type="checkbox"] {
+	cursor: default;
+	opacity: 0.7;
+}
+
+/* Event modal: the "show on dashboard" tick and its explanation */
+/* Scoped through the field to beat `.callander-modal-field label`, which is
+   (0,1,1) to this rule's (0,1,0) and so won on specificity regardless of
+   order — forcing display:block, which dropped the flex layout and with it
+   the gap. That's why the box and its text sat flush together. */
+.callander-modal-field label.event-show-check {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	/* The whole row is the hit target, not just the 13px box. */
+	padding: 8px 6px;
+	margin-bottom: 0;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-normal);
+	font-size: 1em;
+}
+
+.callander-modal-field label.event-show-check:hover {
+	background: var(--background-modifier-hover);
+}
+
+.event-show-check input[type="checkbox"] {
+	margin: 0;
+	flex-shrink: 0;
+}
+
+/* Nobody on the event, so there's nothing for it to act on. */
+.callander-modal-field label.event-show-check.is-disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.callander-modal-field label.event-show-check.is-disabled:hover {
+	background: none;
+}
+
+.callander-modal-field .section-helper-text {
+	margin: 4px 0 0;
+}
+
+.expense-shares-head {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -3375,13 +3652,13 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin-bottom: 6px;
 }
 
-.plan-cost-checkall {
+.expense-checkall {
 	flex-shrink: 0;
 	padding: 3px 10px;
 	font-size: 0.85em;
 }
 
-.plan-cost-owed {
+.expense-owed {
 	color: var(--text-muted);
 	font-weight: 400;
 }
@@ -3402,17 +3679,17 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* Cost input with a $ prefix */
-.plan-cost-input-wrap {
+.expense-input-wrap {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 }
 
-.plan-cost-input-prefix {
+.expense-input-prefix {
 	color: var(--text-muted);
 }
 
-.plan-cost-input-wrap .plan-cost-input {
+.expense-input-wrap .expense-input {
 	flex: 1;
 	margin: 0;
 }
@@ -3457,11 +3734,11 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* Cost modal: long names shrink beside the fixed-width input */
-.plan-cost-share-name {
+.expense-share-name {
 	min-width: 0;
 }
 
-.plan-cost-check span {
+.expense-check span {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
@@ -3479,7 +3756,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 /* Mobile: cost inputs need more room (iOS number fields carry heavy
    native padding/chrome that clips the digits at desktop widths) */
-.is-mobile .modal .plan-cost-share-input {
+.is-mobile .modal .expense-share-input {
 	width: 86px;
 	max-width: 86px;
 	-webkit-appearance: none;
@@ -3610,7 +3887,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 /* ── People field: dropdown + removable pills ── */
 .plan-date-select,
-.plan-people-select {
+.people-select {
 	width: 100%;
 	box-sizing: border-box;
 	height: auto;
@@ -3618,14 +3895,14 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	line-height: normal;
 }
 
-.plan-people-pills {
+.people-pills {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 	margin-top: 8px;
 }
 
-.plan-people-pill {
+.people-pill {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
@@ -3636,7 +3913,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	font-size: 0.85em;
 }
 
-.plan-people-pill-x {
+.people-pill-x {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -3652,9 +3929,47 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	font-size: 0.85em;
 }
 
-.plan-people-pill-x:hover {
+.people-pill-x:hover {
 	color: var(--text-normal);
 	background: var(--background-modifier-hover);
+}
+
+/* Fixed in place — the person whose page this was opened from. With no ✕
+   it reads as a statement of where you are rather than a control, so the
+   right padding stands in for the button that isn't there. */
+.people-pill.is-locked {
+	padding-right: 10px;
+	opacity: 0.85;
+}
+
+/* Someone with no contact file — dashed, so it reads as a one-off name
+   rather than a person you can open. */
+.people-pill.is-guest {
+	border-style: dashed;
+	color: var(--text-muted);
+}
+
+/* Naming a guest: a text field and its Add button on one row. */
+.people-guest-row {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	margin-top: 8px;
+}
+
+.people-guest-input {
+	flex: 1;
+	/* Flex children default to min-width:auto and refuse to shrink below
+	   their content — which is what pushes a modal sideways on a phone. */
+	min-width: 0;
+	box-sizing: border-box;
+	height: auto;
+	min-height: 0;
+	line-height: normal;
+}
+
+.people-guest-row .callander-button {
+	flex-shrink: 0;
 }
 
 /* Event location — a muted bullet after the timeline text */
@@ -3883,9 +4198,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .someday-card.is-open .someday-card-body {
 	display: block;
 }
+/* Body type, both places. The dashboard used to take this back down to
+   its own size with an override; sizing it once here means the shared row
+   renders identically wherever it's used, with nothing to keep in step. */
 .someday-title {
-	font-weight: 600;
-	font-size: 1.05em;
+	font-size: inherit;
+	font-weight: inherit;
 }
 .someday-when {
 	color: var(--text-accent);
@@ -4097,6 +4415,18 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	background: var(--background-modifier-hover);
 	border-radius: 6px;
 }
+
+/* The same row on the dashboard, where it's a shortlist rather than the
+   page itself: .dashboard-row already supplies the two-column flex and
+   the tighter padding, and the title is sized once on .someday-title —
+   so there's nothing left to correct here. */
+.dashboard-someday-row .someday-row-main {
+	min-width: 0;
+	flex: 1;
+}
+
+/* The Events page reuses the dashboard's Upcoming row wholesale (see
+   buildUpcomingRow), so it needs no row rules of its own. */
 /* The page's one-line intro, tucked under the "Somedays" heading. Left-
    aligned even on phones, where helper text otherwise centres. */
 .someday-intro-note {
@@ -4153,7 +4483,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* Plan timeline view: the small muted "Idea"/"Travel"/"Accommodation"
    label that sits above the name. The h2 after it carries its own top
    margin, so this only needs to sit tight underneath. */
-.plan-view-kind {
+.view-kind {
 	color: var(--text-muted);
 	font-size: 0.75em;
 	text-transform: uppercase;
@@ -4173,6 +4503,13 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 .event-link-open {
 	flex: 0 0 auto;
+}
+/* .modal .callander-button (0,2,0) outranks a bare .event-link-open
+   (0,1,0) regardless of source order, so its 16px margin-top was winning
+   and pushing this button below the input it sits beside. Scoped through
+   the row for equal specificity, matching .someday-view-actions .callander-button
+   and every other inline-row override of the same shared margin. */
+.event-link-row .event-link-open {
 	margin-top: 0;
 }
 
@@ -4209,6 +4546,24 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .dashboard-upcoming-person {
 	color: var(--text-muted);
 	font-size: 0.85em;
+}
+
+/* A cancelled event keeps its place in the list — struck through, so it
+   reads as "this was going to happen" rather than as a live plan. */
+.dashboard-upcoming-name .is-cancelled {
+	text-decoration: line-through;
+	opacity: 0.7;
+}
+
+/* "Cancelled" takes the slot the people or the location would have had;
+   it's the only thing about the row still worth reading. */
+.dashboard-upcoming-person.is-cancelled-note {
+	font-style: italic;
+}
+
+/* The same news in the read view, above the notes. */
+.event-cancelled-note {
+	color: var(--text-muted);
 }
 .dashboard-upcoming-rel {
 	color: var(--text-muted);
@@ -4336,4 +4691,22 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .dashboard-rel-past {
 	color: var(--text-error);
 	font-weight: 600;
+}
+
+/* Date as pills, when the plan is short enough that a weekday names each
+   day unambiguously. Reuses the Somedays filter pill so the two read the
+   same; only the row spacing differs. */
+.plan-date-pills {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+/* A dated draft on the plan timeline. Purple rather than muted: it isn't
+   secondary detail, it's a different kind of thing from everything around
+   it — a thought that hasn't become a plan yet. */
+.plan-timeline-draft-tag {
+	color: var(--text-accent);
+	font-weight: 500;
 }

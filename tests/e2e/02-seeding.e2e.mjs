@@ -46,7 +46,7 @@ export async function run({ cdp }) {
 				"Friends/Groups",
 				"Friends/Plans",
 				"Friends/Somedays",
-				"Friends/Reminders",
+				"Friends/Events",
 			].map((p) => ({
 				path: p,
 				exists: !!window.app.vault.getAbstractFileByPath(p),

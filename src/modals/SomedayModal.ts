@@ -458,7 +458,7 @@ export class SomedayModal extends FormModal {
 		// collapsed state — a modal opens fresh every time, so there's
 		// nothing to remember between opens.
 		const detailsWrap = contentEl.createDiv({
-			cls: "callander-modal-field plan-accordion someday-modal-accordion",
+			cls: "callander-modal-field plan-accordion callander-modal-accordion",
 		});
 		const detailsHeader = detailsWrap.createDiv({
 			cls: "plan-accordion-header callander-modal-accordion-header",
@@ -525,13 +525,13 @@ export class SomedayModal extends FormModal {
 		});
 		peopleWrap.createEl("label", { text: "Suggested people (optional)" });
 		const peoplePicker = peopleWrap.createDiv({
-			cls: "plan-people-field",
+			cls: "people-field",
 		});
 		const peopleSelect = peoplePicker.createEl("select", {
-			cls: "quick-idea-input plan-people-select",
+			cls: "quick-idea-input people-select",
 		});
 		const peoplePills = peoplePicker.createDiv({
-			cls: "plan-people-pills",
+			cls: "people-pills",
 		});
 
 		// Seeded by resolving the existing wikilinks back to real contacts —
@@ -568,10 +568,10 @@ export class SomedayModal extends FormModal {
 		const renderPeoplePills = () => {
 			peoplePills.empty();
 			selectedPeople.forEach((c, i) => {
-				const pill = peoplePills.createSpan({ cls: "plan-people-pill" });
+				const pill = peoplePills.createSpan({ cls: "people-pill" });
 				pill.createSpan({ text: c.displayName });
 				const x = pill.createEl("button", {
-					cls: "plan-people-pill-x",
+					cls: "people-pill-x",
 					attr: {
 						type: "button",
 						"aria-label": `Remove ${c.displayName}`,

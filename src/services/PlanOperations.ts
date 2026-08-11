@@ -8,16 +8,14 @@ import {
 	timeSortValue,
 } from "@/constants";
 import type {
-	PlanCost,
-	PlanCredit,
 	PlanInfo,
 	PlanItem,
 	PlanSimpleItem,
 	PlanTimelineEntry,
 } from "@/types";
-import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
+import { asArray, fieldOf, toText } from "@/utils/fm";
+import { ContactOperations } from "@/services/ContactOperations";
 import { todayISO } from "@/utils/flexdate";
-import { splitModeLabel } from "@/utils/planFormat";
 
 /** The named field when it's a non-empty string, else undefined. */
 function strFieldOf(value: unknown, key: string): string | undefined {
@@ -168,6 +166,20 @@ export class PlanOperations {
 			});
 		});
 
+		// Drafts that have been given a day. They're unfinished by nature —
+		// no category, no priority, nothing to show but the words — so they
+		// carry only what a row needs, and the row marks them as drafts.
+		ContactOperations.draftsOf(metadata).forEach((draft, index) => {
+			if (!draft.date) return;
+			entries.push({
+				source: "draft",
+				index,
+				date: draft.date,
+				text: draft.text,
+				emoji: "✏️",
+			});
+		});
+
 		(["travel", "accommodation"] as const).forEach((key) => {
 			PlanOperations.simpleListOf(metadata, key).forEach(
 				(item, index) => {
@@ -213,67 +225,6 @@ export class PlanOperations {
 				e.time
 			)}`;
 		return entries.sort((a, b) => key(a).localeCompare(key(b)));
-	}
-
-	static costsOf(metadata: unknown): PlanCost[] {
-		return asArray(fieldOf(metadata, "costs"))
-			.map((c): PlanCost => {
-				const label = fieldOf(c, "label");
-				const split = fieldOf(c, "split");
-				const mode = fieldOf(split, "mode");
-				const shares = fieldOf(split, "shares");
-				return {
-					label: typeof label === "string" ? label : "",
-					amount: Number(fieldOf(c, "amount")) || 0,
-					...(fieldOf(c, "settled") === true && { settled: true }),
-					split: {
-						mode:
-							mode === "shares" ||
-							mode === "percent" ||
-							mode === "value" ||
-							mode === "receipt"
-								? mode
-								: "even",
-						...(isRecord(shares) && {
-							shares: shares as Record<string, number>,
-						}),
-						...(isRecord(fieldOf(split, "exprs")) && {
-							exprs: fieldOf(split, "exprs") as Record<
-								string,
-								string
-							>,
-						}),
-						...(typeof fieldOf(split, "tax") === "number" && {
-							tax: fieldOf(split, "tax") as number,
-						}),
-						...(typeof fieldOf(split, "tip") === "number" && {
-							tip: fieldOf(split, "tip") as number,
-						}),
-					},
-				};
-			})
-			.filter((c) => c.label.length > 0);
-	}
-
-	/** Credits (money already handed over), deducted from what a person owes. */
-	static creditsOf(metadata: unknown): PlanCredit[] {
-		return asArray(fieldOf(metadata, "credits"))
-			.map((c): PlanCredit => {
-				const note = fieldOf(c, "note");
-				return {
-					person: toText(fieldOf(c, "person")),
-					amount: Number(fieldOf(c, "amount")) || 0,
-					...(note ? { note: toText(note) } : {}),
-				};
-			})
-			.filter((c) => c.person.length > 0 && c.amount > 0);
-	}
-
-	/** Total a person has already been credited. */
-	static creditTotalFor(person: string, credits: PlanCredit[]): number {
-		return credits
-			.filter((c) => c.person === person)
-			.reduce((s, c) => s + c.amount, 0);
 	}
 
 	static membersOf(metadata: unknown): string[] {
@@ -389,120 +340,5 @@ export class PlanOperations {
 			(sum, i) => sum + (i.cost ?? 0),
 			0
 		);
-	}
-
-	/**
-	 * Resolve who owes what for one cost item. Participants come from the
-	 * plan (members + your name); shares default to 1 (even) when unset.
-	 */
-	static owedFor(
-		cost: PlanCost,
-		participants: string[]
-	): Record<string, number> {
-		const result: Record<string, number> = {};
-		if (participants.length === 0) return result;
-		const shares = cost.split.shares ?? {};
-		if (cost.split.mode === "shares") {
-			const total = participants.reduce(
-				(sum, p) => sum + (shares[p] ?? 0),
-				0
-			);
-			if (total <= 0) return result;
-			for (const p of participants) {
-				result[p] = (cost.amount * (shares[p] ?? 0)) / total;
-			}
-		} else if (cost.split.mode === "receipt") {
-			// Each person's own line off the receipt, with tax and tip
-			// added on top in the same proportion. Both are charged
-			// against the subtotal — the tip isn't taxed, and the tax
-			// isn't tipped.
-			const uplift =
-				1 + ((cost.split.tax ?? 0) + (cost.split.tip ?? 0)) / 100;
-			for (const p of participants) {
-				result[p] = (shares[p] ?? 0) * uplift;
-			}
-		} else if (cost.split.mode === "value") {
-			// Exact dollar amounts, taken at face value — a split that
-			// doesn't add up to the total is intentional and visible,
-			// the same way percent mode leaves it to the modal's live
-			// total to keep honest.
-			for (const p of participants) {
-				result[p] = shares[p] ?? 0;
-			}
-		} else if (cost.split.mode === "percent") {
-			// Literal percentages — under/over 100% is intentional and
-			// visible; the modal's live total keeps it honest
-			for (const p of participants) {
-				result[p] = (cost.amount * (shares[p] ?? 0)) / 100;
-			}
-		} else {
-			// Even split — among the included set if given, else everyone
-			const included =
-				Object.keys(shares).length > 0
-					? participants.filter((p) => shares[p])
-					: participants;
-			if (included.length === 0) return result;
-			const each = cost.amount / included.length;
-			for (const p of included) result[p] = each;
-		}
-		return result;
-	}
-
-	/**
-	 * How one person's total splits across each expense they're part of:
-	 * label, a human "how" descriptor (e.g. "2 shares", "25%", "even"), and
-	 * the amount they owe for that item. Settled expenses stay in the list —
-	 * they're the record of what was squared up — flagged so the caller can
-	 * show them as done and leave them out of the total.
-	 */
-	static breakdownFor(
-		person: string,
-		costs: PlanCost[],
-		participants: string[],
-		credits: PlanCredit[] = []
-	): Array<{
-		label: string;
-		descriptor: string;
-		amount: number;
-		settled?: boolean;
-	}> {
-		const rows: Array<{
-			label: string;
-			descriptor: string;
-			amount: number;
-			settled?: boolean;
-		}> = [];
-		for (const cost of costs) {
-			const amount = PlanOperations.owedFor(cost, participants)[person];
-			if (!amount || amount <= 0) continue;
-			const shares = cost.split.shares ?? {};
-			// Shares and percent show the person's own number — more useful
-			// than the mode name. Everything else reuses the same wording
-			// the cost row and view modal already use for that mode.
-			let descriptor: string;
-			if (cost.split.mode === "shares") {
-				const w = shares[person] ?? 1;
-				descriptor = `${w} ${w === 1 ? "share" : "shares"}`;
-			} else if (cost.split.mode === "percent") {
-				descriptor = `${shares[person] ?? 0}%`;
-			} else {
-				descriptor = splitModeLabel(cost.split.mode).toLowerCase();
-			}
-			rows.push({
-				label: cost.label,
-				descriptor,
-				amount,
-				...(cost.settled && { settled: true }),
-			});
-		}
-		// Credits come off as negative lines
-		for (const c of credits.filter((c) => c.person === person)) {
-			rows.push({
-				label: "Credit",
-				descriptor: c.note || "already paid",
-				amount: -c.amount,
-			});
-		}
-		return rows;
 	}
 }

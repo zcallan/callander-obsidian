@@ -1,19 +1,19 @@
 import { App, Notice } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
-import type { ContactWithCountdown, FriendEvent } from "@/types";
+import type { EventInfo } from "@/types";
 import { EVENT_TYPES } from "@/constants";
 
 /**
- * Copy a timeline event onto one or more other friends — e.g. a trip to
- * Ireland logged on Crista, copied to both Austins.
+ * Put an event on more timelines — e.g. a trip to Ireland logged with
+ * Crista, shared onto both Austins. Events are single files now, so this
+ * doesn't copy anything: it links the picked people to the same event.
  */
 export class CopyEventModal extends FormModal {
 	constructor(
 		app: App,
 		private plugin: FriendTracker,
-		private event: FriendEvent,
-		private excludePath: string
+		private event: EventInfo
 	) {
 		super(app);
 	}
@@ -21,16 +21,20 @@ export class CopyEventModal extends FormModal {
 	async onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl("h2", { text: "Copy event to…" });
+		contentEl.createEl("h2", { text: "Add to more timelines" });
 
 		const type = EVENT_TYPES.find((t) => t.id === this.event.type);
 		contentEl.createDiv({
 			cls: "section-helper-text",
-			text: `${type ? type.emoji + " " : ""}${this.event.text}`,
+			text: `${type ? type.emoji + " " : ""}${this.event.name}`,
 		});
 
+		// Whoever is already on the event has nothing to gain from the list.
+		const alreadyLinked = new Set(
+			this.plugin.eventOperations.peoplePaths(this.event)
+		);
 		const contacts = (await this.plugin.contactOperations.getContacts())
-			.filter((c) => c.file.path !== this.excludePath)
+			.filter((c) => !alreadyLinked.has(c.file.path))
 			.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
 		// Checked state persists across search filtering
@@ -82,32 +86,38 @@ export class CopyEventModal extends FormModal {
 		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
-		const copyButton = buttons.createEl("button", {
-			text: "Copy",
+		const addButton = buttons.createEl("button", {
+			text: "Add",
 			cls: "callander-modal-button mod-cta",
 		});
-		const handleCopy = async () => {
+		const handleAdd = async () => {
 			const targets = contacts.filter((c) => checked.has(c.file.path));
 			if (targets.length === 0) return;
+			const e = this.event;
+			await this.plugin.eventOperations.updateEvent(e.file, {
+				name: e.name,
+				date: e.date || undefined,
+				time: e.time || undefined,
+				type: e.type,
+				people: [
+					...e.people,
+					...targets.map((c) => `[[${c.file.basename}]]`),
+				],
+				location: e.location || undefined,
+				link: e.link || undefined,
+				description: e.description || undefined,
+				source: e.source || undefined,
+				variant: e.variant,
+			});
 			for (const c of targets) {
-				// Copy the meaningful fields, not diary-source linkage
-				await this.plugin.contactOperations.addEventToFile(
-					c.file,
-					this.event.date,
-					this.event.text,
-					this.event.type ?? "hangout",
-					this.event.location
-				);
 				await this.plugin.refreshOpenContactPages(c.file);
 			}
 			new Notice(
-				`Copied to ${targets
-					.map((c: ContactWithCountdown) => c.displayName)
-					.join(", ")}`
+				`Added to ${targets.map((c) => c.displayName).join(", ")}`
 			);
 			this.close();
 		};
-		copyButton.addEventListener("click", () => void handleCopy());
+		addButton.addEventListener("click", () => void handleAdd());
 	}
 
 	onClose() {

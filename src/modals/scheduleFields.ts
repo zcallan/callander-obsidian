@@ -1,4 +1,4 @@
-import { ROUGH_TIMES, roughTime } from "@/constants";
+import { ALL_DAY_TIME, ROUGH_TIMES, roughTime } from "@/constants";
 
 /**
  * Shared Date / Time / People fields for plan-item modals (ideas, travel,
@@ -15,8 +15,13 @@ export interface ScheduleFieldValues {
 }
 
 export interface ScheduleFieldOptions {
-	/** When set, Date is a dropdown of these days instead of a date picker. */
-	dayOptions?: Array<{ value: string; label: string }>;
+	/**
+	 * When set, Date offers these days rather than a free date picker.
+	 * A short run of them renders as pills — with only a few days to choose
+	 * from, the weekday alone identifies each one and a dropdown is more
+	 * work than the choice deserves. Longer ranges stay a dropdown.
+	 */
+	dayOptions?: Array<{ value: string; label: string; short?: string }>;
 	/** When set, People is a dropdown of these names (adds pills). */
 	people?: string[];
 	/** Stays close out their day, so they don't carry a clock time. */
@@ -27,6 +32,8 @@ export interface ScheduleFieldOptions {
 	hidePeople?: boolean;
 	/** ISO date the plan ends — a stay can't check out after it. */
 	lastDay?: string;
+	/** Heading over the Date control; "Date" unless a caller says otherwise. */
+	dateLabel?: string;
 }
 
 export interface PeopleFieldHandle {
@@ -47,11 +54,48 @@ export function appendScheduleFields(
 ): ScheduleFieldsHandle {
 	// --- Date ---
 	const dateField = container.createDiv({ cls: "plan-schedule-field" });
-	dateField.createDiv({ cls: "modal-section-label", text: "Date" });
+	dateField.createDiv({
+		cls: "modal-section-label",
+		text: options.dateLabel ?? "Date",
+	});
 	const initialDate = initial.date ?? "";
 	let dateInput: HTMLInputElement | null = null;
 	let dateSelect: HTMLSelectElement | null = null;
-	if (options.dayOptions && options.dayOptions.length > 0) {
+	// Above this many days the pills would wrap into a block of their own
+	// and stop being quicker to read than a list.
+	const PILL_LIMIT = 6;
+	let pillDate = initialDate;
+	if (
+		options.dayOptions &&
+		options.dayOptions.length > 0 &&
+		options.dayOptions.length < PILL_LIMIT
+	) {
+		const days = options.dayOptions;
+		const row = dateField.createDiv({
+			cls: "someday-filter-options plan-date-pills",
+		});
+		const pills = new Map<string, HTMLButtonElement>();
+		const applyPills = () =>
+			pills.forEach((el, v) => el.toggleClass("is-active", v === pillDate));
+		for (const d of days) {
+			const pill = row.createEl("button", {
+				cls: "someday-filter-pill",
+				// Just the weekday: within a handful of days there's only one
+				// Thursday, and the date adds nothing you don't know.
+				text: d.short || d.label.split(" ")[0],
+				attr: { type: "button" },
+			});
+			pill.addEventListener("click", () => {
+				// Re-clicking clears it — a date here is optional, and this
+				// is the only way back to none.
+				pillDate = pillDate === d.value ? "" : d.value;
+				applyPills();
+				options.onDateChange?.();
+			});
+			pills.set(d.value, pill);
+		}
+		applyPills();
+	} else if (options.dayOptions && options.dayOptions.length > 0) {
 		dateSelect = dateField.createEl("select", {
 			cls: "quick-idea-input plan-date-select",
 		});
@@ -111,7 +155,10 @@ export function appendScheduleFields(
 			attr: { "aria-label": "How precisely do you know the time?" },
 		});
 		precisionSelect.createEl("option", { value: "rough", text: "Roughly" });
-		precisionSelect.createEl("option", { value: "exact", text: "Exact" });
+		precisionSelect.createEl("option", {
+			value: "exact",
+			text: "Exactly",
+		});
 		precisionSelect.value = precision;
 
 		dynamic = timeControls.createDiv({ cls: "plan-time-dynamic" });
@@ -127,8 +174,21 @@ export function appendScheduleFields(
 			roughSelect = host.createEl("select", {
 				cls: "quick-idea-input plan-time-select plan-rough-select",
 			});
-			roughSelect.createEl("option", { value: "", text: "—" });
+			// "Any time" is the default and the way back to no time at all.
+			// "All day" answers the same question differently, so it sits
+			// with it — ruled off from the hours, which are a different kind
+			// of answer entirely.
+			roughSelect.createEl("option", { value: "", text: "Any time" });
+			roughSelect.createEl("option", {
+				value: ALL_DAY_TIME.id,
+				text: ALL_DAY_TIME.label,
+			});
+			const divider = roughSelect.createEl("option", { text: "—" });
+			divider.disabled = true;
 			const current = roughTime(initialTime)?.id;
+			if (current === ALL_DAY_TIME.id) {
+				roughSelect.value = ALL_DAY_TIME.id;
+			}
 			ROUGH_TIMES.forEach((r) => {
 				const opt = roughSelect!.createEl("option", {
 					value: r.id,
@@ -183,7 +243,9 @@ export function appendScheduleFields(
 		values: () => {
 			const date = dateSelect
 				? dateSelect.value
-				: dateInput?.value.trim() ?? "";
+				: dateInput
+				? dateInput.value.trim()
+				: pillDate;
 			let time = "";
 			if (precision === "exact" && hourSelect && minuteSelect) {
 				time = `${hourSelect.value}:${minuteSelect.value}`;
@@ -221,11 +283,11 @@ export function appendPeopleField(
 			.map((s) => s.trim())
 			.filter(Boolean);
 
-		const wrap = container.createDiv({ cls: "plan-people-field" });
+		const wrap = container.createDiv({ cls: "people-field" });
 		const select = wrap.createEl("select", {
-			cls: "quick-idea-input plan-people-select",
+			cls: "quick-idea-input people-select",
 		});
-		const pillsEl = wrap.createDiv({ cls: "plan-people-pills" });
+		const pillsEl = wrap.createDiv({ cls: "people-pills" });
 
 		const renderSelect = () => {
 			select.empty();
@@ -240,10 +302,10 @@ export function appendPeopleField(
 		const renderPills = () => {
 			pillsEl.empty();
 			selected.forEach((name, i) => {
-				const pill = pillsEl.createSpan({ cls: "plan-people-pill" });
+				const pill = pillsEl.createSpan({ cls: "people-pill" });
 				pill.createSpan({ text: name });
 				const x = pill.createEl("button", {
-					cls: "plan-people-pill-x",
+					cls: "people-pill-x",
 					attr: { type: "button", "aria-label": `Remove ${name}` },
 				});
 				x.setText("✕");

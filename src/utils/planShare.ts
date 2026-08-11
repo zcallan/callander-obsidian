@@ -1,18 +1,20 @@
 import type { PlanTimelineEntry } from "@/types";
 import { ACCOMMODATION_EMOJI, TRAVEL_TYPE_EMOJI } from "@/constants";
 import { PlanOperations } from "@/services/PlanOperations";
-import { parseFlexDate, formatFlexDate, monthName } from "@/utils/flexdate";
-import { formatDate } from "@/utils/dateFormat";
+import {
+	parseFlexDate,
+	formatFlexDate,
+	formatShortWeekdayDate,
+} from "@/utils/flexdate";
 import { toText } from "@/utils/fm";
 import {
 	formatItemTime,
 	formatTimelineDay,
 	nightsLabel,
 	nightsSummary,
-	shortenMemberNames,
-	shortenPeopleList,
 	startsWithEmoji,
 } from "@/utils/planFormat";
+import { shortenMemberNames, shortenPeopleList } from "@/utils/nameFormat";
 
 /**
  * The plan as a plain-text message you can paste to the group chat.
@@ -55,20 +57,12 @@ export function formatPlanDateRange(
 	const endDay = end ? exact(end) : null;
 	if (!startDate) return formatFlexDate(start);
 
-	// The month is built from monthName rather than `month: "short"`:
-	// en-AU abbreviates most months to three letters but leaves June, July
-	// and Sept longer, so a trip spanning them would read "Thu 30 July -
-	// Sun 2 Aug". Weekdays don't have that quirk, so they still come from
-	// the locale. Matches the shortening used on the dashboard and tables.
-	const fmt = (d: Date) =>
-		`${formatDate(d, { weekday: "short" })} ${d.getDate()} ${monthName(
-			d.getMonth() + 1
-		).slice(0, 3)}`;
-
 	if (!endDay || endDay.getTime() === startDate.getTime()) {
-		return fmt(startDate);
+		return formatShortWeekdayDate(startDate);
 	}
-	return `${fmt(startDate)} - ${fmt(endDay)}`;
+	return `${formatShortWeekdayDate(startDate)} - ${formatShortWeekdayDate(
+		endDay
+	)}`;
 }
 
 /**

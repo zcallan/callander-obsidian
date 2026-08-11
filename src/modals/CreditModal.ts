@@ -1,18 +1,18 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
-import type { PlanCredit } from "@/types";
+import type { Credit } from "@/types";
 
 /**
  * Record money a person has already handed over (a transfer, or covering
  * something else) so it comes off what they owe. Pick a person + amount, with
  * an optional note.
  */
-export class PlanCreditModal extends FormModal {
+export class CreditModal extends FormModal {
 	constructor(
 		app: App,
 		private participants: string[],
-		private initial: PlanCredit | null,
-		private onSubmit: (credit: PlanCredit) => Promise<void>,
+		private initial: Credit | null,
+		private onSubmit: (credit: Credit) => Promise<void>,
 		private onDelete?: () => Promise<void>
 	) {
 		super(app);

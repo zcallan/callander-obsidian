@@ -118,12 +118,12 @@ Intro prose.
 	// ---------- heading tolerance ----------
 	eq(
 		"heading without emoji works",
-		parseIdeasSection("## Ideas\n\n### Gifts\n\n- [ ] X"),
+		parseIdeasSection("## Ideas\n\n### Gift\n\n- [ ] X"),
 		[{ category: "gift", text: "X", done: false }]
 	);
 	eq(
 		"heading case-insensitive",
-		parseIdeasSection("## Ideas\n\n### gifts\n\n- [ ] X"),
+		parseIdeasSection("## Ideas\n\n### gift\n\n- [ ] X"),
 		[{ category: "gift", text: "X", done: false }]
 	);
 	eq(
@@ -137,6 +137,64 @@ Intro prose.
 		[{ category: "other", text: "X", done: false }]
 	);
 
+	// ---------- legacy plural headings (labels were singularised) ----------
+	// A note written before categories dropped their plurals keeps its old
+	// headings until the section is next rewritten — these must still map
+	// to the right category rather than silently falling back to "other".
+	eq(
+		"old plural headings still resolve",
+		parseIdeasSection(
+			[
+				"## Ideas",
+				"",
+				"### Conversations",
+				"- [ ] a",
+				"### Activities",
+				"- [ ] b",
+				"### Places",
+				"- [ ] c",
+				"### Recommendations",
+				"- [ ] d",
+			].join("\n")
+		),
+		[
+			{ category: "conversation", text: "a", done: false },
+			{ category: "activity", text: "b", done: false },
+			{ category: "place", text: "c", done: false },
+			{ category: "recommendation", text: "d", done: false },
+		]
+	);
+	eq(
+		"a legacy plural heading is still case-insensitive",
+		parseIdeasSection("## Ideas\n\n### GIFTS\n\n- [ ] X"),
+		[{ category: "gift", text: "X", done: false }]
+	);
+
+	// ---------- new media categories ----------
+	eq(
+		"movie/book/show/music all parse",
+		parseIdeasSection(
+			[
+				"## Ideas",
+				"",
+				"### 🎬 Movie",
+				"- [ ] Dune",
+				"### 📚 Book",
+				"- [ ] Project Hail Mary",
+				"### 📺 Show",
+				"- [ ] Severance",
+				"### 🎵 Music",
+				"- [ ] boygenius",
+			].join("\n")
+		),
+		[
+			{ category: "movie", text: "Dune", done: false },
+			{ category: "book", text: "Project Hail Mary", done: false },
+			{ category: "show", text: "Severance", done: false },
+			{ category: "music", text: "boygenius", done: false },
+		]
+	);
+
 	// ---------- grouping / ordering ----------
 	const scrambled = [
 		{ category: "place", text: "P1", done: false },
@@ -146,7 +204,7 @@ Intro prose.
 	const rendered = renderIdeaLines(scrambled).join("\n");
 	eq(
 		"groups are emitted in fixed category order",
-		rendered.indexOf("Gifts") < rendered.indexOf("Places"),
+		rendered.indexOf("Gift") < rendered.indexOf("Place"),
 		true
 	);
 	eq(

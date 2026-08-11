@@ -55,13 +55,20 @@ export const SYSTEM_FIELDS: StandardFieldValue[] = [
 ];
 
 // Fixed idea categories — deliberately few, no user-defined tags (Callander brief)
+// `label` names the category on its own (a chip, a hand-typed note heading);
+// `plural` is only for the person page's grouped list, which usually holds
+// more than one and reads better for it ("GIFTS", not "GIFT").
 export const IDEA_CATEGORIES = [
-	{ id: "gift", label: "Gifts", emoji: "🎁" },
-	{ id: "conversation", label: "Conversations", emoji: "💬" },
-	{ id: "activity", label: "Activities", emoji: "🥾" },
-	{ id: "place", label: "Places", emoji: "📍" },
-	{ id: "recommendation", label: "Recommendations", emoji: "⭐" },
-	{ id: "other", label: "Other", emoji: "✨" },
+	{ id: "gift", label: "Gift", plural: "Gifts", emoji: "🎁" },
+	{ id: "conversation", label: "Conversation", plural: "Conversations", emoji: "💬" },
+	{ id: "activity", label: "Activity", plural: "Activities", emoji: "🥾" },
+	{ id: "place", label: "Place", plural: "Places", emoji: "📍" },
+	{ id: "movie", label: "Movie", plural: "Movies", emoji: "🎬" },
+	{ id: "book", label: "Book", plural: "Books", emoji: "📚" },
+	{ id: "show", label: "Show", plural: "Shows", emoji: "📺" },
+	{ id: "music", label: "Music", plural: "Music", emoji: "🎵" },
+	{ id: "recommendation", label: "Recommendation", plural: "Recommendations", emoji: "⭐" },
+	{ id: "other", label: "Other", plural: "Other", emoji: "✨" },
 ] as const;
 
 export type IdeaCategory = (typeof IDEA_CATEGORIES)[number]["id"];
@@ -161,39 +168,36 @@ export type InterestCategory = (typeof INTEREST_CATEGORIES)[number]["id"];
 
 // Fixed event types — deliberately few; "hangout" is the broad default.
 // No call/text granularity: that's the road to contact-frequency logging.
+// One vocabulary for everything on a timeline or the dashboard — the old
+// reminder types (outings you're going to) folded into the event types
+// (things that happened). "Task" is the odd one out: not really an event,
+// but a person-less "renew passport" needs somewhere to live too.
 export const EVENT_TYPES = [
 	{ id: "hangout", label: "Hangout", emoji: "🤝" },
+	{ id: "party", label: "Party", emoji: "🎉" },
+	{ id: "concert", label: "Concert", emoji: "🎸" },
+	{ id: "movie", label: "Movie", emoji: "🍿" },
+	{ id: "comedy", label: "Comedy", emoji: "🎭" },
+	{ id: "event", label: "Event", emoji: "📅" },
 	{ id: "trip", label: "Trip", emoji: "✈️" },
 	{ id: "milestone", label: "Milestone", emoji: "🏅" },
 	{ id: "life", label: "Life event", emoji: "🌱" },
 	{ id: "given", label: "Given", emoji: "🎁" },
-	{ id: "party", label: "Party", emoji: "🎉" },
+	{ id: "task", label: "Task", emoji: "⏰" },
 	{ id: "other", label: "Other", emoji: "✨" },
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number]["id"];
 
-// Reminder types — "task" is the plain default; the rest are outings.
-export const REMINDER_TYPES = [
-	{ id: "task", label: "Task", emoji: "⏰" },
-	{ id: "party", label: "Party", emoji: "🎉" },
-	{ id: "concert", label: "Concert", emoji: "🎸" },
-	{ id: "movie", label: "Movie", emoji: "🍿" },
-	{ id: "hangout", label: "Hangout", emoji: "🤝" },
-	{ id: "event", label: "Event", emoji: "📅" },
-	{ id: "comedy", label: "Comedy", emoji: "🎭" },
-	{ id: "other", label: "Other", emoji: "⏰" },
-] as const;
-
-export type ReminderType = (typeof REMINDER_TYPES)[number]["id"];
 
 // Where you're sleeping — deliberately few; untyped stays render the bed.
 export const ACCOMMODATION_TYPES = [
 	{ id: "home", label: "Home", emoji: "🏠" },
 	{ id: "airbnb", label: "Airbnb", emoji: "🏡" },
 	{ id: "hotel", label: "Hotel", emoji: "🏨" },
-	{ id: "friends", label: "Mate's place", emoji: "🛋️" },
+	{ id: "friends", label: "Mate's", emoji: "🛋️" },
 	{ id: "camping", label: "Camping", emoji: "⛺" },
+	{ id: "other", label: "Other", emoji: "🛏️" },
 ] as const;
 
 export type AccommodationType = (typeof ACCOMMODATION_TYPES)[number]["id"];
@@ -204,6 +208,8 @@ export const ACCOMMODATION_EMOJI: Record<AccommodationType, string> = {
 	hotel: "🏨",
 	friends: "🛋️",
 	camping: "⛺",
+	// The generic bed the timeline already falls back to for an untyped stay.
+	other: "🛏️",
 };
 
 // Booking status for stays; "none" (no booking needed) shows nothing.
@@ -254,9 +260,24 @@ export const ROUGH_TIMES = [
 
 export type RoughTimeId = (typeof ROUGH_TIMES)[number]["id"];
 
+/**
+ * Something that takes the whole day rather than sitting at a point in it.
+ * Kept out of ROUGH_TIMES because it isn't a time of day — it's the absence
+ * of one with an answer attached, which is why the picker rules it off from
+ * the hours below. Sorts to the head of its day: a whole-day thing is
+ * already under way by the time anything scheduled starts.
+ */
+export const ALL_DAY_TIME = {
+	id: "all-day",
+	label: "All day",
+	sort: "00:00",
+} as const;
+
 /** Look up a stored rough-time id; undefined for exact "HH:MM" or empty. */
 export function roughTime(time: string | undefined | null) {
-	return time ? ROUGH_TIMES.find((r) => r.id === time) : undefined;
+	if (!time) return undefined;
+	if (time === ALL_DAY_TIME.id) return ALL_DAY_TIME;
+	return ROUGH_TIMES.find((r) => r.id === time);
 }
 
 /** Chronological sort key for a stored time (exact "HH:MM" or a rough id). */
@@ -477,7 +498,7 @@ export function formatSomedayDays(days: readonly string[]): string {
 	return present.map((d) => d.label).join(separator);
 }
 
-// Reserved single-file store that lives beside contacts but isn't a friend
+// The retired reminders store/folder names — only the migration reads these
 export const REMINDERS_BASENAME = "Reminders";
 
 // Fixed palette for group color dots — no color picker, keep it minimal
@@ -513,7 +534,10 @@ export const RIBBON_ACTIONS = [
 		name: "Add idea for a friend",
 	},
 	{ key: "ribbonSomedays", icon: "sparkles", name: "Open somedays" },
-	{ key: "ribbonReminder", icon: "bell", name: "New reminder" },
+	{ key: "ribbonEvents", icon: "calendar-days", name: "Open events" },
+	// The key keeps its historical name so saved toggles survive the
+	// reminders→events merge; only the label and action moved on.
+	{ key: "ribbonReminder", icon: "calendar-plus", name: "New event" },
 ] as const;
 
 export type RibbonActionKey = (typeof RIBBON_ACTIONS)[number]["key"];

@@ -13,8 +13,8 @@ import {
 	formatItemTime,
 	formatTimelineDay,
 	nightsSummary,
-	shortenPeopleList,
 } from "@/utils/planFormat";
+import { shortenPeopleList } from "@/utils/nameFormat";
 
 /**
  * A read view of one plan-timeline row — whatever it happens to be: an idea,
@@ -129,7 +129,7 @@ export class PlanTimelineViewModal extends Modal {
 
 		// Kind first, small and muted — it frames everything below it.
 		contentEl.createDiv({
-			cls: "plan-view-kind",
+			cls: "view-kind",
 			text: this.sourceLabel(),
 		});
 

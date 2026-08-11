@@ -1,5 +1,9 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import {
+	appendScheduleFields,
+	type ScheduleFieldOptions,
+} from "@/modals/scheduleFields";
 /**
  * One text field — a quick draft note about a known friend or plan.
  *
@@ -11,8 +15,14 @@ export class NoteInputModal extends FormModal {
 	constructor(
 		app: App,
 		private targetName: string,
-		private onSubmit: (text: string) => Promise<void>,
-		private initial?: string
+		private onSubmit: (text: string, date?: string) => Promise<void>,
+		private initial?: string,
+		/**
+		 * Days to offer, when the note belongs to something with dates —
+		 * a plan. Absent everywhere else, where a note has no day to sit on.
+		 */
+		private dayOptions?: ScheduleFieldOptions["dayOptions"],
+		private initialDate?: string
 	) {
 		super(app);
 	}
@@ -34,6 +44,21 @@ export class NoteInputModal extends FormModal {
 		});
 		input.value = this.initial ?? "";
 
+		// Giving a note a day puts it on the plan's timeline; without one it
+		// stays a draft waiting to be triaged.
+		const schedule = this.dayOptions?.length
+			? appendScheduleFields(
+					contentEl,
+					{ date: this.initialDate },
+					{
+						dayOptions: this.dayOptions,
+						hideTime: true,
+						hidePeople: true,
+						dateLabel: "Date (optional)",
+					}
+			  )
+			: null;
+
 		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
@@ -44,7 +69,7 @@ export class NoteInputModal extends FormModal {
 		const submit = async () => {
 			const text = input.value.trim();
 			if (!text) return;
-			await this.onSubmit(text);
+			await this.onSubmit(text, schedule?.values().date);
 			this.close();
 		};
 		saveButton.addEventListener("click", () => void submit());
