@@ -32,7 +32,7 @@ export default defineConfig([
 	},
 	...obsidianmd.configs.recommended,
 	{
-		files: ["**/*.ts"],
+		files: ["**/*.ts", "**/*.tsx"],
 		languageOptions: {
 			parserOptions: {
 				projectService: true,

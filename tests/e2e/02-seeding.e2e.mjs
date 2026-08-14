@@ -102,5 +102,60 @@ export async function run({ cdp }) {
 	});
 	eq("seeding twice does not duplicate the example friend", again, 1);
 
+	// ---------- the React island actually mounts ----------
+	// The Expenses section is rendered by React inside the dashboard. A
+	// mount failure is silent — the section is simply absent — and nothing
+	// else in the suite would notice, so it's asserted here where a
+	// dashboard is already open.
+	const react = await cdp.evaluate(async () => {
+		await window.app.plugins.plugins.callander.activateDashboard();
+		// The root renders on the same tick the view renders; give the
+		// commit a frame rather than racing it.
+		await new Promise((r) => requestAnimationFrame(() => r(null)));
+		const host = document.querySelector(".callander-react-root");
+		return {
+			hostPresent: !!host,
+			// React renders into the host; empty means it mounted but threw.
+			hasContent: !!host && host.childElementCount > 0,
+			heading: host?.querySelector("h3")?.textContent ?? "",
+			addButton: [...(host?.querySelectorAll("button") ?? [])].some((b) =>
+				/new expense/i.test(b.textContent ?? "")
+			),
+		};
+	});
+
+	ok("React root is mounted in the dashboard", react.hostPresent);
+	ok("...and rendered something", react.hasContent);
+	eq("...the Expenses heading", react.heading, "💵 Expenses");
+	ok("...with its New expense button", react.addButton);
+
+	// Closing the tab must take the root with it. A leaked root keeps its
+	// vault subscriptions and renders into detached DOM — invisible until
+	// something writes and a stale tree throws.
+	const cycle = await cdp.evaluate(async () => {
+		const type = "callander-dashboard";
+		const frame = () =>
+			new Promise((r) => requestAnimationFrame(() => r(null)));
+
+		window.app.workspace.getLeavesOfType(type).forEach((l) => l.detach());
+		await frame();
+		const afterClose = document.querySelectorAll(
+			".callander-react-root"
+		).length;
+
+		await window.app.plugins.plugins.callander.activateDashboard();
+		await frame();
+		const afterReopen = document.querySelectorAll(
+			".callander-react-root"
+		).length;
+
+		return { afterClose, afterReopen };
+	});
+
+	eq("closing the tab removes the React host", cycle.afterClose, 0);
+	// Exactly one: a second host would mean the previous root was never
+	// unmounted and its DOM was left in place.
+	eq("reopening mounts exactly one root", cycle.afterReopen, 1);
+
 	return result();
 }

@@ -1,4 +1,7 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
+import { createRoot, type Root } from "react-dom/client";
+import { PluginProvider } from "@/ui/PluginContext";
+import { ExpensesSection } from "@/ui/sections/ExpensesSection";
 import type FriendTracker from "@/main";
 import type {
 	ContactWithCountdown,
@@ -55,6 +58,14 @@ export class DashboardView extends ItemView {
 	// Only used when the Somedays sort is "Random" — fixed for the life of
 	// this dashboard so the list doesn't reshuffle on every refresh.
 	private somedayRandomSeed = Math.floor(Math.random() * 2 ** 31);
+	/**
+	 * The React island for the sections that have been ported. Torn down in
+	 * onClose — Obsidian unmounts a view on tab close, plugin reload and
+	 * workspace restore, and a root left behind keeps its subscriptions and
+	 * renders into detached DOM.
+	 */
+	private reactRoot: Root | null = null;
+	private reactHost: HTMLElement | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -112,6 +123,39 @@ export class DashboardView extends ItemView {
 	async refresh() {
 		this.contacts = await this.plugin.contactOperations.getContacts();
 		await this.render();
+	}
+
+	/**
+	 * Mount (or remount) the ported sections.
+	 *
+	 * StrictMode is deliberately off. It double-invokes effects, and this
+	 * plugin's effects reach disk — a debounced autosave firing twice would
+	 * write twice. The checks it buys aren't worth that here, where the tree
+	 * is small and the side effects are real files.
+	 */
+	private mountReact(container: HTMLElement) {
+		this.unmountReact();
+		this.reactHost = container.createDiv({ cls: "callander-react-root" });
+		this.reactRoot = createRoot(this.reactHost);
+		this.reactRoot.render(
+			<PluginProvider plugin={this.plugin}>
+				<ExpensesSection />
+			</PluginProvider>
+		);
+	}
+
+	private unmountReact() {
+		// Synchronous unmount inside a React render pass is an error, and
+		// render() can be reached from an event handler — defer so the
+		// teardown always lands between renders.
+		const root = this.reactRoot;
+		this.reactRoot = null;
+		this.reactHost = null;
+		if (root) window.setTimeout(() => root.unmount(), 0);
+	}
+
+	async onClose() {
+		this.unmountReact();
 	}
 
 	private async openContact(file: TFile) {
@@ -225,7 +269,11 @@ export class DashboardView extends ItemView {
 
 		// Shared expenses — last, so it's the thing you scroll to the bottom
 		// for rather than something you pass on the way down.
-		await this.renderExpenses(container);
+		//
+		// Rendered by React. `container.empty()` above destroyed the previous
+		// host node, so the root is recreated against a fresh one rather than
+		// left pointing at detached DOM.
+		this.mountReact(container);
 
 		container.scrollTop = scrollTop;
 	}
@@ -1261,148 +1309,4 @@ export class DashboardView extends ItemView {
 		}
 	}
 
-	/**
-	 * Shared expenses that don't belong to anything — dinner last night, a
-	 * taxi split three ways. Recorded straight from here, so splitting one
-	 * cost doesn't mean inventing something to hang it off.
-	 */
-	private async renderExpenses(container: HTMLElement) {
-		const ops = this.plugin.contactOperations;
-		const expenses = await ops.getExpenses();
-		const sourcePath = ops.getDashboardFilePath();
-		const yourName = this.plugin.settings.yourName;
-		const shortNames = shortNameOverrides(this.contacts);
-
-		const section = container.createDiv({ cls: "dashboard-section" });
-		section.createEl("h3", { text: "💵 Expenses" });
-
-		// Everything still owed, then everything squared up — the settled
-		// ones stay reachable but out of the way.
-		const { open, settled } = partitionExpenses(expenses);
-
-		if (expenses.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "Split a one-off cost — dinner, a taxi, the groceries. Divide it evenly, by shares, or line by line off the receipt.",
-			});
-		}
-
-		// The participant list an expense is scored against: whoever it names,
-		// plus you. Resolved per expense, since each carries its own people.
-		const participantsFor = (expense: Expense): string[] => {
-			const picked = resolvePeopleNames(
-				this.app,
-				sourcePath,
-				expense.people ?? []
-			);
-			const you = yourName.trim();
-			return you && !picked.some((p) => p.toLowerCase() === you.toLowerCase())
-				? [you, ...picked]
-				: picked;
-		};
-
-		const saveAt = async (index: number, updated: Expense) => {
-			await ops.writeExpenses((list) => {
-				list[index] = updated;
-			});
-			await this.refresh();
-		};
-
-		const deleteAt = async (index: number) => {
-			await ops.writeExpenses((list) => {
-				list.splice(index, 1);
-			});
-			await this.refresh();
-		};
-
-		const edit = (index: number, expense: Expense) => {
-			new ExpenseModal(
-				this.app,
-				participantsFor(expense),
-				expense,
-				(updated) => saveAt(index, updated),
-				() => deleteAt(index),
-				yourName,
-				this.plugin.settings.receiptTaxPercent,
-				this.plugin.settings.receiptTipPercent,
-				{ contacts: this.contacts, sourcePath }
-			).open();
-		};
-
-		// Tapping a row reads it first; Edit/Delete/Settle live in that view.
-		const openView = (index: number, expense: Expense) => {
-			new ExpenseViewModal(
-				this.app,
-				expense,
-				participantsFor(expense),
-				() => edit(index, expense),
-				() => deleteAt(index),
-				yourName,
-				async ({ paid, settled: isSettled }) => {
-					await ops.writeExpenses((list) => {
-						const current = list[index];
-						if (!current) return;
-						current.paid = paid;
-						if (isSettled) current.settled = true;
-						else delete current.settled;
-					});
-					await this.refresh();
-				},
-				shortNames
-			).open();
-		};
-
-		for (const { expense, index } of open) {
-			appendExpenseRow(section, expense, participantsFor(expense), {
-				yourName,
-				onClick: () => openView(index, expense),
-			});
-		}
-
-		// Settled ones fold away — still there to check, never in the way.
-		if (settled.length > 0) {
-			const details = section.createEl("details", {
-				cls: "expense-settled-group",
-			});
-			const summary = details.createEl("summary", {
-				cls: "expense-settled-summary",
-			});
-			setIcon(
-				summary.createSpan({ cls: "expense-settled-chevron" }),
-				"chevron-down"
-			);
-			summary.createSpan({ text: `Settled (${settled.length})` });
-			for (const { expense, index } of settled) {
-				appendExpenseRow(details, expense, participantsFor(expense), {
-					yourName,
-					onClick: () => openView(index, expense),
-				});
-			}
-		}
-
-		const footer = section.createDiv({
-			cls: "contact-section-footer expense-footer",
-		});
-		const addButton = footer.createEl("button", { cls: "callander-button" });
-		setIcon(addButton, "plus");
-		addButton.createSpan({ text: "New expense" });
-		addButton.addEventListener("click", () => {
-			new ExpenseModal(
-				this.app,
-				yourName ? [yourName] : [],
-				null,
-				async (expense) => {
-					await ops.writeExpenses((list) => {
-						list.push(expense);
-					});
-					await this.refresh();
-				},
-				undefined,
-				yourName,
-				this.plugin.settings.receiptTaxPercent,
-				this.plugin.settings.receiptTipPercent,
-				{ contacts: this.contacts, sourcePath }
-			).open();
-		});
-	}
 }
