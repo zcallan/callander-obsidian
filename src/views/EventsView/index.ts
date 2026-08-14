@@ -21,6 +21,7 @@ import {
 	type EventWhen,
 } from "@/utils/eventRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
+import { registerVaultRefresh } from "@/utils/vaultRefresh";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
 
@@ -84,26 +85,9 @@ export class EventsView extends ItemView {
 		);
 		const inScope = (path: string) =>
 			path === folder || path.startsWith(folder + "/");
-		this.registerEvent(
-			this.app.vault.on("modify", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("create", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("delete", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("rename", (file, oldPath) => {
-				if (inScope(file.path) || inScope(oldPath)) void this.refresh();
-			})
-		);
+		registerVaultRefresh(this, this.plugin, () => void this.refresh(), {
+			scope: inScope,
+		});
 		await this.refresh();
 	}
 

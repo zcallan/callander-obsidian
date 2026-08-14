@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { PluginProvider } from "@/ui/PluginContext";
 import { ExpensesSection } from "@/ui/sections/ExpensesSection";
 import { UpcomingSection } from "@/ui/sections/UpcomingSection";
+import { registerVaultRefresh } from "@/utils/vaultRefresh";
 import type FriendTracker from "@/main";
 import type {
 	ContactWithCountdown,
@@ -16,7 +17,6 @@ import { IDEA_CATEGORIES } from "@/constants";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
 import { EventModal } from "@/modals/EventModal";
-import { EventViewModal } from "@/modals/EventViewModal";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
 import {
 	CaptureTargetModal,
@@ -63,13 +63,10 @@ export class DashboardView extends ItemView {
 	/**
 	 * React islands for the sections that have been ported, keyed by slot.
 	 *
-	 * Created once and kept for the life of the view. This matters more than
-	 * it looks: `render()` rebuilds the imperative DOM on every vault event,
-	 * and an island recreated alongside it would unmount its root and
-	 * resubscribe a moment later. Any metadataCache change landing in that
-	 * gap is simply lost — which showed up as an event staying on the
-	 * dashboard after being cancelled, and only leaving on the *next*
-	 * unrelated change.
+	 * Created once and kept for the life of the view. `render()` rebuilds the
+	 * imperative DOM on every vault event, and an island recreated alongside
+	 * it would unmount its root and resubscribe a moment later — any change
+	 * landing in that gap is simply lost.
 	 *
 	 * So `render()` detaches these hosts and puts them back rather than
 	 * remaking them; React keeps rendering into the same node throughout and
@@ -105,28 +102,7 @@ export class DashboardView extends ItemView {
 		this.registerEvent(
 			this.plugin.events.on("settings-changed", () => void this.refresh())
 		);
-		const inScope = (path: string) =>
-			path.startsWith(this.plugin.settings.baseFolder + "/");
-		this.registerEvent(
-			this.app.vault.on("modify", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("create", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("delete", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("rename", (file, oldPath) => {
-				if (inScope(file.path) || inScope(oldPath)) void this.refresh();
-			})
-		);
+		registerVaultRefresh(this, this.plugin, () => void this.refresh());
 		await this.refresh();
 	}
 
