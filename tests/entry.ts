@@ -18,6 +18,7 @@ export * from "@/utils/somedaySort";
 export * from "@/utils/somedayRow";
 export * from "@/utils/eventRow";
 export * from "@/utils/upcomingWhen";
+export * from "@/utils/upcomingList";
 export * from "@/utils/eventShare";
 export * from "@/utils/url";
 export * from "@/utils/emoji";

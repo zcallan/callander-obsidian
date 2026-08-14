@@ -2,6 +2,7 @@ import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
 import { createRoot, type Root } from "react-dom/client";
 import { PluginProvider } from "@/ui/PluginContext";
 import { ExpensesSection } from "@/ui/sections/ExpensesSection";
+import { UpcomingSection } from "@/ui/sections/UpcomingSection";
 import type FriendTracker from "@/main";
 import type {
 	ContactWithCountdown,
@@ -139,6 +140,7 @@ export class DashboardView extends ItemView {
 		this.reactRoot = createRoot(this.reactHost);
 		this.reactRoot.render(
 			<PluginProvider plugin={this.plugin}>
+				<UpcomingSection />
 				<ExpensesSection />
 			</PluginProvider>
 		);
@@ -221,8 +223,9 @@ export class DashboardView extends ItemView {
 		this.renderUpcomingBirthdays(container);
 		this.renderMissedBirthdays(container);
 
-		// Future-dated events coming up
-		this.renderUpcoming(container);
+		// Future-dated events coming up — React, along with everything
+		// after it that has been ported.
+		this.mountReact(container);
 
 		// Anniversaries — events from this same day in past years
 		this.renderOnThisDay(container);
@@ -270,11 +273,6 @@ export class DashboardView extends ItemView {
 		// Shared expenses — last, so it's the thing you scroll to the bottom
 		// for rather than something you pass on the way down.
 		//
-		// Rendered by React. `container.empty()` above destroyed the previous
-		// host node, so the root is recreated against a fresh one rather than
-		// left pointing at detached DOM.
-		this.mountReact(container);
-
 		container.scrollTop = scrollTop;
 	}
 
@@ -514,157 +512,6 @@ export class DashboardView extends ItemView {
 	}
 
 	/** Future events, sorted; soonest (and undated) first. */
-	private renderUpcoming(container: HTMLElement) {
-		const now = new Date();
-		type Item = {
-			event: EventInfo;
-			key: number;
-			/** Days from today; null when the date is too coarse to count. */
-			days: number | null;
-		};
-		const items: Item[] = [];
-
-		for (const e of this.plugin.eventOperations.getEvents()) {
-			// Timeline entries are records of a person, not your calendar —
-			// they live on that person's page and nowhere else.
-			if (e.variant === "timeline") continue;
-			if (e.status === "done") continue;
-			// Called off — still on the record and on the Events page, but
-			// the dashboard is for what's actually happening.
-			if (e.status === "cancelled") continue;
-			const p = parseFlexDate(e.date);
-			if (!p || p.year === null) {
-				// Undated ("Anytime") — actionable now, so never out of window.
-				items.push({ event: e, key: 0, days: null });
-				continue;
-			}
-			if (isFlexUpcoming(p, now)) {
-				items.push({
-					event: e,
-					key: flexSortKey(p),
-					days: daysUntilFlex(e.date, now),
-				});
-				continue;
-			}
-			// A passed date is implicitly done for most events — but a task
-			// keeps asking for a week, so it can still be ticked off.
-			if (e.type === "task" && p.month !== null && p.day !== null) {
-				const target = new Date(p.year, p.month - 1, p.day);
-				target.setHours(0, 0, 0, 0);
-				const today = new Date(now);
-				today.setHours(0, 0, 0, 0);
-				const passed = Math.round(
-					(today.getTime() - target.getTime()) / 86400000
-				);
-				if (passed >= 0 && passed <= 7) {
-					items.push({
-						event: e,
-						key: flexSortKey(p),
-						days: -passed,
-					});
-				}
-			}
-		}
-		items.sort((a, b) => a.key - b.key);
-
-		const section = container.createDiv({
-			cls: "dashboard-section dashboard-upcoming-section",
-		});
-		const header = section.createDiv({
-			cls: "dashboard-section-header",
-		});
-		header.createEl("h3", { text: "📌 Upcoming" });
-		const buttons = header.createDiv({
-			cls: "dashboard-section-buttons",
-		});
-		const addButton = buttons.createEl("button", {
-			cls: "callander-button",
-			text: "Add event",
-		});
-		addButton.addEventListener("click", () => {
-			new EventModal(this.app, this.plugin, null, () =>
-				this.refresh()
-			).open();
-		});
-		const allButton = buttons.createEl("button", {
-			cls: "callander-button",
-			text: "See all",
-		});
-		allButton.addEventListener("click", () =>
-			void this.plugin.activateEvents()
-		);
-
-		if (items.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "Nothing coming up. Add an event — a birthday, a booking, anything worth keeping in view.",
-			});
-			return;
-		}
-
-		// Default to a near horizon; anything further out lives on the Events
-		// page, so a booking eight months away doesn't crowd out this week.
-		const windowDays = this.plugin.settings.upcomingDays;
-		const near = items.filter((i) => i.days === null || i.days <= windowDays);
-		const shown = near.slice(0, 10);
-
-		if (shown.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: `Nothing in the next ${windowDays} days.`,
-			});
-		}
-		for (const item of shown) {
-			const e = item.event;
-			buildUpcomingRow(section, {
-				...eventRowFields(
-					e,
-					now,
-					e.people.length > 0 ? this.eventPeopleNames(e) : "",
-					// The dashboard is a "what's next" view — anything inside
-					// a fortnight reads better by weekday than by date.
-					{ conversational: true }
-				),
-				onClick: () =>
-					new EventViewModal(this.app, this.plugin, e, () =>
-						this.refresh()
-					).open(),
-			});
-		}
-
-		if (items.length > shown.length) {
-			const more = section.createDiv({
-				cls: "section-helper-text dashboard-row-clickable",
-				text: `+${items.length - shown.length} more on the Events page`,
-			});
-			more.addEventListener("click", () =>
-				void this.plugin.activateEvents()
-			);
-		}
-	}
-
-	/** Linked people as display names, resolved against the contact list
-	 * the dashboard already holds; dead links fall back to their text. */
-	private eventPeopleNames(e: EventInfo): string {
-		return e.people
-			.map((raw) => {
-				const linktext = raw
-					.replace(/^\[\[|\]\]$/g, "")
-					.split("|")[0]
-					.trim();
-				const dest = this.app.metadataCache.getFirstLinkpathDest(
-					linktext,
-					e.file.path
-				);
-				const match = dest
-					? this.contacts.find((c) => c.file.path === dest.path)
-					: undefined;
-				return match?.displayName ?? linktext;
-			})
-			.join(", ");
-	}
-
-	/** Events from this same calendar day in earlier years — a warm callback. */
 	private renderOnThisDay(container: HTMLElement) {
 		const now = new Date();
 		const month = now.getMonth() + 1;
