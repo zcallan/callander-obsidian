@@ -11,7 +11,9 @@
 		"test": "node tests/run.mjs",
 		"preflight": "npm run lint && npm run build && npm test && npm run test:e2e",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"test:e2e": "node tests/e2e/run.mjs"
+		"test:e2e": "node tests/e2e/run.mjs",
+		"seed": "node tools/screenshots/make-seed.mjs",
+		"screenshots": "node tools/screenshots/shoot.mjs"
 	},
 	"keywords": [],
 	"author": "zcallan",

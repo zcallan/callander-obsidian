@@ -19,6 +19,9 @@ export default defineConfig([
 			// is not "unnecessary logging to console". tests/entry.ts is
 			// still type-checked by tsc, which is what matters there.
 			"tests/",
+			// Same for the screenshot tooling: Node scripts that drive a real
+			// Obsidian from the outside, never code that ships in the plugin.
+			"tools/",
 		],
 	},
 	...obsidianmd.configs.recommended,
