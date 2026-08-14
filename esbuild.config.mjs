@@ -134,8 +134,17 @@ const context = await esbuild.context({
 		__CALLANDER_BUILD__: JSON.stringify(
 			prod ? releaseVersion() : DEV_STAMP_SENTINEL
 		),
+		// React ships two builds behind this flag and picks at runtime. Left
+		// undefined, the bundler keeps the development one — every warning
+		// path, every dev-only invariant, and a much slower renderer. Setting
+		// it lets the whole dev half tree-shake out of a release.
+		"process.env.NODE_ENV": JSON.stringify(
+			prod ? "production" : "development"
+		),
 	},
 	format: "cjs",
+	// Automatic runtime: no `import React` in every component.
+	jsx: "automatic",
 	target: "es2018",
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
@@ -149,8 +158,12 @@ const context = await esbuild.context({
 	// bug class this whole arrangement exists to remove, so it isn't worth
 	// reintroducing at build time.
 	//
-	// The cost is ~86KB (331KB → 418KB), since the flag stops JS mangling
-	// too. Flip both of these back to `minify: prod` to trade it back.
+	// The cost grew once React was bundled, since the flag stops React being
+	// mangled too: 529KB fully minified vs 837KB with readable names. That's
+	// still ordinary for an Obsidian plugin, and a silent cross-plugin CSS
+	// collision is a worse failure than 300KB. Flip both of these back to
+	// `minify: prod` to trade it the other way — at which point the scoped
+	// class names must stop being relied on for isolation.
 	minifyWhitespace: prod,
 	minifySyntax: prod,
 	plugins: [
