@@ -22,6 +22,12 @@ export default defineConfig([
 			// Same for the screenshot tooling: Node scripts that drive a real
 			// Obsidian from the outside, never code that ships in the plugin.
 			"tools/",
+			// And the preview harness — a Node script that renders the
+			// stylesheet in a browser. Same reasoning as tests/ and tools/.
+			"scripts/",
+			// Generated: src/styles/base.css plus the compiled *.module.css.
+			"styles.css",
+			".preview/",
 		],
 	},
 	...obsidianmd.configs.recommended,

@@ -77,6 +77,11 @@ export class EventsView extends ItemView {
 
 	async onOpen() {
 		const folder = this.plugin.eventOperations.getEventsFolderPath();
+		// Settings are read at render time, so a change to one has to be
+		// heard rather than waited on — otherwise it only lands on reopen.
+		this.registerEvent(
+			this.plugin.events.on("settings-changed", () => void this.refresh())
+		);
 		const inScope = (path: string) =>
 			path === folder || path.startsWith(folder + "/");
 		this.registerEvent(

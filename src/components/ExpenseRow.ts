@@ -1,4 +1,5 @@
 import type { Expense } from "@/types";
+import styles from "./ExpenseRow.module.css";
 import { paidStateOf, payersOf, splitModeLabel } from "@/utils/expenseMath";
 
 export interface ExpenseRowOptions {
@@ -28,11 +29,11 @@ export function appendExpenseRow(
 	options: ExpenseRowOptions
 ): HTMLElement {
 	const { yourName = "", onClick } = options;
-	const row = container.createDiv({ cls: "expense-row" });
+	const row = container.createDiv({ cls: styles.row });
 	row.addEventListener("click", onClick);
 
-	const top = row.createDiv({ cls: "expense-row-line" });
-	top.createSpan({ cls: "expense-label", text: expense.label });
+	const top = row.createDiv({ cls: styles.line });
+	top.createSpan({ cls: styles.label, text: expense.label });
 
 	// Settled says it outright; otherwise count how many are square. An
 	// expense that charges nobody has nothing to count, so it says nothing
@@ -40,20 +41,20 @@ export function appendExpenseRow(
 	const payers = payersOf(expense, participants);
 	if (expense.settled) {
 		top.createSpan({
-			cls: "expense-row-status expense-settled-label",
+			cls: `${styles.status} ${styles.settled}`,
 			text: "Settled",
 		});
 	} else if (payers.length > 0) {
 		const paid = paidStateOf(expense, payers, yourName);
 		top.createSpan({
-			cls: "expense-row-status",
+			cls: styles.status,
 			text: `${paid.length} of ${payers.length} paid`,
 		});
 	}
 
-	const bottom = row.createDiv({ cls: "expense-row-line" });
+	const bottom = row.createDiv({ cls: styles.line });
 	bottom.createSpan({
-		cls: "expense-row-meta",
+		cls: styles.meta,
 		text: `$${expense.amount.toFixed(2)} · ${splitModeLabel(
 			expense.split.mode
 		).toLowerCase()}`,
