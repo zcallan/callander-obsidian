@@ -48,6 +48,13 @@ export class DiaryView extends ItemView {
 				this.onVaultChange(oldPath);
 			})
 		);
+		// Entries are read out of the metadata cache, which reindexes *after*
+		// the vault event fires. See registerVaultRefresh.
+		this.registerEvent(
+			this.app.metadataCache.on("changed", (file) =>
+				this.onVaultChange(file.path)
+			)
+		);
 		await this.refresh();
 	}
 

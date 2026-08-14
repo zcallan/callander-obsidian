@@ -411,6 +411,12 @@ export class ContactPageView extends ItemView {
 				rerenderOnEvent(f.path, old)
 			)
 		);
+		// The events are read out of the metadata cache, which reindexes
+		// *after* the vault event — so without this a write lands on screen
+		// as the pre-write value. See registerVaultRefresh.
+		this.registerEvent(
+			this.app.metadataCache.on("changed", (f) => rerenderOnEvent(f.path))
+		);
 	}
 
 	/** True if an input/textarea inside this view has focus (mid-edit) */
