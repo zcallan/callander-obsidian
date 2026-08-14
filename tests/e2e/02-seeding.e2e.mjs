@@ -109,18 +109,20 @@ export async function run({ cdp }) {
 	// dashboard is already open.
 	const react = await cdp.evaluate(async () => {
 		await window.app.plugins.plugins.callander.activateDashboard();
-		// The root renders on the same tick the view renders; give the
-		// commit a frame rather than racing it.
-		await new Promise((r) => requestAnimationFrame(() => r(null)));
-		const host = document.querySelector(".callander-react-root");
+		// A timer, not requestAnimationFrame: rAF doesn't tick while the
+		// window is occluded, which an unattended run frequently is, and the
+		// wait would simply never resolve.
+		await new Promise((r) => setTimeout(r, 50));
+		// One island per ported section, each its own root — so query all of
+		// them rather than assuming a single host.
+		const hosts = [...document.querySelectorAll(".callander-react-root")];
+		const within = (sel) => hosts.flatMap((h) => [...h.querySelectorAll(sel)]);
 		return {
-			hostPresent: !!host,
-			// React renders into the host; empty means it mounted but threw.
-			hasContent: !!host && host.childElementCount > 0,
-			headings: [...(host?.querySelectorAll("h3") ?? [])].map(
-				(h) => h.textContent
-			),
-			addButton: [...(host?.querySelectorAll("button") ?? [])].some((b) =>
+			hostPresent: hosts.length > 0,
+			// React renders into each host; empty means it mounted but threw.
+			hasContent: hosts.every((h) => h.childElementCount > 0),
+			headings: within("h3").map((h) => h.textContent),
+			addButton: within("button").some((b) =>
 				/new expense/i.test(b.textContent ?? "")
 			),
 		};
@@ -139,28 +141,32 @@ export async function run({ cdp }) {
 	// something writes and a stale tree throws.
 	const cycle = await cdp.evaluate(async () => {
 		const type = "callander-dashboard";
-		const frame = () =>
-			new Promise((r) => requestAnimationFrame(() => r(null)));
+		const tick = (ms = 50) => new Promise((r) => setTimeout(r, ms));
+
+		const count = () =>
+			document.querySelectorAll(".callander-react-root").length;
+		const before = count();
 
 		window.app.workspace.getLeavesOfType(type).forEach((l) => l.detach());
-		await frame();
-		const afterClose = document.querySelectorAll(
-			".callander-react-root"
-		).length;
+		await tick();
+		const afterClose = count();
 
 		await window.app.plugins.plugins.callander.activateDashboard();
-		await frame();
-		const afterReopen = document.querySelectorAll(
-			".callander-react-root"
-		).length;
+		await tick();
+		const afterReopen = count();
 
-		return { afterClose, afterReopen };
+		return { before, afterClose, afterReopen };
 	});
 
-	eq("closing the tab removes the React host", cycle.afterClose, 0);
-	// Exactly one: a second host would mean the previous root was never
-	// unmounted and its DOM was left in place.
-	eq("reopening mounts exactly one root", cycle.afterReopen, 1);
+	eq("closing the tab removes every React host", cycle.afterClose, 0);
+	// Same count as before, not more: an extra host would mean a previous
+	// root was never unmounted and its DOM was left behind. Compared rather
+	// than hardcoded, so porting another section doesn't break this.
+	eq(
+		"reopening mounts the same number of roots",
+		cycle.afterReopen,
+		cycle.before
+	);
 
 	// ---------- React reacts to a write, with no manual refresh ----------
 	// The point of the migration, and the thing most likely to quietly not
@@ -169,12 +175,12 @@ export async function run({ cdp }) {
 	// because the vault event bumped the store and React re-rendered.
 	const live = await cdp.evaluate(async () => {
 		const plugin = window.app.plugins.plugins.callander;
-		const frame = () =>
-			new Promise((r) => requestAnimationFrame(() => r(null)));
+		const tick = (ms = 50) => new Promise((r) => setTimeout(r, ms));
 		const settle = async () => {
 			// A write lands, then the metadata cache reindexes, then React
-			// commits. Give all three a moment rather than racing them.
-			for (let i = 0; i < 40; i++) await frame();
+			// commits. One wait long enough to cover all three, rather than
+			// a spin that depends on the window being painted.
+			await tick(600);
 		};
 
 		const NAME = "Reactivity probe";
@@ -194,26 +200,45 @@ export async function run({ cdp }) {
 
 		const beforeCancel = rowText().includes(NAME);
 
-		// Cancel it exactly the way the view modal does — no refresh call.
+		// Deliberately NOT driving the modal UI here: a modal left open by a
+		// missed selector blocks every test after it. The service call is
+		// the same write the Cancel button makes, and the regression this
+		// guards is about what happens *after* the write — see the island
+		// identity check below, which is where the bug actually lived.
 		const file = plugin.eventOperations
 			.getEvents()
 			.find((e) => e.name === NAME).file;
+
+		// Capture the island node so we can prove it survives the dashboard
+		// re-render the write triggers.
+		const hostBefore = document.querySelector(".callander-react-root");
+
 		await plugin.eventOperations.setStatus(file, "cancelled");
 		await settle();
 		const afterCancel = rowText().includes(NAME);
+		const hostAfter = document.querySelector(".callander-react-root");
+		// Same node, not a replacement. A recreated island means a remounted
+		// root, which resubscribes too late to hear the metadata cache catch
+		// up — the row then lingers until some unrelated change arrives.
+		const hostSurvived = hostBefore === hostAfter && !!hostAfter;
 
 		// And back again, to prove it's genuinely reactive rather than a
-		// one-way teardown.
+		// one-way teardown. Through the service this time — the modal shut
+		// itself on Cancel.
 		await plugin.eventOperations.setStatus(file, "open");
 		await settle();
 		const afterRestore = rowText().includes(NAME);
 
-		return { beforeCancel, afterCancel, afterRestore };
+		return { beforeCancel, afterCancel, afterRestore, hostSurvived };
 	});
 
 	ok("an upcoming event renders in the React section", live.beforeCancel);
 	ok("cancelling removes it with no manual refresh", !live.afterCancel);
 	ok("restoring brings it back", live.afterRestore);
+	ok(
+		"the React island survives the re-render rather than remounting",
+		live.hostSurvived
+	);
 
 	return result();
 }
