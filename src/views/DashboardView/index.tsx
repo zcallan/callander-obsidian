@@ -1,5 +1,6 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
 import { createRoot, type Root } from "react-dom/client";
+import type { ReactNode } from "react";
 import { PluginProvider } from "@/ui/PluginContext";
 import { ExpensesSection } from "@/ui/sections/ExpensesSection";
 import { UpcomingSection } from "@/ui/sections/UpcomingSection";
@@ -60,13 +61,21 @@ export class DashboardView extends ItemView {
 	// this dashboard so the list doesn't reshuffle on every refresh.
 	private somedayRandomSeed = Math.floor(Math.random() * 2 ** 31);
 	/**
-	 * The React island for the sections that have been ported. Torn down in
-	 * onClose — Obsidian unmounts a view on tab close, plugin reload and
-	 * workspace restore, and a root left behind keeps its subscriptions and
-	 * renders into detached DOM.
+	 * React islands for the sections that have been ported, keyed by slot.
+	 *
+	 * Created once and kept for the life of the view. This matters more than
+	 * it looks: `render()` rebuilds the imperative DOM on every vault event,
+	 * and an island recreated alongside it would unmount its root and
+	 * resubscribe a moment later. Any metadataCache change landing in that
+	 * gap is simply lost — which showed up as an event staying on the
+	 * dashboard after being cancelled, and only leaving on the *next*
+	 * unrelated change.
+	 *
+	 * So `render()` detaches these hosts and puts them back rather than
+	 * remaking them; React keeps rendering into the same node throughout and
+	 * its subscriptions never lapse. Torn down only in onClose.
 	 */
-	private reactRoot: Root | null = null;
-	private reactHost: HTMLElement | null = null;
+	private islands = new Map<string, { host: HTMLElement; root: Root }>();
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -134,30 +143,39 @@ export class DashboardView extends ItemView {
 	 * write twice. The checks it buys aren't worth that here, where the tree
 	 * is small and the side effects are real files.
 	 */
-	private mountReact(container: HTMLElement) {
-		this.unmountReact();
-		this.reactHost = container.createDiv({ cls: "callander-react-root" });
-		this.reactRoot = createRoot(this.reactHost);
-		this.reactRoot.render(
-			<PluginProvider plugin={this.plugin}>
-				<UpcomingSection />
-				<ExpensesSection />
-			</PluginProvider>
+	/**
+	 * The host node for a ported section, ready to be placed in the layout.
+	 *
+	 * Rendered once on creation and never again from here — React owns its
+	 * own updates from that point, driven by the vault subscriptions inside
+	 * it. Re-rendering on every dashboard render would be redundant work and
+	 * would tie React's update timing back to the imperative path this is
+	 * meant to escape.
+	 */
+	private island(key: string, node: ReactNode): HTMLElement {
+		const existing = this.islands.get(key);
+		if (existing) return existing.host;
+
+		const host = createDiv({ cls: "callander-react-root" });
+		const root = createRoot(host);
+		root.render(
+			<PluginProvider plugin={this.plugin}>{node}</PluginProvider>
 		);
+		this.islands.set(key, { host, root });
+		return host;
 	}
 
-	private unmountReact() {
-		// Synchronous unmount inside a React render pass is an error, and
-		// render() can be reached from an event handler — defer so the
-		// teardown always lands between renders.
-		const root = this.reactRoot;
-		this.reactRoot = null;
-		this.reactHost = null;
-		if (root) window.setTimeout(() => root.unmount(), 0);
+	private unmountIslands() {
+		const roots = [...this.islands.values()];
+		this.islands.clear();
+		// Unmounting synchronously inside a React render pass is an error,
+		// and onClose can be reached from one — defer so teardown always
+		// lands between renders.
+		window.setTimeout(() => roots.forEach(({ root }) => root.unmount()), 0);
 	}
 
 	async onClose() {
-		this.unmountReact();
+		this.unmountIslands();
 	}
 
 	private async openContact(file: TFile) {
@@ -223,9 +241,8 @@ export class DashboardView extends ItemView {
 		this.renderUpcomingBirthdays(container);
 		this.renderMissedBirthdays(container);
 
-		// Future-dated events coming up — React, along with everything
-		// after it that has been ported.
-		this.mountReact(container);
+		// Future-dated events coming up (React)
+		container.appendChild(this.island("upcoming", <UpcomingSection />));
 
 		// Anniversaries — events from this same day in past years
 		this.renderOnThisDay(container);
@@ -269,6 +286,10 @@ export class DashboardView extends ItemView {
 
 		// Idea inbox
 		await this.renderInbox(container);
+
+		// Shared expenses — last, so it's the thing you scroll to the bottom
+		// for rather than something you pass on the way down. (React)
+		container.appendChild(this.island("expenses", <ExpensesSection />));
 
 		// Shared expenses — last, so it's the thing you scroll to the bottom
 		// for rather than something you pass on the way down.
