@@ -117,7 +117,9 @@ export async function run({ cdp }) {
 			hostPresent: !!host,
 			// React renders into the host; empty means it mounted but threw.
 			hasContent: !!host && host.childElementCount > 0,
-			heading: host?.querySelector("h3")?.textContent ?? "",
+			headings: [...(host?.querySelectorAll("h3") ?? [])].map(
+				(h) => h.textContent
+			),
 			addButton: [...(host?.querySelectorAll("button") ?? [])].some((b) =>
 				/new expense/i.test(b.textContent ?? "")
 			),
@@ -126,7 +128,10 @@ export async function run({ cdp }) {
 
 	ok("React root is mounted in the dashboard", react.hostPresent);
 	ok("...and rendered something", react.hasContent);
-	eq("...the Expenses heading", react.heading, "💵 Expenses");
+	eq("...both ported sections", react.headings, [
+		"📌 Upcoming",
+		"💵 Expenses",
+	]);
 	ok("...with its New expense button", react.addButton);
 
 	// Closing the tab must take the root with it. A leaked root keeps its
@@ -156,6 +161,59 @@ export async function run({ cdp }) {
 	// Exactly one: a second host would mean the previous root was never
 	// unmounted and its DOM was left in place.
 	eq("reopening mounts exactly one root", cycle.afterReopen, 1);
+
+	// ---------- React reacts to a write, with no manual refresh ----------
+	// The point of the migration, and the thing most likely to quietly not
+	// work: a modal writes to disk, and the dashboard behind it updates on
+	// its own. Nothing here calls refresh() — if the row disappears, it's
+	// because the vault event bumped the store and React re-rendered.
+	const live = await cdp.evaluate(async () => {
+		const plugin = window.app.plugins.plugins.callander;
+		const frame = () =>
+			new Promise((r) => requestAnimationFrame(() => r(null)));
+		const settle = async () => {
+			// A write lands, then the metadata cache reindexes, then React
+			// commits. Give all three a moment rather than racing them.
+			for (let i = 0; i < 40; i++) await frame();
+		};
+
+		const NAME = "Reactivity probe";
+		const future = new Date();
+		future.setDate(future.getDate() + 3);
+		const pad = (n) => String(n).padStart(2, "0");
+		const date = `${future.getFullYear()}-${pad(
+			future.getMonth() + 1
+		)}-${pad(future.getDate())}`;
+
+		await plugin.eventOperations.createEvent({ name: NAME, date });
+		await plugin.activateDashboard();
+		await settle();
+
+		const rowText = () =>
+			document.querySelector(".callander-react-root")?.textContent ?? "";
+
+		const beforeCancel = rowText().includes(NAME);
+
+		// Cancel it exactly the way the view modal does — no refresh call.
+		const file = plugin.eventOperations
+			.getEvents()
+			.find((e) => e.name === NAME).file;
+		await plugin.eventOperations.setStatus(file, "cancelled");
+		await settle();
+		const afterCancel = rowText().includes(NAME);
+
+		// And back again, to prove it's genuinely reactive rather than a
+		// one-way teardown.
+		await plugin.eventOperations.setStatus(file, "open");
+		await settle();
+		const afterRestore = rowText().includes(NAME);
+
+		return { beforeCancel, afterCancel, afterRestore };
+	});
+
+	ok("an upcoming event renders in the React section", live.beforeCancel);
+	ok("cancelling removes it with no manual refresh", !live.afterCancel);
+	ok("restoring brings it back", live.afterRestore);
 
 	return result();
 }

@@ -43,6 +43,17 @@ export function useVaultVersion(): number {
 					(f, old) => (inScope(f.path) || inScope(old)) && bump()
 				),
 			];
+			// The vault event fires when bytes hit disk; the metadata cache
+			// reindexes a moment later. Almost everything here reads through
+			// that cache, so a re-read triggered only by the vault event can
+			// land on the old frontmatter and show a stale row. Listening to
+			// both means the last word always comes from a reindexed cache.
+			const cache = plugin.app.metadataCache;
+			const cacheRef = cache.on(
+				"changed",
+				(file) => inScope(file.path) && bump()
+			);
+
 			// Settings feed rendering as much as the files do — a changed sort
 			// or folder has to invalidate too. Detached through its own
 			// emitter: each Events instance keeps its own handler map, so
@@ -51,6 +62,7 @@ export function useVaultVersion(): number {
 
 			return () => {
 				vaultRefs.forEach((ref) => vault.offref(ref));
+				cache.offref(cacheRef);
 				plugin.events.offref(settingsRef);
 			};
 		},
