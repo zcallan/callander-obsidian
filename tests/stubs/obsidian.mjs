@@ -322,6 +322,34 @@ export class FakeFileManager {
 	}
 }
 
+/**
+ * Obsidian's own emitter, as far as the plugin uses it: `on` returns a ref,
+ * `trigger` fans out. Enough for anything that composes one to be testable
+ * without the real app.
+ */
+export class Events {
+	constructor() {
+		this.handlers = new Map();
+	}
+	on(name, cb) {
+		if (!this.handlers.has(name)) this.handlers.set(name, []);
+		this.handlers.get(name).push(cb);
+		return { name, cb };
+	}
+	off(name, cb) {
+		const list = this.handlers.get(name);
+		if (!list) return;
+		const i = list.indexOf(cb);
+		if (i >= 0) list.splice(i, 1);
+	}
+	offref(ref) {
+		if (ref) this.off(ref.name, ref.cb);
+	}
+	trigger(name, ...args) {
+		for (const cb of [...(this.handlers.get(name) ?? [])]) cb(...args);
+	}
+}
+
 export class FakeApp {
 	constructor() {
 		this.vault = new FakeVault();

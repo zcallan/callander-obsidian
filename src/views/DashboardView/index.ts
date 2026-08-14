@@ -79,6 +79,11 @@ export class DashboardView extends ItemView {
 		// actually creates anything here.
 		await this.plugin.seedStarterVault();
 
+		// Settings are read at render time, so a change to one has to be
+		// heard rather than waited on — otherwise it only lands on reopen.
+		this.registerEvent(
+			this.plugin.events.on("settings-changed", () => void this.refresh())
+		);
 		const inScope = (path: string) =>
 			path.startsWith(this.plugin.settings.baseFolder + "/");
 		this.registerEvent(

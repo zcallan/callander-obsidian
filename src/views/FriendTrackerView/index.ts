@@ -69,6 +69,11 @@ export class FriendTrackerView extends ItemView {
 	}
 
 	async onOpen() {
+		// Settings are read at render time, so a change to one has to be
+		// heard rather than waited on — otherwise it only lands on reopen.
+		this.registerEvent(
+			this.plugin.events.on("settings-changed", () => void this.refresh())
+		);
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
 				if (file instanceof TFile && this.isContactFile(file)) {

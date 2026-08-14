@@ -3201,64 +3201,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	color: var(--color-green, #5cb870);
 }
 
-/* An expense over two lines: name and progress up top, cost and split
-   below. Rules between them, since the two-line block needs a boundary to
-   read as one item rather than four loose lines. */
-.expense-row {
-	display: flex;
-	flex-direction: column;
-	gap: 3px;
-	padding: 10px 0;
-	cursor: pointer;
-}
-
-/* Between rows only. `:first-of-type` would be wrong here — it matches the
-   first div among its siblings, and these sections open with a heading and
-   helper text, so the first expense is rarely the first div. */
-.expense-row + .expense-row {
-	border-top: 1px solid var(--background-modifier-border);
-}
-
-.expense-row:hover {
-	background: var(--background-modifier-hover);
-}
-
-/* Label left, tally right — the gap between them is what makes the
-   right-hand column scannable down a list. */
-.expense-row-line {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 12px;
-}
-
-/* Long names wrap rather than shoving the tally off the row. `min-width: 0`
-   alone isn't enough: a flex item still won't shrink past its longest
-   unbroken word, so a run-on name overflows the row and collides with the
-   tally. `anywhere` lets that word break. */
-.expense-label {
-	min-width: 0;
-	overflow-wrap: anywhere;
-}
-
-.expense-row-status {
-	flex: 0 0 auto;
-	color: var(--text-muted);
-	font-size: 0.85em;
-	font-variant-numeric: tabular-nums;
-}
-
-/* Both are single-class selectors, so source order alone decides the
-   colour — and this rule sits later in the file than .expense-settled-label.
-   Scoped through the status class to win on specificity instead. */
-.expense-row-status.expense-settled-label {
-	color: var(--color-green, #5cb870);
-}
-
-.expense-row-meta {
-	color: var(--text-muted);
-	font-size: 0.85em;
-}
 
 /* Settled expenses, folded away beneath the open ones. Closed by default:
    they're the record, not the to-do. */
