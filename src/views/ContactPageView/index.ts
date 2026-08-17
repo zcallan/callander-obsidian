@@ -26,6 +26,7 @@ import { createFlexDateInput } from "@/components/FlexDateInput";
 import { EventModal } from "@/modals/EventModal";
 import { ResurfaceModal } from "@/modals/ResurfaceModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
+import { DeleteContactModal } from "@/modals/DeleteContactModal";
 import { ContactSuggestModal, QuickIdeaModal } from "@/modals/QuickIdeaModal";
 import { VIEW_TYPE_FRIEND_TRACKER } from "@/views/FriendTrackerView";
 import { FriendTrackerView } from "@/views/FriendTrackerView";
@@ -723,6 +724,51 @@ export class ContactPageView extends ItemView {
 			}
 		);
 		void this.renderExtrasSection(markdown.wrap, markdown.body);
+
+		// Last thing on the page, below everything else. Plans have their own
+		// delete inside the edit modal, and a group's page deletes through
+		// the group modal — this is people only.
+		if (this.isPersonFile()) this.renderDeleteSection(container);
+	}
+
+	/**
+	 * Delete this person, at the very bottom and set apart by a divider.
+	 *
+	 * Deliberately not in the header with the other actions: it's the one
+	 * control here that destroys something, and putting it beside "Add idea"
+	 * makes a misclick cheap. Reaching it means scrolling past the whole page.
+	 */
+	private renderDeleteSection(container: HTMLElement) {
+		const section = container.createDiv({ cls: "contact-delete-section" });
+		const button = section.createEl("button", {
+			cls: "callander-button contact-delete-button",
+		});
+		setIcon(button, "trash-2");
+		button.createSpan({ text: "Delete" });
+		button.addEventListener("click", () => this.confirmDeletePerson());
+	}
+
+	/** Trash this person's note, then leave the page it was showing. */
+	private confirmDeletePerson() {
+		const file = this._file;
+		if (!file) return;
+		const name = this.contactData.name || file.basename;
+		// The same dialog the friends table uses, so deleting a person reads
+		// identically wherever it's done.
+		new DeleteContactModal(this.app, file, async () => {
+			await this.app.fileManager.trashFile(file);
+			new Notice(`Deleted "${name}"`);
+			// This view is now showing a file that no longer exists.
+			this.leaf.detach();
+			await this.plugin.activateDashboard();
+		}).open();
+	}
+
+	/** People live in People/ — the dashboard note and recaps do not. */
+	private isPersonFile(): boolean {
+		return !!this._file?.path.startsWith(
+			this.plugin.contactOperations.getPeopleFolderPath() + "/"
+		);
 	}
 
 	private renderNameSection(container: HTMLElement) {
