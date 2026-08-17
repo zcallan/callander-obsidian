@@ -4710,3 +4710,32 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	color: var(--text-accent);
 	font-weight: 500;
 }
+
+/* ---- Delete a person ----------------------------------------------------
+   The last thing on a person's page. Set apart by a divider and a wide gap
+   so it reads as separate from the content rather than as one more action,
+   and right-aligned so it isn't under the thumb while scrolling.
+
+   Both rules are two-class selectors: `.callander-button` sets
+   `background: none` and a muted colour several hundred lines further down
+   this file, and at equal specificity the later rule wins. Qualifying with
+   the base class outranks it regardless of where either sits. */
+.contact-delete-section {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 32px;
+	padding-top: 24px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.contact-delete-button.callander-button {
+	color: var(--text-error);
+	border-color: var(--background-modifier-error);
+}
+
+/* Filled on hover, matching the destructive action in every modal. */
+.contact-delete-button.callander-button:hover {
+	background-color: var(--background-modifier-error);
+	border-color: var(--background-modifier-error);
+	color: var(--text-on-accent);
+}
