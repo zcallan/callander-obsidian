@@ -100,7 +100,8 @@ export function PlanExpensesSection({
 	costs: () => Expense[];
 	credits: () => Credit[];
 	participants: () => string[];
-	yourName: string;
+	/** A function for the same reason the lists are — see viewStore. */
+	yourName: () => string;
 	paid: () => string[];
 	onOpenCost: (index: number, cost: Expense) => void;
 	onOpenCredit: (index: number, credit: Credit) => void;
@@ -113,11 +114,12 @@ export function PlanExpensesSection({
 	const costList = costs();
 	const creditList = credits();
 	const people = participants();
+	const me = yourName();
 	const { rows, outstanding } = planOwedSummary(
 		costList,
 		creditList,
 		people,
-		yourName,
+		me,
 		paid()
 	);
 
@@ -126,7 +128,7 @@ export function PlanExpensesSection({
 	const showSummary =
 		(costList.length > 0 || creditList.length > 0) && people.length > 0;
 	const creditPeople = people.filter(
-		(p) => !yourName || p.toLowerCase() !== yourName.toLowerCase()
+		(p) => !me || p.toLowerCase() !== me.toLowerCase()
 	);
 
 	const personRow = (row: OwedRow) => (
@@ -159,7 +161,7 @@ export function PlanExpensesSection({
 					key={index}
 					expense={cost}
 					participants={people}
-					yourName={yourName}
+					yourName={me}
 					onClick={() => onOpenCost(index, cost)}
 				/>
 			))}

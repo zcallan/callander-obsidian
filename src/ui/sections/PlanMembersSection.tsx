@@ -32,8 +32,13 @@ export function PlanMembersSection({
 	onAdd,
 }: {
 	store: ViewStore;
-	/** Shown first and unremovable — you're on your own plan by definition. */
-	yourName: string;
+	/**
+	 * Shown first and unremovable — you're on your own plan by definition.
+	 * A function for the same reason the lists are: an island is created
+	 * once and kept, so a plain prop would freeze at whatever it was when
+	 * the view first rendered. See viewStore.
+	 */
+	yourName: () => string;
 	members: () => PlanMemberChip[];
 	unconfirmed: () => PlanMemberChip[];
 	onOpen: (path: string) => void;
@@ -43,6 +48,7 @@ export function PlanMembersSection({
 	onAdd: () => void;
 }) {
 	useViewRevision(store);
+	const me = yourName();
 	const confirmed = members();
 	const pending = unconfirmed();
 
@@ -61,9 +67,9 @@ export function PlanMembersSection({
 	return (
 		<div className="plan-members-body">
 			<div className="contact-group-chips plan-member-chips">
-				{yourName && (
+				{me && (
 					<span className="contact-group-chip readonly plan-member-chip">
-						<span>{yourName}</span>
+						<span>{me}</span>
 						<span className="plan-chip-muted">(you)</span>
 					</span>
 				)}
