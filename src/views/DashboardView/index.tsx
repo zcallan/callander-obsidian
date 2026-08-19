@@ -1,5 +1,8 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot } from "react-dom/client";
+// preact/compat/client exports createRoot but not a name for what it
+// returns, so the root type is derived from the function itself.
+type Root = ReturnType<typeof createRoot>;
 import type { ReactNode } from "react";
 import { PluginProvider } from "@/ui/PluginContext";
 import { ExpensesSection } from "@/ui/sections/ExpensesSection";
@@ -9,14 +12,11 @@ import type FriendTracker from "@/main";
 import type {
 	ContactWithCountdown,
 	Draft,
-	EventInfo,
-	Expense,
 	Idea,
 } from "@/types";
 import { IDEA_CATEGORIES } from "@/constants";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
-import { EventModal } from "@/modals/EventModal";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
 import {
 	CaptureTargetModal,
@@ -28,24 +28,16 @@ import { ConfirmModal } from "@/modals/ConfirmModal";
 import {
 	parseFlexDate,
 	flexSortKey,
-	isFlexUpcoming,
 	monthName,
 } from "@/utils/flexdate";
 import { PlanModal } from "@/modals/PlanModal";
 import { formatDate } from "@/utils/dateFormat";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
-import { resolvePeopleNames } from "@/utils/people";
-import { partitionExpenses } from "@/utils/expenseMath";
-import { ExpenseModal } from "@/modals/ExpenseModal";
-import { ExpenseViewModal } from "@/modals/ExpenseViewModal";
-import { appendExpenseRow } from "@/components/ExpenseRow";
 import { sortSomedays } from "@/utils/somedaySort";
 import { somedayRowParts } from "@/utils/somedayRow";
 import { buildSomedayRow } from "@/components/SomedayRow";
-import { eventRowFields } from "@/utils/eventRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
 import {
-	daysUntilFlex,
 	conversationalLabel,
 	relativeFromDays,
 	upcomingWhen,

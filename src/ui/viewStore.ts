@@ -50,9 +50,6 @@ export class ViewStore {
 
 /** Re-render whenever the host view says its data moved on. */
 export function useViewRevision(store: ViewStore): number {
-	return useSyncExternalStore(
-		store.subscribe,
-		store.getSnapshot,
-		store.getSnapshot
-	);
+	// Two arguments, not three — see useVaultVersion.
+	return useSyncExternalStore(store.subscribe, store.getSnapshot);
 }

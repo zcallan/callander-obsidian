@@ -145,6 +145,21 @@ const context = await esbuild.context({
 	format: "cjs",
 	// Automatic runtime: no `import React` in every component.
 	jsx: "automatic",
+	// Preact rather than React, and not for bundle size — React DOM 19 ships
+	// its Float/hoistable-resource code, which builds `<script>` elements to
+	// preload assets. Nothing here can reach it (it needs `preinit()` or a
+	// rendered `<script>` tag), but Obsidian's plugin review scans the built
+	// bundle statically and rejects the release on sight: "Found 3 dynamic
+	// <script> element creations". Preact has no such code path at all, so
+	// the finding goes away at the root rather than being argued about once
+	// per release. `preact/compat` covers everything used here — hooks,
+	// context, createRoot and useSyncExternalStore.
+	jsxImportSource: "preact",
+	alias: {
+		react: "preact/compat",
+		"react-dom": "preact/compat",
+		"react-dom/client": "preact/compat/client",
+	},
 	target: "es2018",
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
