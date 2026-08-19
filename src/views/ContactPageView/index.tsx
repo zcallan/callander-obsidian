@@ -18,6 +18,7 @@ import { AccommodationSection } from "@/ui/sections/AccommodationSection";
 import { BringSection } from "@/ui/sections/BringSection";
 import { PlanDraftsSection } from "@/ui/sections/PlanDraftsSection";
 import { QuickIdeasSection } from "@/ui/sections/QuickIdeasSection";
+import { PlanTimelineSection } from "@/ui/sections/PlanTimelineSection";
 import {
 	PlanMembersSection,
 	type PlanMemberChip,
@@ -70,7 +71,6 @@ import {
 	INTEREST_CATEGORIES,
 	InterestCategory,
 	EventType,
-	PLAN_IDEA_CATEGORIES,
 	TRAVEL_TYPES,
 	BOOKING_STATES,
 } from "@/constants";
@@ -97,7 +97,6 @@ import {
 import {
 	formatItemCost,
 	formatItemTime,
-	formatQuickIdeaDates,
 	formatStayHours,
 	formatTimelineDay,
 	nightsSummary,
@@ -739,7 +738,35 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			this.renderPlanTimeline(planSection("calendar-clock", "Timeline"));
+			const timelineWrap = planSection("calendar-clock", "Timeline");
+			this.appendTimelineCopyButton(timelineWrap);
+			timelineWrap.appendChild(
+				this.island(
+					"plan-timeline",
+					<PlanTimelineSection
+						store={this.store}
+						entries={() =>
+							PlanOperations.timelineOf(this.contactData)
+						}
+						undated={() =>
+							PlanOperations.undatedIdeaEntries(this.contactData)
+						}
+						rangeDays={() => this.planRangeDays()}
+						shortenPeople={(people) => this.shortenPlanPeople(people)}
+						onOpen={(entry) => this.openTimelineEntry(entry)}
+						onEdit={(entry) => this.editTimelineEntry(entry)}
+						onDelete={(entry) =>
+							this.confirmDeleteTimelineEntry(entry)
+						}
+						onAddItem={(day) =>
+							this.openPlanIdeaModal(null, null, day)
+						}
+						onAddTravel={(day) =>
+							this.openPlanTravelModal(null, null, day)
+						}
+					/>
+				)
+			);
 			// Ported to React — the host is created once and re-attached on
 			// every render, so the section keeps its own subscription.
 			planSection("bed", "Accommodation").appendChild(
@@ -2297,7 +2324,7 @@ export class ContactPageView extends ItemView {
 		if (!file) return [];
 		const yourName = this.plugin.settings.yourName;
 		return asArray(this.contactData[key])
-			.map((raw, index) => ({ raw: String(raw), index }))
+			.map((raw, index) => ({ raw: toText(raw), index }))
 			.filter(
 				({ raw }) =>
 					key !== "members" ||
@@ -2334,10 +2361,13 @@ export class ContactPageView extends ItemView {
 	}
 
 	private async confirmPlanMember(index: number) {
-		const raw = asArray(this.contactData.unconfirmedMembers)[index];
-		if (raw === undefined) return;
+		// toText, not String(): a hand-edited list can hold a map, which
+		// String() would turn into "[object Object]" and then store as a
+		// member. An unusable entry confirms to nothing instead.
+		const raw = toText(asArray(this.contactData.unconfirmedMembers)[index]);
+		if (!raw) return;
 		this.removeFromList("unconfirmedMembers", index);
-		this.pushToList("members", String(raw));
+		this.pushToList("members", raw);
 		await this.saveContactData();
 		this.render();
 	}
@@ -2677,326 +2707,45 @@ export class ContactPageView extends ItemView {
 	 * When the plan has an exact start+end date, every day in that range is
 	 * listed (empty ones show "No plans yet") so it reads day-by-day.
 	 */
-	private renderPlanTimeline(container: HTMLElement) {
-		const section = container.createDiv({
-			cls: "contact-ideas-section plan-items-section",
-		});
-		const entries = PlanOperations.timelineOf(this.contactData);
-
-		// Group entries by day (timelineOf already sorted them chronologically)
-		const byDay = new Map<string, PlanTimelineEntry[]>();
-		for (const entry of entries) {
-			const list = byDay.get(entry.date);
-			if (list) list.push(entry);
-			else byDay.set(entry.date, [entry]);
-		}
-
-		// Days to render: every day that has an item, plus — when the plan has
-		// an exact start and end — every day in that range.
-		const days = new Set<string>(byDay.keys());
+	/** Every day of the plan's exact span, or none when it hasn't got one. */
+	private planRangeDays(): string[] {
 		const startISO = this.exactPlanDay(this.contactData.date);
 		const endISO = this.exactPlanDay(this.contactData.endDate);
-		if (startISO && endISO) {
-			for (const d of this.daysBetween(startISO, endISO)) days.add(d);
-		}
-		const sortedDays = [...days].sort();
-
-		// Ideas nobody has pinned to a day yet. They go above the itinerary,
-		// not below it: an undated idea is the one thing here still waiting
-		// on a decision, and burying it under the schedule is how it gets
-		// forgotten.
-		const undated = PlanOperations.undatedIdeaEntries(this.contactData);
-
-		if (sortedDays.length === 0 && undated.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "Give an idea, travel leg or stay a date and it lands here in order — your itinerary as it firms up.",
-			});
-		} else {
-			// Rows the timeline is about to render — day headings and
-			// empty-day placeholders included, because they take up as much
-			// height as an item does. Counting only the items would badly
-			// under-read a two-week plan with three things in it.
-			const rowCount =
-				(undated.length > 0 ? 1 + undated.length : 0) +
-				sortedDays.reduce(
-					(n, day) =>
-						n + 1 + Math.max(1, byDay.get(day)?.length ?? 0),
-					0
-				);
-			// Roughly a screenful. A count rather than a measurement: reading
-			// heights would mean rendering, measuring, then inserting — a
-			// visible reflow on every refresh, to answer a question this
-			// settles well enough.
-			const LONG_TIMELINE_ROWS = 10;
-			if (rowCount > LONG_TIMELINE_ROWS) {
-				this.renderTimelineAddRow(section, "plan-timeline-footer-top");
-			}
-
-			const timeline = section.createDiv({
-				cls: "contact-timeline plan-timeline",
-			});
-			if (undated.length > 0) {
-				timeline.createDiv({
-					cls: "contact-timeline-year plan-timeline-day plan-timeline-needs-date",
-					text: "Needs date",
-				});
-				for (const entry of undated) {
-					this.renderPlanTimelineEntry(timeline, entry);
-				}
-			}
-			for (const day of sortedDays) {
-				timeline.createDiv({
-					cls: "contact-timeline-year plan-timeline-day",
-					text: formatTimelineDay(day),
-				});
-				const dayEntries = byDay.get(day);
-				if (dayEntries && dayEntries.length > 0) {
-					for (const entry of dayEntries) {
-						this.renderPlanTimelineEntry(timeline, entry);
-					}
-				} else {
-					this.renderEmptyDayRow(timeline, day);
-				}
-			}
-		}
-
-		// Copy button sits top-right in the section header (desktop).
-		const header = container.querySelector(
-			".contact-stack-header"
-		);
-		if (header) {
-			const copyButton = header.createEl("button", {
-				cls: "callander-button plan-timeline-copy",
-			});
-			setIcon(copyButton, "copy");
-			copyButton.createSpan({ text: "Copy as text" });
-			copyButton.addEventListener("click", () => {
-				new PlanShareModal(
-					this.app,
-					(detail) => this.buildPlanShareText(detail),
-					async (text) => {
-						await navigator.clipboard.writeText(text);
-						new Notice("📋 Copied — ready to paste as text");
-					}
-				).open();
-			});
-		}
-
-		// Quick-add at the bottom of the itinerary — and at the top too when
-		// the list is long (see the top copy above).
-		this.renderTimelineAddRow(section);
+		if (!startISO || !endISO) return [];
+		return this.daysBetween(startISO, endISO);
 	}
 
-	/**
-	 * A day in the plan's range with nothing on it yet.
-	 *
-	 * Carries the same hover actions a real row does, so filling an empty day
-	 * doesn't mean scrolling to the footer and then picking the date back out
-	 * of a dropdown — the row already knows which day it is, and passes it
-	 * through as a prefill. Desktop only, like the row actions: CSS keeps
-	 * them hidden on touch, where the footer buttons are the path.
-	 */
-	private renderEmptyDayRow(timeline: HTMLElement, day: string) {
-		const row = timeline.createDiv({
-			cls: "contact-timeline-item plan-timeline-empty",
+	/** "Copy as text", top-right in the section header (desktop). */
+	private appendTimelineCopyButton(container: HTMLElement) {
+		const header = container.querySelector(".contact-stack-header");
+		if (!header) return;
+		const copyButton = header.createEl("button", {
+			cls: "callander-button plan-timeline-copy",
 		});
-		// Its own span so the muted/italic treatment lands on the words
-		// rather than the row: the row's opacity would dim the buttons with
-		// it, and a child can't opt back out of a parent's opacity.
-		row.createSpan({ cls: "plan-timeline-empty-text", text: "No plans yet" });
-
-		const actions = row.createDiv({
-			cls: "contact-timeline-actions plan-timeline-empty-actions",
-		});
-		const add = (label: string, onClick: () => void) => {
-			const button = actions.createEl("button", {
-				cls: "callander-button",
-				attr: { "aria-label": label },
-			});
-			setIcon(button, "plus");
-			button.createSpan({ text: label });
-			button.addEventListener("click", (e) => {
-				e.stopPropagation();
-				onClick();
-			});
-		};
-		add("Add to timeline", () =>
-			this.openPlanIdeaModal(null, null, day)
-		);
-		add("Add travel", () => this.openPlanTravelModal(null, null, day));
-	}
-
-	/**
-	 * The itinerary's quick-add buttons.
-	 *
-	 * Rendered below the timeline always, and above it as well once the list
-	 * is long enough that the bottom is a scroll away — on a week-long plan
-	 * the only way to add anything was to scroll past everything first.
-	 */
-	private renderTimelineAddRow(host: HTMLElement, extraCls = "") {
-		const row = host.createDiv({
-			cls: `contact-section-footer plan-timeline-footer ${extraCls}`.trim(),
-		});
-		const add = (label: string, onClick: () => void) => {
-			const button = row.createEl("button", { cls: "callander-button" });
-			setIcon(button, "plus");
-			button.createSpan({ text: label });
-			button.addEventListener("click", onClick);
-		};
-		// "Add to timeline" rather than "Add item": the section is already
-		// called Timeline, and this is the same phrase a quick idea uses to
-		// get here — one verb for one destination. See also PlanItemModal,
-		// which calls the thing an "item" where a noun is unavoidable.
-		add("Add to timeline", () => this.openPlanIdeaModal(null, null));
-		add("Add travel", () => this.openPlanTravelModal(null, null));
-	}
-
-	/** One timeline row for a dated item. */
-	private renderPlanTimelineEntry(
-		timeline: HTMLElement,
-		entry: PlanTimelineEntry
-	) {
-		const row = timeline.createDiv({
-			cls: `contact-timeline-item plan-timeline-item timeline-${entry.source}`,
-		});
-		// Tapping the row edits it — the only path on mobile.
-		row.addEventListener("click", () => this.openTimelineEntry(entry));
-
-		row.createDiv({
-			cls: `contact-timeline-dot timeline-dot-${entry.source}`,
-		});
-
-		// Line 1: the time within the day (the day is the group header). A stay
-		// has no clock time — it's simply where the day ends.
-		const isStay = entry.source === "accommodation";
-		if (isStay || entry.time) {
-			row.createDiv({
-				cls: "contact-timeline-date",
-				text: isStay
-					? "Sleeping at"
-					: formatItemTime(entry.time as string),
-			});
-		}
-
-		// Line 2: emoji + detail (+ duration/cost). Skip the type emoji when
-		// the name already starts with one.
-		const showEmoji = entry.emoji && !this.startsWithEmoji(entry.text);
-		const textEl = row.createDiv({
-			cls: "contact-timeline-text",
-			text: showEmoji ? `${entry.emoji} ${entry.text}` : entry.text,
-		});
-		// A draft says so, in its own colour — it's on the timeline because
-		// it has a day, not because it's a decision anyone has made yet.
-		if (entry.source === "draft") {
-			textEl.createSpan({
-				cls: "plan-timeline-draft-tag",
-				text: " • Draft",
-			});
-		}
-		const metaBits: string[] = [];
-		if (entry.duration) metaBits.push(entry.duration);
-		// Answers "when do we leave?" without a second timeline row.
-		if (entry.nights) {
-			metaBits.push(nightsSummary(entry.date, entry.nights));
-		}
-		if (entry.cost !== undefined)
-			metaBits.push(formatItemCost(entry.cost));
-		if (metaBits.length) {
-			textEl.createSpan({
-				cls: "plan-travel-meta",
-				text: `  ·  ${metaBits.join("  ·  ")}`,
-			});
-		}
-		// Only the state that still needs chasing earns a spot on the timeline.
-		// "Booked" and "Not needed" are resting states — the Accommodation
-		// section and the modals are where you go to check them. Its own span
-		// (not joined into metaBits) so the "Need to book" text can be
-		// coloured without recolouring the rest of the meta line.
-		const booking = BOOKING_STATES.find((b) => b.id === entry.booked);
-		if (booking && booking.id === "todo") {
-			const bookingEl = textEl.createSpan({ cls: "plan-travel-meta" });
-			bookingEl.createSpan({ text: "  ·  " });
-			bookingEl.createSpan({
-				cls: "plan-timeline-booking-todo",
-				text: `${booking.emoji} Need to book`,
-			});
-		}
-
-		if (entry.people) {
-			row.createDiv({
-				cls: "plan-travel-people",
-				// First names only — the row is tight, and the plan roster
-				// disambiguates any shared first name consistently.
-				text: shortenPeopleList(
-					entry.people,
-					this.planParticipants(),
-					this.plugin.settings.yourName,
-					this.planShortNameOverrides()
-				),
-			});
-		}
-
-		// A stay calls it an address, an idea calls it a location — never
-		// both on the same entry, so one line covers either. Plain text
-		// here — the whole row is already a target that opens the read
-		// view, where it gets its Map button.
-		const place = entry.address ?? entry.location;
-		if (place) {
-			row.createDiv({
-				cls: "plan-entry-place",
-				text: `📍 ${place}`,
-			});
-		}
-
-		const stayHours = formatStayHours(entry.checkIn, entry.checkOut);
-		if (stayHours) {
-			row.createDiv({
-				cls: "plan-entry-place",
-				text: `🔑 ${stayHours}`,
-			});
-		}
-
-		if (entry.notes) {
-			row.createDiv({
-				cls: "plan-stay-notes",
-				text: `📝 ${entry.notes}`,
-			});
-		}
-
-		// Desktop hover shortcuts, so editing doesn't need the read view first.
-		// CSS hides these on touch, where tapping the row is the only path.
-		const actions = row.createDiv({ cls: "contact-timeline-actions" });
-		const editBtn = actions.createEl("button", {
-			cls: "callander-button",
-			attr: { "aria-label": "Edit" },
-		});
-		setIcon(editBtn, "pencil");
-		editBtn.createSpan({ text: "Edit" });
-		editBtn.addEventListener("click", (e) => {
-			e.stopPropagation();
-			this.editTimelineEntry(entry);
-		});
-
-		const deleteBtn = actions.createEl("button", {
-			cls: "callander-button button-icon button-danger",
-			attr: { "aria-label": "Delete" },
-		});
-		setIcon(deleteBtn, "trash");
-		deleteBtn.addEventListener("click", (e) => {
-			e.stopPropagation();
-			const preview =
-				entry.text.length > 80
-					? entry.text.slice(0, 80) + "…"
-					: entry.text;
-			new ConfirmModal(
+		setIcon(copyButton, "copy");
+		copyButton.createSpan({ text: "Copy as text" });
+		copyButton.addEventListener("click", () => {
+			new PlanShareModal(
 				this.app,
-				"Delete from plan",
-				`Delete "${preview}"?`,
-				"Delete",
-				() => this.deleteTimelineEntry(entry)
+				(detail) => this.buildPlanShareText(detail),
+				async (text) => {
+					await navigator.clipboard.writeText(text);
+					new Notice("📋 Copied — ready to paste as text");
+				}
 			).open();
 		});
+	}
+
+	private confirmDeleteTimelineEntry(entry: PlanTimelineEntry) {
+		const preview =
+			entry.text.length > 80 ? entry.text.slice(0, 80) + "…" : entry.text;
+		new ConfirmModal(
+			this.app,
+			"Delete from plan",
+			`Delete "${preview}"?`,
+			"Delete",
+			() => this.deleteTimelineEntry(entry)
+		).open();
 	}
 
 	/** True when the text already leads with an emoji/pictograph. */
