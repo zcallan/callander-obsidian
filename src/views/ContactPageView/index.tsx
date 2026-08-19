@@ -20,6 +20,11 @@ import { PlanDraftsSection } from "@/ui/sections/PlanDraftsSection";
 import { QuickIdeasSection } from "@/ui/sections/QuickIdeasSection";
 import { PlanTimelineSection } from "@/ui/sections/PlanTimelineSection";
 import { PlanExpensesSection } from "@/ui/sections/PlanExpensesSection";
+import { FunFactsSection } from "@/ui/sections/FunFactsSection";
+import { LifeGoalsSection } from "@/ui/sections/LifeGoalsSection";
+import { QuoteListSection } from "@/ui/sections/QuoteListSection";
+import { InterestsSection } from "@/ui/sections/InterestsSection";
+import { IdeasSection } from "@/ui/sections/IdeasSection";
 import {
 	PlanMembersSection,
 	type PlanMemberChip,
@@ -939,18 +944,102 @@ export class ContactPageView extends ItemView {
 			return { wrap, body };
 		};
 
-		this.renderIdeasSection(section("lightbulb", "Ideas"));
+		section("lightbulb", "Ideas").appendChild(
+			this.island(
+				"ideas",
+				<IdeasSection
+					store={this.store}
+					ideas={() => this.ideasList()}
+					categoryOf={(idea) => this.normalizeCategory(idea)}
+					onToggleDone={(index, done) =>
+						void this.toggleIdeaDone(index, done)
+					}
+					onResurface={(index) => this.openResurfaceModal(index)}
+					onDelete={(index) => void this.deleteIdea(index)}
+					onAdd={() => this.openAddIdeaModal()}
+				/>
+			)
+		);
 		this.renderEventsSection(section("milestone", "Timeline"));
 		// Interests + fun facts + jokes + quotes are about the friend —
 		// friends only
 		if (!this.isGroupFile()) {
-			this.renderInterestsSection(section("heart", "Interests"));
+			section("heart", "Interests").appendChild(
+				this.island(
+					"interests",
+					<InterestsSection
+						store={this.store}
+						interests={() =>
+							asArray(this.contactData.interests) as Interest[]
+						}
+						categoryOf={(interest) =>
+							this.normalizeInterestCategory(interest)
+						}
+						onRemove={(index) => void this.removeInterest(index)}
+						onAdd={() => this.openAddInterestModal()}
+					/>
+				)
+			);
 			// Directly under Interests: both answer "what are they into",
 			// one in the present tense and one in the future.
-			this.renderLifeGoalsSection(section("milestone", "Life goals"));
-			this.renderFunFactsSection(section("sparkles", "Fun facts"));
-			this.renderInsideJokesSection(section("laugh", "Inside jokes"));
-			this.renderQuotesSection(section("quote", "Quotes"));
+			section("milestone", "Life goals").appendChild(
+				this.island(
+					"life-goals",
+					<LifeGoalsSection
+						store={this.store}
+						goals={() => this.lifeGoalsOf()}
+						onOpen={(index) => this.openLifeGoalView(index)}
+						onAdd={() => this.openLifeGoalModal(null, null)}
+					/>
+				)
+			);
+			section("sparkles", "Fun facts").appendChild(
+				this.island(
+					"fun-facts",
+					<FunFactsSection
+						store={this.store}
+						facts={() => this.funFactsOf()}
+						onOpen={(index) =>
+							this.openFunFactModal(index, this.funFactsOf()[index])
+						}
+						onAdd={() => this.openFunFactModal(null, null)}
+					/>
+				)
+			);
+			section("laugh", "Inside jokes").appendChild(
+				this.island(
+					"inside-jokes",
+					<QuoteListSection
+						store={this.store}
+						items={() => this.insideJokesOf()}
+						helperText="The jokes only the two of you get — keep them from fading."
+						addLabel="Add inside joke"
+						onOpen={(index) =>
+							this.openInsideJokeModal(
+								index,
+								this.insideJokesOf()[index]
+							)
+						}
+						onAdd={() => this.openInsideJokeModal(null, null)}
+					/>
+				)
+			);
+			section("quote", "Quotes").appendChild(
+				this.island(
+					"quotes",
+					<QuoteListSection
+						store={this.store}
+						items={() => this.quotesOf()}
+						helperText="Memorable things they've said — the one-liners you don't want to forget."
+						addLabel="Add quote"
+						quoted
+						onOpen={(index) =>
+							this.openQuoteModal(index, this.quotesOf()[index])
+						}
+						onAdd={() => this.openQuoteModal(null, null)}
+					/>
+				)
+			);
 		}
 		this.renderNotesSection(section("pencil", "Notes"));
 		// Raw markdown is reference material, not something you scan on every
@@ -3462,125 +3551,44 @@ export class ContactPageView extends ItemView {
 			: "other";
 	}
 
-	private renderIdeasSection(container: HTMLElement) {
-		const ideasSection = container.createDiv({
-			cls: "contact-ideas-section",
-		});
-
-		const ideas = this.ideasList();
-
-		// Add helper text if no ideas yet
-		if (ideas.length === 0) {
-			ideasSection.createDiv({
-				cls: "section-helper-text",
-				text: "Jot quick thoughts for this friend — gifts to give, conversations to pick back up, things to do together, places to go.",
-			});
-		}
-
-		// Ideas grouped by category, in fixed category order
-		for (const cat of IDEA_CATEGORIES) {
-			const items = ideas
-				.map((idea, index) => ({ idea, index }))
-				.filter(({ idea }) => this.normalizeCategory(idea) === cat.id)
-				// Open ideas first, done ones sink to the bottom of the group
-				.sort((a, b) => Number(!!a.idea.done) - Number(!!b.idea.done));
-
-			if (items.length === 0) continue;
-
-			const group = ideasSection.createDiv({
-				cls: "contact-idea-group",
-			});
-			group.createDiv({
-				cls: "contact-idea-group-header",
-				text: `${cat.emoji} ${cat.plural}`,
-			});
-
-			for (const { idea, index } of items) {
-				const item = group.createDiv({
-					cls: `contact-idea-item ${idea.done ? "done" : ""}`,
-				});
-
-				const checkbox = item.createEl("input", {
-					attr: {
-						type: "checkbox",
-						"aria-label": "Mark idea as done",
-					},
-				});
-				checkbox.checked = !!idea.done;
-				const toggleIdeaDone = async () => {
-					const list = this.ideasList();
-					list[index] = { ...list[index], done: checkbox.checked };
-					await this.writeIdeasToBody(list);
-					this.render();
-					if (checkbox.checked) {
-						this.offerLogAsEvent(idea);
-					}
-				};
-				checkbox.addEventListener("change", () =>
-					void toggleIdeaDone()
-				);
-
-				const textEl = item.createDiv({
-					cls: "contact-idea-text",
-					text: idea.text,
-				});
-				if (idea.resurface) {
-					const parsed = parseFlexDate(idea.resurface);
-					if (parsed) {
-						textEl.createSpan({
-							cls: "contact-idea-resurface-badge",
-							text: ` ⏰ ${formatFlexDate(parsed)}`,
-						});
-					}
-				}
-
-				const resurfaceBtn = item.createEl("button", {
-					cls: "callander-button button-icon",
-					attr: { "aria-label": "Resurface this idea later" },
-				});
-				setIcon(resurfaceBtn, "alarm-clock");
-				resurfaceBtn.addEventListener("click", () => {
-					new ResurfaceModal(
-						this.app,
-						idea.text,
-						idea.resurface,
-						async (resurface) => {
-							const list = this.ideasList();
-							const next = { ...list[index] };
-							if (resurface) next.resurface = resurface;
-							else delete next.resurface;
-							list[index] = next;
-							await this.writeIdeasToBody(list);
-							this.render();
-						}
-					).open();
-				});
-
-				const deleteBtn = item.createEl("button", {
-					cls: "callander-button button-icon button-danger",
-					attr: { "aria-label": "Delete idea" },
-				});
-				setIcon(deleteBtn, "trash");
-				const deleteIdea = async () => {
-					const list = this.ideasList();
-					list.splice(index, 1);
-					await this.writeIdeasToBody(list);
-					this.render();
-				};
-				deleteBtn.addEventListener("click", () => void deleteIdea());
-			}
-		}
-
-		// Capture goes through the modal, below the list
-		const footer = ideasSection.createDiv({
-			cls: "contact-section-footer",
-		});
-		const addButton = footer.createEl("button", {
-			cls: "callander-button",
-			text: "Add idea",
-		});
-		addButton.addEventListener("click", () => this.openAddIdeaModal());
+	private async toggleIdeaDone(index: number, done: boolean) {
+		const list = this.ideasList();
+		const idea = list[index];
+		if (!idea) return;
+		list[index] = { ...idea, done };
+		await this.writeIdeasToBody(list);
+		this.render();
+		// A checked idea is usually something that just happened — offer to
+		// put it on the timeline with one click.
+		if (done) this.offerLogAsEvent(idea);
 	}
+
+	private openResurfaceModal(index: number) {
+		const idea = this.ideasList()[index];
+		if (!idea) return;
+		new ResurfaceModal(
+			this.app,
+			idea.text,
+			idea.resurface,
+			async (resurface) => {
+				const list = this.ideasList();
+				const next = { ...list[index] };
+				if (resurface) next.resurface = resurface;
+				else delete next.resurface;
+				list[index] = next;
+				await this.writeIdeasToBody(list);
+				this.render();
+			}
+		).open();
+	}
+
+	private async deleteIdea(index: number) {
+		const list = this.ideasList();
+		list.splice(index, 1);
+		await this.writeIdeasToBody(list);
+		this.render();
+	}
+
 
 	// Capture a raw draft about this friend/plan — appears in the drafts
 	// strip to triage later
@@ -3671,57 +3679,6 @@ export class ContactPageView extends ItemView {
 	 * disappearing — the record is half the point, and "they finally did it"
 	 * is worth being able to see.
 	 */
-	private renderLifeGoalsSection(container: HTMLElement) {
-		const section = container.createDiv({
-			cls: "contact-funfacts-section",
-		});
-		const goals = this.lifeGoalsOf();
-
-		if (goals.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "Things they want to do someday — learn Spanish, run a marathon. Worth asking about when it's been a while.",
-			});
-		}
-
-		const { open, completed } = groupLifeGoals(goals);
-
-		const renderRow = (goal: LifeGoal, index: number) => {
-			const row = section.createDiv({
-				cls: `contact-funfact-item plan-clickable-row contact-life-goal${
-					goal.done ? " is-done" : ""
-				}`,
-			});
-			row.addEventListener("click", () =>
-				this.openLifeGoalView(index)
-			);
-			row.createSpan({
-				cls: "contact-life-goal-text",
-				text: goal.text,
-			});
-			// A note is why you'd open the goal, so the row says one exists
-			// without spending a line quoting it.
-			if (goal.notes) {
-				row.createSpan({ cls: "contact-life-goal-note", text: "📝" });
-			}
-		};
-
-		for (const { goal, index } of open) renderRow(goal, index);
-
-		if (completed.length > 0) {
-			section.createDiv({
-				cls: "plan-quick-idea-group",
-				text: "Completed",
-			});
-			for (const { goal, index } of completed) renderRow(goal, index);
-		}
-
-		const footer = section.createDiv({ cls: "contact-section-footer" });
-		const addBtn = footer.createEl("button", { cls: "callander-button" });
-		setIcon(addBtn, "plus");
-		addBtn.createSpan({ text: "Add life goal" });
-		addBtn.addEventListener("click", () => this.openLifeGoalModal(null, null));
-	}
 
 	private openLifeGoalModal(index: number | null, goal: LifeGoal | null) {
 		new LifeGoalModal(
@@ -3784,42 +3741,6 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	private renderFunFactsSection(container: HTMLElement) {
-		const section = container.createDiv({
-			cls: "contact-funfacts-section",
-		});
-		const facts = this.funFactsOf();
-
-		if (facts.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "A line or two worth remembering — where you met, an inside joke, what they're into.",
-			});
-		} else {
-			const list = section.createDiv({
-				cls: "contact-funfacts-list",
-			});
-			// Tap the row to edit; Delete lives in that modal, so the list
-			// isn't carrying a permanent row of destructive buttons.
-			facts.forEach((fact, index) => {
-				const row = list.createDiv({
-					cls: "contact-funfact-item plan-clickable-row",
-				});
-				row.addEventListener("click", () =>
-					this.openFunFactModal(index, fact)
-				);
-				row.createSpan({ cls: "contact-funfact-text", text: fact });
-			});
-		}
-
-		const footer = section.createDiv({
-			cls: "contact-section-footer",
-		});
-		const btn = footer.createEl("button", { cls: "callander-button" });
-		setIcon(btn, "plus");
-		btn.createSpan({ text: "Add fun fact" });
-		btn.addEventListener("click", () => this.openFunFactModal(null, null));
-	}
 
 	/** Add (index null) or edit a fun fact; Delete is offered when editing. */
 	private openFunFactModal(index: number | null, fact: string | null) {
@@ -3911,46 +3832,6 @@ export class ContactPageView extends ItemView {
 		this.bodyQuotes = quotes;
 	}
 
-	private renderQuotesSection(container: HTMLElement) {
-		const section = container.createDiv({
-			cls: "contact-quotes-section",
-		});
-		const quotes = this.quotesOf();
-
-		if (quotes.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "Memorable things they've said — the one-liners you don't want to forget.",
-			});
-		}
-
-		quotes.forEach((q, index) => {
-			const row = section.createDiv({
-				cls: "contact-quote-item plan-clickable-row",
-			});
-			row.addEventListener("click", () => this.openQuoteModal(index, q));
-			row.createDiv({
-				cls: "contact-quote-text",
-				text: `“${q.text}”`,
-			});
-			if (q.context) {
-				row.createDiv({
-					cls: "contact-quote-context",
-					text: `— ${q.context}`,
-				});
-			}
-		});
-
-		const footer = section.createDiv({
-			cls: "contact-section-footer",
-		});
-		const addBtn = footer.createEl("button", {
-			cls: "callander-button",
-		});
-		setIcon(addBtn, "plus");
-		addBtn.createSpan({ text: "Add quote" });
-		addBtn.addEventListener("click", () => this.openQuoteModal(null, null));
-	}
 
 	/** Normalized inside-joke list (legacy plain strings read as { text }). */
 	private insideJokesOf(): InsideJoke[] {
@@ -3966,51 +3847,6 @@ export class ContactPageView extends ItemView {
 			.filter((j) => j.text.length > 0);
 	}
 
-	private renderInsideJokesSection(container: HTMLElement) {
-		const section = container.createDiv({
-			cls: "contact-quotes-section",
-		});
-		const jokes = this.insideJokesOf();
-
-		if (jokes.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "The jokes only the two of you get — keep them from fading.",
-			});
-		}
-
-		// Same visual treatment as quotes: text row + muted context line
-		jokes.forEach((j, index) => {
-			const row = section.createDiv({
-				cls: "contact-quote-item plan-clickable-row",
-			});
-			row.addEventListener("click", () =>
-				this.openInsideJokeModal(index, j)
-			);
-			row.createDiv({
-				cls: "contact-quote-text",
-				text: j.text,
-			});
-			if (j.context) {
-				row.createDiv({
-					cls: "contact-quote-context",
-					text: `— ${j.context}`,
-				});
-			}
-		});
-
-		const footer = section.createDiv({
-			cls: "contact-section-footer",
-		});
-		const addBtn = footer.createEl("button", {
-			cls: "callander-button",
-		});
-		setIcon(addBtn, "plus");
-		addBtn.createSpan({ text: "Add inside joke" });
-		addBtn.addEventListener("click", () =>
-			this.openInsideJokeModal(null, null)
-		);
-	}
 
 	private openInsideJokeModal(index: number | null, joke: InsideJoke | null) {
 		new InsideJokeModal(
@@ -4061,80 +3897,12 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	private renderInterestsSection(container: HTMLElement) {
-		const section = container.createDiv({
-			cls: "contact-interests-section",
-		});
-
-		const interests = asArray(this.contactData.interests) as Interest[];
-
-		if (interests.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "What they're into — books, music, teams, the food they love. Handy for gifts, plans, and picking a conversation back up.",
-			});
-		}
-
-		// Grouped by category, in fixed category order
-		for (const cat of INTEREST_CATEGORIES) {
-			const items = interests
-				.map((interest, index) => ({ interest, index }))
-				.filter(
-					({ interest }) =>
-						this.normalizeInterestCategory(interest) === cat.id
-				);
-
-			if (items.length === 0) continue;
-
-			const group = section.createDiv({
-				cls: "contact-idea-group",
-			});
-			group.createDiv({
-				cls: "contact-idea-group-header",
-				text: `${cat.emoji} ${cat.label}`,
-			});
-
-			const chips = group.createDiv({
-				cls: "contact-interest-chips",
-			});
-			for (const { interest, index } of items) {
-				const chip = chips.createDiv({
-					cls: "contact-interest-chip",
-				});
-				chip.createSpan({ text: interest.text });
-				if (interest.detail) {
-					chip.createSpan({
-						cls: "contact-interest-chip-detail",
-						text: ` · ${interest.detail}`,
-					});
-				}
-
-				const removeBtn = chip.createEl("button", {
-					cls: "contact-interest-chip-remove",
-					attr: { "aria-label": `Remove ${interest.text}` },
-				});
-				setIcon(removeBtn, "x");
-				const removeInterest = async () => {
-					this.removeFromList("interests", index);
-					await this.saveContactData();
-					this.render();
-				};
-				removeBtn.addEventListener("click", () =>
-					void removeInterest()
-				);
-			}
-		}
-
-		// Capture goes through the modal, below the list
-		const footer = section.createDiv({
-			cls: "contact-section-footer",
-		});
-		const addButton = footer.createEl("button", {
-			cls: "callander-button",
-			text: "Add interest",
-		});
-		addButton.addEventListener("click", () => this.openAddInterestModal());
+	private async removeInterest(index: number) {
+		this.removeFromList("interests", index);
+		await this.saveContactData();
+		this.render();
 	}
+
 
 	private openAddInterestModal() {
 		new InterestModal(
