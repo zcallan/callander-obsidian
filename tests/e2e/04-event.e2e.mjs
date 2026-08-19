@@ -97,8 +97,18 @@ export async function run({ cdp }) {
 			const dateInput = modal.querySelector(".contact-met-input");
 			set(dateInput, date, "change");
 
-			const timeInput = modal.querySelector('input[type="time"]');
-			set(timeInput, time, "change");
+			// Time is a pair of dropdowns — hour, then minutes in steps of
+			// five — rather than an <input type=time>. The singular
+			// aria-labels are this field; the Duration control below it uses
+			// the plural "Hours"/"Minutes", and an exact attribute match is
+			// what keeps the two apart.
+			const [hh, mm] = time.split(":");
+			const hourSelect = modal.querySelector('select[aria-label="Hour"]');
+			const minuteSelect = modal.querySelector(
+				'select[aria-label="Minute"]'
+			);
+			set(hourSelect, String(Number(hh)), "change");
+			set(minuteSelect, String(Number(mm)), "change");
 
 			// Location and Link are the remaining plain text inputs.
 			const textInputs = q('.callander-modal-input[type="text"]');
@@ -110,7 +120,7 @@ export async function run({ cdp }) {
 				typeSelected: typeBtn.classList.contains("selected"),
 				dateInputType: dateInput?.type,
 				dateInputValue: dateInput?.value,
-				timeInputValue: timeInput?.value,
+				timeValue: `${hourSelect?.value}:${minuteSelect?.value}`,
 			};
 		},
 		NAME,
@@ -123,7 +133,7 @@ export async function run({ cdp }) {
 	eq("the Concert type button became selected", filled.typeSelected, true);
 	eq("choosing 'Exact day' swaps in a date input", filled.dateInputType, "date");
 	eq("the date input holds the chosen day", filled.dateInputValue, DATE);
-	eq("the time input holds the chosen time", filled.timeInputValue, TIME);
+	eq("the time dropdowns hold the chosen time", filled.timeValue, TIME);
 
 	// ---------- save ----------
 	await cdp.evaluate(() => {
@@ -266,11 +276,13 @@ export async function run({ cdp }) {
 			`row says "${expected.nearLabel}"`,
 			row.when.includes(expected.nearLabel)
 		);
-		// The calendar date is what "Next Thursday" replaces — if it's still
-		// there, the near-weekday form didn't apply.
+		// The date rides along with the weekday rather than being replaced
+		// by it: naming the day conversationally was meant to save the
+		// reader doing the arithmetic, not to hide which date it lands on.
+		// See conversationalLabel.
 		ok(
-			"row drops the month once it's saying the weekday",
-			!row.when.includes(expected.monthShort)
+			"row keeps the short date alongside the weekday",
+			row.when.includes(`${expected.day} ${expected.monthShort}`)
 		);
 		// 12-hour display, separated from the date by a bullet.
 		ok("row shows the time in 12-hour form", row.when.includes("7:30 PM"));

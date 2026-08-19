@@ -93,12 +93,25 @@ export async function run({ cdp }) {
 	ok("resurface marker written", edited.raw.includes("⏳ 2026-03"));
 
 	// ---------- frontmatter survives body writes ----------
-	const fmIntact = await cdp.evaluate(() => {
-		const file = window.app.vault.getAbstractFileByPath(
-			"Friends/People/Test Person.md"
-		);
-		return window.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
-	});
+	// Waited for, not read straight away: writeIdeas resolves when the bytes
+	// reach disk, which is strictly before the metadata cache reindexes them.
+	// Reading the cache immediately catches it mid-reindex often enough to
+	// fail roughly one run in two, with both fields coming back undefined —
+	// which reads like the write destroyed the frontmatter rather than like
+	// a race. Polling until the entry is back is the same thing 04-event
+	// does after its own write, and for the same reason.
+	const fmIntact = await cdp.waitFor(
+		() => {
+			const file = window.app.vault.getAbstractFileByPath(
+				"Friends/People/Test Person.md"
+			);
+			const fm = window.app.metadataCache.getFileCache(file)?.frontmatter;
+			// Falsy until the reindex lands, so waitFor keeps polling; the
+			// assertions below still decide whether the values are right.
+			return fm && fm.name !== undefined ? fm : false;
+		},
+		{ timeoutMs: 10000, label: "the metadata cache to reindex after a body write" }
+	);
 	eq("name untouched by body writes", fmIntact.name, "Test Person");
 	eq("birthday untouched", fmIntact.birthday, "1994-07-26");
 
