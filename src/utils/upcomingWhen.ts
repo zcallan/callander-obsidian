@@ -47,20 +47,30 @@ export function relativeFromDays(days: number): {
 
 /**
  * A date said the way you'd say it out loud, when it's close enough that
- * the weekday alone pins it down: "Thursday" inside a week, "Next Thursday"
- * inside two.
+ * the day name alone pins it down: "Today • 6 Aug", "This Thursday • 8 Aug"
+ * inside a week, "Next Thursday • 15 Aug" inside two.
  *
- * Null from a fortnight out, and for anything already past — "Thursday" is
- * only unambiguous while there's exactly one of them in range, and a date
- * behind you needs the calendar to say which one it was.
+ * The date rides along on every one of these, "Today" included, even though
+ * the name alone would disambiguate on its own — the whole point of naming
+ * it conversationally was to save the reader from doing date arithmetic in
+ * their head, not to make them do it anyway to find the actual date.
+ *
+ * Null from a fortnight out, and for anything already past — beyond that
+ * range there's more than one candidate weekday, and a date behind you
+ * needs the calendar to say which one it was.
  */
 export function conversationalLabel(target: Date, days: number): string | null {
 	if (days < 0 || days >= 14) return null;
+	// Self-built short month — Intl's en-AU "short" doesn't actually
+	// abbreviate (renders "August" in full). See upcomingWhen's other note.
+	const short = `${target.getDate()} ${monthName(
+		target.getMonth() + 1
+	).slice(0, 3)}`;
 	// The two days nobody says by name.
-	if (days === 0) return "Today";
-	if (days === 1) return "Tomorrow";
+	if (days === 0) return `Today • ${short}`;
+	if (days === 1) return `Tomorrow • ${short}`;
 	const weekday = formatDate(target, { weekday: "long" });
-	return days < 7 ? weekday : `Next ${weekday}`;
+	return days < 7 ? `This ${weekday} • ${short}` : `Next ${weekday} • ${short}`;
 }
 
 /**

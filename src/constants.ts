@@ -195,7 +195,7 @@ export const ACCOMMODATION_TYPES = [
 	{ id: "home", label: "Home", emoji: "🏠" },
 	{ id: "airbnb", label: "Airbnb", emoji: "🏡" },
 	{ id: "hotel", label: "Hotel", emoji: "🏨" },
-	{ id: "friends", label: "Mate's", emoji: "🛋️" },
+	{ id: "hostel", label: "Hostel", emoji: "🎒" },
 	{ id: "camping", label: "Camping", emoji: "⛺" },
 	{ id: "other", label: "Other", emoji: "🛏️" },
 ] as const;
@@ -206,11 +206,19 @@ export const ACCOMMODATION_EMOJI: Record<AccommodationType, string> = {
 	home: "🏠",
 	airbnb: "🏡",
 	hotel: "🏨",
-	friends: "🛋️",
+	hostel: "🎒",
 	camping: "⛺",
 	// The generic bed the timeline already falls back to for an untyped stay.
 	other: "🛏️",
 };
+
+/**
+ * A stay's check-in/check-out when the hour genuinely doesn't matter —
+ * distinct from unset, which means nobody has said yet. Stored rather than
+ * blank so "we can arrive whenever" and "we haven't checked" don't collapse
+ * into the same answer.
+ */
+export const ANY_TIME = "any";
 
 // Booking status for stays; "none" (no booking needed) shows nothing.
 export const BOOKING_STATES = [
@@ -224,13 +232,15 @@ export type BookingState = (typeof BOOKING_STATES)[number]["id"];
 // Plan ideas carry a category and a priority — a plan is a menu.
 export const PLAN_IDEA_CATEGORIES = [
 	{ id: "activity", label: "Activity", emoji: "🥾" },
-	{ id: "restaurant", label: "Restaurant", emoji: "🍴" },
+	{ id: "restaurant", label: "Restaurant", emoji: "🍕" },
 	{ id: "bar", label: "Bar", emoji: "🍺" },
 	{ id: "coffee", label: "Coffee", emoji: "☕" },
 	{ id: "cooking", label: "Cooking", emoji: "🍳" },
 	{ id: "sightseeing", label: "Sightseeing", emoji: "📸" },
 	{ id: "show", label: "Show", emoji: "🎭" },
-	{ id: "event", label: "Event", emoji: "🎪" },
+	{ id: "event", label: "Event", emoji: "🏀" },
+	{ id: "meetup", label: "Meetup", emoji: "👋" },
+	{ id: "task", label: "Task", emoji: "⏰" },
 	{ id: "shopping", label: "Shopping", emoji: "🛍️" },
 	{ id: "other", label: "Other", emoji: "✨" },
 ] as const;

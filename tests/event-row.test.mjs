@@ -468,13 +468,33 @@ export function run() {
 
 	// The two days nobody names — "Wednesday" for today is the long way
 	// round to say it.
-	eq("today says so", near("2026-08-05"), "Today");
-	eq("tomorrow likewise", near("2026-08-06"), "Tomorrow");
-	eq("the day after that takes its weekday", near("2026-08-07"), "Friday");
-	eq("the last day inside a week", near("2026-08-11"), "Tuesday");
-	eq("a week out crosses to 'Next'", near("2026-08-12"), "Next Wednesday");
-	eq("still 'Next' the day after", near("2026-08-13"), "Next Thursday");
-	eq("the last day inside a fortnight", near("2026-08-18"), "Next Tuesday");
+	eq("today says so, with its date", near("2026-08-05"), "Today • 5 Aug");
+	eq("tomorrow likewise", near("2026-08-06"), "Tomorrow • 6 Aug");
+	eq(
+		"the day after that takes its weekday, and carries the date",
+		near("2026-08-07"),
+		"This Friday • 7 Aug"
+	);
+	eq(
+		"the last day inside a week",
+		near("2026-08-11"),
+		"This Tuesday • 11 Aug"
+	);
+	eq(
+		"a week out crosses to 'Next'",
+		near("2026-08-12"),
+		"Next Wednesday • 12 Aug"
+	);
+	eq(
+		"still 'Next' the day after",
+		near("2026-08-13"),
+		"Next Thursday • 13 Aug"
+	);
+	eq(
+		"the last day inside a fortnight",
+		near("2026-08-18"),
+		"Next Tuesday • 18 Aug"
+	);
 	eq(
 		"a fortnight out falls back to the date",
 		near("2026-08-19"),

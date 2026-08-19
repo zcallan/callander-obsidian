@@ -21,6 +21,9 @@ export interface EventFields {
 	date?: string;
 	/** 24-hour "HH:MM". */
 	time?: string;
+	/** How long it runs, canonical "2h 30m" — read by the calendar export
+	 * for an end time. Same shape a plan item stores. */
+	duration?: string;
 	type?: EventType | "";
 	/** Wikilinks to people/groups, e.g. ["[[Austin Philleo]]"]. */
 	people?: string[];
@@ -140,6 +143,7 @@ export class EventOperations {
 			name: str("name") || file.basename,
 			date: str("date"),
 			time: str("time"),
+			duration: str("duration"),
 			type: eventTypeOf(str("type")),
 			people: asArray(fieldOf(fm, "people")).map(String),
 			location: str("location"),
@@ -305,6 +309,7 @@ export class EventOperations {
 				fm.name = fields.name;
 				set("date", fields.date);
 				set("time", fields.time);
+				set("duration", fields.duration);
 				set("type", fields.type || undefined);
 				if (people.length > 0) fm.people = people;
 				else delete fm.people;
@@ -437,6 +442,7 @@ export class EventOperations {
 				name,
 				date,
 				time: existing.time || undefined,
+				duration: existing.duration || undefined,
 				type: existing.type,
 				people: peopleLinks,
 				location: existing.location || undefined,

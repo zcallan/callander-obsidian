@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown, Expense } from "@/types";
-import { owedFor, percentFromInput } from "@/utils/expenseMath";
+import { owedFor, payersOf, percentFromInput } from "@/utils/expenseMath";
 import { evaluateAmount } from "@/utils/calc";
 import {
 	appendContactPicker,
@@ -18,6 +18,23 @@ export interface ExpensePeopleSource {
 	contacts: ContactWithCountdown[];
 	/** For resolving picked wikilinks — the note the expense lives on. */
 	sourcePath: string;
+}
+
+/**
+ * Starting values for a brand-new expense, when whatever opened the form
+ * already knows some of the answer — a plan idea with a cost and a guest
+ * list, say.
+ *
+ * Deliberately separate from `initial`: that means "an expense that already
+ * exists", and drives the title, the Save/Add wording and whether Delete is
+ * offered. A prefilled Add is still an Add.
+ */
+export interface ExpensePrefill {
+	label?: string;
+	amount?: number;
+	/** Ticked to begin with, by display name. Names the participant list
+	 * doesn't have are dropped rather than silently ignored downstream. */
+	included?: string[];
 }
 
 /**
@@ -55,7 +72,9 @@ export class ExpenseModal extends FormModal {
 		private taxDefault = 6.25,
 		private tipDefault = 20,
 		/** Set to show a People field and take participants from it. */
-		private peopleSource?: ExpensePeopleSource
+		private peopleSource?: ExpensePeopleSource,
+		/** Starting values for a new expense — see ExpensePrefill. */
+		private prefill?: ExpensePrefill
 	) {
 		super(app);
 		this.mode = initial?.split.mode ?? "even";
@@ -69,9 +88,37 @@ export class ExpenseModal extends FormModal {
 			this.tax = initial.split.tax ?? null;
 			this.tip = initial.split.tip ?? null;
 		}
-		// Included: whoever the saved split names, else just you by default
-		if (Object.keys(sh).length > 0) {
-			this.included = new Set(this.participants.filter((p) => sh[p]));
+		// A prefilled list is only as good as the names in it — anyone the
+		// plan doesn't have can't be ticked, so drop them here rather than
+		// letting a phantom participant reach the split.
+		const suggested = this.participants.filter((p) =>
+			(prefill?.included ?? []).some(
+				(n) => n.toLowerCase() === p.toLowerCase()
+			)
+		);
+
+		/**
+		 * Who an existing expense already charges.
+		 *
+		 * Derived with `payersOf` — the same function the read view and "Who
+		 * owes what" use — rather than read literally off `split.shares`, so
+		 * the ticks can never disagree with the arithmetic.
+		 *
+		 * That distinction is the whole bug this replaced. `buildShares()`
+		 * deliberately omits `shares` for an even split when everyone's in,
+		 * so new plan members auto-join; taking that absence at face value
+		 * ticked nobody but you, and pressing Save then wrote
+		 * `shares: { you: 1 }` — silently turning a split among everyone into
+		 * a split among one person, and changing what everybody owed.
+		 */
+		const charged = initial ? payersOf(initial, this.participants) : [];
+
+		// Included: whoever the split already charges, then anyone suggested,
+		// else just you by default.
+		if (charged.length > 0) {
+			this.included = new Set(charged);
+		} else if (suggested.length > 0) {
+			this.included = new Set(suggested);
 		} else {
 			const you =
 				defaultParticipant &&
@@ -186,7 +233,7 @@ export class ExpenseModal extends FormModal {
 			cls: "callander-modal-input",
 			attr: { type: "text", placeholder: "e.g. Airbnb" },
 		});
-		labelInput.value = this.initial?.label ?? "";
+		labelInput.value = this.initial?.label ?? this.prefill?.label ?? "";
 
 		const amountField = contentEl.createDiv({
 			cls: "callander-modal-field",
@@ -197,6 +244,9 @@ export class ExpenseModal extends FormModal {
 			attr: { type: "number", min: "0", placeholder: "0" },
 		});
 		if (this.initial) amountInput.value = String(this.initial.amount);
+		else if (this.prefill?.amount !== undefined) {
+			amountInput.value = String(this.prefill.amount);
+		}
 
 		// Who's in on it. Only for a standalone expense — when the people are
 		// already fixed by whatever this belongs to, there's nothing to pick.
@@ -816,7 +866,10 @@ export class ExpenseModal extends FormModal {
 		};
 		saveButton.addEventListener("click", () => void handleSave());
 
-		if (this.initial) this.blurInitialFocus();
+		// Fields that arrive already filled shouldn't grab focus — the same
+		// reason an edit doesn't. Otherwise opening this pops the keyboard on
+		// mobile over a field there's no reason to retype.
+		if (this.initial || this.prefill) this.blurInitialFocus();
 	}
 
 	onClose() {

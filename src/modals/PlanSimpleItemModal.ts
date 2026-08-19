@@ -8,6 +8,10 @@ import {
 	appendScheduleFields,
 	PeopleFieldHandle,
 	ScheduleFieldOptions,
+	appendDurationField,
+	appendHourRangeField,
+	type DurationFieldHandle,
+	type HourRangeHandle,
 } from "@/modals/scheduleFields";
 import { stayRange } from "@/utils/planFormat";
 
@@ -20,6 +24,8 @@ export interface PlanSimpleItemValue {
 	people?: string;
 	duration?: string;
 	nights?: number;
+	checkIn?: string;
+	checkOut?: string;
 	address?: string;
 	booked?: BookingState;
 	notes?: string;
@@ -58,10 +64,8 @@ export class PlanSimpleItemModal extends FormModal {
 		private onSubmit: (value: PlanSimpleItemValue) => Promise<void>,
 		private placeholders: {
 			text: string;
-			duration: string;
 		} = {
 			text: "Add a detail…",
-			duration: "Duration (optional)",
 		},
 		private types: readonly TravelTypeOption[] | null = null,
 		private schedule = false,
@@ -287,19 +291,13 @@ export class PlanSimpleItemModal extends FormModal {
 
 		let people: PeopleFieldHandle | null = null;
 
-		// Free-text duration is a travel thing ("2h flight"); stays use
-		// nights. Sits right below Time, ahead of who's coming.
-		let durationInput: HTMLInputElement | null = null;
+		// Duration is a travel thing; stays use nights and, below, their
+		// check-in/check-out hours. Sits right below Time, ahead of who's
+		// coming.
+		let duration: DurationFieldHandle | null = null;
+		let hours: HourRangeHandle | null = null;
 		if (!this.stay) {
-			contentEl.createDiv({
-				cls: "modal-section-label",
-				text: "Duration (optional)",
-			});
-			durationInput = contentEl.createEl("input", {
-				cls: "quick-idea-input",
-				attr: { type: "text", placeholder: this.placeholders.duration },
-			});
-			durationInput.value = this.initial?.duration ?? "";
+			duration = appendDurationField(contentEl, this.initial?.duration);
 			renderBooking();
 		}
 
@@ -413,11 +411,24 @@ export class PlanSimpleItemModal extends FormModal {
 			detailsWrap.toggleClass(
 				"is-open",
 				!!(
+					this.initial?.checkIn ||
+					this.initial?.checkOut ||
 					this.initial?.people ||
 					this.initial?.notes ||
 					this.initial?.cost !== undefined
 				)
 			);
+
+			if (this.stay) {
+				hours = appendHourRangeField(
+					detailsBody,
+					{ from: "Hotel check-in", to: "Hotel check-out" },
+					{
+						from: this.initial?.checkIn,
+						to: this.initial?.checkOut,
+					}
+				);
+			}
 
 			people = appendPeopleField(
 				detailsBody,
@@ -464,7 +475,8 @@ export class PlanSimpleItemModal extends FormModal {
 		const submit = async () => {
 			const text = textInput.value.trim();
 			if (!text) return;
-			const duration = durationInput?.value.trim() ?? "";
+			const durationValue = duration?.value() ?? "";
+			const stayHours = hours?.values();
 			const address = addressInput?.value.trim() ?? "";
 			const notes = notesInput?.value.trim() ?? "";
 			// Blank stays unknown; an explicit 0 is kept as "free".
@@ -480,8 +492,10 @@ export class PlanSimpleItemModal extends FormModal {
 				...(this.stay && this.stayType && { stay: this.stayType }),
 				...(schedule?.values() ?? {}),
 				...(people?.value() && { people: people.value() }),
-				...(duration && { duration }),
+				...(durationValue && { duration: durationValue }),
 				...(this.stay && { nights: this.nights }),
+				...(stayHours?.from && { checkIn: stayHours.from }),
+				...(stayHours?.to && { checkOut: stayHours.to }),
 				...(address && { address }),
 				...(this.booked && { booked: this.booked }),
 				...(notes && { notes }),
@@ -491,7 +505,7 @@ export class PlanSimpleItemModal extends FormModal {
 		};
 		saveButton.addEventListener("click", () => void submit());
 		const inputs: HTMLElement[] = [textInput, costInput];
-		if (durationInput) inputs.push(durationInput);
+
 		if (addressInput) inputs.push(addressInput);
 		if (people?.input) inputs.push(people.input);
 		if (schedule) inputs.push(...schedule.inputs);

@@ -557,5 +557,218 @@ export async function run() {
 		);
 	}
 
+	// ---------- quick ideas (unscheduled, plan-local) ----------
+	{
+		const { PlanOperations } = await import("./.build/callander.mjs");
+
+		// Hostile shapes on purpose: this is hand-editable YAML, so a scalar
+		// where a list belongs must come out empty rather than throw.
+		const fm = {
+			quickIdeas: [
+				{
+					text: "Oyster place",
+					type: "restaurant",
+					categories: ["Boston", "Food"],
+					dates: ["2026-07-30", "2026-07-31"],
+					time: "dinner",
+					cost: 40,
+				},
+				// Deliberately between the two Boston ideas: it pushes "Ball
+				// game" to index 2, so a per-group position (0,1) and the real
+				// index (0,2) can no longer look the same.
+				{ text: "Nothing planned" },
+				{ text: "Ball game", categories: ["Boston"] },
+				{ text: "", categories: ["Ignored"] },
+				{ notes: "textless, dropped" },
+			],
+		};
+		const ideas = PlanOperations.quickIdeasOf(fm);
+		eq(
+			"only ideas with text survive",
+			ideas.map((i) => i.text),
+			["Oyster place", "Nothing planned", "Ball game"]
+		);
+		eq("categories parse as a list", ideas[0].categories, ["Boston", "Food"]);
+		eq("dates parse as a list", ideas[0].dates, [
+			"2026-07-30",
+			"2026-07-31",
+		]);
+		eq("the type carries over", ideas[0].type, "restaurant");
+		eq("cost is kept", ideas[0].cost, 40);
+		eq("a bare idea gets empty lists, not undefined", ideas[1].categories, []);
+
+		// ---- grouping ----
+		const groups = PlanOperations.groupQuickIdeas(ideas);
+		eq(
+			"a group per category, in first-seen order, then Other",
+			groups.map((g) => g.label),
+			["Boston", "Food", "Other"]
+		);
+		eq(
+			"an idea in two categories appears under both",
+			groups
+				.filter((g) => g.label === "Boston" || g.label === "Food")
+				.map((g) => g.entries.map((e) => e.idea.text)),
+			[["Oyster place", "Ball game"], ["Oyster place"]]
+		);
+		eq(
+			"uncategorised falls to Other",
+			groups.at(-1).entries.map((e) => e.idea.text),
+			["Nothing planned"]
+		);
+		// The index is what routes an edit back to the one real object — a
+		// row under "Food" must still point at the plan's own item 0.
+		eq(
+			"entries keep their real index, not a per-group position",
+			groups[0].entries.map((e) => e.index),
+			[0, 2]
+		);
+		eq(
+			"...including in a second group the same idea appears in",
+			groups[1].entries.map((e) => e.index),
+			[0]
+		);
+
+		// Nothing categorised at all: one unlabelled run, because "Other"
+		// would name a distinction nobody is drawing.
+		const plain = PlanOperations.groupQuickIdeas(
+			PlanOperations.quickIdeasOf({
+				quickIdeas: [{ text: "A" }, { text: "B" }],
+			})
+		);
+		eq("a wholly uncategorised list is one group", plain.length, 1);
+		eq("...with no heading", plain[0].label, "");
+		eq(
+			"...holding everything",
+			plain[0].entries.map((e) => e.idea.text),
+			["A", "B"]
+		);
+
+		eq("no quickIdeas key at all is empty", PlanOperations.quickIdeasOf({}), []);
+	}
+
+	// ---------- "Mate's" folded into Home ----------
+	// Mapped on read, so a plan written before the type was removed still
+	// shows a real stay rather than an untyped bed.
+	{
+		const { PlanOperations } = await import("./.build/callander.mjs");
+		const stays = PlanOperations.simpleListOf(
+			{
+				accommodation: [
+					{ text: "Riley's spare room", stay: "friends" },
+					{ text: "The Ritz", stay: "hotel" },
+					{ text: "Untyped", stay: "" },
+				],
+			},
+			"accommodation"
+		);
+		eq("a legacy friends stay reads as home", stays[0].stay, "home");
+		eq("...leaving every other type alone", stays[1].stay, "hotel");
+		eq("...and an untyped stay still untyped", stays[2].stay, undefined);
+	}
+
+	// ---------- quick idea categories: persisted, not just live-scanned ----------
+	{
+		const { PlanOperations } = await import("./.build/callander.mjs");
+
+		// Backward compatibility, no migration: a plan with categorised
+		// ideas but no explicit quickIdeaCategories field yet still offers
+		// them immediately, rather than showing an empty list until each
+		// idea happens to be re-saved.
+		eq(
+			"unions with what's currently referenced when the field is absent",
+			PlanOperations.quickIdeaCategoriesOf({
+				quickIdeas: [
+					{ text: "Oyster place", categories: ["Boston"] },
+				],
+			}),
+			["Boston"]
+		);
+
+		// The point of the feature: a category persists even once nothing
+		// currently uses it.
+		eq(
+			"the persisted field survives when no idea references it anymore",
+			PlanOperations.quickIdeaCategoriesOf({
+				quickIdeaCategories: ["Boston", "Rainy day"],
+				quickIdeas: [{ text: "Untagged now" }],
+			}),
+			["Boston", "Rainy day"]
+		);
+
+		// Persisted first, then whatever's newly in use, deduped
+		// case-insensitively with the persisted spelling winning.
+		eq(
+			"persisted and live-referenced categories combine without duplicates",
+			PlanOperations.quickIdeaCategoriesOf({
+				quickIdeaCategories: ["Boston"],
+				quickIdeas: [
+					{ text: "A", categories: ["boston"] },
+					{ text: "B", categories: ["Food"] },
+				],
+			}),
+			["Boston", "Food"]
+		);
+
+		eq(
+			"hostile shapes come out empty rather than throwing",
+			PlanOperations.quickIdeaCategoriesOf({ quickIdeaCategories: "Boston" }),
+			[]
+		);
+		eq(
+			"no field and nothing referenced is empty",
+			PlanOperations.quickIdeaCategoriesOf({}),
+			[]
+		);
+	}
+
+	// ---------- ideas still waiting on a day ----------
+	// These render above the itinerary under "Needs date", but they're the
+	// same objects, so a row has to route an edit back to the right item.
+	{
+		const { PlanOperations } = await import("./.build/callander.mjs");
+		const fm = {
+			items: [
+				{ text: "Museum", category: "activity", priority: "must" },
+				{
+					text: "Lobster roll",
+					category: "restaurant",
+					date: "2026-08-12",
+				},
+				{
+					text: "Night swim",
+					category: "activity",
+					cost: 0,
+					notes: "if it's warm",
+				},
+			],
+		};
+		const undated = PlanOperations.undatedIdeaEntries(fm);
+		eq(
+			"only ideas without a date come through",
+			undated.map((e) => e.text),
+			["Museum", "Night swim"]
+		);
+		eq(
+			"...indexed against the full items list, not the filtered one",
+			undated.map((e) => e.index),
+			[0, 2]
+		);
+		eq("...with an empty date", undated[0].date, "");
+		eq("...marked as ideas", undated[0].source, "idea");
+		eq("...carrying their detail", undated[1].notes, "if it's warm");
+		eq("...including a zero cost", undated[1].cost, 0);
+
+		// The two views of the plan must not overlap: an idea belongs to
+		// exactly one of them, or it would render twice.
+		const dated = PlanOperations.timelineOf(fm).map((e) => e.text);
+		eq("the dated timeline has the rest", dated, ["Lobster roll"]);
+		eq(
+			"nothing appears in both",
+			undated.filter((e) => dated.includes(e.text)).length,
+			0
+		);
+	}
+
 	return result();
 }

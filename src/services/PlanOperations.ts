@@ -10,6 +10,7 @@ import {
 import type {
 	PlanInfo,
 	PlanItem,
+	PlanQuickIdea,
 	PlanSimpleItem,
 	PlanTimelineEntry,
 } from "@/types";
@@ -39,6 +40,138 @@ export class PlanOperations {
 			path.startsWith(this.getPlansFolderPath() + "/") &&
 			path.endsWith(".md")
 		);
+	}
+
+	/**
+	 * Ideas parked against the plan that nobody has scheduled yet.
+	 *
+	 * Stored under `quickIdeas`, deliberately not `ideas` — that key is
+	 * already read by ContactOperations.ideasOf on every note (merging a
+	 * legacy `giftIdeas`), and a plan goes through exactly the same code, so
+	 * reusing it would make these surface as gift ideas.
+	 */
+	static quickIdeasOf(metadata: unknown): PlanQuickIdea[] {
+		return asArray(fieldOf(metadata, "quickIdeas"))
+			.map((raw): PlanQuickIdea => {
+				const rawText = fieldOf(raw, "text");
+				const cost = fieldOf(raw, "cost");
+				const type = fieldOf(raw, "type");
+				return {
+					text:
+						typeof rawText === "string"
+							? rawText
+							: rawText == null
+							? toText(raw)
+							: "",
+					...(typeof type === "string" &&
+						type && { type: type as PlanIdeaCategory }),
+					// Both lists are hand-editable YAML, so a stray scalar or
+					// map has to come out as an empty list rather than throw.
+					categories: asArray(fieldOf(raw, "categories"))
+						.map((c) => toText(c).trim())
+						.filter(Boolean),
+					dates: asArray(fieldOf(raw, "dates"))
+						.map((d) => toText(d).trim())
+						.filter(Boolean),
+					...(strFieldOf(raw, "time") && {
+						time: strFieldOf(raw, "time"),
+					}),
+					...(strFieldOf(raw, "duration") && {
+						duration: strFieldOf(raw, "duration"),
+					}),
+					...(strFieldOf(raw, "people") && {
+						people: strFieldOf(raw, "people"),
+					}),
+					...(typeof cost === "number" && { cost }),
+					...(strFieldOf(raw, "notes") && {
+						notes: strFieldOf(raw, "notes"),
+					}),
+					...(strFieldOf(raw, "created") && {
+						created: strFieldOf(raw, "created"),
+					}),
+				};
+			})
+			.filter((i) => i.text);
+	}
+
+	/**
+	 * Category names known to this plan — the vocabulary offered when adding
+	 * another quick idea.
+	 *
+	 * Reads the persisted `quickIdeaCategories` list, unioned with whatever
+	 * `quickIdeas` currently reference. The union is what makes this safe
+	 * without a migration: a plan that already had categorised ideas before
+	 * this field existed still offers them immediately, rather than showing
+	 * an empty list until each idea happens to be re-saved. Once any idea is
+	 * saved, the caller bakes this same union back into the persisted field
+	 * (see ContactPageView's rememberQuickIdeaCategories), so the category
+	 * survives even if every idea that used it is later edited or deleted —
+	 * that persistence, not the live scan, is the point of the field.
+	 */
+	static quickIdeaCategoriesOf(metadata: unknown): string[] {
+		const seen: string[] = [];
+		const add = (cat: string) => {
+			if (!seen.some((c) => c.toLowerCase() === cat.toLowerCase())) {
+				seen.push(cat);
+			}
+		};
+		for (const raw of asArray(fieldOf(metadata, "quickIdeaCategories"))) {
+			const cat = toText(raw).trim();
+			if (cat) add(cat);
+		}
+		for (const idea of PlanOperations.quickIdeasOf(metadata)) {
+			for (const cat of idea.categories ?? []) add(cat);
+		}
+		return seen;
+	}
+
+	/**
+	 * Quick ideas arranged for display: a group per category, then "Other"
+	 * for whatever carries none.
+	 *
+	 * An idea with several categories appears under each of them — that's the
+	 * point of the field, not a bug to dedupe. Each entry keeps the idea's
+	 * real index so a row in any group routes an edit back to the one object.
+	 *
+	 * Categories are ordered by first appearance rather than alphabetically:
+	 * the order you added them in is the order you think about them, and
+	 * "Other" is always last because it isn't a category at all.
+	 */
+	static groupQuickIdeas(
+		ideas: PlanQuickIdea[]
+	): { label: string; entries: { idea: PlanQuickIdea; index: number }[] }[] {
+		const groups = new Map<
+			string,
+			{ idea: PlanQuickIdea; index: number }[]
+		>();
+		const uncategorised: { idea: PlanQuickIdea; index: number }[] = [];
+
+		ideas.forEach((idea, index) => {
+			const cats = (idea.categories ?? []).filter(Boolean);
+			if (cats.length === 0) {
+				uncategorised.push({ idea, index });
+				return;
+			}
+			for (const cat of cats) {
+				const list = groups.get(cat);
+				if (list) list.push({ idea, index });
+				else groups.set(cat, [{ idea, index }]);
+			}
+		});
+
+		const out = [...groups.entries()].map(([label, entries]) => ({
+			label,
+			entries,
+		}));
+		// Only worth a heading of its own when something else is grouped —
+		// a list where nothing is categorised is just a list.
+		if (uncategorised.length > 0) {
+			out.push({
+				label: out.length > 0 ? "Other" : "",
+				entries: uncategorised,
+			});
+		}
+		return out;
 	}
 
 	/** Plan ideas — category + priority. Legacy bucket shapes are mapped. */
@@ -74,6 +207,9 @@ export class PlanOperations {
 					priority,
 					...(strFieldOf(i, "date") && { date: strFieldOf(i, "date") }),
 					...(strFieldOf(i, "time") && { time: strFieldOf(i, "time") }),
+					...(strFieldOf(i, "duration") && {
+						duration: strFieldOf(i, "duration"),
+					}),
 					...(strFieldOf(i, "people") && {
 						people: strFieldOf(i, "people"),
 					}),
@@ -104,7 +240,12 @@ export class PlanOperations {
 				const type = strFieldOf(i, "type");
 				const rawText = fieldOf(i, "text");
 				const cost = fieldOf(i, "cost");
-				const stay = strFieldOf(i, "stay");
+				const rawStay = strFieldOf(i, "stay");
+				// "Mate's" folded into Home. Mapped on read rather than by
+				// rewriting every plan file, the same way a legacy "food"
+				// category becomes "restaurant" in itemsOf above — the stored
+				// value converts itself the next time the item is saved.
+				const stay = rawStay === "friends" ? "home" : rawStay;
 				const booked = strFieldOf(i, "booked");
 				const nights = fieldOf(i, "nights");
 				return {
@@ -121,6 +262,12 @@ export class PlanOperations {
 					}),
 					...(typeof nights === "number" &&
 						nights > 0 && { nights }),
+					...(strFieldOf(i, "checkIn") && {
+						checkIn: strFieldOf(i, "checkIn"),
+					}),
+					...(strFieldOf(i, "checkOut") && {
+						checkOut: strFieldOf(i, "checkOut"),
+					}),
 					...(strFieldOf(i, "address") && {
 						address: strFieldOf(i, "address"),
 					}),
@@ -134,6 +281,40 @@ export class PlanOperations {
 				};
 			})
 			.filter((i) => i.text.length > 0);
+	}
+
+	/**
+	 * Ideas with no day yet, shaped as timeline rows.
+	 *
+	 * `date` is deliberately empty: these sit *above* the itinerary under
+	 * their own heading rather than in it. They're the same objects
+	 * underneath, with `index` pointing at the plan's own items list, so a
+	 * row routes an edit or a delete through exactly the path a dated one
+	 * does — nothing downstream needs to know the difference.
+	 */
+	static undatedIdeaEntries(metadata: unknown): PlanTimelineEntry[] {
+		const entries: PlanTimelineEntry[] = [];
+		PlanOperations.itemsOf(metadata).forEach((item, index) => {
+			if (item.date) return;
+			const cat = PLAN_IDEA_CATEGORIES.find(
+				(c) => c.id === item.category
+			);
+			entries.push({
+				source: "idea",
+				index,
+				date: "",
+				...(item.time && { time: item.time }),
+				...(item.people && { people: item.people }),
+				text: item.text,
+				emoji: cat?.emoji ?? "💡",
+				...(item.category && { category: item.category }),
+				...(item.priority && { priority: item.priority }),
+				...(item.location && { location: item.location }),
+				...(item.cost !== undefined && { cost: item.cost }),
+				...(item.notes && { notes: item.notes }),
+			});
+		});
+		return entries;
 	}
 
 	/**
@@ -155,6 +336,7 @@ export class PlanOperations {
 				index,
 				date: item.date,
 				...(item.time && { time: item.time }),
+				...(item.duration && { duration: item.duration }),
 				...(item.people && { people: item.people }),
 				text: item.text,
 				emoji: cat?.emoji ?? "💡",
@@ -204,6 +386,10 @@ export class PlanOperations {
 						...(!isStay && item.type && { travel: item.type }),
 						...(isStay && item.stay && { stay: item.stay }),
 						...(isStay && item.nights && { nights: item.nights }),
+						...(isStay &&
+							item.checkIn && { checkIn: item.checkIn }),
+						...(isStay &&
+							item.checkOut && { checkOut: item.checkOut }),
 						...(isStay && item.address && { address: item.address }),
 						// A flight needs booking as much as a hotel does, so
 						// this rides along for legs too — unlike address, which
