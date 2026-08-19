@@ -30,6 +30,11 @@ export class DiaryView extends ItemView {
 	}
 
 	async onOpen() {
+		// Settings are read at render time, so a change to one has to be
+		// heard rather than waited on — otherwise it only lands on reopen.
+		this.registerEvent(
+			this.plugin.events.on("settings-changed", () => void this.refresh())
+		);
 		// Refresh when diary files change on disk (e.g. edited in the native editor)
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => this.onVaultChange(file.path))
@@ -42,6 +47,13 @@ export class DiaryView extends ItemView {
 				this.onVaultChange(file.path);
 				this.onVaultChange(oldPath);
 			})
+		);
+		// Entries are read out of the metadata cache, which reindexes *after*
+		// the vault event fires. See registerVaultRefresh.
+		this.registerEvent(
+			this.app.metadataCache.on("changed", (file) =>
+				this.onVaultChange(file.path)
+			)
 		);
 		await this.refresh();
 	}
