@@ -8,6 +8,11 @@ import {
 	MarkdownRenderer,
 	type ViewStateResult,
 } from "obsidian";
+import { createRoot, type Root } from "react-dom/client";
+import type { ReactNode } from "react";
+import { PluginProvider } from "@/ui/PluginContext";
+import { AccommodationSection } from "@/ui/sections/AccommodationSection";
+import { ViewStore } from "@/ui/viewStore";
 import type FriendTracker from "@/main";
 import { ContactFields } from "@/components/ContactFields";
 import { EventTimeline } from "@/components/EventTimeline";
@@ -43,8 +48,6 @@ import {
 	EventType,
 	PLAN_IDEA_CATEGORIES,
 	TRAVEL_TYPES,
-	TRAVEL_TYPE_EMOJI,
-	ACCOMMODATION_EMOJI,
 	BOOKING_STATES,
 } from "@/constants";
 import type {
@@ -73,7 +76,6 @@ import {
 	formatQuickIdeaDates,
 	formatStayHours,
 	formatTimelineDay,
-	nightsLabel,
 	nightsSummary,
 } from "@/utils/planFormat";
 import { shortenPeopleList } from "@/utils/nameFormat";
@@ -251,6 +253,21 @@ export class ContactPageView extends ItemView {
 	private expandedMarkdownSection = false;
 	/** Guards against reacting to our own writes */
 	private writingUntil = 0;
+	/**
+	 * React islands for the plan sections that have been ported, keyed by
+	 * slot. Created once and kept for the life of the view — `render()`
+	 * detaches these hosts and puts them back rather than remaking them, so
+	 * React keeps rendering into the same node and its subscriptions never
+	 * lapse. See DashboardView, which does the same. Torn down in onClose.
+	 */
+	private islands = new Map<string, { host: HTMLElement; root: Root }>();
+	/**
+	 * Bumped whenever `contactData` has been reloaded or written, so the
+	 * islands re-read it at exactly the moments the imperative sections
+	 * around them are redrawn. See ViewStore for why this rather than
+	 * useVaultVersion.
+	 */
+	private store = new ViewStore();
 	/**
 	 * Quotes as read from the note body. Null means this note has no
 	 * `## Quotes` section yet, so its frontmatter is still the source of
@@ -510,9 +527,46 @@ export class ContactPageView extends ItemView {
 		}
 	}
 
+	/**
+	 * The host node for a ported section, ready to be placed in the layout.
+	 *
+	 * Rendered once on creation and never again from here — React owns its
+	 * own updates from that point, driven by the store bump. Re-rendering on
+	 * every page render would tie React's update timing back to the
+	 * imperative path this is meant to escape.
+	 */
+	private island(key: string, node: ReactNode): HTMLElement {
+		const existing = this.islands.get(key);
+		if (existing) return existing.host;
+
+		const host = createDiv({ cls: "callander-react-root" });
+		const root = createRoot(host);
+		root.render(
+			<PluginProvider plugin={this.plugin}>{node}</PluginProvider>
+		);
+		this.islands.set(key, { host, root });
+		return host;
+	}
+
+	private unmountIslands() {
+		const roots = [...this.islands.values()];
+		this.islands.clear();
+		// Unmounting synchronously inside a React render pass is an error,
+		// and onClose can be reached from one — defer so teardown always
+		// lands between renders.
+		window.setTimeout(() => roots.forEach(({ root }) => root.unmount()), 0);
+	}
+
+	async onClose() {
+		this.unmountIslands();
+	}
+
 	render() {
 		const container = this.containerEl.children[1] as HTMLElement;
 		container.empty();
+		// The imperative DOM above is gone; tell the islands to re-read the
+		// data they're about to be re-attached with.
+		this.store.bump();
 
 		if (!this.contactData || !this.contactData.name) {
 			container.createDiv({
@@ -600,10 +654,24 @@ export class ContactPageView extends ItemView {
 			);
 			this.renderPlanQuickIdeas(planSection("lightbulb", "Ideas"));
 			this.renderPlanTimeline(planSection("calendar-clock", "Timeline"));
-			this.renderPlanSimpleList(
-				planSection("bed", "Accommodation"),
-				"accommodation",
-				"Add accommodation"
+			// Ported to React — the host is created once and re-attached on
+			// every render, so the section keeps its own subscription.
+			planSection("bed", "Accommodation").appendChild(
+				this.island(
+					"accommodation",
+					<AccommodationSection
+						store={this.store}
+						items={() =>
+							PlanOperations.simpleListOf(
+								this.contactData,
+								"accommodation"
+							)
+						}
+						onOpen={(index, item) =>
+							this.openPlanAccommodationModal(index, item)
+						}
+					/>
+				)
 			);
 			this.renderPlanBring(planSection("backpack", "What to bring"));
 			this.renderExpenses(planSection("dollar-sign", "Cost breakdown"));
@@ -2377,6 +2445,31 @@ export class ContactPageView extends ItemView {
 		this.render();
 	}
 
+	/**
+	 * The one real delete for a quick-idea category — rememberQuickIdeaCategories
+	 * only ever adds. Stripping it just from the persisted vocabulary isn't
+	 * enough: quickIdeaCategoriesOf unions that list with whatever ideas still
+	 * reference, so a category left on any idea reappears immediately. Clearing
+	 * it from every idea too is what makes the delete stick.
+	 */
+	private async deleteQuickIdeaCategory(category: string) {
+		const matches = (c: string) => c.toLowerCase() === category.toLowerCase();
+		const list = PlanOperations.quickIdeasOf(this.contactData);
+		for (const idea of list) {
+			if (!idea.categories) continue;
+			const kept = idea.categories.filter((c) => !matches(c));
+			if (kept.length > 0) idea.categories = kept;
+			else delete idea.categories;
+		}
+		const known = this.quickIdeaCategories().filter((c) => !matches(c));
+		if (known.length > 0) this.contactData.quickIdeaCategories = known;
+		else delete this.contactData.quickIdeaCategories;
+		if (list.length > 0) this.contactData.quickIdeas = list;
+		else delete this.contactData.quickIdeas;
+		await this.saveContactData();
+		this.render();
+	}
+
 	/** Add (index null) or edit a quick idea. */
 	private openQuickIdeaModal(index: number | null, idea: PlanQuickIdea | null) {
 		new PlanQuickIdeaModal(
@@ -2402,7 +2495,8 @@ export class ContactPageView extends ItemView {
 						await this.writeQuickIdeas(list);
 				  },
 			this.planScheduleOptions(),
-			this.quickIdeaCategories()
+			this.quickIdeaCategories(),
+			(category) => this.deleteQuickIdeaCategory(category)
 		).open();
 	}
 
@@ -2468,214 +2562,6 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	/**
-	 * One accommodation row: name • hours • cost • booking, with the nights
-	 * pinned to the right.
-	 *
-	 * Only the name shrinks. Everything else is short and load-bearing —
-	 * a truncated "$40" or "Booke…" tells you nothing — so the meta spans
-	 * refuse to shrink and the name takes the squeeze, ellipsis and all.
-	 */
-	private renderStayRow(row: HTMLElement, item: PlanSimpleItem) {
-		// Its own marker: `.contact-idea-item` is shared with travel rows and
-		// other reused lists, which stay dividerless by design — this is
-		// what a phone's row-to-row divider (CSS) hooks onto instead of
-		// reaching for every item in the section.
-		row.addClass("plan-stay-list-item");
-
-		const main = row.createDiv({
-			cls: "contact-idea-text plan-stay-row",
-		});
-
-		// Name + nights in their own non-wrapping group. Without this, a
-		// phone can wrap *between* them instead of at the intended break
-		// below — flexbox is free to start a new line wherever a row's
-		// content overflows, not only where a forced break sits, so on a
-		// narrow name flex-wrap could split "Name" from "• 7 nights" into
-		// two lines by itself. Grouping them removes that option: the pair
-		// wraps as one unit or not at all, and the name still ellipses
-		// inside it exactly as before.
-		const primary = main.createDiv({ cls: "plan-stay-group" });
-		const nameEl = primary.createSpan({ cls: "plan-stay-name" });
-		const icon = (item.stay && ACCOMMODATION_EMOJI[item.stay]) || "🛏️";
-		if (!this.startsWithEmoji(item.text)) {
-			nameEl.createSpan({ cls: "plan-item-type-icon", text: icon });
-		}
-		nameEl.createSpan({ text: item.text });
-		if (item.nights) {
-			primary.createSpan({
-				cls: "plan-stay-meta",
-				text: `• ${nightsLabel(item.nights)}`,
-			});
-		}
-
-		// Forces the phone-only wrap between the two groups. Inert on
-		// desktop (`display: none`), where the row stays one line.
-		main.createSpan({ cls: "plan-stay-break" });
-
-		const booking = BOOKING_STATES.find((b) => b.id === item.booked);
-		// Still needs booking: that's the answer this row is scanning for,
-		// so it stands alone rather than sharing the line with hours that
-		// aren't confirmed yet either.
-		const suppressHours = booking?.id === "todo";
-		const hours = formatStayHours(item.checkIn, item.checkOut);
-
-		// Hours + booking, same non-wrapping-group reasoning as above —
-		// "Check in 3pm, 11am out • ✅" must not split across two lines
-		// either. Only created when there's something to put in it, so an
-		// empty group can't leave a stray forced break with nothing after it.
-		if ((hours && !suppressHours) || (booking && booking.id !== "none")) {
-			const secondary = main.createDiv({ cls: "plan-stay-group" });
-			const hoursShown = !!hours && !suppressHours;
-			if (hoursShown) {
-				secondary.createSpan({ cls: "plan-stay-hours", text: hours });
-			}
-			if (booking && booking.id !== "none") {
-				// The bullet is its own flex child, not text baked onto the
-				// chip — that's what makes its gap on both sides come from
-				// the same `gap` the rest of the row uses, rather than a
-				// flex gap on one side and a typed space on the other. Only
-				// there when hours actually rendered before it: with
-				// nothing to separate from, a bullet is a stray dot.
-				if (hoursShown) {
-					secondary.createSpan({
-						cls: "plan-stay-sep",
-						text: "•",
-					});
-				}
-				const isTodo = booking.id === "todo";
-				// "To book" leads with the word, red and bold — that's the
-				// one still needing action, so it should read as an alert
-				// rather than sit at the same weight as a settled "Booked".
-				// The emoji trails it instead of leading, for the same
-				// reason: the word is the part worth catching your eye.
-				const chip = secondary.createSpan({
-					cls: `plan-stay-meta plan-stay-booking${
-						isTodo ? " plan-stay-booking-todo" : ""
-					}`,
-					// "Need to book" here rather than BOOKING_STATES' own
-					// "To book" — that shorter label reads fine as a travel
-					// row's trailing chip, but stated as the one thing this
-					// row still needs, "Need to" is the clearer prompt.
-					text: isTodo ? "Need to book" : booking.emoji,
-				});
-				// The word is a separate span rather than a JS device check,
-				// so it follows the same `.is-phone` CSS switch as the rest
-				// of this row's layout instead of a second source of truth.
-				// Booked hides it on desktop — the tick alone says it, and
-				// the word would only cost room the name could use — but
-				// keeps it on a phone, where this already has its own
-				// full-width line with nothing to compete with. "To book"
-				// keeps its emoji everywhere instead, trailing the word.
-				chip.createSpan({
-					cls: isTodo
-						? "plan-stay-booking-suffix"
-						: "plan-stay-booking-suffix plan-stay-booking-suffix-desktop-hidden",
-					text: isTodo ? ` • ${booking.emoji}` : ` ${booking.label}`,
-				});
-			}
-		}
-	}
-
-
-	private renderPlanSimpleList(
-		container: HTMLElement,
-		key: "travel" | "accommodation",
-		addLabel: string
-	) {
-		const section = container.createDiv({
-			cls: "contact-ideas-section plan-items-section",
-		});
-		const open = (index: number | null, item: PlanSimpleItem | null) =>
-			key === "travel"
-				? this.openPlanTravelModal(index, item)
-				: this.openPlanAccommodationModal(index, item);
-
-		const rows = PlanOperations.simpleListOf(this.contactData, key).map(
-			(item, index) => ({ item, index })
-		);
-
-		if (rows.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text:
-					key === "travel"
-						? "How you're getting there and around — flights, trains, the drive."
-						: "Where you're staying — the Airbnb, a hotel, someone's place.",
-			});
-		}
-
-		rows.forEach(({ item, index }) => {
-			const row = section.createDiv({
-				cls: "contact-idea-item plan-clickable-row",
-			});
-			row.addEventListener("click", () => open(index, item));
-
-			// A stay reads as one line with its nights pinned right; travel
-			// keeps the plain run-on below, having no such trailing figure.
-			// Notes are deliberately not shown — the row is a summary, and a
-			// free-text note is the one field that can run long enough to
-			// swamp it. They're still there in the item's own modal.
-			if (key === "accommodation") {
-				this.renderStayRow(row, item);
-				return;
-			}
-
-			const textEl = row.createDiv({
-				cls: "contact-idea-text",
-			});
-			// Only travel reaches here — a stay returned above.
-			const icon = item.type ? TRAVEL_TYPE_EMOJI[item.type] : "";
-			if (icon && !this.startsWithEmoji(item.text)) {
-				textEl.createSpan({
-					cls: "plan-item-type-icon",
-					text: icon,
-				});
-			}
-			textEl.createSpan({ text: item.text });
-			if (item.duration) {
-				textEl.createSpan({
-					cls: "plan-item-duration",
-					text: ` · ${item.duration}`,
-				});
-			}
-			if (item.cost !== undefined) {
-				textEl.createSpan({
-					cls: "item-cost",
-					text: ` · ${formatItemCost(item.cost)}`,
-				});
-			}
-			if (item.people) {
-				textEl.createSpan({
-					cls: "plan-item-people",
-					text: ` · ${item.people}`,
-				});
-			}
-			const booking = BOOKING_STATES.find((b) => b.id === item.booked);
-			if (booking && booking.id !== "none") {
-				textEl.createSpan({
-					cls: "plan-item-booking",
-					text: ` · ${booking.emoji} ${booking.label}`,
-				});
-			}
-			if (item.notes) {
-				row.createDiv({
-					cls: "plan-stay-notes",
-					text: item.notes,
-				});
-			}
-		});
-
-		const footer = section.createDiv({
-			cls: "contact-section-footer",
-		});
-		const addButton = footer.createEl("button", {
-			cls: "callander-button",
-		});
-		setIcon(addButton, "plus");
-		addButton.createSpan({ text: addLabel });
-		addButton.addEventListener("click", () => open(null, null));
-	}
 
 	/** Context-aware placeholders for the travel / accommodation modal. */
 	private planSimplePlaceholders(key: "travel" | "accommodation") {
@@ -4646,6 +4532,14 @@ export class ContactPageView extends ItemView {
 				}
 			}
 		);
+
+		// `contactData` was mutated before this ran, so the islands are
+		// already behind by the time the write lands. Bumping here rather
+		// than at each of the ~49 call sites means a ported section updates
+		// whether or not its caller also redraws the imperative DOM — and
+		// the double bump when one does costs a re-render of a small tree,
+		// not a re-read of the vault.
+		this.store.bump();
 	}
 
 	// Modal methods
