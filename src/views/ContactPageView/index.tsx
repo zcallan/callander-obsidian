@@ -27,6 +27,8 @@ import { InterestsSection } from "@/ui/sections/InterestsSection";
 import { IdeasSection } from "@/ui/sections/IdeasSection";
 import { PersonDraftsSection } from "@/ui/sections/PersonDraftsSection";
 import { NotesSection } from "@/ui/sections/NotesSection";
+import { GroupMembersSection } from "@/ui/sections/GroupMembersSection";
+import { DeleteSection } from "@/ui/sections/DeleteSection";
 import {
 	DiaryMentionsSection,
 	type DiaryMention,
@@ -857,7 +859,23 @@ export class ContactPageView extends ItemView {
 			const membersSection = container.createDiv({
 				cls: "contact-info-section",
 			});
-			void this.renderGroupMembers(membersSection);
+			membersSection.appendChild(
+				this.island(
+					"group-members",
+					<GroupMembersSection
+						groupName={() =>
+							this._file?.basename.toLowerCase() ?? ""
+						}
+						onOpen={(path) =>
+							void this.app.workspace.openLinkText(path, "", false)
+						}
+						onRemove={(contact) =>
+							void this.removeGroupMember(contact)
+						}
+						onAdd={(candidates) => this.openAddGroupMember(candidates)}
+					/>
+				)
+			);
 		} else {
 			// "General" — a collapsed accordion of the attribute fields
 			const infoWrap = container.createDiv({
@@ -1099,7 +1117,16 @@ export class ContactPageView extends ItemView {
 		// Last thing on the page, below everything else. Plans have their own
 		// delete inside the edit modal, and a group's page deletes through
 		// the group modal — this is people only.
-		if (this.isPersonFile()) this.renderDeleteSection(container);
+		if (this.isPersonFile()) {
+			container.appendChild(
+				this.island(
+					"delete",
+					<DeleteSection
+						onDelete={() => this.confirmDeletePerson()}
+					/>
+				)
+			);
+		}
 	}
 
 	/**
@@ -1109,15 +1136,6 @@ export class ContactPageView extends ItemView {
 	 * control here that destroys something, and putting it beside "Add idea"
 	 * makes a misclick cheap. Reaching it means scrolling past the whole page.
 	 */
-	private renderDeleteSection(container: HTMLElement) {
-		const section = container.createDiv({ cls: "contact-delete-section" });
-		const button = section.createEl("button", {
-			cls: "callander-button contact-delete-button",
-		});
-		setIcon(button, "trash-2");
-		button.createSpan({ text: "Delete" });
-		button.addEventListener("click", () => this.confirmDeletePerson());
-	}
 
 	/** Trash this person's note, then leave the page it was showing. */
 	private confirmDeletePerson() {
@@ -3372,70 +3390,31 @@ export class ContactPageView extends ItemView {
 		);
 	}
 
-	private async renderGroupMembers(container: HTMLElement) {
-		if (!this._file) return;
-		const ops = this.plugin.contactOperations;
-		const groupName = this._file.basename.toLowerCase();
-		const contacts = await ops.getContacts();
-		const members = contacts.filter((c) => c.groups.includes(groupName));
-
-		container.createDiv({
-			cls: "contact-field-label",
-			text: `Members (${members.length})`,
-		});
-
-		const list = container.createDiv({ cls: "group-member-list" });
-		for (const m of members) {
-			const row = list.createDiv({ cls: "group-member-row" });
-
-			const info = row.createDiv({ cls: "group-member-info" });
-			info.createDiv({
-				cls: "group-member-name",
-				text: m.displayName,
-			});
-			const metFlex = parseFlexDate(m.met);
-			if (metFlex && metFlex.year !== null) {
-				info.createDiv({
-					cls: "group-member-met",
-					text: `Met ${formatFlexDate(metFlex)}`,
-				});
-			}
-			info.addEventListener("click", () => {
-				void this.app.workspace.openLinkText(m.file.path, "", false);
-			});
-
-			const removeBtn = row.createEl("button", {
-				cls: "callander-button button-icon button-danger",
-				attr: { "aria-label": "Remove from group" },
-			});
-			setIcon(removeBtn, "x");
-			const removeFromGroup = async () => {
-				await ops.removeFriendFromGroup(m.file, groupName);
-				this.render();
-			};
-			removeBtn.addEventListener("click", () => void removeFromGroup());
-		}
-
-		const addButton = container.createEl("button", {
-			cls: "callander-button button-outlined",
-			text: "Add member",
-		});
-		addButton.addEventListener("click", () => {
-			const candidates = contacts.filter(
-				(c) => !c.groups.includes(groupName)
-			);
-			const addToGroup = async (contact: ContactWithCountdown) => {
-				await ops.addFriendToGroup(contact.file, groupName);
-				this.render();
-			};
-			new ContactSuggestModal(
-				this.app,
-				candidates,
-				(contact) => void addToGroup(contact),
-				`Add to ${ops.prettyGroupName(groupName)}…`
-			).open();
-		});
+	private async removeGroupMember(contact: ContactWithCountdown) {
+		const groupName = this._file?.basename.toLowerCase();
+		if (!groupName) return;
+		await this.plugin.contactOperations.removeFriendFromGroup(
+			contact.file,
+			groupName
+		);
+		this.render();
 	}
+
+	private openAddGroupMember(candidates: ContactWithCountdown[]) {
+		const ops = this.plugin.contactOperations;
+		const groupName = this._file?.basename.toLowerCase();
+		if (!groupName) return;
+		new ContactSuggestModal(
+			this.app,
+			candidates,
+			(contact) =>
+				void ops
+					.addFriendToGroup(contact.file, groupName)
+					.then(() => this.render()),
+			`Add to ${ops.prettyGroupName(groupName)}…`
+		).open();
+	}
+
 
 	// Diary entries that [[link]] to this friend — Obsidian-native, via backlinks
 	/** Diary entries linking to this person, from the link index alone. */
