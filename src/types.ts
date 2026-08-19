@@ -453,6 +453,12 @@ export interface Quote {
  * Completed goals are kept rather than deleted — the point is partly the
  * record, and "they finally did it" is worth being able to look back on.
  */
+/** One line on a plan's packing list. */
+export interface PlanBringItem {
+	text: string;
+	done: boolean;
+}
+
 export interface LifeGoal {
 	text: string;
 	notes?: string;

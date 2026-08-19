@@ -15,6 +15,13 @@ type Root = ReturnType<typeof createRoot>;
 import type { ReactNode } from "react";
 import { PluginProvider } from "@/ui/PluginContext";
 import { AccommodationSection } from "@/ui/sections/AccommodationSection";
+import { BringSection } from "@/ui/sections/BringSection";
+import { PlanDraftsSection } from "@/ui/sections/PlanDraftsSection";
+import { QuickIdeasSection } from "@/ui/sections/QuickIdeasSection";
+import {
+	PlanMembersSection,
+	type PlanMemberChip,
+} from "@/ui/sections/PlanMembersSection";
 import { ViewStore } from "@/ui/viewStore";
 import type FriendTracker from "@/main";
 import { ContactFields } from "@/components/ContactFields";
@@ -27,6 +34,7 @@ import type {
 	InsideJoke,
 	Interest,
 	LifeGoal,
+	PlanBringItem,
 	Quote,
 } from "@/types";
 import { AddFieldModal } from "@/modals/AddFieldModal";
@@ -659,7 +667,21 @@ export class ContactPageView extends ItemView {
 
 		// Plans are their own page shape: members, buckets, notes
 		if (this.isPlanFile()) {
-			this.renderPlanDrafts(container);
+			container.appendChild(
+				this.island(
+					"plan-drafts",
+					<PlanDraftsSection
+						store={this.store}
+						drafts={() => this.planDraftTexts()}
+						onMakeIdea={(index, text) =>
+							this.promotePlanDraft(index, text)
+						}
+						onDiscard={(index, text) =>
+							this.confirmDiscardPlanDraft(index, text)
+						}
+					/>
+				)
+			);
 
 			const planContent = container.createDiv({
 				cls: "contact-content contact-content-stacked",
@@ -679,10 +701,44 @@ export class ContactPageView extends ItemView {
 				return wrap;
 			};
 
-			void this.renderPlanMembers(
-				planSection("users", `Who's in (${this.planMemberCount()})`)
+			planSection("users", `Who's in (${this.planMemberCount()})`).appendChild(
+				this.island(
+					"plan-members",
+					<PlanMembersSection
+						store={this.store}
+						yourName={this.plugin.settings.yourName}
+						members={() => this.planMemberChips("members")}
+						unconfirmed={() =>
+							this.planMemberChips("unconfirmedMembers")
+						}
+						onOpen={(path) =>
+							void this.app.workspace.openLinkText(path, "", false)
+						}
+						onRemove={(index) =>
+							void this.removePlanEntry("members", index)
+						}
+						onConfirm={(index) => void this.confirmPlanMember(index)}
+						onRemoveUnconfirmed={(index) =>
+							void this.removePlanEntry("unconfirmedMembers", index)
+						}
+						onAdd={() => void this.openAddPlanMember()}
+					/>
+				)
 			);
-			this.renderPlanQuickIdeas(planSection("lightbulb", "Ideas"));
+			planSection("lightbulb", "Ideas").appendChild(
+				this.island(
+					"quick-ideas",
+					<QuickIdeasSection
+						store={this.store}
+						ideas={() =>
+							PlanOperations.quickIdeasOf(this.contactData)
+						}
+						shortenPeople={(people) => this.shortenPlanPeople(people)}
+						onOpen={(index) => this.openQuickIdeaView(index)}
+						onAdd={() => this.openQuickIdeaModal(null, null)}
+					/>
+				)
+			);
 			this.renderPlanTimeline(planSection("calendar-clock", "Timeline"));
 			// Ported to React — the host is created once and re-attached on
 			// every render, so the section keeps its own subscription.
@@ -703,7 +759,20 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			this.renderPlanBring(planSection("backpack", "What to bring"));
+			planSection("backpack", "What to bring").appendChild(
+				this.island(
+					"bring",
+					<BringSection
+						store={this.store}
+						items={() => PlanOperations.bringOf(this.contactData)}
+						onToggle={(index, done) =>
+							void this.updateBringItem(index, done)
+						}
+						onRemove={(index) => void this.removeBringItem(index)}
+						onAdd={(text) => void this.addBringItem(text)}
+					/>
+				)
+			);
 			this.renderExpenses(planSection("dollar-sign", "Cost breakdown"));
 			this.renderNotesSection(planSection("pencil", "Notes"));
 			void this.renderExtrasSection(
@@ -2213,246 +2282,126 @@ export class ContactPageView extends ItemView {
 		return others + (yourName ? 1 : 0);
 	}
 
-	private async renderPlanMembers(container: HTMLElement) {
-		if (!this._file) return;
+	/**
+	 * A member list resolved for display.
+	 *
+	 * Your own entry is dropped from `members`: you're rendered separately and
+	 * unremovably, and a plan that also lists you as a guest would show you
+	 * twice. The stored index rides along, since removal addresses the list
+	 * rather than the name.
+	 */
+	private planMemberChips(
+		key: "members" | "unconfirmedMembers"
+	): PlanMemberChip[] {
+		const file = this._file;
+		if (!file) return [];
 		const yourName = this.plugin.settings.yourName;
-		const members = asArray(this.contactData.members).map(String);
-		// You are shown automatically — skip any guest entry duplicating you
-		const visible = members
-			.map((raw: string, index: number) => ({
-				raw: String(raw),
-				index,
-			}))
+		return asArray(this.contactData[key])
+			.map((raw, index) => ({ raw: String(raw), index }))
 			.filter(
 				({ raw }) =>
+					key !== "members" ||
 					!yourName ||
 					raw.replace(/^\[\[|\]\]$/g, "").toLowerCase() !==
 						yourName.toLowerCase()
-			);
-
-		// The count sits in the section header now. Pad the body like every
-		// other section (the stack-section wrap itself has no padding).
-		container = container.createDiv({ cls: "plan-members-body" });
-		const chips = container.createDiv({
-			cls: "contact-group-chips plan-member-chips",
-		});
-
-		const removeMember = async (index: number) => {
-			this.removeFromList("members", index);
-			await this.saveContactData();
-			this.render();
-		};
-
-		if (yourName) {
-			const chip = chips.createSpan({
-				cls: "contact-group-chip readonly plan-member-chip",
-			});
-			chip.createSpan({ text: yourName });
-			chip.createSpan({ cls: "plan-chip-muted", text: "(you)" });
-		}
-
-		for (const { raw, index } of visible) {
-			const linktext = raw.replace(/^\[\[|\]\]$/g, "");
-			const dest = this.app.metadataCache.getFirstLinkpathDest(
-				linktext,
-				this._file.path
-			);
-			const display = dest
-				? String(
-						this.app.metadataCache.getFileCache(dest)?.frontmatter
-							?.displayName ?? dest.basename
-				  )
-				: linktext;
-
-			const chip = chips.createSpan({
-				cls: "contact-group-chip readonly plan-member-chip",
-			});
-			const nameEl = chip.createSpan({
-				cls: dest ? "plan-chip-name" : undefined,
-				text: display,
-			});
-			if (dest) {
-				nameEl.addEventListener("click", () =>
-					void this.app.workspace.openLinkText(dest.path, "", false)
-				);
-			}
-			const removeEl = chip.createSpan({
-				cls: "contact-member-remove",
-				text: "✕",
-				attr: { "aria-label": "Remove from plan" },
-			});
-			removeEl.addEventListener("click", () => void removeMember(index));
-		}
-
-		// Unconfirmed people, in their own section (only when there are any)
-		const unconfirmed = asArray(
-			this.contactData.unconfirmedMembers
-		).map(String);
-		if (unconfirmed.length > 0) {
-			container.createDiv({
-				cls: "plan-member-sublabel",
-				text: "Unconfirmed",
-			});
-			const unconfirmedChips = container.createDiv({
-				cls: "contact-group-chips plan-member-chips",
-			});
-			unconfirmed.forEach((raw: string, index: number) => {
-				const linktext = String(raw).replace(/^\[\[|\]\]$/g, "");
+			)
+			.map(({ raw, index }) => {
+				const linktext = raw.replace(/^\[\[|\]\]$/g, "");
 				const dest = this.app.metadataCache.getFirstLinkpathDest(
 					linktext,
-					this._file!.path
+					file.path
 				);
-				const display = dest
-					? String(
-							this.app.metadataCache.getFileCache(dest)
-								?.frontmatter?.displayName ?? dest.basename
-					  )
-					: linktext;
-
-				const chip = unconfirmedChips.createSpan({
-					cls: "contact-group-chip readonly plan-member-chip plan-member-unconfirmed",
-				});
-				const nameEl = chip.createSpan({
-					cls: dest ? "plan-chip-name" : undefined,
-					text: display,
-				});
-				if (dest) {
-					nameEl.addEventListener("click", () =>
-						void this.app.workspace.openLinkText(
-							dest.path,
-							"",
-							false
-						)
-					);
-				}
-				const confirmEl = chip.createSpan({
-					cls: "plan-chip-confirm",
-					text: "✓",
-					attr: { "aria-label": "Confirm — they're in" },
-				});
-				const confirmMember = async () => {
-					this.removeFromList("unconfirmedMembers", index);
-					this.pushToList("members", raw);
-					await this.saveContactData();
-					this.render();
+				return {
+					display: dest
+						? String(
+								this.app.metadataCache.getFileCache(dest)
+									?.frontmatter?.displayName ?? dest.basename
+						  )
+						: linktext,
+					path: dest ? dest.path : null,
+					index,
 				};
-				confirmEl.addEventListener("click", () =>
-					void confirmMember()
-				);
-				const removeEl = chip.createSpan({
-					cls: "contact-member-remove",
-					text: "✕",
-					attr: { "aria-label": "Remove" },
-				});
-				const removeUnconfirmed = async () => {
-					this.removeFromList("unconfirmedMembers", index);
-					await this.saveContactData();
-					this.render();
-				};
-				removeEl.addEventListener("click", () =>
-					void removeUnconfirmed()
-				);
 			});
-		}
-
-		const addRow = container.createDiv({
-			cls: "plan-member-add-row",
-		});
-		const addButton = addRow.createEl("button", {
-			cls: "callander-button button-outlined",
-		});
-		setIcon(addButton, "plus");
-		addButton.createSpan({ text: "Add person" });
-		const openAddMember = async () => {
-			const ops = this.plugin.contactOperations;
-			const contacts = await ops.getContacts();
-			const existing = new Set(
-				this.resolvePlanMembers().map((f) => f.path)
-			);
-			const groups = ops.getGroupInfos(contacts).map((g) => ({
-				name: g.name,
-				label: ops.prettyGroupName(g.name),
-				color: g.color,
-			}));
-			new AddPlanMemberModal(
-				this.app,
-				contacts.filter((c) => !existing.has(c.file.path)),
-				groups,
-				async ({ contact, name }, isUnconfirmed) => {
-					const entry = contact
-						? `[[${contact.file.basename}]]`
-						: name;
-					const key = isUnconfirmed
-						? "unconfirmedMembers"
-						: "members";
-					this.pushToList(key, entry);
-					await this.saveContactData();
-					this.render();
-				}
-			).open();
-		};
-		addButton.addEventListener("click", () => void openAddMember());
 	}
 
-	private renderPlanDrafts(container: HTMLElement) {
-		const drafts = asArray(this.contactData.drafts);
-		if (drafts.length === 0) return;
+	private async removePlanEntry(
+		key: "members" | "unconfirmedMembers",
+		index: number
+	) {
+		this.removeFromList(key, index);
+		await this.saveContactData();
+		this.render();
+	}
 
-		const strip = container.createDiv({
-			cls: "contact-drafts-strip",
-		});
-		strip.createDiv({
-			cls: "contact-idea-group-header",
-			text: "✏️ Drafts to sort",
-		});
+	private async confirmPlanMember(index: number) {
+		const raw = asArray(this.contactData.unconfirmedMembers)[index];
+		if (raw === undefined) return;
+		this.removeFromList("unconfirmedMembers", index);
+		this.pushToList("members", String(raw));
+		await this.saveContactData();
+		this.render();
+	}
 
-		drafts.forEach((draft, index) => {
-			const text =
-				typeof draft === "string"
-					? draft
-					: toText(fieldOf(draft, "text"));
-			const row = strip.createDiv({ cls: "contact-draft-row" });
-			row.createSpan({ cls: "contact-draft-text", text });
+	private async openAddPlanMember() {
+		const ops = this.plugin.contactOperations;
+		const contacts = await ops.getContacts();
+		const existing = new Set(this.resolvePlanMembers().map((f) => f.path));
+		const groups = ops.getGroupInfos(contacts).map((g) => ({
+			name: g.name,
+			label: ops.prettyGroupName(g.name),
+			color: g.color,
+		}));
+		new AddPlanMemberModal(
+			this.app,
+			contacts.filter((c) => !existing.has(c.file.path)),
+			groups,
+			async ({ contact, name }, isUnconfirmed) => {
+				const entry = contact ? `[[${contact.file.basename}]]` : name;
+				this.pushToList(
+					isUnconfirmed ? "unconfirmedMembers" : "members",
+					entry
+				);
+				await this.saveContactData();
+				this.render();
+			}
+		).open();
+	}
 
-			const ideaButton = row.createEl("button", {
-				cls: "callander-button",
-				text: "Make idea",
-			});
-			ideaButton.addEventListener("click", () => {
-				new PlanItemModal(
-					this.app,
-					String(this.contactData.name ?? ""),
-					async (value) => {
-						this.pushToList("items", value);
-						this.removeFromList("drafts", index);
-						await this.saveContactData();
-						this.render();
-					},
-					{ category: "activity", priority: "must", text }
-				).open();
-			});
+	/** Draft text in stored order — a draft may be a bare string or an object. */
+	private planDraftTexts(): string[] {
+		return asArray(this.contactData.drafts).map((draft) =>
+			typeof draft === "string" ? draft : toText(fieldOf(draft, "text"))
+		);
+	}
 
-			const deleteBtn = row.createEl("button", {
-				cls: "callander-button button-icon button-danger",
-				attr: { "aria-label": "Discard draft" },
-			});
-			setIcon(deleteBtn, "trash");
-			deleteBtn.addEventListener("click", () => {
-				const preview =
-					text.length > 80 ? text.slice(0, 80) + "…" : text;
-				new ConfirmModal(
-					this.app,
-					"Discard draft",
-					`Discard "${preview}"?`,
-					"Discard",
-					async () => {
-						this.removeFromList("drafts", index);
-						await this.saveContactData();
-						this.render();
-					}
-				).open();
-			});
-		});
+	/** Turn a draft into a timeline item, dropping it once the item exists. */
+	private promotePlanDraft(index: number, text: string) {
+		new PlanItemModal(
+			this.app,
+			String(this.contactData.name ?? ""),
+			async (value) => {
+				this.pushToList("items", value);
+				this.removeFromList("drafts", index);
+				await this.saveContactData();
+				this.render();
+			},
+			{ category: "activity", priority: "must", text }
+		).open();
+	}
+
+	private confirmDiscardPlanDraft(index: number, text: string) {
+		const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
+		new ConfirmModal(
+			this.app,
+			"Discard draft",
+			`Discard "${preview}"?`,
+			"Discard",
+			async () => {
+				this.removeFromList("drafts", index);
+				await this.saveContactData();
+				this.render();
+			}
+		).open();
 	}
 
 	/**
@@ -2562,92 +2511,14 @@ export class ContactPageView extends ItemView {
 	 * categories appears under both, deliberately — the grouping is a lens,
 	 * not a filing cabinet.
 	 */
-	private renderPlanQuickIdeas(container: HTMLElement) {
-		const section = container.createDiv({
-			cls: "contact-ideas-section plan-items-section",
-		});
-		const ideas = PlanOperations.quickIdeasOf(this.contactData);
-
-		if (ideas.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "Things you could do — a restaurant someone mentioned, a game while you're in town. Give one a day when you're ready and it moves to the timeline.",
-			});
-		} else {
-			for (const group of PlanOperations.groupQuickIdeas(ideas)) {
-				// A blank label is the single ungrouped case — nothing is
-				// categorised, so a heading would name a distinction that
-				// isn't being drawn.
-				if (group.label) {
-					section.createDiv({
-						cls: "plan-quick-idea-group",
-						text: group.label,
-					});
-				}
-				for (const { idea, index } of group.entries) {
-					this.renderQuickIdeaRow(section, idea, index);
-				}
-			}
-		}
-
-		const footer = section.createDiv({
-			cls: "contact-section-footer",
-		});
-		const addButton = footer.createEl("button", {
-			cls: "callander-button",
-		});
-		setIcon(addButton, "plus");
-		addButton.createSpan({ text: "Add idea" });
-		addButton.addEventListener("click", () =>
-			this.openQuickIdeaModal(null, null)
+	/** A people string as first names, using the plan's own roster. */
+	private shortenPlanPeople(people: string): string {
+		return shortenPeopleList(
+			people,
+			this.planParticipants(),
+			this.plugin.settings.yourName,
+			this.planShortNameOverrides()
 		);
-	}
-
-	private renderQuickIdeaRow(
-		container: HTMLElement,
-		idea: PlanQuickIdea,
-		index: number
-	) {
-		const row = container.createDiv({
-			cls: "contact-timeline-item plan-timeline-item timeline-idea plan-quick-idea-row",
-		});
-		row.addEventListener("click", () => this.openQuickIdeaView(index));
-		row.createDiv({ cls: "contact-timeline-dot timeline-dot-idea" });
-
-		const type = PLAN_IDEA_CATEGORIES.find((c) => c.id === idea.type);
-		const emoji =
-			type && !this.startsWithEmoji(idea.text) ? `${type.emoji} ` : "";
-		const textEl = row.createDiv({
-			cls: "contact-timeline-text",
-			text: `${emoji}${idea.text}`,
-		});
-
-		// The candidate days are what distinguishes this from a timeline
-		// row, so they lead the meta rather than trailing it.
-		const metaBits: string[] = [];
-		if (idea.dates && idea.dates.length > 0) {
-			metaBits.push(formatQuickIdeaDates(idea.dates));
-		}
-		if (idea.time) metaBits.push(formatItemTime(idea.time));
-		if (idea.cost !== undefined) metaBits.push(formatItemCost(idea.cost));
-		if (metaBits.length) {
-			textEl.createSpan({
-				cls: "plan-travel-meta",
-				text: `  ·  ${metaBits.join("  ·  ")}`,
-			});
-		}
-
-		if (idea.people) {
-			row.createDiv({
-				cls: "plan-travel-people",
-				text: shortenPeopleList(
-					idea.people,
-					this.planParticipants(),
-					this.plugin.settings.yourName,
-					this.planShortNameOverrides()
-				),
-			});
-		}
 	}
 
 	/** Category names known to this plan, offered when adding another idea. */
@@ -2655,14 +2526,6 @@ export class ContactPageView extends ItemView {
 		return PlanOperations.quickIdeaCategoriesOf(this.contactData);
 	}
 
-	/**
-	 * Fold an idea's categories into the plan's persisted vocabulary.
-	 *
-	 * Deliberately never prunes: a category dropped from every idea that
-	 * used it stays offered for the next one. There's no delete for it
-	 * either — the list only ever grows, which is the whole point of
-	 * saving it against the plan rather than deriving it live.
-	 */
 	private rememberQuickIdeaCategories(categories: string[] | undefined) {
 		if (!categories || categories.length === 0) return;
 		const known = PlanOperations.quickIdeaCategoriesOf(this.contactData);
@@ -3508,85 +3371,31 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	private renderPlanBring(container: HTMLElement) {
-		const section = container.createDiv({
-			cls: "contact-ideas-section plan-items-section",
-		});
+	private async writeBring(list: PlanBringItem[]) {
+		if (list.length > 0) this.contactData.bring = list;
+		else delete this.contactData.bring;
+		await this.saveContactData();
+		this.render();
+	}
 
-		const bring = PlanOperations.bringOf(this.contactData);
+	private async updateBringItem(index: number, done: boolean) {
+		const list = PlanOperations.bringOf(this.contactData);
+		if (!list[index]) return;
+		list[index] = { ...list[index], done };
+		await this.writeBring(list);
+	}
 
-		if (bring.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "Trip-specific stuff — swimwear, speakers, meat for the BBQ. Toothbrushes can look after themselves.",
-			});
-		}
+	private async removeBringItem(index: number) {
+		const list = PlanOperations.bringOf(this.contactData);
+		list.splice(index, 1);
+		await this.writeBring(list);
+	}
 
-		bring.forEach((item, index) => {
-			const row = section.createDiv({
-				cls: `contact-idea-item ${item.done ? "done" : ""}`,
-			});
-			const checkbox = row.createEl("input", {
-				attr: {
-					type: "checkbox",
-					"aria-label": "Sorted / packed",
-				},
-			});
-			checkbox.checked = item.done;
-			const toggleBringDone = async () => {
-				const list = PlanOperations.bringOf(this.contactData);
-				list[index] = { ...list[index], done: checkbox.checked };
-				this.contactData.bring = list;
-				await this.saveContactData();
-				this.render();
-			};
-			checkbox.addEventListener("change", () => void toggleBringDone());
-			row.createDiv({
-				cls: "contact-idea-text",
-				text: item.text,
-			});
-			const deleteBtn = row.createEl("button", {
-				cls: "callander-button button-icon button-danger",
-				attr: { "aria-label": "Remove item" },
-			});
-			setIcon(deleteBtn, "trash");
-			const removeBringItem = async () => {
-				const list = PlanOperations.bringOf(this.contactData);
-				list.splice(index, 1);
-				if (list.length > 0) this.contactData.bring = list;
-				else delete this.contactData.bring;
-				await this.saveContactData();
-				this.render();
-			};
-			deleteBtn.addEventListener("click", () => void removeBringItem());
-		});
-
-		const addRow = section.createDiv({
-			cls: "contact-ideas-add-row plan-bring-add-row",
-		});
-		const input = addRow.createEl("input", {
-			cls: "contact-field-input",
-			attr: { type: "text", placeholder: "Add something to bring..." },
-		});
-		const addButton = addRow.createEl("button", {
-			cls: "callander-button",
-		});
-		setIcon(addButton, "plus");
-		addButton.createSpan({ text: "Add" });
-		const addItem = async () => {
-			const text = input.value.trim();
-			if (!text) return;
-			this.contactData.bring = [
-				...PlanOperations.bringOf(this.contactData),
-				{ text, done: false },
-			];
-			await this.saveContactData();
-			this.render();
-		};
-		addButton.addEventListener("click", () => void addItem());
-		input.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") void addItem();
-		});
+	private async addBringItem(text: string) {
+		await this.writeBring([
+			...PlanOperations.bringOf(this.contactData),
+			{ text, done: false },
+		]);
 	}
 
 	private planParticipants(): string[] {
