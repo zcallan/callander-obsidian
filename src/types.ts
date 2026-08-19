@@ -145,6 +145,9 @@ export interface PlanItem {
 	date?: string;
 	/** 24h time (HH:MM) — refines timeline ordering within a day. */
 	time?: string;
+	/** How long it runs, canonical "2h 30m" — the same shape a travel leg
+	 * stores, and what a calendar export reads for an end time. */
+	duration?: string;
 	/** Who's involved, free text, e.g. "me, Riley, Laura". */
 	people?: string;
 	/** Where it happens, e.g. "Eventide Oyster Co" — openable in Maps. */
@@ -152,6 +155,36 @@ export interface PlanItem {
 	cost?: number;
 	/** Free-text detail — edited from the timeline's read view. */
 	notes?: string;
+}
+
+/**
+ * An idea attached to a plan that nobody has committed to yet — "that
+ * restaurant in Boston, maybe Tue or Wed night".
+ *
+ * Deliberately not a `PlanItem`: it carries *candidate* days rather than one
+ * chosen day, and its `categories` are a grouping local to this plan
+ * ("Boston", "Rainy day") with no meaning anywhere else. Promoting one to
+ * the timeline builds a real PlanItem from it — see the plan page's
+ * add-to-timeline flow.
+ */
+export interface PlanQuickIdea {
+	text: string;
+	/** Reuses the timeline's own type list, so a promoted idea keeps it. */
+	type?: PlanIdeaCategory;
+	/** Plan-local groupings. Anything uncategorised shows under "Other". */
+	categories?: string[];
+	/** Candidate days (ISO YYYY-MM-DD) — any one of them would work. */
+	dates?: string[];
+	/** A ROUGH_TIMES id or "HH:MM" — the same shape a timeline item's time
+	 * takes, so it transfers across on promotion untouched. */
+	time?: string;
+	/** Canonical "2h 30m", same as a timeline item's — carried across on
+	 * promotion rather than re-asked for. */
+	duration?: string;
+	people?: string;
+	cost?: number;
+	notes?: string;
+	created?: string;
 }
 
 /** Flat plan list entries: travel legs, accommodation options */
@@ -171,6 +204,10 @@ export interface PlanSimpleItem {
 	duration?: string;
 	/** Whole nights at this accommodation. */
 	nights?: number;
+	/** Check-in / check-out, 24h "HH:MM" on the hour — accommodation only.
+	 * Either may be absent, which is what an all-day booking looks like. */
+	checkIn?: string;
+	checkOut?: string;
 	/** Street address — openable in Google Maps. */
 	address?: string;
 	/** Booking status — stays and travel legs; absent means nothing to chase. */
@@ -204,6 +241,9 @@ export interface PlanTimelineEntry {
 	duration?: string;
 	/** Stay length — accommodation entries (shown once, on check-in day). */
 	nights?: number;
+	/** Check-in / check-out times — accommodation entries only. */
+	checkIn?: string;
+	checkOut?: string;
 	address?: string;
 	/** Idea entries' equivalent of `address` — both open in Maps. */
 	location?: string;
@@ -307,6 +347,9 @@ export interface EventInfo {
 	date: string;
 	/** 24-hour "HH:MM", or "" */
 	time: string;
+	/** How long it runs, canonical "2h 30m", or "" — used by the calendar
+	 * export to work out an end time. */
+	duration: string;
 	/** Merged event/reminder vocabulary; "" renders neutral */
 	type: EventType | "";
 	/** Wikilinks to people/groups whose timelines this event shows on */

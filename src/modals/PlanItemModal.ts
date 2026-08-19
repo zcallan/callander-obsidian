@@ -7,6 +7,8 @@ import {
 	PlanPriority,
 } from "@/constants";
 import {
+	appendDurationField,
+	appendPeopleField,
 	appendScheduleFields,
 	ScheduleFieldOptions,
 } from "@/modals/scheduleFields";
@@ -18,6 +20,7 @@ export interface PlanItemValue {
 	text: string;
 	date?: string;
 	time?: string;
+	duration?: string;
 	people?: string;
 	location?: string;
 	cost?: number;
@@ -42,18 +45,32 @@ export class PlanItemModal extends FormModal {
 		private onSubmit: (value: PlanItemValue) => Promise<void>,
 		private initial: PlanItemValue | null = null,
 		private onDelete?: () => Promise<void>,
-		private scheduleOptions: ScheduleFieldOptions = {}
+		private scheduleOptions: ScheduleFieldOptions = {},
+		/**
+		 * Starting values for a brand-new item, when whatever opened this
+		 * already knows some of the answer — promoting a quick idea, say.
+		 *
+		 * Deliberately separate from `initial`: that means "an item that
+		 * already exists", and drives the heading, the Add/Save wording and
+		 * whether Delete is offered. A prefilled Add is still an Add.
+		 */
+		private prefill: PlanItemValue | null = null
 	) {
 		super(app);
-		this.category = initial?.category ?? "activity";
-		this.priority = initial?.priority ?? "must";
+		this.category = initial?.category ?? prefill?.category ?? "activity";
+		this.priority = initial?.priority ?? prefill?.priority ?? "must";
+	}
+
+	/** Whatever should populate the fields — an edit's own values, else a prefill. */
+	private get source(): PlanItemValue | null {
+		return this.initial ?? this.prefill;
 	}
 
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.createEl("h2", {
-			text: this.initial ? "Edit idea" : `Add to ${this.planName}`,
+			text: this.initial ? "Edit item" : `Add to ${this.planName}`,
 		});
 
 		const form = contentEl.createEl("form", {
@@ -62,7 +79,7 @@ export class PlanItemModal extends FormModal {
 
 		// Idea text first — the one thing you always fill in.
 		const textField = form.createDiv({ cls: "callander-modal-field" });
-		textField.createEl("label", { text: "Idea" });
+		textField.createEl("label", { text: "Item" });
 		const textInput = textField.createEl("input", {
 			cls: "callander-modal-input",
 			attr: {
@@ -71,8 +88,10 @@ export class PlanItemModal extends FormModal {
 				placeholder: "e.g. Get a lobster roll",
 			},
 		});
-		textInput.value = this.initial?.text ?? "";
-		if (this.initial) this.blurInitialFocus();
+		textInput.value = this.source?.text ?? "";
+		// Arrives pre-filled either way, so don't land focus in the first
+		// field and pop the mobile keyboard over text already there.
+		if (this.source) this.blurInitialFocus();
 		else textInput.focus();
 
 		// Category picker (type=button so chips don't submit the form)
@@ -104,15 +123,18 @@ export class PlanItemModal extends FormModal {
 		});
 
 		// Optional scheduling — a date promotes this idea onto the timeline.
+		// People sits in the accordion below with the rest of the optional
+		// detail, not here.
 		const schedule = appendScheduleFields(
 			form,
-			{
-				date: this.initial?.date,
-				time: this.initial?.time,
-				people: this.initial?.people,
-			},
-			this.scheduleOptions
+			{ date: this.source?.date, time: this.source?.time },
+			{ ...this.scheduleOptions, hidePeople: true }
 		);
+
+		// How long it runs, straight under the time it starts — the two
+		// answer one question between them, and a calendar export needs
+		// both to know when the thing ends.
+		const duration = appendDurationField(form, this.source?.duration);
 
 		// Where it happens — a Map button, mirroring an accommodation's
 		// address, since it's the same "get me there" affordance.
@@ -127,7 +149,7 @@ export class PlanItemModal extends FormModal {
 				placeholder: "e.g. Eventide Oyster Co",
 			},
 		});
-		locationInput.value = this.initial?.location ?? "";
+		locationInput.value = this.source?.location ?? "";
 		const mapButton = locationRow.createEl("button", {
 			cls: "callander-button event-link-open",
 			text: "Map",
@@ -167,7 +189,16 @@ export class PlanItemModal extends FormModal {
 		// than hiding saved detail behind a closed lid.
 		detailsWrap.toggleClass(
 			"is-open",
-			!!(this.initial?.cost || this.initial?.notes)
+			!!(this.source?.people || this.source?.cost || this.source?.notes)
+		);
+
+		const peopleField = detailsBody.createDiv({
+			cls: "callander-modal-field",
+		});
+		const people = appendPeopleField(
+			peopleField,
+			this.source?.people,
+			this.scheduleOptions.people
 		);
 
 		const costField = detailsBody.createDiv({ cls: "callander-modal-field" });
@@ -180,7 +211,7 @@ export class PlanItemModal extends FormModal {
 			cls: "callander-modal-input expense-input",
 			attr: { type: "number", name: "cost", min: "0", placeholder: "0" },
 		});
-		if (this.initial?.cost) costInput.value = String(this.initial.cost);
+		if (this.source?.cost) costInput.value = String(this.source.cost);
 
 		const priField = detailsBody.createDiv({ cls: "callander-modal-field" });
 		priField.createEl("label", { text: "Priority" });
@@ -221,7 +252,7 @@ export class PlanItemModal extends FormModal {
 				placeholder: "e.g. Booked for 7pm under Callan",
 			},
 		});
-		notesInput.value = this.initial?.notes ?? "";
+		notesInput.value = this.source?.notes ?? "";
 
 		const buttonRow = form.createDiv({
 			cls: "callander-modal-buttons",
@@ -240,7 +271,7 @@ export class PlanItemModal extends FormModal {
 						: this.initial!.text;
 				new ConfirmModal(
 					this.app,
-					"Delete idea",
+					"Delete item",
 					`Delete "${preview}"?`,
 					"Delete",
 					async () => {
@@ -265,11 +296,15 @@ export class PlanItemModal extends FormModal {
 			const cost = Number(costInput.value);
 			const location = locationInput.value.trim();
 			const notes = notesInput.value.trim();
+			const peopleValue = people.value();
+			const durationValue = duration.value();
 			void this.onSubmit({
 				category: this.category,
 				priority: this.priority,
 				text,
 				...schedule.values(),
+				...(durationValue && { duration: durationValue }),
+				...(peopleValue && { people: peopleValue }),
 				...(location && { location }),
 				...(Number.isFinite(cost) && cost > 0 && { cost }),
 				...(notes && { notes }),

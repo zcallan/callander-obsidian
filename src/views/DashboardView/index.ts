@@ -1098,7 +1098,7 @@ export class DashboardView extends ItemView {
 		}
 	}
 
-	/** Human date offset from today: "Monday", "Next Monday", "Monday 16 Aug" */
+	/** Human date offset from today: "This Monday • 16 Aug", "Next Monday • 23 Aug", "Monday 16 Aug" */
 	private formatDayDate(offsetDays: number): string {
 		const d = new Date();
 		d.setHours(0, 0, 0, 0);

@@ -26,6 +26,9 @@ import { createFlexDateInput } from "@/components/FlexDateInput";
 import { EventModal } from "@/modals/EventModal";
 import { ResurfaceModal } from "@/modals/ResurfaceModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
+import { PlanShareModal } from "@/modals/PlanShareModal";
+import { PlanQuickIdeaModal } from "@/modals/PlanQuickIdeaModal";
+import { PlanQuickIdeaViewModal } from "@/modals/PlanQuickIdeaViewModal";
 import { DeleteContactModal } from "@/modals/DeleteContactModal";
 import { ContactSuggestModal, QuickIdeaModal } from "@/modals/QuickIdeaModal";
 import { VIEW_TYPE_FRIEND_TRACKER } from "@/views/FriendTrackerView";
@@ -49,6 +52,7 @@ import type {
 	Expense,
 	Credit,
 	PlanItem,
+	PlanQuickIdea,
 	PlanSimpleItem,
 	PlanTimelineEntry,
 } from "@/types";
@@ -61,10 +65,13 @@ import { PlanTimelineViewModal } from "@/modals/PlanTimelineViewModal";
 import {
 	buildPlanShareText,
 	formatPlanDateRange,
+	type PlanShareDetail,
 } from "@/utils/planShare";
 import {
 	formatItemCost,
 	formatItemTime,
+	formatQuickIdeaDates,
+	formatStayHours,
 	formatTimelineDay,
 	nightsLabel,
 	nightsSummary,
@@ -193,6 +200,7 @@ const CLEARABLE_FIELDS = [
 	"location",
 	// Plan lists
 	"items",
+	"quickIdeas",
 	"travel",
 	"accommodation",
 	"bring",
@@ -584,6 +592,7 @@ export class ContactPageView extends ItemView {
 			void this.renderPlanMembers(
 				planSection("users", `Who's in (${this.planMemberCount()})`)
 			);
+			this.renderPlanQuickIdeas(planSection("lightbulb", "Ideas"));
 			this.renderPlanTimeline(planSection("calendar-clock", "Timeline"));
 			this.renderPlanSimpleList(
 				planSection("bed", "Accommodation"),
@@ -1810,8 +1819,9 @@ export class ContactPageView extends ItemView {
 	}
 
 	/** The iMessage-ready version of a plan. Costs stay out of the invite. */
-	private buildPlanShareText(): string {
+	private buildPlanShareText(detail?: PlanShareDetail): string {
 		return buildPlanShareText(this.contactData, {
+			detail,
 			yourName: this.plugin.settings.yourName,
 			members: this.planMemberDisplays(),
 			unconfirmed: this.planMemberDisplays(
@@ -2233,65 +2243,39 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	private renderPlanIdeas(container: HTMLElement) {
+	/**
+	 * Ideas parked against the plan — things you might do, with no day
+	 * committed. Sits above the Timeline because it's the pile you're still
+	 * deciding from; the Timeline is what you've decided.
+	 *
+	 * Grouped by the plan's own categories when any are set. An idea in two
+	 * categories appears under both, deliberately — the grouping is a lens,
+	 * not a filing cabinet.
+	 */
+	private renderPlanQuickIdeas(container: HTMLElement) {
 		const section = container.createDiv({
 			cls: "contact-ideas-section plan-items-section",
 		});
+		const ideas = PlanOperations.quickIdeasOf(this.contactData);
 
-		const items = PlanOperations.itemsOf(this.contactData);
-
-		if (items.length === 0) {
+		if (ideas.length === 0) {
 			section.createDiv({
 				cls: "section-helper-text",
-				text: "Things to do together — activities, food, sights.",
+				text: "Things you could do — a restaurant someone mentioned, a game while you're in town. Give one a day when you're ready and it moves to the timeline.",
 			});
-		}
-
-		// Grouped by category, must-dos first within each
-		for (const cat of PLAN_IDEA_CATEGORIES) {
-			const catItems = items
-				.map((item, index) => ({ item, index }))
-				.filter(({ item }) => (item.category ?? "activity") === cat.id)
-				.sort(
-					(a, b) =>
-						(a.item.priority === "must" ? 0 : 1) -
-						(b.item.priority === "must" ? 0 : 1)
-				);
-			if (catItems.length === 0) continue;
-
-			const group = section.createDiv({
-				cls: "contact-idea-group",
-			});
-			group.createDiv({
-				cls: "contact-idea-group-header",
-				text: `${cat.emoji} ${cat.label}`,
-			});
-			for (const { item, index } of catItems) {
-				const row = group.createDiv({
-					cls: "contact-idea-item plan-clickable-row",
-				});
-				row.addEventListener("click", () =>
-					this.openPlanIdeaModal(index, item)
-				);
-				// No priority icons — a "Maybe" is spelled out inline.
-				const textEl = row.createDiv({
-					cls: "contact-idea-text",
-					text:
-						item.priority === "maybe"
-							? `Maybe: ${item.text}`
-							: item.text,
-				});
-				if (item.cost !== undefined) {
-					textEl.createSpan({
-						cls: "item-cost",
-						text: ` · ${formatItemCost(item.cost)}`,
+		} else {
+			for (const group of PlanOperations.groupQuickIdeas(ideas)) {
+				// A blank label is the single ungrouped case — nothing is
+				// categorised, so a heading would name a distinction that
+				// isn't being drawn.
+				if (group.label) {
+					section.createDiv({
+						cls: "plan-quick-idea-group",
+						text: group.label,
 					});
 				}
-				if (item.people) {
-					textEl.createSpan({
-						cls: "plan-item-people",
-						text: ` · ${item.people}`,
-					});
+				for (const { idea, index } of group.entries) {
+					this.renderQuickIdeaRow(section, idea, index);
 				}
 			}
 		}
@@ -2305,11 +2289,289 @@ export class ContactPageView extends ItemView {
 		setIcon(addButton, "plus");
 		addButton.createSpan({ text: "Add idea" });
 		addButton.addEventListener("click", () =>
-			this.openPlanIdeaModal(null, null)
+			this.openQuickIdeaModal(null, null)
 		);
 	}
 
-	/** Flat cost-bearing lists: travel legs, accommodation options */
+	private renderQuickIdeaRow(
+		container: HTMLElement,
+		idea: PlanQuickIdea,
+		index: number
+	) {
+		const row = container.createDiv({
+			cls: "contact-timeline-item plan-timeline-item timeline-idea plan-quick-idea-row",
+		});
+		row.addEventListener("click", () => this.openQuickIdeaView(index));
+		row.createDiv({ cls: "contact-timeline-dot timeline-dot-idea" });
+
+		const type = PLAN_IDEA_CATEGORIES.find((c) => c.id === idea.type);
+		const emoji =
+			type && !this.startsWithEmoji(idea.text) ? `${type.emoji} ` : "";
+		const textEl = row.createDiv({
+			cls: "contact-timeline-text",
+			text: `${emoji}${idea.text}`,
+		});
+
+		// The candidate days are what distinguishes this from a timeline
+		// row, so they lead the meta rather than trailing it.
+		const metaBits: string[] = [];
+		if (idea.dates && idea.dates.length > 0) {
+			metaBits.push(formatQuickIdeaDates(idea.dates));
+		}
+		if (idea.time) metaBits.push(formatItemTime(idea.time));
+		if (idea.cost !== undefined) metaBits.push(formatItemCost(idea.cost));
+		if (metaBits.length) {
+			textEl.createSpan({
+				cls: "plan-travel-meta",
+				text: `  ·  ${metaBits.join("  ·  ")}`,
+			});
+		}
+
+		if (idea.people) {
+			row.createDiv({
+				cls: "plan-travel-people",
+				text: shortenPeopleList(
+					idea.people,
+					this.planParticipants(),
+					this.plugin.settings.yourName,
+					this.planShortNameOverrides()
+				),
+			});
+		}
+	}
+
+	/** Category names known to this plan, offered when adding another idea. */
+	private quickIdeaCategories(): string[] {
+		return PlanOperations.quickIdeaCategoriesOf(this.contactData);
+	}
+
+	/**
+	 * Fold an idea's categories into the plan's persisted vocabulary.
+	 *
+	 * Deliberately never prunes: a category dropped from every idea that
+	 * used it stays offered for the next one. There's no delete for it
+	 * either — the list only ever grows, which is the whole point of
+	 * saving it against the plan rather than deriving it live.
+	 */
+	private rememberQuickIdeaCategories(categories: string[] | undefined) {
+		if (!categories || categories.length === 0) return;
+		const known = PlanOperations.quickIdeaCategoriesOf(this.contactData);
+		for (const cat of categories) {
+			if (!known.some((k) => k.toLowerCase() === cat.toLowerCase())) {
+				known.push(cat);
+			}
+		}
+		this.contactData.quickIdeaCategories = known;
+	}
+
+	private async writeQuickIdeas(list: PlanQuickIdea[]) {
+		if (list.length > 0) this.contactData.quickIdeas = list;
+		else delete this.contactData.quickIdeas;
+		await this.saveContactData();
+		this.render();
+	}
+
+	/** Add (index null) or edit a quick idea. */
+	private openQuickIdeaModal(index: number | null, idea: PlanQuickIdea | null) {
+		new PlanQuickIdeaModal(
+			this.app,
+			async (value) => {
+				const list = PlanOperations.quickIdeasOf(this.contactData);
+				if (index === null) {
+					list.push({ ...value, created: value.created || todayISO() });
+				} else {
+					list[index] = value;
+				}
+				this.rememberQuickIdeaCategories(value.categories);
+				await this.writeQuickIdeas(list);
+			},
+			idea,
+			index === null
+				? undefined
+				: async () => {
+						const list = PlanOperations.quickIdeasOf(
+							this.contactData
+						);
+						list.splice(index, 1);
+						await this.writeQuickIdeas(list);
+				  },
+			this.planScheduleOptions(),
+			this.quickIdeaCategories()
+		).open();
+	}
+
+	private openQuickIdeaView(index: number) {
+		const idea = PlanOperations.quickIdeasOf(this.contactData)[index];
+		if (!idea) return;
+		new PlanQuickIdeaViewModal(
+			this.app,
+			idea,
+			() => this.openQuickIdeaModal(index, idea),
+			async () => {
+				const list = PlanOperations.quickIdeasOf(this.contactData);
+				list.splice(index, 1);
+				await this.writeQuickIdeas(list);
+			},
+			() => this.promoteQuickIdea(index, idea),
+			this.planParticipants(),
+			this.plugin.settings.yourName,
+			this.planShortNameOverrides()
+		).open();
+	}
+
+	/**
+	 * Move a quick idea onto the timeline, via the ordinary item form.
+	 *
+	 * The idea is removed inside the item modal's submit handler, not before
+	 * it opens — so dismissing that form leaves the idea untouched rather
+	 * than destroying it on the way to a decision that never happened.
+	 *
+	 * Its first candidate day is offered as the date; the rest can't be
+	 * carried, since a timeline item happens on one day by definition.
+	 */
+	private promoteQuickIdea(index: number, idea: PlanQuickIdea) {
+		new PlanItemModal(
+			this.app,
+			String(this.contactData.name ?? ""),
+			async (value) => {
+				const items = PlanOperations.itemsOf(this.contactData);
+				items.push(value);
+				this.contactData.items = items;
+				// Only now, with the item actually created.
+				const list = PlanOperations.quickIdeasOf(this.contactData);
+				list.splice(index, 1);
+				if (list.length > 0) this.contactData.quickIdeas = list;
+				else delete this.contactData.quickIdeas;
+				await this.saveContactData();
+				this.render();
+			},
+			null,
+			undefined,
+			this.planScheduleOptions(),
+			{
+				text: idea.text,
+				category: idea.type ?? "activity",
+				priority: "must",
+				...(idea.dates?.[0] && { date: idea.dates[0] }),
+				...(idea.time && { time: idea.time }),
+				...(idea.duration && { duration: idea.duration }),
+				...(idea.people && { people: idea.people }),
+				...(idea.cost !== undefined && { cost: idea.cost }),
+				...(idea.notes && { notes: idea.notes }),
+			}
+		).open();
+	}
+
+	/**
+	 * One accommodation row: name • hours • cost • booking, with the nights
+	 * pinned to the right.
+	 *
+	 * Only the name shrinks. Everything else is short and load-bearing —
+	 * a truncated "$40" or "Booke…" tells you nothing — so the meta spans
+	 * refuse to shrink and the name takes the squeeze, ellipsis and all.
+	 */
+	private renderStayRow(row: HTMLElement, item: PlanSimpleItem) {
+		// Its own marker: `.contact-idea-item` is shared with travel rows and
+		// other reused lists, which stay dividerless by design — this is
+		// what a phone's row-to-row divider (CSS) hooks onto instead of
+		// reaching for every item in the section.
+		row.addClass("plan-stay-list-item");
+
+		const main = row.createDiv({
+			cls: "contact-idea-text plan-stay-row",
+		});
+
+		// Name + nights in their own non-wrapping group. Without this, a
+		// phone can wrap *between* them instead of at the intended break
+		// below — flexbox is free to start a new line wherever a row's
+		// content overflows, not only where a forced break sits, so on a
+		// narrow name flex-wrap could split "Name" from "• 7 nights" into
+		// two lines by itself. Grouping them removes that option: the pair
+		// wraps as one unit or not at all, and the name still ellipses
+		// inside it exactly as before.
+		const primary = main.createDiv({ cls: "plan-stay-group" });
+		const nameEl = primary.createSpan({ cls: "plan-stay-name" });
+		const icon = (item.stay && ACCOMMODATION_EMOJI[item.stay]) || "🛏️";
+		if (!this.startsWithEmoji(item.text)) {
+			nameEl.createSpan({ cls: "plan-item-type-icon", text: icon });
+		}
+		nameEl.createSpan({ text: item.text });
+		if (item.nights) {
+			primary.createSpan({
+				cls: "plan-stay-meta",
+				text: `• ${nightsLabel(item.nights)}`,
+			});
+		}
+
+		// Forces the phone-only wrap between the two groups. Inert on
+		// desktop (`display: none`), where the row stays one line.
+		main.createSpan({ cls: "plan-stay-break" });
+
+		const booking = BOOKING_STATES.find((b) => b.id === item.booked);
+		// Still needs booking: that's the answer this row is scanning for,
+		// so it stands alone rather than sharing the line with hours that
+		// aren't confirmed yet either.
+		const suppressHours = booking?.id === "todo";
+		const hours = formatStayHours(item.checkIn, item.checkOut);
+
+		// Hours + booking, same non-wrapping-group reasoning as above —
+		// "Check in 3pm, 11am out • ✅" must not split across two lines
+		// either. Only created when there's something to put in it, so an
+		// empty group can't leave a stray forced break with nothing after it.
+		if ((hours && !suppressHours) || (booking && booking.id !== "none")) {
+			const secondary = main.createDiv({ cls: "plan-stay-group" });
+			const hoursShown = !!hours && !suppressHours;
+			if (hoursShown) {
+				secondary.createSpan({ cls: "plan-stay-hours", text: hours });
+			}
+			if (booking && booking.id !== "none") {
+				// The bullet is its own flex child, not text baked onto the
+				// chip — that's what makes its gap on both sides come from
+				// the same `gap` the rest of the row uses, rather than a
+				// flex gap on one side and a typed space on the other. Only
+				// there when hours actually rendered before it: with
+				// nothing to separate from, a bullet is a stray dot.
+				if (hoursShown) {
+					secondary.createSpan({
+						cls: "plan-stay-sep",
+						text: "•",
+					});
+				}
+				const isTodo = booking.id === "todo";
+				// "To book" leads with the word, red and bold — that's the
+				// one still needing action, so it should read as an alert
+				// rather than sit at the same weight as a settled "Booked".
+				// The emoji trails it instead of leading, for the same
+				// reason: the word is the part worth catching your eye.
+				const chip = secondary.createSpan({
+					cls: `plan-stay-meta plan-stay-booking${
+						isTodo ? " plan-stay-booking-todo" : ""
+					}`,
+					// "Need to book" here rather than BOOKING_STATES' own
+					// "To book" — that shorter label reads fine as a travel
+					// row's trailing chip, but stated as the one thing this
+					// row still needs, "Need to" is the clearer prompt.
+					text: isTodo ? "Need to book" : booking.emoji,
+				});
+				// The word is a separate span rather than a JS device check,
+				// so it follows the same `.is-phone` CSS switch as the rest
+				// of this row's layout instead of a second source of truth.
+				// Booked hides it on desktop — the tick alone says it, and
+				// the word would only cost room the name could use — but
+				// keeps it on a phone, where this already has its own
+				// full-width line with nothing to compete with. "To book"
+				// keeps its emoji everywhere instead, trailing the word.
+				chip.createSpan({
+					cls: isTodo
+						? "plan-stay-booking-suffix"
+						: "plan-stay-booking-suffix plan-stay-booking-suffix-desktop-hidden",
+					text: isTodo ? ` • ${booking.emoji}` : ` ${booking.label}`,
+				});
+			}
+		}
+	}
+
+
 	private renderPlanSimpleList(
 		container: HTMLElement,
 		key: "travel" | "accommodation",
@@ -2342,15 +2604,22 @@ export class ContactPageView extends ItemView {
 				cls: "contact-idea-item plan-clickable-row",
 			});
 			row.addEventListener("click", () => open(index, item));
+
+			// A stay reads as one line with its nights pinned right; travel
+			// keeps the plain run-on below, having no such trailing figure.
+			// Notes are deliberately not shown — the row is a summary, and a
+			// free-text note is the one field that can run long enough to
+			// swamp it. They're still there in the item's own modal.
+			if (key === "accommodation") {
+				this.renderStayRow(row, item);
+				return;
+			}
+
 			const textEl = row.createDiv({
 				cls: "contact-idea-text",
 			});
-			const icon =
-				key === "accommodation"
-					? (item.stay && ACCOMMODATION_EMOJI[item.stay]) || "🛏️"
-					: item.type
-					? TRAVEL_TYPE_EMOJI[item.type]
-					: "";
+			// Only travel reaches here — a stay returned above.
+			const icon = item.type ? TRAVEL_TYPE_EMOJI[item.type] : "";
 			if (icon && !this.startsWithEmoji(item.text)) {
 				textEl.createSpan({
 					cls: "plan-item-type-icon",
@@ -2362,14 +2631,6 @@ export class ContactPageView extends ItemView {
 				textEl.createSpan({
 					cls: "plan-item-duration",
 					text: ` · ${item.duration}`,
-				});
-			}
-			if (item.nights) {
-				textEl.createSpan({
-					cls: "plan-item-duration",
-					text: ` · ${
-						nightsLabel(item.nights)
-					}`,
 				});
 			}
 			if (item.cost !== undefined) {
@@ -2413,8 +2674,8 @@ export class ContactPageView extends ItemView {
 	/** Context-aware placeholders for the travel / accommodation modal. */
 	private planSimplePlaceholders(key: "travel" | "accommodation") {
 		return key === "travel"
-			? { text: "e.g. Harry's car to the coast", duration: "e.g. 2h 30m" }
-			: { text: "e.g. Beachfront Airbnb", duration: "e.g. 3 nights" };
+			? { text: "e.g. Harry's car to the coast" }
+			: { text: "e.g. Beachfront Airbnb" };
 	}
 
 	/** Item cost label: an explicit 0 reads as "Free"; blank stays hidden. */
@@ -2449,15 +2710,50 @@ export class ContactPageView extends ItemView {
 		}
 		const sortedDays = [...days].sort();
 
-		if (sortedDays.length === 0) {
+		// Ideas nobody has pinned to a day yet. They go above the itinerary,
+		// not below it: an undated idea is the one thing here still waiting
+		// on a decision, and burying it under the schedule is how it gets
+		// forgotten.
+		const undated = PlanOperations.undatedIdeaEntries(this.contactData);
+
+		if (sortedDays.length === 0 && undated.length === 0) {
 			section.createDiv({
 				cls: "section-helper-text",
 				text: "Give an idea, travel leg or stay a date and it lands here in order — your itinerary as it firms up.",
 			});
 		} else {
+			// Rows the timeline is about to render — day headings and
+			// empty-day placeholders included, because they take up as much
+			// height as an item does. Counting only the items would badly
+			// under-read a two-week plan with three things in it.
+			const rowCount =
+				(undated.length > 0 ? 1 + undated.length : 0) +
+				sortedDays.reduce(
+					(n, day) =>
+						n + 1 + Math.max(1, byDay.get(day)?.length ?? 0),
+					0
+				);
+			// Roughly a screenful. A count rather than a measurement: reading
+			// heights would mean rendering, measuring, then inserting — a
+			// visible reflow on every refresh, to answer a question this
+			// settles well enough.
+			const LONG_TIMELINE_ROWS = 10;
+			if (rowCount > LONG_TIMELINE_ROWS) {
+				this.renderTimelineAddRow(section, "plan-timeline-footer-top");
+			}
+
 			const timeline = section.createDiv({
 				cls: "contact-timeline plan-timeline",
 			});
+			if (undated.length > 0) {
+				timeline.createDiv({
+					cls: "contact-timeline-year plan-timeline-day plan-timeline-needs-date",
+					text: "Needs date",
+				});
+				for (const entry of undated) {
+					this.renderPlanTimelineEntry(timeline, entry);
+				}
+			}
 			for (const day of sortedDays) {
 				timeline.createDiv({
 					cls: "contact-timeline-year plan-timeline-day",
@@ -2487,34 +2783,46 @@ export class ContactPageView extends ItemView {
 			});
 			setIcon(copyButton, "copy");
 			copyButton.createSpan({ text: "Copy as text" });
-			const copyShareText = async () => {
-				await navigator.clipboard.writeText(this.buildPlanShareText());
-				new Notice("📋 Copied — ready to paste as text");
-			};
-			copyButton.addEventListener("click", () => void copyShareText());
+			copyButton.addEventListener("click", () => {
+				new PlanShareModal(
+					this.app,
+					(detail) => this.buildPlanShareText(detail),
+					async (text) => {
+						await navigator.clipboard.writeText(text);
+						new Notice("📋 Copied — ready to paste as text");
+					}
+				).open();
+			});
 		}
 
-		// Quick-add at the bottom of the itinerary
-		const footer = section.createDiv({
-			cls: "contact-section-footer plan-timeline-footer",
-		});
-		const addIdeaBtn = footer.createEl("button", {
-			cls: "callander-button",
-		});
-		setIcon(addIdeaBtn, "plus");
-		addIdeaBtn.createSpan({ text: "Add idea" });
-		addIdeaBtn.addEventListener("click", () =>
-			this.openPlanIdeaModal(null, null)
-		);
+		// Quick-add at the bottom of the itinerary — and at the top too when
+		// the list is long (see the top copy above).
+		this.renderTimelineAddRow(section);
+	}
 
-		const addTravelBtn = footer.createEl("button", {
-			cls: "callander-button",
+	/**
+	 * The itinerary's quick-add buttons.
+	 *
+	 * Rendered below the timeline always, and above it as well once the list
+	 * is long enough that the bottom is a scroll away — on a week-long plan
+	 * the only way to add anything was to scroll past everything first.
+	 */
+	private renderTimelineAddRow(host: HTMLElement, extraCls = "") {
+		const row = host.createDiv({
+			cls: `contact-section-footer plan-timeline-footer ${extraCls}`.trim(),
 		});
-		setIcon(addTravelBtn, "plus");
-		addTravelBtn.createSpan({ text: "Add travel" });
-		addTravelBtn.addEventListener("click", () =>
-			this.openPlanTravelModal(null, null)
-		);
+		const add = (label: string, onClick: () => void) => {
+			const button = row.createEl("button", { cls: "callander-button" });
+			setIcon(button, "plus");
+			button.createSpan({ text: label });
+			button.addEventListener("click", onClick);
+		};
+		// "Add to timeline" rather than "Add item": the section is already
+		// called Timeline, and this is the same phrase a quick idea uses to
+		// get here — one verb for one destination. See also PlanItemModal,
+		// which calls the thing an "item" where a noun is unavoidable.
+		add("Add to timeline", () => this.openPlanIdeaModal(null, null));
+		add("Add travel", () => this.openPlanTravelModal(null, null));
 	}
 
 	/** One timeline row for a dated item. */
@@ -2567,17 +2875,24 @@ export class ContactPageView extends ItemView {
 		}
 		if (entry.cost !== undefined)
 			metaBits.push(formatItemCost(entry.cost));
-		// Only the state that still needs chasing earns a spot on the timeline.
-		// "Booked" and "Not needed" are resting states — the Accommodation
-		// section and the modals are where you go to check them.
-		const booking = BOOKING_STATES.find((b) => b.id === entry.booked);
-		if (booking && booking.id === "todo") {
-			metaBits.push(`${booking.emoji} ${booking.label}`);
-		}
 		if (metaBits.length) {
 			textEl.createSpan({
 				cls: "plan-travel-meta",
 				text: `  ·  ${metaBits.join("  ·  ")}`,
+			});
+		}
+		// Only the state that still needs chasing earns a spot on the timeline.
+		// "Booked" and "Not needed" are resting states — the Accommodation
+		// section and the modals are where you go to check them. Its own span
+		// (not joined into metaBits) so the "Need to book" text can be
+		// coloured without recolouring the rest of the meta line.
+		const booking = BOOKING_STATES.find((b) => b.id === entry.booked);
+		if (booking && booking.id === "todo") {
+			const bookingEl = textEl.createSpan({ cls: "plan-travel-meta" });
+			bookingEl.createSpan({ text: "  ·  " });
+			bookingEl.createSpan({
+				cls: "plan-timeline-booking-todo",
+				text: `${booking.emoji} Need to book`,
 			});
 		}
 
@@ -2595,19 +2910,30 @@ export class ContactPageView extends ItemView {
 			});
 		}
 
-		// Plain text here — the whole row is already a target that opens the
-		// read view, where the address gets its Map button.
-		if (entry.address) {
+		// A stay calls it an address, an idea calls it a location — never
+		// both on the same entry, so one line covers either. Plain text
+		// here — the whole row is already a target that opens the read
+		// view, where it gets its Map button.
+		const place = entry.address ?? entry.location;
+		if (place) {
 			row.createDiv({
-				cls: "plan-stay-address",
-				text: `📍 ${entry.address}`,
+				cls: "plan-entry-place",
+				text: `📍 ${place}`,
+			});
+		}
+
+		const stayHours = formatStayHours(entry.checkIn, entry.checkOut);
+		if (stayHours) {
+			row.createDiv({
+				cls: "plan-entry-place",
+				text: `🔑 ${stayHours}`,
 			});
 		}
 
 		if (entry.notes) {
 			row.createDiv({
 				cls: "plan-stay-notes",
-				text: entry.notes,
+				text: `📝 ${entry.notes}`,
 			});
 		}
 
@@ -2696,8 +3022,55 @@ export class ContactPageView extends ItemView {
 			(notes) => this.saveTimelineEntryNotes(entry, notes),
 			this.planParticipants(),
 			this.plugin.settings.yourName,
-			this.planShortNameOverrides()
+			this.planShortNameOverrides(),
+			// Drafts returned above, so this is an idea, a leg or a stay —
+			// all three carry the text/people/cost the form starts from.
+			() => this.createExpenseFromEntry(entry)
 		).open();
+	}
+
+	/**
+	 * "Create expense" on a timeline row: the Cost breakdown's own Add form,
+	 * opened with what the row already knows filled in.
+	 *
+	 * It's a starting point, not a link — the expense is an ordinary one from
+	 * the moment it's added, with no tie back to the row. Editing the item's
+	 * cost later doesn't chase it, which is deliberate: what a thing was
+	 * estimated to cost and what it actually cost are different facts.
+	 */
+	private createExpenseFromEntry(entry: PlanTimelineEntry) {
+		// The row's people are display names in one comma-joined string —
+		// the same shape the timeline row renders from.
+		const named = (entry.people ?? "")
+			.split(",")
+			.map((n) => n.trim())
+			.filter(Boolean);
+
+		new ExpenseModal(
+			this.app,
+			this.planParticipants(),
+			null,
+			(cost) => this.appendExpense(cost),
+			undefined,
+			this.plugin.settings.yourName,
+			this.plugin.settings.receiptTaxPercent,
+			this.plugin.settings.receiptTipPercent,
+			undefined,
+			{
+				label: entry.text,
+				...(entry.cost !== undefined && { amount: entry.cost }),
+				...(named.length > 0 && { included: named }),
+			}
+		).open();
+	}
+
+	/** Add a new expense to this plan's Cost breakdown. */
+	private async appendExpense(cost: Expense) {
+		const list = expensesOf(this.contactData);
+		list.push(cost);
+		this.contactData.costs = list;
+		await this.saveContactData();
+		this.render();
 	}
 
 	/** Remove a timeline row's underlying item from the plan. */
@@ -2905,6 +3278,8 @@ export class ContactPageView extends ItemView {
 						// Read only to migrate a legacy "3 nights" into `nights`.
 						duration: item.duration,
 						nights: item.nights,
+						checkIn: item.checkIn,
+						checkOut: item.checkOut,
 						address: item.address,
 						booked: item.booked,
 						notes: item.notes,
@@ -3376,13 +3751,7 @@ export class ContactPageView extends ItemView {
 				this.app,
 				this.planParticipants(),
 				null,
-				async (cost) => {
-					const list = expensesOf(this.contactData);
-					list.push(cost);
-					this.contactData.costs = list;
-					await this.saveContactData();
-					this.render();
-				},
+				(cost) => this.appendExpense(cost),
 				undefined,
 				this.plugin.settings.yourName,
 				this.plugin.settings.receiptTaxPercent,

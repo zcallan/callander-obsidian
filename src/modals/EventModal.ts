@@ -4,6 +4,10 @@ import { ConfirmModal } from "@/modals/ConfirmModal";
 import { CopyEventModal } from "@/modals/CopyEventModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { appendContactPicker } from "@/components/ContactPicker";
+import {
+	appendClockField,
+	appendDurationField,
+} from "@/modals/scheduleFields";
 import { normalizeUrl } from "@/utils/url";
 import type FriendTracker from "@/main";
 import type { EventInfo } from "@/types";
@@ -123,12 +127,23 @@ export class EventModal extends FormModal {
 		const timeField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
-		timeField.createEl("label", { text: "Time (optional)" });
-		const timeInput = timeField.createEl("input", {
-			cls: "callander-modal-input",
-			attr: { type: "time" },
+		const time = appendClockField(
+			timeField,
+			this.existing?.time ?? this.prefill?.time
+		);
+
+		// ---- Duration ----
+		// Directly under the time it starts: the two answer one question
+		// between them, and "Add to calendar" needs both to know when the
+		// event ends.
+		const durationField = contentEl.createDiv({
+			cls: "callander-modal-field",
 		});
-		timeInput.value = this.existing?.time ?? this.prefill?.time ?? "";
+		const duration = appendDurationField(
+			durationField,
+			this.existing?.duration ?? this.prefill?.duration,
+			"Duration (optional)"
+		);
 
 		// ---- People ----
 		const peopleField = contentEl.createDiv({
@@ -342,7 +357,8 @@ export class EventModal extends FormModal {
 			const fields: EventFields = {
 				name,
 				date: dateValue.trim() || undefined,
-				time: timeInput.value.trim() || undefined,
+				time: time.value() || undefined,
+				duration: duration.value() || undefined,
 				type: this.type,
 				people: picked,
 				location: locInput.value.trim() || undefined,

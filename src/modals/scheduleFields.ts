@@ -1,4 +1,9 @@
-import { ALL_DAY_TIME, ROUGH_TIMES, roughTime } from "@/constants";
+import { ALL_DAY_TIME, ANY_TIME, ROUGH_TIMES, roughTime } from "@/constants";
+import {
+	formatDurationLabel,
+	formatHourLabel,
+	parseDurationMinutes,
+} from "@/utils/planFormat";
 
 /**
  * Shared Date / Time / People fields for plan-item modals (ideas, travel,
@@ -26,6 +31,9 @@ export interface ScheduleFieldOptions {
 	people?: string[];
 	/** Stays close out their day, so they don't carry a clock time. */
 	hideTime?: boolean;
+	/** Skip Date — for a form that picks its own days (a quick idea offers
+	 * several candidates, which one date field can't express). */
+	hideDate?: boolean;
 	/** Fired when the date changes — lets a caller track it live. */
 	onDateChange?: () => void;
 	/** Skip People here so a caller can place it elsewhere in the form. */
@@ -53,8 +61,10 @@ export function appendScheduleFields(
 	options: ScheduleFieldOptions = {}
 ): ScheduleFieldsHandle {
 	// --- Date ---
-	const dateField = container.createDiv({ cls: "plan-schedule-field" });
-	dateField.createDiv({
+	const dateField = options.hideDate
+		? null
+		: container.createDiv({ cls: "plan-schedule-field" });
+	dateField?.createDiv({
 		cls: "modal-section-label",
 		text: options.dateLabel ?? "Date",
 	});
@@ -65,7 +75,9 @@ export function appendScheduleFields(
 	// and stop being quicker to read than a list.
 	const PILL_LIMIT = 6;
 	let pillDate = initialDate;
-	if (
+	if (!dateField) {
+		// No date control at all — values() falls through to "".
+	} else if (
 		options.dayOptions &&
 		options.dayOptions.length > 0 &&
 		options.dayOptions.length < PILL_LIMIT
@@ -214,9 +226,10 @@ export function appendScheduleFields(
 		minuteSelect = selects.createEl("select", {
 			cls: "quick-idea-input plan-time-select",
 		});
-		for (const m of ["00", "15", "30", "45"]) {
-			const opt = minuteSelect.createEl("option", { value: m, text: m });
-			if (m === (initMinute || "00")) opt.selected = true;
+		for (let m = 0; m < 60; m += 5) {
+			const v = String(m).padStart(2, "0");
+			const opt = minuteSelect.createEl("option", { value: v, text: v });
+			if (v === (initMinute || "00")) opt.selected = true;
 		}
 	};
 
@@ -334,4 +347,203 @@ export function appendPeopleField(
 	});
 	input.value = initial ?? "";
 	return { value: () => input.value.trim(), input };
+}
+
+/** A duration control's handle — the stored string, or "" when unset. */
+export interface DurationFieldHandle {
+	value: () => string;
+}
+
+/**
+ * "How long", as an hours + minutes pair rather than free text.
+ *
+ * Stores the same canonical string the field always held ("2h 30m"), so
+ * existing values keep displaying unchanged everywhere they already appear
+ * — the dropdowns are a nicer way to write one, not a new data shape.
+ *
+ * Minutes go in fives: a plan is not a stopwatch, and sixty options to
+ * scroll past would make the common answers harder to reach, not easier.
+ */
+export function appendDurationField(
+	container: HTMLElement,
+	initial: string | undefined,
+	label = "Duration (optional)"
+): DurationFieldHandle {
+	container.createDiv({ cls: "modal-section-label", text: label });
+	const row = container.createDiv({ cls: "plan-time-selects" });
+
+	const total = parseDurationMinutes(initial);
+	const initialHours = total === null ? 0 : Math.floor(total / 60);
+	// Snapped to the nearest five, so a legacy "1h 7m" still selects
+	// something rather than silently falling back to zero.
+	const initialMinutes =
+		total === null ? 0 : Math.round((total % 60) / 5) * 5;
+
+	const hourSelect = row.createEl("select", {
+		cls: "quick-idea-input plan-time-select",
+		attr: { "aria-label": "Hours" },
+	});
+	for (let h = 0; h <= 23; h++) {
+		const opt = hourSelect.createEl("option", {
+			value: String(h),
+			text: `${h}h`,
+		});
+		if (h === initialHours) opt.selected = true;
+	}
+
+	const minuteSelect = row.createEl("select", {
+		cls: "quick-idea-input plan-time-select",
+		attr: { "aria-label": "Minutes" },
+	});
+	for (let m = 0; m < 60; m += 5) {
+		const opt = minuteSelect.createEl("option", {
+			value: String(m),
+			text: `${m}m`,
+		});
+		// 60 isn't an option, so a snap that rounded up to it belongs on the
+		// hour above — but that hour was already floored from the total, so
+		// clamp here rather than leave nothing selected.
+		if (m === Math.min(initialMinutes, 55)) opt.selected = true;
+	}
+
+	return {
+		value: () =>
+			formatDurationLabel(
+				Number(hourSelect.value) * 60 + Number(minuteSelect.value)
+			),
+	};
+}
+
+/** A check-in/check-out pair — each "HH:MM" or "" when unset. */
+export interface HourRangeHandle {
+	values: () => { from: string; to: string };
+}
+
+/**
+ * Two hour-only dropdowns side by side, each under its own label.
+ *
+ * Hours alone, no minutes: nobody records a 3:15pm check-in, and the pair
+ * exists to give the stay a shape on a calendar rather than to be precise.
+ * "Any time" is the blank — either can be left unset, which is what an
+ * all-day booking looks like.
+ */
+export function appendHourRangeField(
+	container: HTMLElement,
+	labels: { from: string; to: string },
+	initial: { from?: string; to?: string } = {}
+): HourRangeHandle {
+	const row = container.createDiv({ cls: "plan-time-selects" });
+
+	const build = (label: string, current: string | undefined) => {
+		const wrap = row.createDiv({ cls: "plan-hour-range-half" });
+		// The label sits on the control itself — there's no section heading
+		// above the pair, so this is the only thing naming either one.
+		wrap.createDiv({ cls: "modal-section-label", text: label });
+		const select = wrap.createEl("select", {
+			cls: "quick-idea-input plan-time-select",
+			attr: { "aria-label": label },
+		});
+		// Unset leads, because it's the honest default — most stays haven't
+		// had their hours checked yet. "Any time" is a real answer sitting
+		// below it, for when they genuinely don't matter; conflating the two
+		// would claim you can arrive whenever before anyone has looked.
+		select.createEl("option", { value: "", text: "—" });
+		select.createEl("option", { value: ANY_TIME, text: "Any time" });
+		if (current === ANY_TIME) {
+			select.value = ANY_TIME;
+		}
+		const currentHour = /^(\d{1,2}):/.exec(current ?? "")?.[1];
+		for (let h = 0; h <= 23; h++) {
+			const value = `${String(h).padStart(2, "0")}:00`;
+			const opt = select.createEl("option", {
+				value,
+				text: formatHourLabel(h),
+			});
+			if (currentHour !== undefined && Number(currentHour) === h) {
+				opt.selected = true;
+			}
+		}
+		return select;
+	};
+
+	const fromSelect = build(labels.from, initial.from);
+	const toSelect = build(labels.to, initial.to);
+
+	return {
+		values: () => ({ from: fromSelect.value, to: toSelect.value }),
+	};
+}
+
+/** An hours+minutes clock control's handle — "HH:MM", or "" when unset. */
+export interface ClockFieldHandle {
+	value: () => string;
+}
+
+/**
+ * A time of day as hour + minute dropdowns, in the same shape as the
+ * duration control beside it.
+ *
+ * Not `<input type="time">`: that renders as a different control on every
+ * platform, and on mobile opens a spinner that fights the same keyboard
+ * work the rest of these forms are careful about. Two selects behave
+ * identically everywhere, and pair visually with Duration underneath.
+ *
+ * Both dropdowns carry a blank option, because a time is optional here —
+ * clearing either one clears the value entirely rather than silently
+ * meaning midnight.
+ */
+export function appendClockField(
+	container: HTMLElement,
+	initial: string | undefined,
+	label = "Time (optional)"
+): ClockFieldHandle {
+	container.createEl("label", { text: label });
+	const row = container.createDiv({ cls: "plan-time-selects" });
+
+	const match = /^(\d{1,2}):(\d{2})$/.exec(initial ?? "");
+	const initialHour = match ? Number(match[1]) : null;
+	// Snapped to the nearest five so an existing "7:07" still selects
+	// something rather than falling back to blank.
+	const initialMinute = match
+		? Math.min(Math.round(Number(match[2]) / 5) * 5, 55)
+		: null;
+
+	const hourSelect = row.createEl("select", {
+		cls: "quick-idea-input plan-time-select",
+		attr: { "aria-label": "Hour" },
+	});
+	hourSelect.createEl("option", { value: "", text: "—" });
+	for (let h = 0; h < 24; h++) {
+		const opt = hourSelect.createEl("option", {
+			value: String(h),
+			// 12-hour label, 24-hour value: the value is what sorts and
+			// stores, the label is what reads.
+			text: formatHourLabel(h),
+		});
+		if (h === initialHour) opt.selected = true;
+	}
+
+	const minuteSelect = row.createEl("select", {
+		cls: "quick-idea-input plan-time-select",
+		attr: { "aria-label": "Minute" },
+	});
+	for (let m = 0; m < 60; m += 5) {
+		const opt = minuteSelect.createEl("option", {
+			value: String(m),
+			text: `:${String(m).padStart(2, "0")}`,
+		});
+		if (m === initialMinute) opt.selected = true;
+	}
+
+	return {
+		value: () => {
+			if (hourSelect.value === "") return "";
+			const hour = Number(hourSelect.value);
+			const minute = Number(minuteSelect.value);
+			return `${String(hour).padStart(2, "0")}:${String(minute).padStart(
+				2,
+				"0"
+			)}`;
+		},
+	};
 }

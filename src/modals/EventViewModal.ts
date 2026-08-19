@@ -7,7 +7,7 @@ import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
 import { EVENT_TYPES } from "@/constants";
-import { buildEventShareText } from "@/utils/eventShare";
+import { buildEventShareText, buildGoogleCalendarUrl } from "@/utils/eventShare";
 import { normalizeUrl } from "@/utils/url";
 
 /**
@@ -314,6 +314,34 @@ export class EventViewModal extends Modal {
 		const progressRow = contentEl.createDiv({
 			cls: "someday-view-actions",
 		});
+
+		// Google's own prefilled-event link rather than an .ics file — one
+		// tap lands directly on Google Calendar's "Save event" screen, with
+		// no import step and no dependence on how the OS happens to route a
+		// calendar file today. Only offered when there's a real day to put
+		// it on — a month- or year-only date has nowhere sensible to send
+		// someone. this.description, not e.description: whatever's on
+		// screen right now, same as Copy above.
+		const calendarUrl = buildGoogleCalendarUrl(
+			{
+				name: e.name,
+				type: e.type,
+				date: e.date,
+				time: e.time,
+				duration: e.duration,
+				location: e.location,
+				description: this.description,
+				link: e.link,
+			},
+			// The same shortened names the 👥 line above shows, so the
+			// calendar entry and the modal agree on what to call everyone.
+			e.people.length > 0 ? this.peopleNames() : []
+		);
+		if (calendarUrl) {
+			button(progressRow, "calendar-clock", "Add to calendar", () => {
+				window.open(calendarUrl, "_blank");
+			});
+		}
 
 		if (this.hasDoneState()) {
 			const isDone = e.status === "done";

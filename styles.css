@@ -2074,6 +2074,14 @@ If your plugin does not need CSS, delete this file.
 	font-size: 0.95em;
 }
 
+/* Ideas with no day yet, pinned above the itinerary. Purple, like the draft
+   tag — both mark something that isn't a settled part of the plan. Two
+   classes so it outranks .contact-timeline-year's muted colour whatever the
+   rule order ends up being. */
+.plan-timeline-day.plan-timeline-needs-date {
+	color: var(--text-accent);
+}
+
 /* A day in the plan's range with nothing scheduled */
 .plan-timeline-empty {
 	color: var(--text-muted);
@@ -2096,6 +2104,14 @@ If your plugin does not need CSS, delete this file.
 .plan-travel-meta {
 	color: var(--text-muted);
 	font-size: 0.9em;
+}
+
+/* Still needs booking, on the timeline — an alert colour, same reasoning
+   as .plan-stay-booking-todo on the Accommodation list row. Size stays
+   inherited from the parent .plan-travel-meta (0.9em) rather than that
+   rule's own 0.8em, which would compound into a second timeline row. */
+.plan-timeline-booking-todo {
+	color: var(--text-error);
 }
 
 /* Inline "people" tag on a plain list row */
@@ -3886,6 +3902,8 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* ── People field: dropdown + removable pills ── */
+/* Obsidian pins <select> to a short fixed height; with .quick-idea-input's
+   padding on top of it the label clips. Let them grow to fit instead. */
 .plan-date-select,
 .people-select {
 	width: 100%;
@@ -4621,8 +4639,9 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	font-size: 0.9em;
 }
 
-/* Address + notes sub-lines under a stay's timeline row */
-.plan-stay-address {
+/* Address/location + notes sub-lines under a timeline row — a stay's
+   address, an idea's location, either one. */
+.plan-entry-place {
 	color: var(--text-muted);
 	font-size: 0.85em;
 	margin-top: 2px;
@@ -4738,4 +4757,338 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	background-color: var(--background-modifier-error);
 	border-color: var(--background-modifier-error);
 	color: var(--text-on-accent);
+}
+
+/* ---- Copy as text: choose the detail, then edit the result ---------------
+   The textarea is preview and final word at once — Copy sends whatever is in
+   it, so a one-off tweak needs no round trip through the plan. */
+.plan-share-groups {
+	margin-bottom: 14px;
+}
+
+/* Label on the left, its toggles wrapping beside it — four short rows rather
+   than four stacked blocks, which keeps the whole checklist above the fold. */
+.plan-share-group {
+	display: flex;
+	align-items: baseline;
+	gap: 12px;
+	padding: 3px 0;
+}
+
+/* Wide enough for "Accommodation", the longest label. A flex item's default
+   `min-width: auto` means a label that outgrows its basis expands instead of
+   overflowing — which nudged that one row's toggles out of line with the
+   other three. */
+.plan-share-group-label {
+	flex: 0 0 124px;
+	color: var(--text-muted);
+	font-size: 0.85em;
+	font-weight: 600;
+}
+
+.plan-share-group-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 2px 14px;
+	/* Without this the options refuse to wrap and push the modal wider. */
+	min-width: 0;
+}
+
+/* Narrow screens can't afford the label gutter. */
+@media (max-width: 480px) {
+	.plan-share-group {
+		flex-direction: column;
+		gap: 2px;
+	}
+	.plan-share-group-label {
+		flex: none;
+	}
+}
+
+/* A zero-height full-width flex item: forces a wrap, so General's shared
+   toggles start a fresh line and line up under the identical boxes in the
+   groups below rather than trailing after Overview/Emojis. */
+.plan-share-break {
+	flex: 0 0 100%;
+	height: 0;
+}
+
+/* A toggle whose General master is off. Left ticked but ignored, so the
+   setting survives switching the master back on. */
+.plan-share-option.is-disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+/* Deliberately NOT inside a .callander-modal-field: that sets
+   `display: block` on any label it contains, which would drop each checkbox
+   onto its own line and kill the gap. */
+.plan-share-option {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	color: var(--text-normal);
+	font-size: 0.9em;
+}
+
+.plan-share-option input[type="checkbox"] {
+	margin: 0;
+	flex-shrink: 0;
+}
+
+/* Soft-wrapped, so long lines display wrapped but copy with their real
+   newlines intact. */
+.plan-share-preview {
+	/* `display: block` matters: as an inline element a textarea sits on a
+	   text baseline and leaves a ~4px descender gap beneath it, which would
+	   make the space above the divider larger than the space below.
+	   `border-box` keeps the height a true 200px rather than 200 + padding
+	   + border. */
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+	height: 200px;
+	resize: vertical;
+	padding: 8px;
+	background: var(--background-modifier-form-field);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+	line-height: 1.45;
+}
+
+.plan-share-preview:focus {
+	border-color: var(--interactive-accent);
+	outline: none;
+}
+
+.plan-share-divider {
+	border-top: 1px solid var(--background-modifier-border);
+	margin: 20px 0;
+}
+
+/* `.callander-modal-buttons` carries its own `margin-top: 24px`, which would
+   stack under the divider's 20px and leave the gap below visibly larger than
+   the one above. Two classes so this outranks it wherever it sits. */
+.plan-share-modal .callander-modal-buttons {
+	margin-top: 0;
+}
+
+/* ---- Plan: Ideas (unscheduled) -----------------------------------------
+   Sits above the Timeline. Rows reuse the timeline row's shape so the two
+   sections read as the same kind of thing at different stages, rather than
+   two unrelated lists. */
+.plan-quick-idea-row {
+	cursor: pointer;
+}
+
+/* A plan-local grouping ("Boston"). Muted and small — it labels a run of
+   rows without competing with them, and there may be several on screen. */
+.plan-quick-idea-group {
+	color: var(--text-muted);
+	font-size: 0.8em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin: 14px 0 4px;
+}
+.plan-quick-idea-group:first-child {
+	margin-top: 0;
+}
+
+/* Category toggle chips below the Categories input — every category the
+   plan knows, purple (.someday-filter-pill.is-active) when picked. One chip,
+   one state to read; no separate row of what's selected. */
+.quick-idea-cat-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 6px;
+}
+
+/* The same groupings, shown back in the read view. */
+.quick-idea-view-cats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.quick-idea-cat-tag {
+	background: var(--background-modifier-hover);
+	border-radius: 4px;
+	padding: 1px 7px;
+	font-size: 0.9em;
+}
+
+/* The quick-add row's second copy, above a long timeline. Spacing flips:
+   the bottom copy pushes away from the list above it, this one from the
+   list below. */
+.plan-timeline-footer-top {
+	margin-top: 0;
+	margin-bottom: 20px;
+}
+
+/* Check-in / check-out: two equal halves side by side, each with its own
+   small caption above the dropdown. `min-width: 0` so a long option label
+   can't push one half wider than the other. */
+.plan-hour-range-half {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.plan-hour-range-label {
+	color: var(--text-muted);
+	font-size: 0.8em;
+	margin-bottom: 2px;
+}
+
+/* The half is a plain block, so .plan-time-select's `flex: 1 1 auto` has
+   nothing to stretch against — the select needs its own width to fill it. */
+.plan-hour-range-half select {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+/* ---- Accommodation row -------------------------------------------------
+   Desktop:  🏨 Name • 7 nights • 📌 To book       Check in 11am, 3pm out
+             🏨 Name • 7 nights                    Check in 11am, 3pm out • ✅
+   Phone:    🏨 Name • 7 nights
+             Check in 11am, 3pm out • ✅ Booked
+             ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+   Two non-wrapping groups (name+nights, hours+booking) inside one outer row
+   that only wraps at the break between them. Grouping matters: without it,
+   a phone's flex-wrap is free to break *inside* either pair too — wherever
+   the line overflows, not only at the intended point — which is exactly
+   what let "Name" split from "• 7 nights" onto its own line before this.
+
+   Only the name ever truncates. Everything else is short and load-bearing:
+   a clipped "7 nigh…" or half a time tells you nothing. */
+.plan-stay-row {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	/* Without this the flex item refuses to shrink below its content and
+	   the row overflows instead of the name ellipsing. */
+	min-width: 0;
+}
+
+.is-phone .plan-stay-row {
+	flex-wrap: wrap;
+	row-gap: 2px;
+}
+
+/* The two groups. `min-width: 0` on the first is what lets the name ellipse
+   instead of overflowing the row; the second never needs to shrink, its
+   contents are short by construction. */
+.plan-stay-group {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+}
+
+.plan-stay-group:first-child {
+	order: 1;
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
+.plan-stay-group:last-child {
+	order: 4;
+	flex: 0 0 auto;
+	/* Pushes the second group to the row's right edge when there's room;
+	   the 16px floor is what's left once that auto margin collapses under
+	   pressure. Cancelled on phone below — the wrap already separates the
+	   groups there, and an auto margin would instead shove line two off to
+	   the right instead of starting it flush left. */
+	margin-left: auto;
+	padding-left: 16px;
+}
+
+.is-phone .plan-stay-group:last-child {
+	margin-left: 0;
+	padding-left: 0;
+}
+
+.plan-stay-name {
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Nights, and the booking chip's own bullet — the only two .plan-stay-meta
+   uses. */
+.plan-stay-meta {
+	flex: 0 0 auto;
+	white-space: nowrap;
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* The bullet between hours and booking, as its own flex child rather than
+   text baked onto either neighbour — that's what makes its gap on both
+   sides equal to every other gap in the row: all of them come from
+   .plan-stay-group's `gap`, none from a typed space character. */
+.plan-stay-sep {
+	flex: 0 0 auto;
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* Zero-height full-width flex item — forces the wrap on a phone, sitting
+   between the two groups in DOM order. Inert on desktop (`display: none`
+   gives it no size), so its position in the order doesn't matter there. */
+.plan-stay-break {
+	display: none;
+	order: 2;
+}
+
+.is-phone .plan-stay-break {
+	display: block;
+	flex: 0 0 100%;
+	height: 0;
+}
+
+.plan-stay-hours {
+	flex: 0 0 auto;
+	white-space: nowrap;
+	color: var(--text-muted);
+	font-size: 0.8em;
+}
+
+/* Still needs booking — the one answer this row is scanning for, so it
+   reads as an alert rather than sitting at the same weight as a settled
+   "Booked" tick. */
+.plan-stay-booking-todo {
+	color: var(--text-error);
+	font-size: 0.8em;
+}
+
+/* Hidden on desktop — the tick alone says "booked", and the word would
+   only cost room the name could use. Shown on a phone, where this already
+   has its own full-width line with nothing to compete with. "To book"
+   never gets this class at all (see renderStayRow), so it keeps its label
+   everywhere — that's the one worth scanning for. */
+.plan-stay-booking-suffix-desktop-hidden {
+	display: none;
+}
+
+.is-phone .plan-stay-booking-suffix-desktop-hidden {
+	display: inline;
+}
+
+/* A hairline between stays, phone only — deliberately not the shared
+   .contact-idea-item divider (that stays off everywhere by design; see its
+   own rule), and deliberately faint: two lines of real content per row is
+   already more visual weight than the rest of this list, so the seam
+   between them shouldn't compete with it. `color-mix` fades the line
+   itself, not `opacity`, which would fade the row's text along with it. */
+.is-phone .plan-stay-list-item + .plan-stay-list-item {
+	border-top: 1px solid
+		color-mix(in srgb, var(--background-modifier-border), transparent 60%);
 }

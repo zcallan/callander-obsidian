@@ -11,10 +11,12 @@ import { ConfirmModal } from "@/modals/ConfirmModal";
 import {
 	formatItemCost,
 	formatItemTime,
+	formatStayHours,
 	formatTimelineDay,
 	nightsSummary,
 } from "@/utils/planFormat";
 import { shortenPeopleList } from "@/utils/nameFormat";
+import { buildTimelineCalendarUrl } from "@/utils/planShare";
 
 /**
  * A read view of one plan-timeline row — whatever it happens to be: an idea,
@@ -39,7 +41,14 @@ export class PlanTimelineViewModal extends Modal {
 		/** Your own name from settings, rendered as "Me". */
 		private yourName = "",
 		/** Per-friend shortenPeopleList overrides — see shortNameOverrides. */
-		private shortNames: Map<string, string> = new Map()
+		private shortNames: Map<string, string> = new Map(),
+		/**
+		 * Turn this row into an expense on the plan — an idea, a leg or a
+		 * stay alike, since all three carry a cost worth splitting. Optional
+		 * so a caller with nowhere to put an expense simply omits the button
+		 * rather than showing a dead one.
+		 */
+		private onCreateExpense?: () => void
 	) {
 		super(app);
 		this.pendingNotes = entry.notes ?? "";
@@ -49,7 +58,10 @@ export class PlanTimelineViewModal extends Modal {
 	private sourceLabel(): string {
 		switch (this.entry.source) {
 			case "idea":
-				return "Idea";
+				// "Item" here, not "Idea" — the plan's Ideas section holds
+				// the unscheduled ones, and two things called an idea on one
+				// page is the confusion this naming exists to avoid.
+				return "Item";
 			case "travel":
 				return "Travel";
 			default:
@@ -64,6 +76,13 @@ export class PlanTimelineViewModal extends Modal {
 	 */
 	private whenLabel(): string {
 		const e = this.entry;
+		// Opened from the timeline's "Needs date" group. formatTimelineDay
+		// would return an empty string here, leaving a blank meta row.
+		if (!e.date) {
+			return e.time
+				? `No date yet • ${formatItemTime(e.time)}`
+				: "No date yet";
+		}
 		const parts = [formatTimelineDay(e.date)];
 		if (e.nights) {
 			parts.push(nightsSummary(e.date, e.nights));
@@ -75,7 +94,7 @@ export class PlanTimelineViewModal extends Modal {
 
 	/**
 	 * The specific type within this kind, with its own emoji: a stay's
-	 * "🏡 Airbnb", a leg's "🚗 Driving", an idea's "🍴 Restaurant · 🤔 Maybe".
+	 * "🏡 Airbnb", a leg's "🚗 Driving", an idea's "🍕 Restaurant · 🤔 Maybe".
 	 */
 	private typeLabel(): string | null {
 		const e = this.entry;
@@ -155,6 +174,14 @@ export class PlanTimelineViewModal extends Modal {
 			});
 		}
 
+		const stayHours = formatStayHours(e.checkIn, e.checkOut);
+		if (stayHours) {
+			contentEl.createDiv({
+				cls: "someday-view-meta",
+				text: `🔑 ${stayHours}`,
+			});
+		}
+
 		// Where it is, with a Map button — the thing you actually want to act
 		// on mid-trip. A stay calls it an address, an idea calls it a
 		// location; they're never both set, so one row covers either.
@@ -225,6 +252,42 @@ export class PlanTimelineViewModal extends Modal {
 		edit.createSpan({ text: "Edit" });
 		edit.addEventListener("click", () => void this.handleEdit());
 
+		// Google's own prefilled-event link, same as the event view modal's.
+		// Only offered when the row has a usable day — otherwise there'd be
+		// nowhere to put it. A stay spans its nights; everything else runs
+		// for its duration.
+		//
+		// Built at click time, not here: the notes box above writes straight
+		// onto `this.entry`, so a URL frozen at render would carry whatever
+		// the notes said when the modal opened. Whether the button appears
+		// depends only on the date, which nothing in this modal can change.
+		if (buildTimelineCalendarUrl(e)) {
+			const calendar = actions.createEl("button", {
+				cls: "callander-button",
+			});
+			setIcon(calendar, "calendar-clock");
+			calendar.createSpan({ text: "Add to calendar" });
+			calendar.addEventListener("click", () => {
+				void this.flushNotes();
+				const url = buildTimelineCalendarUrl(this.entry);
+				if (url) window.open(url, "_blank");
+			});
+		}
+
+		if (this.onCreateExpense) {
+			const expense = actions.createEl("button", {
+				cls: "callander-button",
+			});
+			// The same icon the Cost breakdown's own "Add expense" button
+			// uses — this is a shortcut to it, so it should read as one.
+			setIcon(expense, "plus");
+			expense.createSpan({ text: "Create expense" });
+			expense.addEventListener(
+				"click",
+				() => void this.handleCreateExpense()
+			);
+		}
+
 		const del = actions.createEl("button", {
 			cls: "callander-button button-icon button-danger",
 			attr: { "aria-label": "Delete" },
@@ -239,6 +302,14 @@ export class PlanTimelineViewModal extends Modal {
 		await this.flushNotes();
 		this.close();
 		this.onEdit();
+	}
+
+	/** Same flush-then-hand-off as Edit: the expense form is prefilled from
+	 * this item, so a pending note has to land before it reads it. */
+	private async handleCreateExpense() {
+		await this.flushNotes();
+		this.close();
+		this.onCreateExpense?.();
 	}
 
 	private async handleDelete() {
