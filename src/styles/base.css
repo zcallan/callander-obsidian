@@ -198,14 +198,82 @@ If your plugin does not need CSS, delete this file.
 	margin-bottom: 0;
 	display: flex;
 	align-items: center;
+	/* So the help panel can take a full-width line of its own below the
+	   label and input, rather than squeezing into the row. */
+	flex-wrap: wrap;
 }
 
 .contact-field-label,
 .contact-field label {
-	width: 100px;
+	width: 120px;
 	color: var(--text-muted);
 	flex-shrink: 0;
-	text-transform: capitalize;
+	/* No `text-transform: capitalize`: labels now come from fieldLabel(),
+	   which returns sentence case. Capitalising here would turn "Legal name"
+	   into "Legal Name", and it was what rendered "legalName" as
+	   "LegalName" — camelCase is one word to CSS. */
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+/* Explains what the field is for. Sized as a comfortable tap target rather
+   than to the glyph — 24px square with the icon centred — since this is
+   reached by thumb as often as by cursor. */
+.contact-field-info {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	flex-shrink: 0;
+	border: none;
+	background: none;
+	box-shadow: none;
+	border-radius: 50%;
+	color: var(--text-faint);
+	cursor: pointer;
+	/* Pulls the button back into the label's line so the extra tap area
+	   doesn't push the rows apart. */
+	margin: -6px 0;
+}
+
+.contact-field-info:hover,
+.contact-field-info.is-open {
+	color: var(--text-accent);
+	background: var(--background-modifier-hover);
+}
+
+.contact-field-info .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+/* The explanation itself — a full-width line under the field it belongs to,
+   indented to the value column so it reads as attached to that row. */
+.contact-field-help {
+	flex: 0 0 100%;
+	margin: 2px 0 6px 120px;
+	padding: 8px 10px;
+	border-left: 2px solid var(--interactive-accent);
+	border-radius: 0 4px 4px 0;
+	background: var(--background-secondary);
+	font-size: 0.85em;
+	color: var(--text-muted);
+	line-height: 1.45;
+}
+
+.contact-field-help-example {
+	margin-top: 4px;
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+/* On a phone the label sits on its own line already, so the indent would
+   just waste the width the text needs. */
+.is-phone .contact-field-help {
+	margin-left: 0;
 }
 
 .contact-field-input {
@@ -923,6 +991,18 @@ If your plugin does not need CSS, delete this file.
 	gap: 12px;
 	padding: 4px 0;
 	align-items: center;
+	/* Same reason as .contact-field: the help panel is a full-width child. */
+	flex-wrap: wrap;
+}
+
+/* The read row has a 12px gap the edit row doesn't, so the indent that lines
+   the panel up with the value column is that much wider here. */
+.contact-field-view .contact-field-help {
+	margin-left: 132px;
+}
+
+.is-phone .contact-field-view .contact-field-help {
+	margin-left: 0;
 }
 
 .contact-field-value {

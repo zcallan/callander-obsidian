@@ -30,6 +30,7 @@ import type {
 } from "@/types";
 import { AddFieldModal } from "@/modals/AddFieldModal";
 import { NoteSuggest } from "@/components/NoteSuggest";
+import { fieldHelp, fieldLabel } from "@/utils/fieldLabel";
 import {
 	formatLinkField,
 	linkLabel,
@@ -1247,10 +1248,7 @@ export class ContactPageView extends ItemView {
 						},
 					});
 
-					field.createDiv({
-						cls: "contact-field-label",
-						text: key,
-					});
+					this.appendFieldLabel(field, key);
 
 					// Groups render as colored chips, not plain text
 					if (key === "groups" && Array.isArray(value)) {
@@ -1429,12 +1427,76 @@ export class ContactPageView extends ItemView {
 	 * "When we met" with honest vagueness: record just the year, the month,
 	 * or the exact day — whatever you actually remember.
 	 */
+	/**
+	 * A field's label, plus the info button that explains it.
+	 *
+	 * Shared by the read view and every edit-mode field so the wording and
+	 * the button behave identically in both, and adding a field means adding
+	 * one entry to fieldLabel's tables rather than touching four call sites.
+	 *
+	 * The explanation expands inline underneath rather than floating in a
+	 * tooltip: a tooltip is hover-only, which is nothing on a phone, and a
+	 * popover would need positioning against a scrolling column. Inline works
+	 * the same on both, and pushes the fields below it down where it can't be
+	 * missed.
+	 *
+	 * `row` is the flex line the help panel joins as a full-width child; the
+	 * label itself only holds the text and the button.
+	 */
+	private appendFieldLabel(
+		row: HTMLElement,
+		key: string,
+		asLabelEl = false
+	) {
+		const label = asLabelEl
+			? row.createEl("label", { cls: "contact-field-label" })
+			: row.createDiv({ cls: "contact-field-label" });
+		label.createSpan({ text: fieldLabel(key) });
+
+		const help = fieldHelp(key);
+		if (!help) return;
+
+		const button = label.createEl("button", {
+			cls: "contact-field-info",
+			attr: {
+				type: "button",
+				"aria-label": `What is ${fieldLabel(key)}?`,
+				"aria-expanded": "false",
+			},
+		});
+		// `info` isn't on the verified icon list in CLAUDE.md, and a name
+		// Obsidian doesn't ship renders nothing at all — `lightbulb` is
+		// verified and reads as "here's a hint", which is the job.
+		setIcon(button, "lightbulb");
+
+		const panel = row.createDiv({ cls: "contact-field-help" });
+		panel.createDiv({ cls: "contact-field-help-text", text: help.text });
+		if (help.example) {
+			panel.createDiv({
+				cls: "contact-field-help-example",
+				text: `e.g. ${help.example}`,
+			});
+		}
+		panel.hide();
+
+		button.addEventListener("click", (e) => {
+			// The edit-mode label wraps its input; without this, clicking the
+			// button would also focus the field and open a keyboard.
+			e.preventDefault();
+			e.stopPropagation();
+			const open = !panel.isShown();
+			panel.toggle(open);
+			button.setAttribute("aria-expanded", String(open));
+			button.toggleClass("is-open", open);
+		});
+	}
+
 	private createMetField(container: HTMLElement) {
 		const fieldContainer = container.createDiv({
 			cls: "contact-field",
 		});
 
-		fieldContainer.createEl("label", { text: "met" });
+		this.appendFieldLabel(fieldContainer, "met", true);
 
 		createFlexDateInput(fieldContainer, this.contactData.met, (value) => {
 			void this.updateContactData("met", value);
@@ -1450,7 +1512,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-field",
 		});
 
-		fieldContainer.createEl("label", { text: "birthday" });
+		this.appendFieldLabel(fieldContainer, "birthday", true);
 
 		createBirthdayPrecisionInput(
 			fieldContainer,
@@ -1467,7 +1529,7 @@ export class ContactPageView extends ItemView {
 		const fieldContainer = container.createDiv({
 			cls: "contact-field contact-field-groups",
 		});
-		fieldContainer.createEl("label", { text: "groups" });
+		this.appendFieldLabel(fieldContainer, "groups", true);
 
 		const wrap = fieldContainer.createDiv({
 			cls: "contact-groups-edit",
@@ -1523,9 +1585,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-field",
 		});
 
-		fieldContainer.createEl("label", {
-			text: field,
-		});
+		this.appendFieldLabel(fieldContainer, field, true);
 
 		const input = fieldContainer.createEl("input", {
 			cls: "contact-field-input",
