@@ -227,16 +227,51 @@ export class ContactOperations {
 		return ContactOperations.draftsOf(metadata);
 	}
 
+	/**
+	 * A person's groups, as bare lowercase names.
+	 *
+	 * Stored as `[[Wikilinks]]` so each one is a real link to its group page
+	 * — graph edges, backlinks and rename-safety come free, the same as plan
+	 * members. The brackets are stripped on the way in, so everything
+	 * downstream keeps comparing bare names and none of the matching had to
+	 * learn about links.
+	 *
+	 * Plain names still read correctly, which is what makes this need no
+	 * migration pass: a vault written before this converts itself the next
+	 * time each person is saved.
+	 */
 	static groupsOf(metadata: unknown): string[] {
 		const raw = fieldOf(metadata, "groups");
 		const list = Array.isArray(raw) ? (raw as unknown[]) : raw ? [raw] : [];
 		return [
 			...new Set(
 				list
-					.map((g) => String(g).trim().toLowerCase())
+					.map((g) => ContactOperations.groupName(String(g)))
 					.filter((g) => g.length > 0)
 			),
 		];
+	}
+
+	/** `"[[Uni friends]]"` or `"Uni friends"` → `"uni friends"`. */
+	static groupName(value: string): string {
+		const inner = /^\s*\[\[([^\]]+)\]\]\s*$/.exec(value)?.[1] ?? value;
+		// An aliased link points at the note on the left; the label is only
+		// for display and would be the wrong thing to match on.
+		return inner.split("|")[0].trim().toLowerCase();
+	}
+
+	/**
+	 * A group name as it should be stored: a link to its page.
+	 *
+	 * Uses the pretty form inside the brackets so the link names the file
+	 * that exists (`Groups/Uni friends.md`). Obsidian resolves links
+	 * case-insensitively either way, but a lowercase link beside a
+	 * capitalised note reads like a mistake.
+	 */
+	static groupLink(name: string): string {
+		const bare = ContactOperations.groupName(name);
+		if (!bare) return "";
+		return `[[${bare.charAt(0).toUpperCase()}${bare.slice(1)}]]`;
 	}
 
 	// ---- Folders ----
@@ -343,7 +378,7 @@ export class ContactOperations {
 					...new Set(
 						groups.map((g) => (g === oldName ? normalized : g))
 					),
-				];
+				].map((g) => ContactOperations.groupLink(g));
 			}
 		});
 
@@ -376,8 +411,11 @@ export class ContactOperations {
 			const groups = ContactOperations.groupsOf(fm);
 			if (groups.includes(name)) {
 				const kept = groups.filter((g) => g !== name);
-				if (kept.length > 0) fm.groups = kept;
-				else delete fm.groups;
+				if (kept.length > 0) {
+					fm.groups = kept.map((g) =>
+						ContactOperations.groupLink(g)
+					);
+				} else delete fm.groups;
 			}
 		});
 		const file = this.app.vault.getAbstractFileByPath(
@@ -395,8 +433,11 @@ export class ContactOperations {
 	async addFriendToGroup(file: TFile, group: string): Promise<void> {
 		await this.writeFrontMatter(file, (fm) => {
 				fm.groups = [
-					...new Set([...ContactOperations.groupsOf(fm), group]),
-				];
+					...new Set([
+						...ContactOperations.groupsOf(fm),
+						ContactOperations.groupName(group),
+					]),
+				].map((g) => ContactOperations.groupLink(g));
 			}
 		);
 	}
@@ -406,8 +447,11 @@ export class ContactOperations {
 				const groups = ContactOperations.groupsOf(fm).filter(
 					(g) => g !== group
 				);
-				if (groups.length > 0) fm.groups = groups;
-				else delete fm.groups;
+				if (groups.length > 0) {
+					fm.groups = groups.map((g) =>
+						ContactOperations.groupLink(g)
+					);
+				} else delete fm.groups;
 			}
 		);
 	}
@@ -608,7 +652,11 @@ export class ContactOperations {
 					...ContactOperations.groupsOf(fm),
 					...ContactOperations.groupsOf(dupMeta),
 				];
-				if (groups.length > 0) fm.groups = [...new Set(groups)];
+				if (groups.length > 0) {
+					fm.groups = [...new Set(groups)].map((g) =>
+						ContactOperations.groupLink(g)
+					);
+				}
 				if (dupMeta.notes) {
 					fm.notes = fm.notes
 						? `${toText(fm.notes)}\n\n${toText(dupMeta.notes)}`

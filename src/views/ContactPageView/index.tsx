@@ -1238,23 +1238,13 @@ export class ContactPageView extends ItemView {
 
 			// Render each field as read-only text
 			Object.entries(this.contactData)
+				// SYSTEM_FIELDS rather than a list repeated here: this was a
+				// hand-kept duplicate and had already drifted from it, which
+				// is how `extras`, `insideJokes` and `lifeGoals` ended up
+				// rendered as About rows despite each having its own section.
 				.filter(
 					([key]) =>
-						![
-							"name",
-							"notes",
-							"events",
-							"interactions",
-							"ideas",
-							"giftIdeas",
-							"drafts",
-							"interests",
-							"funFacts",
-							"quotes",
-							"birthdayWished",
-							"created",
-							"updated",
-						].includes(key)
+						!(SYSTEM_FIELDS as readonly string[]).includes(key)
 				)
 				.forEach(([key, value]) => {
 					if (!value) return; // Skip empty values
@@ -1641,10 +1631,10 @@ export class ContactPageView extends ItemView {
 		});
 		const chipsRow = wrap.createDiv({ cls: "contact-group-chips" });
 
+		// Through groupsOf, not the raw array: values are stored as
+		// `[[Wikilinks]]` and everything below compares bare names.
 		const member = new Set<string>(
-			Array.isArray(this.contactData.groups)
-				? this.contactData.groups
-				: []
+			ContactOperations.groupsOf(this.contactData)
 		);
 		const infos = ops.getGroupInfos();
 		const colorOf = new Map(infos.map((i) => [i.name, i.color]));
@@ -1653,7 +1643,10 @@ export class ContactPageView extends ItemView {
 		].sort();
 
 		const save = () => {
-			void this.updateContactData("groups", [...member].sort());
+			void this.updateContactData(
+				"groups",
+				[...member].sort().map((g) => ContactOperations.groupLink(g))
+			);
 		};
 
 		const addChip = (name: string) => {
