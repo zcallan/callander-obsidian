@@ -28,6 +28,7 @@ import {
 } from "@/utils/somedaySort";
 import { somedayRowParts } from "@/utils/somedayRow";
 import { buildSomedayRow } from "@/components/SomedayRow";
+import { registerVaultRefresh } from "@/utils/vaultRefresh";
 
 export const VIEW_TYPE_SOMEDAYS = "callander-somedays";
 
@@ -81,29 +82,17 @@ export class SomedaysView extends ItemView {
 	async onOpen() {
 		// A fresh shuffle each time the page is opened.
 		this.randomSeed = Math.floor(Math.random() * 2 ** 31);
+		// Settings are read at render time, so a change to one has to be
+		// heard rather than waited on — otherwise it only lands on reopen.
+		this.registerEvent(
+			this.plugin.events.on("settings-changed", () => void this.refresh())
+		);
 		const folder = this.plugin.somedayOperations.getSomedaysFolderPath();
 		const inScope = (path: string) =>
 			path === folder || path.startsWith(folder + "/");
-		this.registerEvent(
-			this.app.vault.on("modify", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("create", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("delete", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("rename", (file, oldPath) => {
-				if (inScope(file.path) || inScope(oldPath)) void this.refresh();
-			})
-		);
+		registerVaultRefresh(this, this.plugin, () => void this.refresh(), {
+			scope: inScope,
+		});
 		await this.refresh();
 	}
 

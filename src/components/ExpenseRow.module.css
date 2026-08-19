@@ -1,0 +1,62 @@
+/*
+ * Scoped to this file. `row` here cannot collide with a `row` anywhere else
+ * — esbuild rewrites it to `ExpenseRow_row` — which is the whole reason
+ * these live beside the component instead of in base.css.
+ */
+
+.row {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 10px 0;
+	cursor: pointer;
+}
+
+/* Between rows only. `:first-of-type` would be wrong here — it matches the
+   first div among its siblings, and these sections open with a heading and
+   helper text, so the first expense is rarely the first div. */
+.row + .row {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.row:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Label left, tally right — the gap between them is what makes the
+   right-hand column scannable down a list. */
+.line {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+/* Long names wrap rather than shoving the tally off the row. `min-width: 0`
+   alone isn't enough: a flex item still won't shrink past its longest
+   unbroken word, so a run-on name overflows the row and collides with the
+   tally. `anywhere` lets that word break. */
+.label {
+	font-weight: 600;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.status {
+	flex: 0 0 auto;
+	color: var(--text-muted);
+	font-size: 0.85em;
+	font-variant-numeric: tabular-nums;
+}
+
+/* No specificity fight with .status: both are scoped to this file, so
+   source order decides and this one is later. The global version of this
+   rule needed `.expense-row-status.expense-settled-label` to win. */
+.settled {
+	color: var(--color-green, #5cb870);
+}
+
+.meta {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}

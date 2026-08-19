@@ -13,7 +13,8 @@
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"test:e2e": "node tests/e2e/run.mjs",
 		"seed": "node tools/screenshots/make-seed.mjs",
-		"screenshots": "node tools/screenshots/shoot.mjs"
+		"screenshots": "node tools/screenshots/shoot.mjs",
+		"preview": "node scripts/preview.mjs"
 	},
 	"keywords": [],
 	"author": "zcallan",
@@ -22,7 +23,9 @@
 		"@eslint/js": "^9.39.5",
 		"@eslint/json": "0.14.0",
 		"@types/node": "^16.11.6",
-		"esbuild": "0.17.3",
+		"@types/react": "^19.2.18",
+		"@types/react-dom": "^19.2.4",
+		"esbuild": "^0.28.2",
 		"eslint": "^9.39.5",
 		"eslint-plugin-obsidianmd": "^0.4.1",
 		"obsidian": "1.13.1",
@@ -31,5 +34,9 @@
 		"typescript-eslint": "^8.65.0",
 		"ws": "^8.21.2",
 		"yaml": "^2.9.0"
+	},
+	"dependencies": {
+		"react": "^19.2.8",
+		"react-dom": "^19.2.8"
 	}
 }

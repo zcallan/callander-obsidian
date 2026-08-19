@@ -59,12 +59,40 @@ const stampDevBuild = () => {
 	fs.writeFileSync(file, src.split(DEV_STAMP_SENTINEL).join(buildStamp()));
 };
 
+/** The hand-written stylesheet. `styles.css` at the root is generated. */
+const BASE_CSS = path.join("src", "styles", "base.css");
+
+/**
+ * Obsidian loads exactly one stylesheet — `styles.css` — so the shipped file
+ * is the hand-written base plus whatever the `.module.css` imports compiled
+ * to. esbuild emits those next to main.js as `main.css`, which Obsidian would
+ * never read, so it's folded in here and the stray file removed.
+ *
+ * Written to the repo root as well as the vault: the root copy is the release
+ * artifact, and the e2e harness copies it into its throwaway vault.
+ */
+const buildStyles = () => {
+	const base = fs.readFileSync(BASE_CSS, "utf8");
+	const emitted = path.join(outDir, "main.css");
+	let scoped = "";
+	if (fs.existsSync(emitted)) {
+		scoped = fs.readFileSync(emitted, "utf8");
+		fs.rmSync(emitted);
+	}
+	const css = scoped
+		? `${base}\n/* ---- generated from *.module.css — do not edit ---- */\n${scoped}`
+		: base;
+	fs.writeFileSync("styles.css", css);
+	if (outDir !== ".") {
+		fs.mkdirSync(outDir, { recursive: true });
+		fs.writeFileSync(path.join(outDir, "styles.css"), css);
+	}
+};
+
 const copyStatics = () => {
 	if (outDir === ".") return;
 	fs.mkdirSync(outDir, { recursive: true });
-	for (const file of ["manifest.json", "styles.css"]) {
-		fs.copyFileSync(file, path.join(outDir, file));
-	}
+	fs.copyFileSync("manifest.json", path.join(outDir, "manifest.json"));
 	// Hot Reload watches plugin folders containing a .hotreload marker
 	const marker = path.join(outDir, ".hotreload");
 	if (!fs.existsSync(marker)) fs.writeFileSync(marker, "");
@@ -106,20 +134,45 @@ const context = await esbuild.context({
 		__CALLANDER_BUILD__: JSON.stringify(
 			prod ? releaseVersion() : DEV_STAMP_SENTINEL
 		),
+		// React ships two builds behind this flag and picks at runtime. Left
+		// undefined, the bundler keeps the development one — every warning
+		// path, every dev-only invariant, and a much slower renderer. Setting
+		// it lets the whole dev half tree-shake out of a release.
+		"process.env.NODE_ENV": JSON.stringify(
+			prod ? "production" : "development"
+		),
 	},
 	format: "cjs",
+	// Automatic runtime: no `import React` in every component.
+	jsx: "automatic",
 	target: "es2018",
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
 	outfile: path.join(outDir, "main.js"),
-	minify: prod,
+	// Deliberately NOT plain `minify: prod`. `minifyIdentifiers` also mangles
+	// CSS-module class names, and it mangles them hard — `.ExpenseRow_row`
+	// becomes `.e`. Those are global selectors in a document shared with
+	// every other plugin and theme, so a second plugin minifying its own
+	// modules would collide on exactly the same single letters. That's the
+	// bug class this whole arrangement exists to remove, so it isn't worth
+	// reintroducing at build time.
+	//
+	// The cost grew once React was bundled, since the flag stops React being
+	// mangled too: 529KB fully minified vs 837KB with readable names. That's
+	// still ordinary for an Obsidian plugin, and a silent cross-plugin CSS
+	// collision is a worse failure than 300KB. Flip both of these back to
+	// `minify: prod` to trade it the other way — at which point the scoped
+	// class names must stop being relied on for isolation.
+	minifyWhitespace: prod,
+	minifySyntax: prod,
 	plugins: [
 		{
 			name: "copy-statics",
 			setup(build) {
 				build.onEnd(() => {
 					stampDevBuild();
+					buildStyles();
 					copyStatics();
 				});
 			},
@@ -131,17 +184,16 @@ if (prod) {
 	await context.rebuild();
 	process.exit(0);
 } else {
-	// styles.css isn't part of the JS graph — watch it separately so
-	// CSS-only edits reach the vault too
-	if (outDir !== ".") {
-		fs.watch("styles.css", () => {
-			try {
-				copyStatics();
-				console.log("[watch] styles.css copied");
-			} catch (e) {
-				console.error("styles.css copy failed", e);
-			}
-		});
-	}
+	// The base stylesheet isn't part of the JS graph — watch it separately
+	// so CSS-only edits reach the vault too. (Module CSS *is* in the graph,
+	// so esbuild rebuilds for those on its own.)
+	fs.watch(BASE_CSS, () => {
+		try {
+			buildStyles();
+			console.log("[watch] styles rebuilt");
+		} catch (e) {
+			console.error("style rebuild failed", e);
+		}
+	});
 	await context.watch();
 }

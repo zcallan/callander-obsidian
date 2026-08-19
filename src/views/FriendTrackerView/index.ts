@@ -69,11 +69,25 @@ export class FriendTrackerView extends ItemView {
 	}
 
 	async onOpen() {
+		// Settings are read at render time, so a change to one has to be
+		// heard rather than waited on — otherwise it only lands on reopen.
+		this.registerEvent(
+			this.plugin.events.on("settings-changed", () => void this.refresh())
+		);
+		// Contacts are read out of the metadata cache, so the reindex — not
+		// the write — is the signal that fresh data is available. The vault
+		// event is kept as a backstop and still needs its delay; the cache
+		// event needs none, because by then the data is already current.
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
 				if (file instanceof TFile && this.isContactFile(file)) {
 					window.setTimeout(() => void this.refresh(), 100);
 				}
+			})
+		);
+		this.registerEvent(
+			this.app.metadataCache.on("changed", (file) => {
+				if (this.isContactFile(file)) void this.refresh();
 			})
 		);
 

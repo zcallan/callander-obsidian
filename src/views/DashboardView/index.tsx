@@ -1,4 +1,10 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
+import { createRoot, type Root } from "react-dom/client";
+import type { ReactNode } from "react";
+import { PluginProvider } from "@/ui/PluginContext";
+import { ExpensesSection } from "@/ui/sections/ExpensesSection";
+import { UpcomingSection } from "@/ui/sections/UpcomingSection";
+import { registerVaultRefresh } from "@/utils/vaultRefresh";
 import type FriendTracker from "@/main";
 import type {
 	ContactWithCountdown,
@@ -11,7 +17,6 @@ import { IDEA_CATEGORIES } from "@/constants";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
 import { EventModal } from "@/modals/EventModal";
-import { EventViewModal } from "@/modals/EventViewModal";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
 import {
 	CaptureTargetModal,
@@ -55,6 +60,19 @@ export class DashboardView extends ItemView {
 	// Only used when the Somedays sort is "Random" — fixed for the life of
 	// this dashboard so the list doesn't reshuffle on every refresh.
 	private somedayRandomSeed = Math.floor(Math.random() * 2 ** 31);
+	/**
+	 * React islands for the sections that have been ported, keyed by slot.
+	 *
+	 * Created once and kept for the life of the view. `render()` rebuilds the
+	 * imperative DOM on every vault event, and an island recreated alongside
+	 * it would unmount its root and resubscribe a moment later — any change
+	 * landing in that gap is simply lost.
+	 *
+	 * So `render()` detaches these hosts and puts them back rather than
+	 * remaking them; React keeps rendering into the same node throughout and
+	 * its subscriptions never lapse. Torn down only in onClose.
+	 */
+	private islands = new Map<string, { host: HTMLElement; root: Root }>();
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -79,34 +97,61 @@ export class DashboardView extends ItemView {
 		// actually creates anything here.
 		await this.plugin.seedStarterVault();
 
-		const inScope = (path: string) =>
-			path.startsWith(this.plugin.settings.baseFolder + "/");
+		// Settings are read at render time, so a change to one has to be
+		// heard rather than waited on — otherwise it only lands on reopen.
 		this.registerEvent(
-			this.app.vault.on("modify", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
+			this.plugin.events.on("settings-changed", () => void this.refresh())
 		);
-		this.registerEvent(
-			this.app.vault.on("create", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("delete", (file) => {
-				if (inScope(file.path)) void this.refresh();
-			})
-		);
-		this.registerEvent(
-			this.app.vault.on("rename", (file, oldPath) => {
-				if (inScope(file.path) || inScope(oldPath)) void this.refresh();
-			})
-		);
+		registerVaultRefresh(this, this.plugin, () => void this.refresh());
 		await this.refresh();
 	}
 
 	async refresh() {
 		this.contacts = await this.plugin.contactOperations.getContacts();
 		await this.render();
+	}
+
+	/**
+	 * Mount (or remount) the ported sections.
+	 *
+	 * StrictMode is deliberately off. It double-invokes effects, and this
+	 * plugin's effects reach disk — a debounced autosave firing twice would
+	 * write twice. The checks it buys aren't worth that here, where the tree
+	 * is small and the side effects are real files.
+	 */
+	/**
+	 * The host node for a ported section, ready to be placed in the layout.
+	 *
+	 * Rendered once on creation and never again from here — React owns its
+	 * own updates from that point, driven by the vault subscriptions inside
+	 * it. Re-rendering on every dashboard render would be redundant work and
+	 * would tie React's update timing back to the imperative path this is
+	 * meant to escape.
+	 */
+	private island(key: string, node: ReactNode): HTMLElement {
+		const existing = this.islands.get(key);
+		if (existing) return existing.host;
+
+		const host = createDiv({ cls: "callander-react-root" });
+		const root = createRoot(host);
+		root.render(
+			<PluginProvider plugin={this.plugin}>{node}</PluginProvider>
+		);
+		this.islands.set(key, { host, root });
+		return host;
+	}
+
+	private unmountIslands() {
+		const roots = [...this.islands.values()];
+		this.islands.clear();
+		// Unmounting synchronously inside a React render pass is an error,
+		// and onClose can be reached from one — defer so teardown always
+		// lands between renders.
+		window.setTimeout(() => roots.forEach(({ root }) => root.unmount()), 0);
+	}
+
+	async onClose() {
+		this.unmountIslands();
 	}
 
 	private async openContact(file: TFile) {
@@ -172,8 +217,8 @@ export class DashboardView extends ItemView {
 		this.renderUpcomingBirthdays(container);
 		this.renderMissedBirthdays(container);
 
-		// Future-dated events coming up
-		this.renderUpcoming(container);
+		// Future-dated events coming up (React)
+		container.appendChild(this.island("upcoming", <UpcomingSection />));
 
 		// Anniversaries — events from this same day in past years
 		this.renderOnThisDay(container);
@@ -219,9 +264,12 @@ export class DashboardView extends ItemView {
 		await this.renderInbox(container);
 
 		// Shared expenses — last, so it's the thing you scroll to the bottom
-		// for rather than something you pass on the way down.
-		await this.renderExpenses(container);
+		// for rather than something you pass on the way down. (React)
+		container.appendChild(this.island("expenses", <ExpensesSection />));
 
+		// Shared expenses — last, so it's the thing you scroll to the bottom
+		// for rather than something you pass on the way down.
+		//
 		container.scrollTop = scrollTop;
 	}
 
@@ -461,157 +509,6 @@ export class DashboardView extends ItemView {
 	}
 
 	/** Future events, sorted; soonest (and undated) first. */
-	private renderUpcoming(container: HTMLElement) {
-		const now = new Date();
-		type Item = {
-			event: EventInfo;
-			key: number;
-			/** Days from today; null when the date is too coarse to count. */
-			days: number | null;
-		};
-		const items: Item[] = [];
-
-		for (const e of this.plugin.eventOperations.getEvents()) {
-			// Timeline entries are records of a person, not your calendar —
-			// they live on that person's page and nowhere else.
-			if (e.variant === "timeline") continue;
-			if (e.status === "done") continue;
-			// Called off — still on the record and on the Events page, but
-			// the dashboard is for what's actually happening.
-			if (e.status === "cancelled") continue;
-			const p = parseFlexDate(e.date);
-			if (!p || p.year === null) {
-				// Undated ("Anytime") — actionable now, so never out of window.
-				items.push({ event: e, key: 0, days: null });
-				continue;
-			}
-			if (isFlexUpcoming(p, now)) {
-				items.push({
-					event: e,
-					key: flexSortKey(p),
-					days: daysUntilFlex(e.date, now),
-				});
-				continue;
-			}
-			// A passed date is implicitly done for most events — but a task
-			// keeps asking for a week, so it can still be ticked off.
-			if (e.type === "task" && p.month !== null && p.day !== null) {
-				const target = new Date(p.year, p.month - 1, p.day);
-				target.setHours(0, 0, 0, 0);
-				const today = new Date(now);
-				today.setHours(0, 0, 0, 0);
-				const passed = Math.round(
-					(today.getTime() - target.getTime()) / 86400000
-				);
-				if (passed >= 0 && passed <= 7) {
-					items.push({
-						event: e,
-						key: flexSortKey(p),
-						days: -passed,
-					});
-				}
-			}
-		}
-		items.sort((a, b) => a.key - b.key);
-
-		const section = container.createDiv({
-			cls: "dashboard-section dashboard-upcoming-section",
-		});
-		const header = section.createDiv({
-			cls: "dashboard-section-header",
-		});
-		header.createEl("h3", { text: "📌 Upcoming" });
-		const buttons = header.createDiv({
-			cls: "dashboard-section-buttons",
-		});
-		const addButton = buttons.createEl("button", {
-			cls: "callander-button",
-			text: "Add event",
-		});
-		addButton.addEventListener("click", () => {
-			new EventModal(this.app, this.plugin, null, () =>
-				this.refresh()
-			).open();
-		});
-		const allButton = buttons.createEl("button", {
-			cls: "callander-button",
-			text: "See all",
-		});
-		allButton.addEventListener("click", () =>
-			void this.plugin.activateEvents()
-		);
-
-		if (items.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "Nothing coming up. Add an event — a birthday, a booking, anything worth keeping in view.",
-			});
-			return;
-		}
-
-		// Default to a near horizon; anything further out lives on the Events
-		// page, so a booking eight months away doesn't crowd out this week.
-		const windowDays = this.plugin.settings.upcomingDays;
-		const near = items.filter((i) => i.days === null || i.days <= windowDays);
-		const shown = near.slice(0, 10);
-
-		if (shown.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: `Nothing in the next ${windowDays} days.`,
-			});
-		}
-		for (const item of shown) {
-			const e = item.event;
-			buildUpcomingRow(section, {
-				...eventRowFields(
-					e,
-					now,
-					e.people.length > 0 ? this.eventPeopleNames(e) : "",
-					// The dashboard is a "what's next" view — anything inside
-					// a fortnight reads better by weekday than by date.
-					{ conversational: true }
-				),
-				onClick: () =>
-					new EventViewModal(this.app, this.plugin, e, () =>
-						this.refresh()
-					).open(),
-			});
-		}
-
-		if (items.length > shown.length) {
-			const more = section.createDiv({
-				cls: "section-helper-text dashboard-row-clickable",
-				text: `+${items.length - shown.length} more on the Events page`,
-			});
-			more.addEventListener("click", () =>
-				void this.plugin.activateEvents()
-			);
-		}
-	}
-
-	/** Linked people as display names, resolved against the contact list
-	 * the dashboard already holds; dead links fall back to their text. */
-	private eventPeopleNames(e: EventInfo): string {
-		return e.people
-			.map((raw) => {
-				const linktext = raw
-					.replace(/^\[\[|\]\]$/g, "")
-					.split("|")[0]
-					.trim();
-				const dest = this.app.metadataCache.getFirstLinkpathDest(
-					linktext,
-					e.file.path
-				);
-				const match = dest
-					? this.contacts.find((c) => c.file.path === dest.path)
-					: undefined;
-				return match?.displayName ?? linktext;
-			})
-			.join(", ");
-	}
-
-	/** Events from this same calendar day in earlier years — a warm callback. */
 	private renderOnThisDay(container: HTMLElement) {
 		const now = new Date();
 		const month = now.getMonth() + 1;
@@ -1256,148 +1153,4 @@ export class DashboardView extends ItemView {
 		}
 	}
 
-	/**
-	 * Shared expenses that don't belong to anything — dinner last night, a
-	 * taxi split three ways. Recorded straight from here, so splitting one
-	 * cost doesn't mean inventing something to hang it off.
-	 */
-	private async renderExpenses(container: HTMLElement) {
-		const ops = this.plugin.contactOperations;
-		const expenses = await ops.getExpenses();
-		const sourcePath = ops.getDashboardFilePath();
-		const yourName = this.plugin.settings.yourName;
-		const shortNames = shortNameOverrides(this.contacts);
-
-		const section = container.createDiv({ cls: "dashboard-section" });
-		section.createEl("h3", { text: "💵 Expenses" });
-
-		// Everything still owed, then everything squared up — the settled
-		// ones stay reachable but out of the way.
-		const { open, settled } = partitionExpenses(expenses);
-
-		if (expenses.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "Split a one-off cost — dinner, a taxi, the groceries. Divide it evenly, by shares, or line by line off the receipt.",
-			});
-		}
-
-		// The participant list an expense is scored against: whoever it names,
-		// plus you. Resolved per expense, since each carries its own people.
-		const participantsFor = (expense: Expense): string[] => {
-			const picked = resolvePeopleNames(
-				this.app,
-				sourcePath,
-				expense.people ?? []
-			);
-			const you = yourName.trim();
-			return you && !picked.some((p) => p.toLowerCase() === you.toLowerCase())
-				? [you, ...picked]
-				: picked;
-		};
-
-		const saveAt = async (index: number, updated: Expense) => {
-			await ops.writeExpenses((list) => {
-				list[index] = updated;
-			});
-			await this.refresh();
-		};
-
-		const deleteAt = async (index: number) => {
-			await ops.writeExpenses((list) => {
-				list.splice(index, 1);
-			});
-			await this.refresh();
-		};
-
-		const edit = (index: number, expense: Expense) => {
-			new ExpenseModal(
-				this.app,
-				participantsFor(expense),
-				expense,
-				(updated) => saveAt(index, updated),
-				() => deleteAt(index),
-				yourName,
-				this.plugin.settings.receiptTaxPercent,
-				this.plugin.settings.receiptTipPercent,
-				{ contacts: this.contacts, sourcePath }
-			).open();
-		};
-
-		// Tapping a row reads it first; Edit/Delete/Settle live in that view.
-		const openView = (index: number, expense: Expense) => {
-			new ExpenseViewModal(
-				this.app,
-				expense,
-				participantsFor(expense),
-				() => edit(index, expense),
-				() => deleteAt(index),
-				yourName,
-				async ({ paid, settled: isSettled }) => {
-					await ops.writeExpenses((list) => {
-						const current = list[index];
-						if (!current) return;
-						current.paid = paid;
-						if (isSettled) current.settled = true;
-						else delete current.settled;
-					});
-					await this.refresh();
-				},
-				shortNames
-			).open();
-		};
-
-		for (const { expense, index } of open) {
-			appendExpenseRow(section, expense, participantsFor(expense), {
-				yourName,
-				onClick: () => openView(index, expense),
-			});
-		}
-
-		// Settled ones fold away — still there to check, never in the way.
-		if (settled.length > 0) {
-			const details = section.createEl("details", {
-				cls: "expense-settled-group",
-			});
-			const summary = details.createEl("summary", {
-				cls: "expense-settled-summary",
-			});
-			setIcon(
-				summary.createSpan({ cls: "expense-settled-chevron" }),
-				"chevron-down"
-			);
-			summary.createSpan({ text: `Settled (${settled.length})` });
-			for (const { expense, index } of settled) {
-				appendExpenseRow(details, expense, participantsFor(expense), {
-					yourName,
-					onClick: () => openView(index, expense),
-				});
-			}
-		}
-
-		const footer = section.createDiv({
-			cls: "contact-section-footer expense-footer",
-		});
-		const addButton = footer.createEl("button", { cls: "callander-button" });
-		setIcon(addButton, "plus");
-		addButton.createSpan({ text: "New expense" });
-		addButton.addEventListener("click", () => {
-			new ExpenseModal(
-				this.app,
-				yourName ? [yourName] : [],
-				null,
-				async (expense) => {
-					await ops.writeExpenses((list) => {
-						list.push(expense);
-					});
-					await this.refresh();
-				},
-				undefined,
-				yourName,
-				this.plugin.settings.receiptTaxPercent,
-				this.plugin.settings.receiptTipPercent,
-				{ contacts: this.contacts, sourcePath }
-			).open();
-		});
-	}
 }

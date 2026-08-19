@@ -1,4 +1,5 @@
 import {
+	Events,
 	Plugin,
 	Notice,
 	Platform,
@@ -1717,8 +1718,20 @@ export default class FriendTracker extends Plugin {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 	}
 
+	/**
+	 * Anything that wants to know when settings change. Composed rather than
+	 * inherited — a Plugin can't also extend Events — and deliberately
+	 * Obsidian's own emitter, so `registerEvent` handles teardown and a view
+	 * can't leak a listener past its own lifetime.
+	 */
+	public readonly events = new Events();
+
 	async saveSettings() {
 		await this.saveData(this.settings);
+		// Open views read settings at render time but had no way to hear
+		// about a change, so a new sort or a renamed folder only took effect
+		// on the next reopen. They subscribe to this instead.
+		this.events.trigger("settings-changed");
 	}
 
 	onunload() {

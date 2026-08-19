@@ -1,0 +1,37 @@
+<!--
+  Class names here are the scoped ones esbuild generates from
+  ExpenseRow.module.css (<File>_<name>) — the same strings the real DOM
+  carries. If a rename breaks the fixture, that's the harness telling you
+  the markup and the stylesheet have parted company.
+
+  Cases worth keeping: a settled row (the green label that once lost a
+  specificity fight), a long unbroken name (which once overflowed the row
+  and collided with the tally), and a plain row for comparison.
+-->
+<div class="ExpenseRow_row">
+	<div class="ExpenseRow_line">
+		<span class="ExpenseRow_label">Tents on Thurs</span>
+		<span class="ExpenseRow_status">0 of 7 paid</span>
+	</div>
+	<div class="ExpenseRow_line">
+		<span class="ExpenseRow_meta">$428.82 · split evenly</span>
+	</div>
+</div>
+<div class="ExpenseRow_row">
+	<div class="ExpenseRow_line">
+		<span class="ExpenseRow_label">Supercalifragilisticexpialidociousreallylongunbrokenword</span>
+		<span class="ExpenseRow_status">3 of 7 paid</span>
+	</div>
+	<div class="ExpenseRow_line">
+		<span class="ExpenseRow_meta">$92.40 · by receipt</span>
+	</div>
+</div>
+<div class="ExpenseRow_row">
+	<div class="ExpenseRow_line">
+		<span class="ExpenseRow_label">Airbnb</span>
+		<span class="ExpenseRow_status ExpenseRow_settled">Settled</span>
+	</div>
+	<div class="ExpenseRow_line">
+		<span class="ExpenseRow_meta">$1240.00 · by shares</span>
+	</div>
+</div>

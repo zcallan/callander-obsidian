@@ -1,0 +1,56 @@
+/*
+ * Scoped to this section. The equivalent global rules (.expense-settled-group,
+ * .expense-settled-summary) stay in base.css for now — the plan page still
+ * uses them — and will come across when that page is ported.
+ */
+
+.settledGroup {
+	margin-top: 12px;
+}
+
+.settledSummary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	padding: 4px 0;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	list-style: none;
+}
+
+.settledSummary::-webkit-details-marker {
+	display: none;
+}
+
+/* Rotated rather than swapped for a second glyph, so the two states can't
+   drift apart the way a pair of ::before contents would. */
+.chevron {
+	display: inline-flex;
+	align-items: center;
+	flex: 0 0 auto;
+	transition: transform 0.15s ease;
+	transform: rotate(-90deg);
+}
+
+.settledGroup[open] .chevron {
+	transform: rotate(0deg);
+}
+
+.chevron svg {
+	width: 1.1em;
+	height: 1.1em;
+}
+
+.footer {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin-top: 18px;
+}
+
+.footer button {
+	margin-top: 0;
+}
