@@ -300,3 +300,73 @@ export function breakdownFor(
 	}
 	return rows;
 }
+
+/** One person's line in "Who owes what". */
+export interface OwedRow {
+	person: string;
+	/** Owed across every unsettled expense, less any credits handed over. */
+	net: number;
+	/** You can't owe yourself — your row is read-only. */
+	isYou: boolean;
+	/** Owing nothing *is* settled, whether or not anyone ticked a box. */
+	square: boolean;
+	/** Ticked off, or square — both render as done. */
+	done: boolean;
+}
+
+/**
+ * "Who owes what", net of credits.
+ *
+ * A settled expense drops out entirely, and so does anyone already ticked
+ * off on a specific expense — they've handed their share over even though
+ * the expense as a whole is still waiting on someone else.
+ *
+ * `square` rounds the way the row displays, so someone showing "$0.00"
+ * counts as settled even when a float has left a fraction of a cent behind.
+ * The outstanding total counts only people who are neither you nor ticked
+ * off, since those are the ones there's anything left to chase.
+ */
+export function planOwedSummary(
+	costs: Expense[],
+	credits: Credit[],
+	participants: string[],
+	yourName: string,
+	paid: string[]
+): { rows: OwedRow[]; outstanding: number } {
+	const isYou = (p: string) =>
+		!!yourName && p.toLowerCase() === yourName.toLowerCase();
+
+	const owedTotals: Record<string, number> = {};
+	for (const cost of costs) {
+		if (cost.settled) continue;
+		const owed = owedFor(cost, participants);
+		for (const p of participants) {
+			if (isPaidBy(cost, p)) continue;
+			owedTotals[p] = (owedTotals[p] ?? 0) + (owed[p] ?? 0);
+		}
+	}
+
+	const rows = participants.map((person): OwedRow => {
+		const net = (owedTotals[person] ?? 0) - creditTotalFor(person, credits);
+		const square = Math.abs(net) < 0.005;
+		return {
+			person,
+			net,
+			isYou: isYou(person),
+			square,
+			done: square || paid.includes(person),
+		};
+	});
+
+	const done = new Set(paid);
+	const outstanding = rows
+		.filter((r) => !r.isYou && !done.has(r.person))
+		.reduce((sum, r) => sum + r.net, 0);
+
+	// Still to chase leads; whoever's square folds away behind its own
+	// accordion, still there to check.
+	return {
+		rows: [...rows.filter((r) => !r.square), ...rows.filter((r) => r.square)],
+		outstanding,
+	};
+}

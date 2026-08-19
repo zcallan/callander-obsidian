@@ -19,6 +19,7 @@ import { BringSection } from "@/ui/sections/BringSection";
 import { PlanDraftsSection } from "@/ui/sections/PlanDraftsSection";
 import { QuickIdeasSection } from "@/ui/sections/QuickIdeasSection";
 import { PlanTimelineSection } from "@/ui/sections/PlanTimelineSection";
+import { PlanExpensesSection } from "@/ui/sections/PlanExpensesSection";
 import {
 	PlanMembersSection,
 	type PlanMemberChip,
@@ -72,7 +73,6 @@ import {
 	InterestCategory,
 	EventType,
 	TRAVEL_TYPES,
-	BOOKING_STATES,
 } from "@/constants";
 import type {
 	Draft,
@@ -95,25 +95,16 @@ import {
 	type PlanShareDetail,
 } from "@/utils/planShare";
 import {
-	formatItemCost,
-	formatItemTime,
-	formatStayHours,
 	formatTimelineDay,
-	nightsSummary,
 } from "@/utils/planFormat";
 import { shortenPeopleList } from "@/utils/nameFormat";
 import { formatDate } from "@/utils/dateFormat";
 import { ContactOperations } from "@/services/ContactOperations";
 import { PlanDraftViewModal } from "@/modals/PlanDraftViewModal";
 import { resolvePeopleInfo, type PersonInfo } from "@/utils/people";
-import { appendExpenseRow } from "@/components/ExpenseRow";
 import {
-	breakdownFor,
-	creditTotalFor,
 	creditsOf,
 	expensesOf,
-	isPaidBy,
-	owedFor,
 } from "@/utils/expenseMath";
 import { ScheduleFieldOptions } from "@/modals/scheduleFields";
 import { InterestModal } from "@/modals/InterestModal";
@@ -800,7 +791,39 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			this.renderExpenses(planSection("dollar-sign", "Cost breakdown"));
+			planSection("dollar-sign", "Cost breakdown").appendChild(
+				this.island(
+					"plan-expenses",
+					<PlanExpensesSection
+						store={this.store}
+						costs={() => expensesOf(this.contactData)}
+						credits={() => creditsOf(this.contactData)}
+						participants={() => this.planParticipants()}
+						yourName={this.plugin.settings.yourName}
+						paid={() =>
+							Array.isArray(this.contactData.costsPaid)
+								? this.contactData.costsPaid.map((v) => toText(v))
+								: []
+						}
+						onOpenCost={(index, cost) => this.openCostView(index, cost)}
+						onOpenCredit={(index, credit) =>
+							this.openCreditModal(index, credit)
+						}
+						onTogglePaid={(person, done) =>
+							void this.togglePersonPaid(person, done)
+						}
+						onBreakdown={(person, rows) =>
+							new ExpenseBreakdownModal(
+								this.app,
+								person,
+								rows
+							).open()
+						}
+						onAddExpense={() => this.openAddExpense()}
+						onAddCredit={() => this.openCreditModal(null, null)}
+					/>
+				)
+			);
 			this.renderNotesSection(planSection("pencil", "Notes"));
 			void this.renderExtrasSection(
 				planSection("document", "Links & details")
@@ -3159,363 +3182,116 @@ export class ContactPageView extends ItemView {
 		return names;
 	}
 
-	private renderExpenses(container: HTMLElement) {
-		const section = container.createDiv({
-			cls: "contact-ideas-section plan-items-section",
-		});
-		const costs = expensesOf(this.contactData);
-		const credits = creditsOf(this.contactData);
-		const participants = this.planParticipants();
-		const shortNames = this.planShortNameOverrides();
-		// You're the one owed — not someone who owes — so you're excluded from
-		// the tally and can't be ticked off. Credits are money others hand you.
+	private async writeCosts(list: Expense[]) {
+		if (list.length > 0) this.contactData.costs = list;
+		else delete this.contactData.costs;
+		await this.saveContactData();
+		this.render();
+	}
+
+	private async deleteCost(index: number) {
+		const list = expensesOf(this.contactData);
+		list.splice(index, 1);
+		await this.writeCosts(list);
+	}
+
+	private openCostModal(index: number, cost: Expense) {
+		new ExpenseModal(
+			this.app,
+			this.planParticipants(),
+			cost,
+			async (updated) => {
+				const list = expensesOf(this.contactData);
+				list[index] = updated;
+				await this.writeCosts(list);
+			},
+			() => this.deleteCost(index),
+			this.plugin.settings.yourName,
+			this.plugin.settings.receiptTaxPercent,
+			this.plugin.settings.receiptTipPercent
+		).open();
+	}
+
+	/** Tapping a row reads it first; Edit/Delete live in that view. */
+	private openCostView(index: number, cost: Expense) {
+		new ExpenseViewModal(
+			this.app,
+			cost,
+			this.planParticipants(),
+			() => this.openCostModal(index, cost),
+			() => this.deleteCost(index),
+			this.plugin.settings.yourName,
+			({ paid, settled }) => {
+				// Persists the tick state and refreshes the page underneath —
+				// the view modal is a separate overlay, so this never disturbs
+				// it; it updates its own display once the save resolves.
+				const list = expensesOf(this.contactData);
+				const current = list[index];
+				if (!current) return Promise.resolve();
+				const updated: Expense = { ...current, paid };
+				if (settled) updated.settled = true;
+				else delete updated.settled;
+				list[index] = updated;
+				return this.writeCosts(list);
+			},
+			this.planShortNameOverrides()
+		).open();
+	}
+
+	private openCreditModal(index: number | null, credit: Credit | null) {
 		const yourName = this.plugin.settings.yourName;
-		const isYou = (p: string) =>
-			!!yourName && p.toLowerCase() === yourName.toLowerCase();
-		const creditPeople = participants.filter((p) => !isYou(p));
-		const money = (n: number) =>
-			n < 0 ? `-$${Math.abs(n).toFixed(2)}` : `$${n.toFixed(2)}`;
+		const creditPeople = this.planParticipants().filter(
+			(p) => !yourName || p.toLowerCase() !== yourName.toLowerCase()
+		);
+		new CreditModal(
+			this.app,
+			creditPeople,
+			credit,
+			async (updated) => {
+				const list = creditsOf(this.contactData);
+				if (index === null) list.push(updated);
+				else list[index] = updated;
+				this.contactData.credits = list;
+				await this.saveContactData();
+				this.render();
+			},
+			index === null
+				? undefined
+				: async () => {
+						const list = creditsOf(this.contactData);
+						list.splice(index, 1);
+						if (list.length > 0) this.contactData.credits = list;
+						else delete this.contactData.credits;
+						await this.saveContactData();
+						this.render();
+				  }
+		).open();
+	}
 
-		if (costs.length === 0 && credits.length === 0) {
-			section.createDiv({
-				cls: "section-helper-text",
-				text: "Split shared expenses — the Airbnb, petrol, groceries. Divide evenly or by shares (nights, drinks…). Add credits for money already handed over.",
-			});
-		}
+	private async togglePersonPaid(person: string, done: boolean) {
+		const current: string[] = Array.isArray(this.contactData.costsPaid)
+			? this.contactData.costsPaid.map((v) => toText(v))
+			: [];
+		const next = done
+			? Array.from(new Set([...current, person]))
+			: current.filter((n) => n !== person);
+		if (next.length > 0) this.contactData.costsPaid = next;
+		else delete this.contactData.costsPaid;
+		await this.saveContactData();
+		this.render();
+	}
 
-		// Running total each person owes across all expenses
-		const owedTotals: Record<string, number> = {};
-		const deleteCost = async (index: number) => {
-			const list = expensesOf(this.contactData);
-			list.splice(index, 1);
-			if (list.length > 0) this.contactData.costs = list;
-			else delete this.contactData.costs;
-			await this.saveContactData();
-			this.render();
-		};
-
-		const editCost = (index: number, cost: Expense) => {
-			new ExpenseModal(
-				this.app,
-				participants,
-				cost,
-				async (updated) => {
-					const list = expensesOf(this.contactData);
-					list[index] = updated;
-					this.contactData.costs = list;
-					await this.saveContactData();
-					this.render();
-				},
-				() => deleteCost(index),
-				this.plugin.settings.yourName,
-				this.plugin.settings.receiptTaxPercent,
-				this.plugin.settings.receiptTipPercent
-			).open();
-		};
-
-		// Persists the tick state and refreshes the page underneath — the view
-		// modal is a separate overlay, so this never disturbs it; it updates
-		// its own display itself once the save resolves.
-		const toggleCostSettled = async (
-			index: number,
-			paid: string[],
-			settled: boolean
-		) => {
-			const list = expensesOf(this.contactData);
-			const current = list[index];
-			if (!current) return;
-			const updated: Expense = { ...current, paid };
-			if (settled) updated.settled = true;
-			else delete updated.settled;
-			list[index] = updated;
-			this.contactData.costs = list;
-			await this.saveContactData();
-			this.render();
-		};
-
-		// Tapping a row reads it first; Edit/Delete live in that view.
-		const openCost = (index: number, cost: Expense) => {
-			new ExpenseViewModal(
-				this.app,
-				cost,
-				participants,
-				() => editCost(index, cost),
-				() => deleteCost(index),
-				this.plugin.settings.yourName,
-				({ paid, settled }) => toggleCostSettled(index, paid, settled),
-				shortNames
-			).open();
-		};
-
-		const openCredit = (
-			index: number | null,
-			credit: Credit | null
-		) => {
-			new CreditModal(
-				this.app,
-				creditPeople,
-				credit,
-				async (updated) => {
-					const list = creditsOf(this.contactData);
-					if (index === null) list.push(updated);
-					else list[index] = updated;
-					this.contactData.credits = list;
-					await this.saveContactData();
-					this.render();
-				},
-				index === null
-					? undefined
-					: async () => {
-							const list = creditsOf(
-								this.contactData
-							);
-							list.splice(index, 1);
-							if (list.length > 0)
-								this.contactData.credits = list;
-							else delete this.contactData.credits;
-							await this.saveContactData();
-							this.render();
-					  }
-			).open();
-		};
-
-		costs.forEach((cost, index) => {
-			appendExpenseRow(section, cost, participants, {
-				yourName,
-				onClick: () => openCost(index, cost),
-			});
-
-			// Settled — already squared up, so it drops out of "Who owes what".
-			if (cost.settled) return;
-			const owed = owedFor(cost, participants);
-			for (const p of participants) {
-				// Ticked off on this expense specifically: they've handed
-				// their share over even though the expense as a whole is
-				// still waiting on someone else.
-				if (isPaidBy(cost, p)) continue;
-				owedTotals[p] = (owedTotals[p] ?? 0) + (owed[p] ?? 0);
-			}
-		});
-
-		// Credits — money already handed over, shown after the expenses
-		credits.forEach((credit, index) => {
-			const row = section.createDiv({
-				cls: "contact-idea-item expense-row plan-credit-row plan-clickable-row",
-			});
-			row.addEventListener("click", () => openCredit(index, credit));
-			const textEl = row.createDiv({ cls: "contact-idea-text" });
-			textEl.createSpan({
-				cls: "expense-label",
-				text: `↩ ${credit.person}`,
-			});
-			textEl.createSpan({
-				cls: "item-cost plan-credit-amount",
-				text: ` · ${money(-credit.amount)}${
-					credit.note ? ` · ${credit.note}` : ""
-				}`,
-			});
-		});
-
-		// Per-person summary — a collapsible accordion; tick each person once
-		// they've paid. Amounts are net of any credits.
-		if (
-			(costs.length > 0 || credits.length > 0) &&
-			participants.length > 0
-		) {
-			const paid: string[] = Array.isArray(this.contactData.costsPaid)
-				? this.contactData.costsPaid.map(String)
-				: [];
-
-			const details = section.createEl("details", {
-				cls: "expense-summary",
-			});
-			// Collapsed by default — expand to see who owes what.
-			const summaryEl = details.createEl("summary", {
-				cls: "expense-summary-total",
-			});
-			const totalSpan = summaryEl.createSpan();
-			// Outstanding total = net owed by everyone not yet ticked off.
-			const refreshTotal = () => {
-				const done = new Set(
-					Array.isArray(this.contactData.costsPaid)
-						? this.contactData.costsPaid.map(String)
-						: []
-				);
-				const outstanding = participants
-					.filter((p) => !done.has(p) && !isYou(p))
-					.reduce(
-						(s, p) =>
-							s +
-							((owedTotals[p] ?? 0) -
-								creditTotalFor(p, credits)),
-						0
-					);
-				totalSpan.setText(`Who owes what · ${money(outstanding)} left`);
-			};
-			refreshTotal();
-
-			// Rounds the way the row does, so someone displaying "$0.00"
-			// counts as settled even if a float left a fraction of a cent.
-			const isSquare = (p: string) =>
-				Math.abs(
-					(owedTotals[p] ?? 0) - creditTotalFor(p, credits)
-				) < 0.005;
-			const outstandingPeople = participants.filter((p) => !isSquare(p));
-			const settledPeople = participants.filter(isSquare);
-
-			// What's left to chase leads; whoever's square folds away into
-			// its own accordion, still there to check.
-			const owedList = details.createDiv({ cls: "expense-owed-list" });
-			let settledList: HTMLElement | null = null;
-			if (settledPeople.length > 0) {
-				const settledWrap = details.createEl("details", {
-					cls: "expense-settled-group",
-				});
-				const settledSummary = settledWrap.createEl("summary", {
-					cls: "expense-settled-summary",
-				});
-				setIcon(
-					settledSummary.createSpan({
-						cls: "expense-settled-chevron",
-					}),
-					"chevron-down"
-				);
-				settledSummary.createSpan({ text: "Show settled people" });
-				settledList = settledWrap.createDiv({
-					cls: "expense-owed-list",
-				});
-			}
-
-			for (const p of [...outstandingPeople, ...settledPeople]) {
-				// Each list bands independently, which is what lets plain
-				// :nth-child do it — nothing is hidden inside either one.
-				// Owing nothing IS settled — the tick just says so, with
-				// nothing left for it to toggle.
-				const square = isSquare(p);
-				const list = square ? settledList ?? owedList : owedList;
-				const done = paid.includes(p) || square;
-				const rowEl = list.createDiv({
-					cls: `expense-owed-row${done ? " paid" : ""}`,
-				});
-				// Checkbox + name in a label so tapping either toggles "paid".
-				const check = rowEl.createEl("label", {
-					cls: "expense-owed-check",
-				});
-				const checkbox = check.createEl("input", {
-					attr: { type: "checkbox", "aria-label": `Mark ${p} paid` },
-				});
-				checkbox.checked = done;
-				// You can't owe yourself, and there's nothing to tick off
-				// someone who owes nothing — both rows stay read-only.
-				const locked = isYou(p) || square;
-				checkbox.disabled = locked;
-				check.toggleClass("is-disabled", locked);
-				const togglePaid = async () => {
-					const current: string[] = Array.isArray(
-						this.contactData.costsPaid
-					)
-						? this.contactData.costsPaid.map(String)
-						: [];
-					const next = checkbox.checked
-						? Array.from(new Set([...current, p]))
-						: current.filter((n) => n !== p);
-					if (next.length > 0) this.contactData.costsPaid = next;
-					else delete this.contactData.costsPaid;
-					// Update in place — a full re-render would collapse the
-					// accordion back to closed.
-					rowEl.toggleClass("paid", checkbox.checked);
-					refreshTotal();
-					await this.saveContactData();
-				};
-				checkbox.addEventListener("change", () => void togglePaid());
-				check.createSpan({
-					cls: "expense-owed-name",
-					text: isYou(p) ? `${p} (Me)` : p,
-				});
-
-				// The label only covers its own text, leaving the row's
-				// padding and the space out by the amount dead to a click.
-				// Forwarding from the row picks all of that up.
-				if (!checkbox.disabled) {
-					rowEl.addClass("is-clickable");
-					rowEl.addEventListener("click", (ev) => {
-						const target = ev.target as HTMLElement | null;
-						// The label toggles it natively and Breakdown opens a
-						// modal — forwarding either would undo or hijack it.
-						if (target?.closest("label, button")) return;
-						checkbox.click();
-					});
-				}
-
-				const owedGross = owedTotals[p] ?? 0;
-				const credited = creditTotalFor(p, credits);
-				const net = owedGross - credited;
-				rowEl.createSpan({
-					cls: "expense-owed-amount",
-					text: money(net),
-				});
-
-				// Per-person breakdown — always shown, disabled when they're
-				// not part of any expense. Gated on having something to list
-				// rather than on the amount owed: once everything of theirs is
-				// settled they owe nothing, but the settled lines are exactly
-				// what you'd open this to check.
-				const breakdownRows = breakdownFor(
-					p,
-					costs,
-					participants,
-					credits
-				);
-				const breakdownBtn = rowEl.createEl("button", {
-					cls: "callander-button expense-breakdown-btn",
-					text: "Breakdown",
-				});
-				if (breakdownRows.length > 0) {
-					breakdownBtn.addEventListener("click", () => {
-						new ExpenseBreakdownModal(
-							this.app,
-							p,
-							breakdownRows
-						).open();
-					});
-				} else {
-					breakdownBtn.disabled = true;
-				}
-			}
-
-		}
-
-		const footer = section.createDiv({
-			cls: "contact-section-footer expense-footer",
-		});
-		const addButton = footer.createEl("button", {
-			cls: "callander-button",
-		});
-		setIcon(addButton, "plus");
-		addButton.createSpan({ text: "Add expense" });
-		addButton.addEventListener("click", () => {
-			new ExpenseModal(
-				this.app,
-				this.planParticipants(),
-				null,
-				(cost) => this.appendExpense(cost),
-				undefined,
-				this.plugin.settings.yourName,
-				this.plugin.settings.receiptTaxPercent,
-				this.plugin.settings.receiptTipPercent
-			).open();
-		});
-
-		if (creditPeople.length > 0) {
-			const creditButton = footer.createEl("button", {
-				cls: "callander-button",
-			});
-			setIcon(creditButton, "plus");
-			creditButton.createSpan({ text: "Add credit" });
-			creditButton.addEventListener("click", () =>
-				openCredit(null, null)
-			);
-		}
+	private openAddExpense() {
+		new ExpenseModal(
+			this.app,
+			this.planParticipants(),
+			null,
+			(cost) => this.appendExpense(cost),
+			undefined,
+			this.plugin.settings.yourName,
+			this.plugin.settings.receiptTaxPercent,
+			this.plugin.settings.receiptTipPercent
+		).open();
 	}
 
 	private isGroupFile(): boolean {

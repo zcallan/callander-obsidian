@@ -10,6 +10,7 @@ import {
 	partitionExpenses,
 	payersOf,
 	percentFromInput,
+	planOwedSummary,
 } from "./.build/callander.mjs";
 
 export function run() {
@@ -385,6 +386,106 @@ export function run() {
 		"one tick short of everyone leaves it open",
 		isFullyPaid(rileyPaid[0].paid, payersOf(rileyPaid[0], trio)),
 		false
+	);
+
+	// ---------- planOwedSummary: the plan's "Who owes what" ----------
+	// Even split of $30 across three, nobody ticked off.
+	{
+		const costs = [
+			{ label: "Dinner", amount: 30, split: { mode: "even" }, paidBy: "Me" },
+		];
+		const people = ["Me", "Riley", "Harry"];
+		const { rows, outstanding } = planOwedSummary(costs, [], people, "Me", []);
+		const by = (n) => rows.find((r) => r.person === n);
+		eq("everyone appears once", rows.length, 3);
+		eq("a share is owed", Math.round(by("Riley").net * 100) / 100, 10);
+		eq("your own row is marked", by("Me").isYou, true);
+		// You can't owe yourself, so your share never joins the chase total.
+		eq("the total excludes you", Math.round(outstanding * 100) / 100, 20);
+	}
+
+	// A settled expense drops out entirely.
+	{
+		const costs = [
+			{ label: "Dinner", amount: 30, split: { mode: "even" }, paidBy: "Me", settled: true },
+		];
+		const { outstanding } = planOwedSummary(costs, [], ["Me", "Riley"], "Me", []);
+		eq("a settled expense owes nothing", outstanding, 0);
+	}
+
+	// Ticked off on one expense: they've handed their share over even though
+	// the expense as a whole is still waiting on someone else.
+	{
+		const costs = [
+			{ label: "Dinner", amount: 30, split: { mode: "even" }, paidBy: "Me", paid: ["Riley"] },
+		];
+		const people = ["Me", "Riley", "Harry"];
+		const { rows } = planOwedSummary(costs, [], people, "Me", []);
+		const by = (n) => rows.find((r) => r.person === n);
+		eq("a per-expense tick clears that share", by("Riley").net, 0);
+		eq("...and owing nothing counts as square", by("Riley").square, true);
+		eq("...while the others still owe", Math.round(by("Harry").net * 100) / 100, 10);
+	}
+
+	// Credits net off what's owed.
+	{
+		const costs = [
+			{ label: "Dinner", amount: 20, split: { mode: "even" }, paidBy: "Me" },
+		];
+		const credits = [{ person: "Riley", amount: 10 }];
+		const { rows } = planOwedSummary(costs, credits, ["Me", "Riley"], "Me", []);
+		eq(
+			"a credit cancels the share",
+			rows.find((r) => r.person === "Riley").net,
+			0
+		);
+	}
+
+	// Square people sort last, so what's left to chase leads the list.
+	{
+		const costs = [
+			{ label: "Dinner", amount: 30, split: { mode: "even" }, paidBy: "Me" },
+		];
+		const credits = [{ person: "Riley", amount: 10 }];
+		const people = ["Me", "Riley", "Harry"];
+		const { rows } = planOwedSummary(costs, credits, people, "Me", []);
+		// Me owes a share too — an even split across three includes you —
+		// so the only square person here is the one the credit cleared.
+		eq(
+			"outstanding first, square after",
+			rows.map((r) => r.square),
+			[false, false, true]
+		);
+		eq(
+			"...and the square one is the credited person",
+			rows[rows.length - 1].person,
+			"Riley"
+		);
+	}
+
+	// Being ticked off in costsPaid marks the row done and stops the chase,
+	// without pretending the amount itself is zero.
+	{
+		const costs = [
+			{ label: "Dinner", amount: 20, split: { mode: "even" }, paidBy: "Me" },
+		];
+		const { rows, outstanding } = planOwedSummary(
+			costs,
+			[],
+			["Me", "Riley"],
+			"Me",
+			["Riley"]
+		);
+		const riley = rows.find((r) => r.person === "Riley");
+		eq("a ticked person reads as done", riley.done, true);
+		eq("...but still shows what they owed", riley.net, 10);
+		eq("...and drops out of the total", outstanding, 0);
+	}
+
+	eq(
+		"no participants is no rows",
+		planOwedSummary([], [], [], "Me", []).rows,
+		[]
 	);
 
 	return result();
