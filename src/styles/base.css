@@ -2429,6 +2429,30 @@ If your plugin does not need CSS, delete this file.
 	flex: 1;
 }
 
+/* A life goal reads as a plain line; only the note marker trails it. */
+.contact-life-goal-text {
+	flex: 1;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+/* Says a note exists without spending a line quoting it — the note is the
+   reason you'd open the goal, so the row only has to advertise it. */
+.contact-life-goal-note {
+	flex: 0 0 auto;
+	font-size: 0.85em;
+	opacity: 0.65;
+}
+
+/* Done, but still listed. Muted and struck rather than hidden: keeping the
+   record is half the point of the section. Struck on the text alone, so the
+   note marker beside it stays legible. */
+.contact-life-goal.is-done .contact-life-goal-text {
+	color: var(--text-muted);
+	text-decoration: line-through;
+	text-decoration-color: var(--text-faint);
+}
+
 .contact-interest-chip-remove {
 	display: inline-flex;
 	align-items: center;
