@@ -9,6 +9,7 @@ import {
 } from "@/modals/scheduleFields";
 import { formatShortWeekdayDate } from "@/utils/flexdate";
 import { ConfirmModal } from "@/modals/ConfirmModal";
+import { AddCategoryModal } from "@/modals/AddCategoryModal";
 import type { PlanQuickIdea } from "@/types";
 
 /**
@@ -97,16 +98,16 @@ export class PlanQuickIdeaModal extends FormModal {
 			typeButtons.set(c.id, button);
 		});
 
-		this.renderDays(form);
-
-		// Time only — the days above already answered "when", and one date
-		// field can't hold several candidates. People sits in the accordion
+		// Time only — one date field can't hold several candidates, so the
+		// days below answer "when" instead. People sits in the accordion
 		// below with the rest of the optional detail.
 		const schedule = appendScheduleFields(
 			form,
 			{ time: this.initial?.time },
 			{ ...this.scheduleOptions, hideDate: true, hidePeople: true }
 		);
+
+		this.renderDays(form);
 
 		// Cost and notes fold away, same as the item modal.
 		const detailsWrap = form.createDiv({
@@ -241,9 +242,14 @@ export class PlanQuickIdeaModal extends FormModal {
 	 * Every category this plan knows renders as a toggle chip — purple when
 	 * picked, same as the day chips below — so there's one state to read per
 	 * chip rather than a separate row of what's selected above a row of
-	 * what's available. Typing a new name and pressing Add (or Enter) turns
-	 * it into a picked chip alongside the rest; clicking a picked chip again
-	 * un-picks it, so there's no separate remove control to learn.
+	 * what's available. Clicking a picked chip again un-picks it, so there's
+	 * no separate remove control to learn.
+	 *
+	 * A trailing "+ Add" chip opens AddCategoryModal for a new name, rather
+	 * than a text box sitting in this form permanently: the categories a plan
+	 * uses settle early and then rarely change, so the common visit picks
+	 * from what's already there. A new one arrives picked, since naming it
+	 * here means wanting it on this idea.
 	 *
 	 * The list itself is saved against the plan (see ContactPageView's
 	 * rememberQuickIdeaCategories), not derived from what's currently in
@@ -254,7 +260,7 @@ export class PlanQuickIdeaModal extends FormModal {
 		const field = form.createDiv({
 			cls: "callander-modal-field quick-idea-cat-field",
 		});
-		field.createEl("label", { text: "Categories (optional)" });
+		field.createEl("label", { text: "Categories" });
 
 		// Known categories plus whatever's already picked on this idea (an
 		// edit can carry a category the plan has since stopped listing).
@@ -265,20 +271,6 @@ export class PlanQuickIdeaModal extends FormModal {
 			}
 		}
 
-		const row = field.createDiv({ cls: "event-link-row" });
-		const input = row.createEl("input", {
-			cls: "callander-modal-input",
-			attr: {
-				type: "text",
-				placeholder: "e.g. Boston",
-				name: "category",
-			},
-		});
-		const addButton = row.createEl("button", {
-			cls: "callander-button event-link-open",
-			text: "Add",
-			attr: { type: "button" },
-		});
 		const chipsEl = field.createDiv({ cls: "quick-idea-cat-chips" });
 
 		const isPicked = (cat: string) =>
@@ -351,6 +343,24 @@ export class PlanQuickIdeaModal extends FormModal {
 				});
 				chip.addEventListener("contextmenu", (e) => e.preventDefault());
 			}
+
+			// Trails the real categories, and deliberately looks like one:
+			// adding is the same kind of act as picking, and a chip keeps it
+			// on the same line rather than spending a form row on it.
+			const addChip = chipsEl.createEl("button", {
+				cls: "someday-filter-pill quick-idea-cat-add",
+				text: "+ Add",
+				attr: { type: "button" },
+			});
+			addChip.addEventListener("click", () => {
+				new AddCategoryModal(
+					this.app,
+					(name) => add(name),
+					// Both the plan's own list and anything picked here, so a
+					// name already on screen can't be added a second time.
+					options
+				).open();
+			});
 		};
 
 		const toggle = (cat: string) => {
@@ -375,19 +385,6 @@ export class PlanQuickIdeaModal extends FormModal {
 			if (!isPicked(value)) this.categories.push(value);
 			renderChips();
 		};
-
-		const commit = () => {
-			add(input.value);
-			input.value = "";
-		};
-		addButton.addEventListener("click", commit);
-		input.addEventListener("keydown", (e) => {
-			if (e.key !== "Enter") return;
-			// Otherwise Enter here would submit the whole form with the
-			// category still sitting untyped in this box.
-			e.preventDefault();
-			commit();
-		});
 
 		renderChips();
 	}

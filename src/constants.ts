@@ -14,6 +14,8 @@ export const STANDARD_FIELDS = {
 	LOCATION: "location",
 	PARENTS: "parents",
 	SIBLINGS: "siblings",
+	FRIENDS: "friends",
+	RELATED_FILES: "relatedFiles",
 	GROUPS: "groups",
 	EMAIL: "email",
 	PHONE: "phone",
@@ -35,6 +37,27 @@ export const STANDARD_FIELDS = {
 	FUN_FACTS: "funFacts",
 	QUOTES: "quotes",
 } as const;
+
+/**
+ * Fields whose values name *other* notes, so an entry can be a `[[Wikilink]]`
+ * and gets note autocomplete while editing.
+ *
+ * Stored as YAML lists rather than one comma-joined string, because Obsidian
+ * only indexes a frontmatter link when the whole value is the link — a link
+ * embedded in a longer string is inert, invisible to the graph and to
+ * backlinks, and silently broken by a rename. A list of whole-value links is
+ * what `members` on a plan already does, and it's what makes these show up in
+ * graph view for free.
+ *
+ * Raw text stays welcome: an entry that isn't a link is kept verbatim, so a
+ * relative with no note of their own can still be named.
+ */
+export const LINKABLE_FIELDS: string[] = [
+	"parents",
+	"siblings",
+	"friends",
+	"relatedFiles",
+];
 
 // System fields that shouldn't be shown as custom fields
 export const SYSTEM_FIELDS: StandardFieldValue[] = [
