@@ -25,6 +25,12 @@ import { LifeGoalsSection } from "@/ui/sections/LifeGoalsSection";
 import { QuoteListSection } from "@/ui/sections/QuoteListSection";
 import { InterestsSection } from "@/ui/sections/InterestsSection";
 import { IdeasSection } from "@/ui/sections/IdeasSection";
+import { PersonDraftsSection } from "@/ui/sections/PersonDraftsSection";
+import { NotesSection } from "@/ui/sections/NotesSection";
+import {
+	DiaryMentionsSection,
+	type DiaryMention,
+} from "@/ui/sections/DiaryMentionsSection";
 import {
 	PlanMembersSection,
 	type PlanMemberChip,
@@ -701,7 +707,7 @@ export class ContactPageView extends ItemView {
 					"plan-members",
 					<PlanMembersSection
 						store={this.store}
-						yourName={this.plugin.settings.yourName}
+						yourName={() => this.plugin.settings.yourName}
 						members={() => this.planMemberChips("members")}
 						unconfirmed={() =>
 							this.planMemberChips("unconfirmedMembers")
@@ -804,7 +810,7 @@ export class ContactPageView extends ItemView {
 						costs={() => expensesOf(this.contactData)}
 						credits={() => creditsOf(this.contactData)}
 						participants={() => this.planParticipants()}
-						yourName={this.plugin.settings.yourName}
+						yourName={() => this.plugin.settings.yourName}
 						paid={() =>
 							Array.isArray(this.contactData.costsPaid)
 								? this.contactData.costsPaid.map((v) => toText(v))
@@ -829,7 +835,17 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			this.renderNotesSection(planSection("pencil", "Notes"));
+			planSection("pencil", "Notes").appendChild(
+			this.island(
+				"notes",
+				<NotesSection
+					store={this.store}
+					value={() => toText(this.contactData.notes)}
+					placeholder={() => this.notesPlaceholder()}
+					onSave={(text) => void this.saveNotes(text)}
+				/>
+			)
+		);
 			void this.renderExtrasSection(
 				planSection("document", "Links & details")
 			);
@@ -883,7 +899,22 @@ export class ContactPageView extends ItemView {
 		}
 
 		// Drafts awaiting triage sit above everything — they're unfinished
-		this.renderDraftsStrip(container);
+		container.appendChild(
+			this.island(
+				"person-drafts",
+				<PersonDraftsSection
+					store={this.store}
+					drafts={() => this.planDraftTexts()}
+					onMakeIdea={(index, text) =>
+						this.promoteDraftToIdea(index, text)
+					}
+					onEdit={(index, text) => this.editDraft(index, text)}
+					onDiscard={(index, text) =>
+						this.confirmDiscardPlanDraft(index, text)
+					}
+				/>
+			)
+		);
 
 		// Stacked sections: Ideas first, then Timeline, then Notes, then
 		// the raw-markdown extras. (Tabs may return one day — each section
@@ -1041,7 +1072,17 @@ export class ContactPageView extends ItemView {
 				)
 			);
 		}
-		this.renderNotesSection(section("pencil", "Notes"));
+		section("pencil", "Notes").appendChild(
+			this.island(
+				"notes",
+				<NotesSection
+					store={this.store}
+					value={() => toText(this.contactData.notes)}
+					placeholder={() => this.notesPlaceholder()}
+					onSave={(text) => void this.saveNotes(text)}
+				/>
+			)
+		);
 		// Raw markdown is reference material, not something you scan on every
 		// visit — collapsed by default, with the Edit button left outside so
 		// it stays one click away.
@@ -1957,38 +1998,25 @@ export class ContactPageView extends ItemView {
 		logButton.addEventListener("click", () => void logIdeaAsEvent());
 	}
 
-	private renderNotesSection(container: HTMLElement) {
-		const notesSection = container.createDiv({
-			cls: "contact-notes-section",
-		});
-
-		// Placeholder reads differently for plans, groups, and friends
-		const placeholder = this.isPlanFile()
-			? "Anything else about the plan — booking details, addresses, who's driving..."
-			: this.isGroupFile()
-			? "Notes about this group — running jokes, how you all met, anything worth remembering..."
-			: "Add notes about anything here that you want to remember...";
-
-		const notesInput = notesSection.createEl("textarea", {
-			cls: "contact-notes-input",
-			attr: { placeholder },
-		});
-		notesInput.value = this.contactData.notes || "";
-
-		notesInput.addEventListener("input", () => {
-			this.adjustTextareaHeight(notesInput);
-		});
-
-		window.setTimeout(() => {
-			this.adjustTextareaHeight(notesInput);
-		}, 0);
-
-		notesInput.addEventListener("change", () => {
-			if (!this._file) return;
-			this.contactData.notes = notesInput.value;
-			void this.saveContactData();
-		});
+	/** Reads differently for plans, groups and friends. */
+	private notesPlaceholder(): string {
+		if (this.isPlanFile()) {
+			return "Anything else about the plan — booking details, addresses, who's driving...";
+		}
+		if (this.isGroupFile()) {
+			return "Notes about this group — running jokes, how you all met, anything worth remembering...";
+		}
+		return "Add notes about anything here that you want to remember...";
 	}
+
+	private async saveNotes(text: string) {
+		if (!this._file) return;
+		this.contactData.notes = text;
+		await this.saveContactData();
+		// No render(): the textarea is the thing that changed, and rebuilding
+		// the page under a field someone just left is work nobody can see.
+	}
+
 
 	private renderEventsSection(container: HTMLElement) {
 		const eventsSection = container.createDiv({
@@ -2032,106 +2060,61 @@ export class ContactPageView extends ItemView {
 			void this.openAddEventModal();
 		});
 
-		void this.renderDiaryMentions(eventsSection);
-	}
-
-	private renderDraftsStrip(container: HTMLElement) {
-		const drafts = asArray(this.contactData.drafts);
-		if (drafts.length === 0) return;
-
-		const strip = container.createDiv({
-			cls: "contact-drafts-strip",
-		});
-		strip.createDiv({
-			cls: "contact-idea-group-header",
-			text: "✏️ Drafts to sort",
-		});
-
-		drafts.forEach((draft, index) => {
-			const draftText =
-				typeof draft === "string"
-					? draft
-					: toText(fieldOf(draft, "text"));
-			const row = strip.createDiv({ cls: "contact-draft-row" });
-			row.createSpan({
-				cls: "contact-draft-text",
-				text: draftText,
-			});
-
-			const ideaButton = row.createEl("button", {
-				cls: "callander-button",
-				text: "Make idea",
-			});
-			ideaButton.addEventListener("click", () => {
-				new QuickIdeaModal(
-					this.app,
-					this.contactData.displayName || this.contactData.name || "",
-					this.lastIdeaCategory,
-					async (category, text) => {
-						this.lastIdeaCategory = category;
-						await this.writeIdeasToBody([
-							...this.ideasList(),
-							{ category, text, done: false },
-						]);
-						this.removeFromList("drafts", index);
-						await this.saveContactData();
-						this.render();
-					},
-					draftText
-				).open();
-			});
-
-			const editButton = row.createEl("button", {
-				cls: "callander-button button-icon",
-				attr: { "aria-label": "Edit draft" },
-			});
-			setIcon(editButton, "pencil");
-			editButton.addEventListener("click", () => {
-				new NoteInputModal(
-					this.app,
-					this.contactData.displayName || this.contactData.name || "",
-					async (text) => {
-						const list = asArray(this.contactData.drafts);
-						const current = list[index];
-						// Legacy drafts are plain strings; keep the shape the
-						// entry already had, and preserve `created` — editing
-						// the wording doesn't make it a new note.
-						list[index] =
-							typeof current === "string"
-								? text
-								: { ...(current as object), text };
-						this.contactData.drafts = list;
-						await this.saveContactData();
-						this.render();
-					},
-					draftText
-				).open();
-			});
-
-			const deleteButton = row.createEl("button", {
-				cls: "callander-button button-icon button-danger",
-				attr: { "aria-label": "Discard draft" },
-			});
-			setIcon(deleteButton, "trash");
-			deleteButton.addEventListener("click", () => {
-				const preview =
-					draftText.length > 80
-						? draftText.slice(0, 80) + "…"
-						: draftText;
-				new ConfirmModal(
-					this.app,
-					"Discard draft",
-					`Discard "${preview}"?`,
-					"Discard",
-					async () => {
-						this.removeFromList("drafts", index);
-						await this.saveContactData();
-						this.render();
+		eventsSection.appendChild(
+			this.island(
+				"diary-mentions",
+				<DiaryMentionsSection
+					store={this.store}
+					mentions={() => this.diaryMentions()}
+					onOpen={(path) =>
+						void this.app.workspace.openLinkText(path, "", true)
 					}
-				).open();
-			});
-		});
+				/>
+			)
+		);
 	}
+
+	private promoteDraftToIdea(index: number, text: string) {
+		new QuickIdeaModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name || "",
+			this.lastIdeaCategory,
+			async (category, ideaText) => {
+				this.lastIdeaCategory = category;
+				await this.writeIdeasToBody([
+					...this.ideasList(),
+					{ category, text: ideaText, done: false },
+				]);
+				this.removeFromList("drafts", index);
+				await this.saveContactData();
+				this.render();
+			},
+			text
+		).open();
+	}
+
+	private editDraft(index: number, text: string) {
+		new NoteInputModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name || "",
+			async (updated) => {
+				const list = asArray(this.contactData.drafts);
+				const current = list[index];
+				// Legacy drafts are plain strings; keep the shape the entry
+				// already had, and preserve `created` — editing the wording
+				// doesn't make it a new note.
+				list[index] =
+					typeof current === "string"
+						? updated
+						: { ...(current as object), text: updated };
+				this.contactData.drafts = list;
+				await this.saveContactData();
+				this.render();
+			},
+			text
+		).open();
+	}
+
 
 	private isPlanFile(): boolean {
 		return !!this._file?.path.startsWith(
@@ -3455,34 +3438,18 @@ export class ContactPageView extends ItemView {
 	}
 
 	// Diary entries that [[link]] to this friend — Obsidian-native, via backlinks
-	private async renderDiaryMentions(container: HTMLElement) {
-		if (!this._file) return;
-		// Metadata-only: no diary bodies are read just to check for links
-		const entries = this.plugin.diaryOperations.getEntriesMeta();
+	/** Diary entries linking to this person, from the link index alone. */
+	private diaryMentions(): DiaryMention[] {
+		const file = this._file;
+		if (!file) return [];
+		// Metadata-only: no diary bodies are read just to check for links.
 		const resolved = this.app.metadataCache.resolvedLinks;
-		const mentions = entries.filter(
-			(entry) => (resolved[entry.file.path]?.[this._file!.path] ?? 0) > 0
-		);
-		if (mentions.length === 0) return;
-
-		const section = container.createDiv({
-			cls: "contact-diary-mentions",
-		});
-		section.createDiv({
-			cls: "contact-idea-group-header",
-			text: "📖 Mentioned in diary",
-		});
-		for (const entry of mentions) {
-			const row = section.createEl("a", {
-				cls: "contact-diary-mention-row",
-				text: `${entry.date} — ${entry.title}`,
-			});
-			row.addEventListener("click", (e) => {
-				e.preventDefault();
-				void this.app.workspace.openLinkText(entry.file.path, "", true);
-			});
-		}
+		return this.plugin.diaryOperations
+			.getEntriesMeta()
+			.filter((e) => (resolved[e.file.path]?.[file.path] ?? 0) > 0)
+			.map((e) => ({ path: e.file.path, date: e.date, title: e.title }));
 	}
+
 
 	// Migrate legacy giftIdeas -> ideas (category: gift). In-memory on load;
 	// the file itself is rewritten on the next save.
