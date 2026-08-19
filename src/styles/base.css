@@ -198,9 +198,6 @@ If your plugin does not need CSS, delete this file.
 	margin-bottom: 0;
 	display: flex;
 	align-items: center;
-	/* So the help panel can take a full-width line of its own below the
-	   label and input, rather than squeezing into the row. */
-	flex-wrap: wrap;
 }
 
 .contact-field-label,
@@ -250,30 +247,103 @@ If your plugin does not need CSS, delete this file.
 	height: 14px;
 }
 
-/* The explanation itself — a full-width line under the field it belongs to,
-   indented to the value column so it reads as attached to that row. */
+/* Positioning context for the popover, so it tracks the button rather than
+   the label column — the button sits at the end of a variable-length word. */
+.contact-field-info-anchor {
+	position: relative;
+	display: inline-flex;
+}
+
+/* The explanation, floating below its button with an arrow pointing back up
+   at it. Above the fields it covers, and wide enough for a sentence without
+   being wider than a narrow pane. */
 .contact-field-help {
-	flex: 0 0 100%;
-	margin: 2px 0 6px 120px;
-	padding: 8px 10px;
-	border-left: 2px solid var(--interactive-accent);
-	border-radius: 0 4px 4px 0;
+	position: absolute;
+	top: calc(100% + 8px);
+	/* Anchored a little left of the button so the box sits under the label
+	   rather than running off toward the value column. */
+	left: -10px;
+	z-index: 30;
+	width: max-content;
+	max-width: min(280px, 70vw);
+	padding: 10px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
 	background: var(--background-secondary);
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
 	font-size: 0.85em;
 	color: var(--text-muted);
 	line-height: 1.45;
+	/* The label is muted and the row may be capitalised; the popover is its
+	   own surface and shouldn't inherit either. */
+	text-transform: none;
+	white-space: normal;
+	cursor: default;
+}
+
+/* A rotated square rather than a border triangle, so it can carry the box's
+   own border on the two sides that show and read as one shape with it. */
+.contact-field-help-arrow {
+	position: absolute;
+	top: -5px;
+	left: 14px;
+	width: 8px;
+	height: 8px;
+	transform: rotate(45deg);
+	background: var(--background-secondary);
+	border-left: 1px solid var(--background-modifier-border);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.contact-field-help-header {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin-bottom: 4px;
+}
+
+.contact-field-help-title {
+	flex: 1;
+	min-width: 0;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+/* Same tap-target reasoning as the info button: sized for a thumb, with the
+   glyph itself small. */
+.contact-field-help-close {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	margin: -4px -4px 0 0;
+	padding: 0;
+	flex-shrink: 0;
+	border: none;
+	background: none;
+	box-shadow: none;
+	border-radius: 4px;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.contact-field-help-close:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
+}
+
+.contact-field-help-close .svg-icon {
+	width: 14px;
+	height: 14px;
 }
 
 .contact-field-help-example {
-	margin-top: 4px;
+	margin-top: 6px;
+	padding-top: 6px;
+	border-top: 1px solid var(--background-modifier-border);
 	color: var(--text-faint);
 	font-style: italic;
-}
-
-/* On a phone the label sits on its own line already, so the indent would
-   just waste the width the text needs. */
-.is-phone .contact-field-help {
-	margin-left: 0;
 }
 
 .contact-field-input {
@@ -991,18 +1061,6 @@ If your plugin does not need CSS, delete this file.
 	gap: 12px;
 	padding: 4px 0;
 	align-items: center;
-	/* Same reason as .contact-field: the help panel is a full-width child. */
-	flex-wrap: wrap;
-}
-
-/* The read row has a 12px gap the edit row doesn't, so the indent that lines
-   the panel up with the value column is that much wider here. */
-.contact-field-view .contact-field-help {
-	margin-left: 132px;
-}
-
-.is-phone .contact-field-view .contact-field-help {
-	margin-left: 0;
 }
 
 .contact-field-value {

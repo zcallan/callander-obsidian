@@ -26,9 +26,9 @@ export function run() {
 
 	// ---------- overrides ----------
 	// Where the rule would read badly or the key is terse.
-	eq("met reads as a phrase", fieldLabel("met"), "How we met");
-	eq("displayName is named for what it does", fieldLabel("displayName"), "Preferred name");
-	eq("an override beats the rule", fieldLabel("shortName"), "Short name");
+	eq("met reads as a phrase", fieldLabel("met"), "When we met");
+	eq("displayName falls out of the rule", fieldLabel("displayName"), "Display name");
+	eq("an override beats the rule", fieldLabel("shortName"), "Shortened name");
 
 	// ---------- degenerate input ----------
 	eq("empty key falls back to itself", fieldLabel(""), "");
