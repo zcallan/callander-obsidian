@@ -33,7 +33,9 @@ export class PlanQuickIdeaModal extends FormModal {
 		private onDelete?: () => Promise<void>,
 		private scheduleOptions: ScheduleFieldOptions = {},
 		/** Category names known to this plan, offered for reuse. */
-		private knownCategories: string[] = []
+		private knownCategories: string[] = [],
+		/** Removes a category from the plan's vocabulary and every idea on it. */
+		private onDeleteCategory?: (category: string) => Promise<void>
 	) {
 		super(app);
 		this.type = initial?.type ?? "activity";
@@ -282,6 +284,34 @@ export class PlanQuickIdeaModal extends FormModal {
 		const isPicked = (cat: string) =>
 			this.categories.some((c) => c.toLowerCase() === cat.toLowerCase());
 
+		// Holding a chip for LONG_PRESS_MS deletes the category from the whole
+		// plan rather than toggling it — the only way to get rid of one, since
+		// rememberQuickIdeaCategories only ever adds. Pointer events cover
+		// mouse and touch alike; the timer is cleared on any early release so
+		// a normal tap still just toggles.
+		const LONG_PRESS_MS = 2000;
+		const confirmDeleteCategory = (cat: string) => {
+			if (!this.onDeleteCategory) return;
+			new ConfirmModal(
+				this.app,
+				"Remove category",
+				`Remove "${cat}"? This takes it off every idea on this plan, not just this one.`,
+				"Remove",
+				async () => {
+					await this.onDeleteCategory!(cat);
+					const at = options.findIndex(
+						(c) => c.toLowerCase() === cat.toLowerCase()
+					);
+					if (at >= 0) options.splice(at, 1);
+					const picked = this.categories.findIndex(
+						(c) => c.toLowerCase() === cat.toLowerCase()
+					);
+					if (picked >= 0) this.categories.splice(picked, 1);
+					renderChips();
+				}
+			).open();
+		};
+
 		const renderChips = () => {
 			chipsEl.empty();
 			for (const cat of options) {
@@ -291,7 +321,35 @@ export class PlanQuickIdeaModal extends FormModal {
 					attr: { type: "button" },
 				});
 				chip.toggleClass("is-active", isPicked(cat));
-				chip.addEventListener("click", () => toggle(cat));
+
+				let holdTimer: number | null = null;
+				let longPressed = false;
+				const clearHold = () => {
+					if (holdTimer === null) return;
+					window.clearTimeout(holdTimer);
+					holdTimer = null;
+				};
+				chip.addEventListener("pointerdown", (e) => {
+					if (e.button !== 0 || !this.onDeleteCategory) return;
+					longPressed = false;
+					holdTimer = window.setTimeout(() => {
+						longPressed = true;
+						confirmDeleteCategory(cat);
+					}, LONG_PRESS_MS);
+				});
+				chip.addEventListener("pointerup", clearHold);
+				chip.addEventListener("pointerleave", clearHold);
+				chip.addEventListener("pointercancel", clearHold);
+				// Long-press already opened the confirm dialog — the click
+				// that follows a touch/mouse release shouldn't also toggle.
+				chip.addEventListener("click", () => {
+					if (longPressed) {
+						longPressed = false;
+						return;
+					}
+					toggle(cat);
+				});
+				chip.addEventListener("contextmenu", (e) => e.preventDefault());
 			}
 		};
 
