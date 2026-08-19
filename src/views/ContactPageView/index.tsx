@@ -26,10 +26,14 @@ import type {
 	Idea,
 	InsideJoke,
 	Interest,
+	LifeGoal,
 	Quote,
 } from "@/types";
 import { AddFieldModal } from "@/modals/AddFieldModal";
 import { NoteSuggest } from "@/components/NoteSuggest";
+import { LifeGoalModal } from "@/modals/LifeGoalModal";
+import { LifeGoalViewModal } from "@/modals/LifeGoalViewModal";
+import { groupLifeGoals, parseLifeGoals } from "@/utils/lifeGoals";
 import { fieldHelp, fieldLabel, type FieldHelp } from "@/utils/fieldLabel";
 import {
 	formatLinkField,
@@ -230,6 +234,7 @@ const CLEARABLE_FIELDS = [
 	"interests",
 	"funFacts",
 	"insideJokes",
+	"lifeGoals",
 	// Moved into the note body; the key has to be removable to migrate out
 	"quotes",
 	"ideas",
@@ -821,6 +826,9 @@ export class ContactPageView extends ItemView {
 		// friends only
 		if (!this.isGroupFile()) {
 			this.renderInterestsSection(section("heart", "Interests"));
+			// Directly under Interests: both answer "what are they into",
+			// one in the present tense and one in the future.
+			this.renderLifeGoalsSection(section("milestone", "Life goals"));
 			this.renderFunFactsSection(section("sparkles", "Fun facts"));
 			this.renderInsideJokesSection(section("laugh", "Inside jokes"));
 			this.renderQuotesSection(section("quote", "Quotes"));
@@ -4315,6 +4323,138 @@ export class ContactPageView extends ItemView {
 				.filter(Boolean);
 		}
 		return [];
+	}
+
+	/** The person's life goals, still-open first and completed below. */
+	private lifeGoalsOf(): LifeGoal[] {
+		return parseLifeGoals(this.contactData.lifeGoals);
+	}
+
+	private async writeLifeGoals(list: LifeGoal[]) {
+		if (list.length > 0) this.contactData.lifeGoals = list;
+		else delete this.contactData.lifeGoals;
+		await this.saveContactData();
+		this.render();
+	}
+
+	/**
+	 * Things they want to do someday.
+	 *
+	 * Completed goals stay on the page under their own heading rather than
+	 * disappearing — the record is half the point, and "they finally did it"
+	 * is worth being able to see.
+	 */
+	private renderLifeGoalsSection(container: HTMLElement) {
+		const section = container.createDiv({
+			cls: "contact-funfacts-section",
+		});
+		const goals = this.lifeGoalsOf();
+
+		if (goals.length === 0) {
+			section.createDiv({
+				cls: "section-helper-text",
+				text: "Things they want to do someday — learn Spanish, run a marathon. Worth asking about when it's been a while.",
+			});
+		}
+
+		const { open, completed } = groupLifeGoals(goals);
+
+		const renderRow = (goal: LifeGoal, index: number) => {
+			const row = section.createDiv({
+				cls: `contact-funfact-item plan-clickable-row contact-life-goal${
+					goal.done ? " is-done" : ""
+				}`,
+			});
+			row.addEventListener("click", () =>
+				this.openLifeGoalView(index)
+			);
+			row.createSpan({
+				cls: "contact-life-goal-text",
+				text: goal.text,
+			});
+			// A note is why you'd open the goal, so the row says one exists
+			// without spending a line quoting it.
+			if (goal.notes) {
+				row.createSpan({ cls: "contact-life-goal-note", text: "📝" });
+			}
+		};
+
+		for (const { goal, index } of open) renderRow(goal, index);
+
+		if (completed.length > 0) {
+			section.createDiv({
+				cls: "plan-quick-idea-group",
+				text: "Completed",
+			});
+			for (const { goal, index } of completed) renderRow(goal, index);
+		}
+
+		const footer = section.createDiv({ cls: "contact-section-footer" });
+		const addBtn = footer.createEl("button", { cls: "callander-button" });
+		setIcon(addBtn, "plus");
+		addBtn.createSpan({ text: "Add life goal" });
+		addBtn.addEventListener("click", () => this.openLifeGoalModal(null, null));
+	}
+
+	private openLifeGoalModal(index: number | null, goal: LifeGoal | null) {
+		new LifeGoalModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name || "",
+			goal,
+			async (value) => {
+				const list = this.lifeGoalsOf();
+				if (index === null) list.push(value);
+				else list[index] = value;
+				await this.writeLifeGoals(list);
+			},
+			index === null
+				? undefined
+				: async () => {
+						const list = this.lifeGoalsOf();
+						list.splice(index, 1);
+						await this.writeLifeGoals(list);
+				  }
+		).open();
+	}
+
+	private openLifeGoalView(index: number) {
+		const goal = this.lifeGoalsOf()[index];
+		if (!goal) return;
+		new LifeGoalViewModal(
+			this.app,
+			goal,
+			() => this.openLifeGoalModal(index, goal),
+			async () => {
+				const list = this.lifeGoalsOf();
+				list.splice(index, 1);
+				await this.writeLifeGoals(list);
+			},
+			async (notes) => {
+				const list = this.lifeGoalsOf();
+				if (!list[index]) return;
+				if (notes) list[index].notes = notes;
+				else delete list[index].notes;
+				if (list.length > 0) this.contactData.lifeGoals = list;
+				await this.saveContactData();
+				// No render(): the modal is still open over this page, and
+				// rebuilding underneath it on every keystroke pause is work
+				// nobody can see. The next open reads the saved value.
+			},
+			async (done) => {
+				const list = this.lifeGoalsOf();
+				if (!list[index]) return;
+				if (done) {
+					list[index].done = true;
+					list[index].completed = todayISO();
+				} else {
+					delete list[index].done;
+					delete list[index].completed;
+				}
+				await this.writeLifeGoals(list);
+			},
+			() => this.openAddIdeaModal(),
+			() => this.openAddEventModal()
+		).open();
 	}
 
 	private renderFunFactsSection(container: HTMLElement) {

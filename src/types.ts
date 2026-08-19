@@ -443,6 +443,24 @@ export interface Quote {
 }
 
 /** An inside joke you share, with optional context (how it started). */
+/**
+ * Something this person wants to do someday — learn Spanish, run a marathon.
+ *
+ * Not a Someday: those are things *you* might do, and graduate into a Plan.
+ * This is a record of theirs, kept so it can prompt an idea, a plan, or
+ * simply "how's the Spanish going?" after a long gap.
+ *
+ * Completed goals are kept rather than deleted — the point is partly the
+ * record, and "they finally did it" is worth being able to look back on.
+ */
+export interface LifeGoal {
+	text: string;
+	notes?: string;
+	done?: boolean;
+	/** ISO date it was marked done, so the list can say when. */
+	completed?: string;
+}
+
 export interface InsideJoke {
 	text: string;
 	context?: string;

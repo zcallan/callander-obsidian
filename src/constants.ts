@@ -36,6 +36,7 @@ export const STANDARD_FIELDS = {
 	DRAFTS: "drafts",
 	INTERESTS: "interests",
 	FUN_FACTS: "funFacts",
+	LIFE_GOALS: "lifeGoals",
 	QUOTES: "quotes",
 } as const;
 
@@ -75,6 +76,7 @@ export const SYSTEM_FIELDS: StandardFieldValue[] = [
 	STANDARD_FIELDS.DRAFTS,
 	STANDARD_FIELDS.INTERESTS,
 	STANDARD_FIELDS.FUN_FACTS,
+	STANDARD_FIELDS.LIFE_GOALS,
 	STANDARD_FIELDS.QUOTES,
 ];
 
