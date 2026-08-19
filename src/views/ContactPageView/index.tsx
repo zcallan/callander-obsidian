@@ -29,6 +29,13 @@ import type {
 	Quote,
 } from "@/types";
 import { AddFieldModal } from "@/modals/AddFieldModal";
+import { NoteSuggest } from "@/components/NoteSuggest";
+import {
+	formatLinkField,
+	linkLabel,
+	linkTarget,
+	parseLinkField,
+} from "@/utils/linkField";
 import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { EventModal } from "@/modals/EventModal";
@@ -44,6 +51,7 @@ import { FriendTrackerView } from "@/views/FriendTrackerView";
 import {
 	STANDARD_FIELDS,
 	SYSTEM_FIELDS,
+	LINKABLE_FIELDS,
 	IDEA_CATEGORIES,
 	IdeaCategory,
 	INTEREST_CATEGORIES,
@@ -222,6 +230,12 @@ const CLEARABLE_FIELDS = [
 	// Moved into the note body; the key has to be removable to migrate out
 	"quotes",
 	"ideas",
+	// Note-naming lists — clearing one has to drop the key rather than
+	// leaving an empty array behind in the frontmatter.
+	"parents",
+	"siblings",
+	"friends",
+	"relatedFiles",
 	// Legacy keys: migrated into ideas/events on load, then dropped
 	"giftIdeas",
 	"interactions",
@@ -1262,6 +1276,43 @@ export class ContactPageView extends ItemView {
 						return;
 					}
 
+					// Entries that name other notes render as real links —
+					// Obsidian's own `internal-link` class, so they pick up
+					// the accent colour, hover preview and unresolved styling
+					// without this reinventing any of it. Plain-text entries
+					// sit alongside unchanged.
+					if (LINKABLE_FIELDS.includes(key)) {
+						const entries = parseLinkField(value);
+						if (entries.length === 0) return;
+						const list = field.createDiv({
+							cls: "contact-link-field",
+						});
+						for (const entry of entries) {
+							const target = linkTarget(entry);
+							if (!target) {
+								list.createSpan({
+									cls: "contact-link-plain",
+									text: linkLabel(entry),
+								});
+								continue;
+							}
+							const link = list.createEl("a", {
+								cls: "internal-link contact-link-chip",
+								text: linkLabel(entry),
+								attr: { href: target, "data-href": target },
+							});
+							link.addEventListener("click", (e) => {
+								e.preventDefault();
+								void this.app.workspace.openLinkText(
+									target,
+									this._file?.path ?? "",
+									e.ctrlKey || e.metaKey
+								);
+							});
+						}
+						return;
+					}
+
 					// Format flexible dates at their recorded precision
 					const displayValue = (() => {
 						if (Array.isArray(value)) {
@@ -1319,7 +1370,11 @@ export class ContactPageView extends ItemView {
 						this.createInfoField(
 							fieldsContainer,
 							field,
-							toText(this.contactData[field])
+							// Linkable fields store a list; the box edits
+							// them as one comma-separated line.
+							LINKABLE_FIELDS.includes(field)
+								? formatLinkField(this.contactData[field])
+								: toText(this.contactData[field])
 						);
 					}
 				});
@@ -1476,6 +1531,19 @@ export class ContactPageView extends ItemView {
 				}),
 			},
 		});
+
+		// Fields whose entries name other notes get note autocomplete, and
+		// save as a list rather than the raw string — a link only counts to
+		// Obsidian when it's the whole value (see LINKABLE_FIELDS).
+		if (LINKABLE_FIELDS.includes(field)) {
+			input.placeholder = "Type a name, or pick a note";
+			new NoteSuggest(this.app, input);
+			input.addEventListener("change", () => {
+				const entries = parseLinkField(input.value);
+				void this.updateContactData(field, entries);
+			});
+			return;
+		}
 
 		input.addEventListener("change", () => {
 			void this.updateContactData(field, input.value);
@@ -2660,10 +2728,7 @@ export class ContactPageView extends ItemView {
 						this.renderPlanTimelineEntry(timeline, entry);
 					}
 				} else {
-					timeline.createDiv({
-						cls: "contact-timeline-item plan-timeline-empty",
-						text: "No plans yet",
-					});
+					this.renderEmptyDayRow(timeline, day);
 				}
 			}
 		}
@@ -2693,6 +2758,45 @@ export class ContactPageView extends ItemView {
 		// Quick-add at the bottom of the itinerary — and at the top too when
 		// the list is long (see the top copy above).
 		this.renderTimelineAddRow(section);
+	}
+
+	/**
+	 * A day in the plan's range with nothing on it yet.
+	 *
+	 * Carries the same hover actions a real row does, so filling an empty day
+	 * doesn't mean scrolling to the footer and then picking the date back out
+	 * of a dropdown — the row already knows which day it is, and passes it
+	 * through as a prefill. Desktop only, like the row actions: CSS keeps
+	 * them hidden on touch, where the footer buttons are the path.
+	 */
+	private renderEmptyDayRow(timeline: HTMLElement, day: string) {
+		const row = timeline.createDiv({
+			cls: "contact-timeline-item plan-timeline-empty",
+		});
+		// Its own span so the muted/italic treatment lands on the words
+		// rather than the row: the row's opacity would dim the buttons with
+		// it, and a child can't opt back out of a parent's opacity.
+		row.createSpan({ cls: "plan-timeline-empty-text", text: "No plans yet" });
+
+		const actions = row.createDiv({
+			cls: "contact-timeline-actions plan-timeline-empty-actions",
+		});
+		const add = (label: string, onClick: () => void) => {
+			const button = actions.createEl("button", {
+				cls: "callander-button",
+				attr: { "aria-label": label },
+			});
+			setIcon(button, "plus");
+			button.createSpan({ text: label });
+			button.addEventListener("click", (e) => {
+				e.stopPropagation();
+				onClick();
+			});
+		};
+		add("Add to timeline", () =>
+			this.openPlanIdeaModal(null, null, day)
+		);
+		add("Add travel", () => this.openPlanTravelModal(null, null, day));
 	}
 
 	/**
@@ -3073,9 +3177,19 @@ export class ContactPageView extends ItemView {
 		return opts;
 	}
 
+	/**
+	 * Add (index null) or edit a travel leg.
+	 *
+	 * `date` prefills the day for a new leg, from the empty-day rows. Unlike
+	 * PlanItemModal there's no separate prefill slot here, so it goes in
+	 * through `initial` — which is also what picks the travel type, so the
+	 * first type has to be named explicitly or a prefilled Add would open
+	 * untyped where a blank one opens on Car.
+	 */
 	private openPlanTravelModal(
 		index: number | null,
-		item: PlanSimpleItem | null
+		item: PlanSimpleItem | null,
+		date?: string
 	) {
 		new PlanSimpleItemModal(
 			this.app,
@@ -3092,6 +3206,8 @@ export class ContactPageView extends ItemView {
 						notes: item.notes,
 						cost: item.cost,
 				  }
+				: date
+				? { text: "", type: TRAVEL_TYPES[0]?.id, date }
 				: null,
 			async (value) => {
 				const current = PlanOperations.simpleListOf(
@@ -3125,8 +3241,18 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	/** Add (index null) or edit a plan idea; used by the list and timeline. */
-	private openPlanIdeaModal(index: number | null, item: PlanItem | null) {
+	/**
+	 * Add (index null) or edit a plan idea; used by the list and timeline.
+	 *
+	 * `date` prefills the day for a brand-new item — passed by the empty-day
+	 * rows, which already know which day you clicked on. It rides in through
+	 * `prefill` rather than `initial`, so the form still reads as an Add.
+	 */
+	private openPlanIdeaModal(
+		index: number | null,
+		item: PlanItem | null,
+		date?: string
+	) {
 		new PlanItemModal(
 			this.app,
 			String(this.contactData.name ?? ""),
@@ -3152,7 +3278,10 @@ export class ContactPageView extends ItemView {
 						await this.saveContactData();
 						this.render();
 				  },
-			this.planScheduleOptions()
+			this.planScheduleOptions(),
+			date
+				? { category: "activity", priority: "must", text: "", date }
+				: null
 		).open();
 	}
 
@@ -4608,7 +4737,14 @@ export class ContactPageView extends ItemView {
 	}
 
 	async updateContactData(field: string, value: string | string[]) {
-		this.contactData[field] = value;
+		// An emptied list drops its key instead of storing `[]` — a bare
+		// empty array shows as a property with no values in Obsidian's own
+		// UI, which reads as "set to nothing" rather than "not set".
+		if (Array.isArray(value) && value.length === 0) {
+			delete this.contactData[field];
+		} else {
+			this.contactData[field] = value;
+		}
 		await this.saveContactData();
 	}
 }
