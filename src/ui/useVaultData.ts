@@ -69,11 +69,9 @@ export function useVaultVersion(): number {
 		[plugin]
 	);
 
-	return useSyncExternalStore(
-		subscribe,
-		() => state.current.version,
-		() => state.current.version
-	);
+	// Two arguments, not three: preact/compat's useSyncExternalStore has no
+	// server-snapshot parameter, and nothing here server-renders anyway.
+	return useSyncExternalStore(subscribe, () => state.current.version);
 }
 
 /**

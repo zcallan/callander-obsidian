@@ -1,4 +1,7 @@
-import type { MouseEvent } from "react";
+// The DOM's own MouseEvent, not the renderer's. Preact hands native events
+// to handlers, and its own JSX event type is generic over the element — a
+// handler taking the base type is assignable to it, so this stays neutral
+// about which renderer is underneath.
 import type { RowTone } from "@/utils/upcomingWhen";
 import { Icon } from "@/ui/components/Icon";
 

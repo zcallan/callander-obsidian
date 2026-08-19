@@ -8,7 +8,10 @@ import {
 	MarkdownRenderer,
 	type ViewStateResult,
 } from "obsidian";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot } from "react-dom/client";
+// preact/compat/client exports createRoot but not a name for what it
+// returns, so the root type is derived from the function itself.
+type Root = ReturnType<typeof createRoot>;
 import type { ReactNode } from "react";
 import { PluginProvider } from "@/ui/PluginContext";
 import { AccommodationSection } from "@/ui/sections/AccommodationSection";
