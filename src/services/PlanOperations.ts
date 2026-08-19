@@ -8,6 +8,7 @@ import {
 	timeSortValue,
 } from "@/constants";
 import type {
+	PlanBringItem,
 	PlanInfo,
 	PlanItem,
 	PlanQuickIdea,
@@ -497,7 +498,7 @@ export class PlanOperations {
 	}
 
 	/** Bring items are a checklist; legacy plain strings read as unchecked */
-	static bringOf(metadata: unknown): Array<{ text: string; done: boolean }> {
+	static bringOf(metadata: unknown): PlanBringItem[] {
 		return asArray(fieldOf(metadata, "bring"))
 			.map((b) => {
 				if (typeof b === "string") return { text: b, done: false };
