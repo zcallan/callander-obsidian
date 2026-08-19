@@ -25,6 +25,7 @@ export * from "@/utils/url";
 export * from "@/utils/linkField";
 export * from "@/utils/fieldLabel";
 export * from "@/utils/lifeGoals";
+export * from "@/utils/planTimeline";
 export * from "@/utils/emoji";
 export {
 	formatSomedayDays,
