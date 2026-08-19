@@ -139,6 +139,7 @@ const SCALAR_FIELDS = [
 	"name",
 	"displayName",
 	"shortName",
+	"legalName",
 	"birthday",
 	"relationship",
 	"met",
@@ -160,6 +161,7 @@ interface ContactFrontmatter {
 	name?: string;
 	displayName?: string;
 	shortName?: string;
+	legalName?: string;
 	birthday?: string;
 	relationship?: string;
 	met?: string;
@@ -1303,10 +1305,15 @@ export class ContactPageView extends ItemView {
 							});
 							link.addEventListener("click", (e) => {
 								e.preventDefault();
+								// Always a new tab, never in place: this page
+								// is the thing you were reading, and following
+								// a relative or a related file is a detour —
+								// replacing the person you came from would
+								// cost a Back press to undo every time.
 								void this.app.workspace.openLinkText(
 									target,
 									this._file?.path ?? "",
-									e.ctrlKey || e.metaKey
+									true
 								);
 							});
 						}
