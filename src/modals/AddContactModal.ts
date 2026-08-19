@@ -8,6 +8,7 @@ import { createRelationshipInput } from "@/components/ContactFields";
 import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { todayISO } from "@/utils/flexdate";
+import { ContactOperations } from "@/services/ContactOperations";
 
 export class AddContactModal extends FormModal {
 	constructor(app: App, private plugin: FriendTracker) {
@@ -169,7 +170,12 @@ export class AddContactModal extends FormModal {
 			}
 			if (birthdayValue) data.birthday = birthdayValue;
 			if (metValue) data.met = metValue;
-			if (member.size > 0) data.groups = [...member].sort();
+			if (member.size > 0) {
+				// Stored as links to the group pages — see groupsOf.
+				data.groups = [...member]
+					.sort()
+					.map((g) => ContactOperations.groupLink(g));
+			}
 			if (relationshipInput.value) {
 				const relationship = relationshipInput.value.toLowerCase();
 				data.relationship = relationshipInput.value.toLowerCase();

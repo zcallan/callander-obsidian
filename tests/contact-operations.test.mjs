@@ -1,5 +1,6 @@
 import { createSuite } from "./harness.mjs";
 import { createTestVault } from "./vault.mjs";
+import { ContactOperations } from "./.build/callander.mjs";
 
 /**
  * Service-layer tests: the real ContactOperations against an in-memory
@@ -265,6 +266,70 @@ export async function run() {
 		eq("shortName read from frontmatter", obama.shortName, "Obama");
 		eq("shortName is an empty string, not undefined, when unset", chen.shortName, "");
 	}
+
+	// ---------- groups are stored as links ----------
+	// Wikilinks so each group is a real link to its page — graph edges and
+	// backlinks for free. Everything downstream compares bare lowercase
+	// names, so the brackets come off on the way in.
+	eq(
+		"a linked group reads as its bare name",
+		ContactOperations.groupsOf({ groups: ["[[Uni friends]]"] }),
+		["uni friends"]
+	);
+	// No migration pass: a vault written before this still reads correctly
+	// and converts itself the next time the person is saved.
+	eq(
+		"a legacy plain name still reads",
+		ContactOperations.groupsOf({ groups: ["Uni friends"] }),
+		["uni friends"]
+	);
+	eq(
+		"the two forms dedupe against each other",
+		ContactOperations.groupsOf({ groups: ["[[Uni friends]]", "uni friends"] }),
+		["uni friends"]
+	);
+	// An aliased link points at the note on the left; the label would be the
+	// wrong thing to match on.
+	eq(
+		"an aliased link matches on its target",
+		ContactOperations.groupsOf({ groups: ["[[Uni friends|the unis]]"] }),
+		["uni friends"]
+	);
+	eq(
+		"a single value isn't required to be a list",
+		ContactOperations.groupsOf({ groups: "[[Climbing]]" }),
+		["climbing"]
+	);
+	eq("no groups is empty", ContactOperations.groupsOf({}), []);
+	eq(
+		"blank entries are dropped",
+		ContactOperations.groupsOf({ groups: ["", "  ", "[[A]]"] }),
+		["a"]
+	);
+
+	// groupLink writes the pretty form, so the link names the file that
+	// actually exists (Groups/Uni friends.md).
+	eq(
+		"a bare name becomes a link to its page",
+		ContactOperations.groupLink("uni friends"),
+		"[[Uni friends]]"
+	);
+	eq(
+		"an existing link is not double-wrapped",
+		ContactOperations.groupLink("[[Uni friends]]"),
+		"[[Uni friends]]"
+	);
+	eq("blank produces nothing", ContactOperations.groupLink("  "), "");
+	// Round-trip: storing then reading must give back what matching expects.
+	eq(
+		"link and read round-trip",
+		ContactOperations.groupsOf({
+			groups: ["climbing", "Uni friends"].map((g) =>
+				ContactOperations.groupLink(g)
+			),
+		}),
+		["climbing", "uni friends"]
+	);
 
 	return result();
 }

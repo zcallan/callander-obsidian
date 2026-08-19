@@ -38,6 +38,7 @@ export const STANDARD_FIELDS = {
 	FUN_FACTS: "funFacts",
 	LIFE_GOALS: "lifeGoals",
 	QUOTES: "quotes",
+	INSIDE_JOKES: "insideJokes",
 } as const;
 
 /**
@@ -78,6 +79,7 @@ export const SYSTEM_FIELDS: StandardFieldValue[] = [
 	STANDARD_FIELDS.FUN_FACTS,
 	STANDARD_FIELDS.LIFE_GOALS,
 	STANDARD_FIELDS.QUOTES,
+	STANDARD_FIELDS.INSIDE_JOKES,
 ];
 
 // Fixed idea categories — deliberately few, no user-defined tags (Callander brief)
