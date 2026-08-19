@@ -30,7 +30,7 @@ import type {
 } from "@/types";
 import { AddFieldModal } from "@/modals/AddFieldModal";
 import { NoteSuggest } from "@/components/NoteSuggest";
-import { fieldHelp, fieldLabel } from "@/utils/fieldLabel";
+import { fieldHelp, fieldLabel, type FieldHelp } from "@/utils/fieldLabel";
 import {
 	formatLinkField,
 	linkLabel,
@@ -267,8 +267,6 @@ export class ContactPageView extends ItemView {
 	private lastInterestCategory: InterestCategory = "hobbies";
 	// Which collapsible plan sections are expanded (persists across re-renders)
 	private expandedPlanSections = new Set<string>();
-	// The friend "General" info accordion — collapsed by default
-	private expandedInfoSection = false;
 	// The raw-markdown accordion — likewise collapsed by default
 	private expandedMarkdownSection = false;
 	/** Guards against reacting to our own writes */
@@ -578,11 +576,18 @@ export class ContactPageView extends ItemView {
 	}
 
 	async onClose() {
+		// Its dismiss handlers live on the document, so they would
+		// outlive this view if the popover were simply left open.
+		this.closeFieldHelp();
 		this.unmountIslands();
 	}
 
 	render() {
 		const container = this.containerEl.children[1] as HTMLElement;
+		// Anchored into DOM this is about to discard, and its dismiss
+		// handlers are on the document — closing first keeps them from
+		// pointing at a detached node.
+		this.closeFieldHelp();
 		container.empty();
 		// The imperative DOM above is gone; tell the islands to re-read the
 		// data they're about to be re-attached with.
@@ -735,10 +740,16 @@ export class ContactPageView extends ItemView {
 				cls: "contact-info-section",
 			});
 			this.renderInfoSection(infoSection);
-			infoWrap.toggleClass("is-open", this.expandedInfoSection);
+			// Persisted rather than per-view: this page is rebuilt from
+			// scratch on every open and on every vault event, so in-memory
+			// state would spring back closed the moment anything changed.
+			// Same treatment as the dashboard's draftsCollapsed.
+			infoWrap.toggleClass("is-open", this.plugin.settings.aboutExpanded);
 			infoHeader.addEventListener("click", () => {
-				this.expandedInfoSection = !this.expandedInfoSection;
-				infoWrap.toggleClass("is-open", this.expandedInfoSection);
+				const open = !this.plugin.settings.aboutExpanded;
+				this.plugin.settings.aboutExpanded = open;
+				infoWrap.toggleClass("is-open", open);
+				void this.plugin.saveSettings();
 			});
 		}
 
@@ -1428,35 +1439,39 @@ export class ContactPageView extends ItemView {
 	 * or the exact day — whatever you actually remember.
 	 */
 	/**
-	 * A field's label, plus the info button that explains it.
+	 * A field's label, plus — while editing — the button that explains it.
 	 *
-	 * Shared by the read view and every edit-mode field so the wording and
-	 * the button behave identically in both, and adding a field means adding
-	 * one entry to fieldLabel's tables rather than touching four call sites.
+	 * Shared by the read view and every edit-mode field so the wording can't
+	 * drift between them, and adding a field means one entry in fieldLabel's
+	 * tables rather than four call sites.
 	 *
-	 * The explanation expands inline underneath rather than floating in a
-	 * tooltip: a tooltip is hover-only, which is nothing on a phone, and a
-	 * popover would need positioning against a scrolling column. Inline works
-	 * the same on both, and pushes the fields below it down where it can't be
-	 * missed.
+	 * The explanation is a popover anchored to its button, dismissed by the
+	 * ✕, by clicking anywhere outside, or by Escape. Only one is ever open:
+	 * opening a second closes the first, so the column can't fill up with
+	 * stacked boxes.
 	 *
-	 * `row` is the flex line the help panel joins as a full-width child; the
-	 * label itself only holds the text and the button.
+	 * Edit mode only. Reading a filled-in page, the values speak for
+	 * themselves and a row of buttons is clutter; the question "what goes
+	 * here?" is one you have while filling it in.
 	 */
 	private appendFieldLabel(
 		row: HTMLElement,
 		key: string,
-		asLabelEl = false
+		{ editing = false } = {}
 	) {
-		const label = asLabelEl
+		const label = editing
 			? row.createEl("label", { cls: "contact-field-label" })
 			: row.createDiv({ cls: "contact-field-label" });
 		label.createSpan({ text: fieldLabel(key) });
 
-		const help = fieldHelp(key);
+		const help = editing ? fieldHelp(key) : null;
 		if (!help) return;
 
-		const button = label.createEl("button", {
+		// The anchor the popover positions against, so it tracks the button
+		// rather than the row — the label column is a fixed width but the
+		// button sits at the end of a variable-length word.
+		const anchor = label.createSpan({ cls: "contact-field-info-anchor" });
+		const button = anchor.createEl("button", {
 			cls: "contact-field-info",
 			attr: {
 				type: "button",
@@ -1469,26 +1484,108 @@ export class ContactPageView extends ItemView {
 		// verified and reads as "here's a hint", which is the job.
 		setIcon(button, "lightbulb");
 
-		const panel = row.createDiv({ cls: "contact-field-help" });
-		panel.createDiv({ cls: "contact-field-help-text", text: help.text });
+		button.addEventListener("click", (e) => {
+			// The label wraps its input, so without this the click would also
+			// focus the field and raise a keyboard on mobile.
+			e.preventDefault();
+			e.stopPropagation();
+			if (this.openFieldHelp?.anchor === anchor) {
+				this.closeFieldHelp();
+				return;
+			}
+			this.openFieldHelpFor(anchor, button, key, help);
+		});
+	}
+
+	/**
+	 * The one open help popover, with the listeners that dismiss it.
+	 *
+	 * Held on the view rather than per-field so opening one can close the
+	 * last, and so onClose can tear down document listeners that would
+	 * otherwise outlive the page.
+	 */
+	private openFieldHelp: {
+		anchor: HTMLElement;
+		el: HTMLElement;
+		button: HTMLElement;
+		dispose: () => void;
+	} | null = null;
+
+	private closeFieldHelp() {
+		const open = this.openFieldHelp;
+		if (!open) return;
+		this.openFieldHelp = null;
+		open.dispose();
+		open.el.remove();
+		open.button.setAttribute("aria-expanded", "false");
+		open.button.removeClass("is-open");
+	}
+
+	private openFieldHelpFor(
+		anchor: HTMLElement,
+		button: HTMLElement,
+		key: string,
+		help: FieldHelp
+	) {
+		this.closeFieldHelp();
+
+		const el = anchor.createDiv({ cls: "contact-field-help" });
+		// Arrow first in the DOM so it paints behind the box's own border.
+		el.createDiv({ cls: "contact-field-help-arrow" });
+
+		const header = el.createDiv({ cls: "contact-field-help-header" });
+		header.createDiv({
+			cls: "contact-field-help-title",
+			text: fieldLabel(key),
+		});
+		const close = header.createEl("button", {
+			cls: "contact-field-help-close",
+			attr: { type: "button", "aria-label": "Close" },
+		});
+		setIcon(close, "x");
+		close.addEventListener("click", (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			this.closeFieldHelp();
+		});
+
+		el.createDiv({ cls: "contact-field-help-text", text: help.text });
 		if (help.example) {
-			panel.createDiv({
+			el.createDiv({
 				cls: "contact-field-help-example",
 				text: `e.g. ${help.example}`,
 			});
 		}
-		panel.hide();
 
-		button.addEventListener("click", (e) => {
-			// The edit-mode label wraps its input; without this, clicking the
-			// button would also focus the field and open a keyboard.
-			e.preventDefault();
-			e.stopPropagation();
-			const open = !panel.isShown();
-			panel.toggle(open);
-			button.setAttribute("aria-expanded", String(open));
-			button.toggleClass("is-open", open);
-		});
+		// A click that lands anywhere but inside this box closes it. Bound on
+		// the next frame so the click that opened it doesn't immediately
+		// dismiss it as it finishes bubbling.
+		const onDocClick = (evt: MouseEvent) => {
+			const target = evt.target as Node | null;
+			if (target && el.contains(target)) return;
+			this.closeFieldHelp();
+		};
+		const onKey = (evt: KeyboardEvent) => {
+			if (evt.key === "Escape") this.closeFieldHelp();
+		};
+		const doc = this.containerEl.ownerDocument;
+		const timer = window.setTimeout(() => {
+			doc.addEventListener("click", onDocClick);
+			doc.addEventListener("keydown", onKey);
+		}, 0);
+
+		button.setAttribute("aria-expanded", "true");
+		button.addClass("is-open");
+		this.openFieldHelp = {
+			anchor,
+			el,
+			button,
+			dispose: () => {
+				window.clearTimeout(timer);
+				doc.removeEventListener("click", onDocClick);
+				doc.removeEventListener("keydown", onKey);
+			},
+		};
 	}
 
 	private createMetField(container: HTMLElement) {
@@ -1496,7 +1593,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-field",
 		});
 
-		this.appendFieldLabel(fieldContainer, "met", true);
+		this.appendFieldLabel(fieldContainer, "met", { editing: true });
 
 		createFlexDateInput(fieldContainer, this.contactData.met, (value) => {
 			void this.updateContactData("met", value);
@@ -1512,7 +1609,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-field",
 		});
 
-		this.appendFieldLabel(fieldContainer, "birthday", true);
+		this.appendFieldLabel(fieldContainer, "birthday", { editing: true });
 
 		createBirthdayPrecisionInput(
 			fieldContainer,
@@ -1529,7 +1626,7 @@ export class ContactPageView extends ItemView {
 		const fieldContainer = container.createDiv({
 			cls: "contact-field contact-field-groups",
 		});
-		this.appendFieldLabel(fieldContainer, "groups", true);
+		this.appendFieldLabel(fieldContainer, "groups", { editing: true });
 
 		const wrap = fieldContainer.createDiv({
 			cls: "contact-groups-edit",
@@ -1585,7 +1682,7 @@ export class ContactPageView extends ItemView {
 			cls: "contact-field",
 		});
 
-		this.appendFieldLabel(fieldContainer, field, true);
+		this.appendFieldLabel(fieldContainer, field, { editing: true });
 
 		const input = fieldContainer.createEl("input", {
 			cls: "contact-field-input",

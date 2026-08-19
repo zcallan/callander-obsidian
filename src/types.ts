@@ -69,6 +69,14 @@ export interface FriendTrackerSettings {
 	draftsCollapsed: boolean;
 	/** Same as draftsCollapsed, for the dashboard's Upcoming birthdays accordion. */
 	birthdaysCollapsed: boolean;
+	/**
+	 * Whether a Person page's "About" accordion is open. Collapsed by
+	 * default — the fields are reference, not the reason you opened the page
+	 * — but the choice sticks across files and restarts, since the view is
+	 * rebuilt from scratch each time and would otherwise forget. Incidental
+	 * UI state, so it isn't surfaced in the settings tab.
+	 */
+	aboutExpanded: boolean;
 	/** Sort for the Somedays page; the dashboard's list follows it. Like
 	 * friendListSort, incidental UI state rather than a settings-tab option. */
 	somedaySort: SomedaySort;
@@ -527,6 +535,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	friendListSort: "birthday",
 	draftsCollapsed: false,
 	birthdaysCollapsed: false,
+	aboutExpanded: false,
 	somedaySort: "recommended",
 	eventSort: "natural",
 	ribbonDashboard: true,

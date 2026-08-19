@@ -14,11 +14,11 @@
  * listing them again would be a second place to keep in step.
  */
 const OVERRIDES: Record<string, string> = {
-	// "Display name" describes the mechanism; "Preferred name" describes what
-	// you're actually being asked for.
-	displayName: "Preferred name",
 	// "Met" alone reads as a date field with no object.
-	met: "How we met",
+	met: "When we met",
+	// The rule gives "Short name", which sounds like an abbreviation rule
+	// rather than a name you choose.
+	shortName: "Shortened name",
 };
 
 /**
@@ -52,16 +52,16 @@ export interface FieldHelp {
 
 const HELP: Record<string, FieldHelp> = {
 	displayName: {
-		text: "What this person is called throughout Callander, when that isn't their file name.",
-		example: "File is “Robert Chen”, preferred name is “Bob”",
+		text: "The name Callander shows for this person everywhere — their page, timelines, guest lists — instead of the file name. Set it when the file is named one thing and you call them another.",
+		example: "“Bob” instead of the file name “Robert Chen”",
 	},
 	shortName: {
-		text: "Overrides the shortened form used where space is tight, like guest lists and plan summaries. Set it only when the automatic one reads wrong.",
-		example: "“Obama” instead of “Barack”",
+		text: "A shorter form for quick recognition in lists, where full names crowd each other out. Like a nickname, but chosen for practicality rather than affection.",
+		example: "“Cal” instead of “Callan”",
 	},
 	legalName: {
 		text: "Their full name as it appears on documents. Useful for bookings and paperwork.",
-		example: "Robert James Chen",
+		example: "“Robert James Chen”",
 	},
 	nicknames: {
 		text: "Other things they get called. Kept for recall, not used for display.",
@@ -71,7 +71,7 @@ const HELP: Record<string, FieldHelp> = {
 	},
 	met: {
 		text: "When you first met, at whatever precision you remember. Shows as “how long ago” on their page.",
-		example: "2019, or March 2019, or an exact day",
+		example: "“2019”, “March 2019”, or an exact day",
 	},
 	hometown: {
 		text: "Where they're from originally.",
@@ -84,7 +84,7 @@ const HELP: Record<string, FieldHelp> = {
 	},
 	parents: {
 		text: "Their parents. Link a name to another note to connect the two, or just type it.",
-		example: "[[Denise Chen]], or simply Denise",
+		example: "“[[Denise Chen]]” to link her note, or just “Denise”",
 	},
 	siblings: {
 		text: "Their brothers and sisters. Link a name to another note, or just type it.",
@@ -94,11 +94,11 @@ const HELP: Record<string, FieldHelp> = {
 	},
 	relatedFiles: {
 		text: "Any other notes tied to this person — a letter, a trip write-up, a shared project. Click one to open it in a new tab.",
-		example: "[[Love letter, 2024]]",
+		example: "“[[Love letter, 2024]]”",
 	},
 	groups: {
 		text: "Circles this person belongs to. Groups get their own page with shared ideas and events.",
-		example: "Uni friends, Climbing crew",
+		example: "“Uni friends”, “Climbing crew”",
 	},
 	email: { text: "Their email address." },
 	phone: { text: "Their phone number." },
@@ -110,7 +110,7 @@ const HELP: Record<string, FieldHelp> = {
 	},
 	relationship: {
 		text: "How you know them. Used to group and filter your people.",
-		example: "Friend, Family, Colleague",
+		example: "“Friend”, “Family”, “Colleague”",
 	},
 };
 
