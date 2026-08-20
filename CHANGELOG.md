@@ -6,6 +6,24 @@ Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidia
 Versions marked *(tag only)* shipped as a tag without published release notes;
 their entries are reconstructed from the commits they contain.
 
+## 1.7.1 — 2026-08-20
+
+### Fixed
+
+- **Groups could silently vanish from an event.** Opening and saving an
+  event that named a group (rather than a person) dropped the group —
+  it wasn't recognised as a valid participant, so it disappeared from the
+  event on save, taking the event off that group's timeline for good, even
+  after re-creating it. Events already affected by this need to be
+  recreated once from the group's page; new ones are unaffected going
+  forward.
+- Editing an event from a person's page no longer lets you accidentally
+  remove that person from it — the same protection Add already had.
+- Groups render with the correct colour and capitalisation everywhere
+  they're shown — the About section chip, group filters, and group
+  pickers — instead of occasionally showing raw `[[brackets]]` or a
+  mis-cased name for a multi-word group.
+
 ## 1.7.0 — 2026-08-19
 
 ### Fixed
