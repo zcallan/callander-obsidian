@@ -1527,15 +1527,26 @@ export class ContactPageView extends ItemView {
 					this.appendFieldLabel(field, key);
 
 					// Groups render as colored chips, not plain text
-					if (key === "groups" && Array.isArray(value)) {
+					if (key === "groups") {
 						const ops = this.plugin.contactOperations;
+						const infos = ops.getGroupInfos();
 						const colorOf = new Map(
-							ops.getGroupInfos().map((i) => [i.name, i.color])
+							infos.map((i) => [i.name, i.color])
 						);
+						const fileOf = new Map(
+							infos.map((i) => [i.name, i.file])
+						);
+						const displayOf = ops.groupDisplayNames();
 						const chips = field.createDiv({
 							cls: "contact-group-chips",
 						});
-						for (const g of value.map(String)) {
+						// Through groupsOf, not the raw array: these are
+						// stored as `[[Wikilinks]]`, and reading them raw
+						// printed the brackets and missed every colour —
+						// the lookups below are all keyed on the bare name.
+						for (const g of ContactOperations.groupsOf(
+							this.contactData
+						)) {
 							const chip = chips.createSpan({
 								cls: "contact-group-chip readonly",
 							});
@@ -1545,8 +1556,26 @@ export class ContactPageView extends ItemView {
 							dot.style.backgroundColor =
 								colorOf.get(g) ??
 								"var(--background-modifier-border)";
-							chip.createSpan({
-								text: ops.prettyGroupName(g),
+							const label = chip.createSpan({
+								text:
+									displayOf.get(g) ??
+									ops.prettyGroupName(g),
+							});
+							// The value really is a link, so it should behave
+							// like one. Only when the page exists — a group
+							// nobody has opened yet has nothing to navigate
+							// to, and a dead link that looks live is worse
+							// than plain text.
+							const dest = fileOf.get(g);
+							if (!dest) continue;
+							label.addClass("contact-group-chip-link");
+							label.addEventListener("click", (e) => {
+								e.stopPropagation();
+								void this.app.workspace.openLinkText(
+									dest.path,
+									this._file?.path ?? "",
+									true
+								);
 							});
 						}
 						return;
@@ -1909,10 +1938,17 @@ export class ContactPageView extends ItemView {
 			...new Set([...infos.map((i) => i.name), ...member]),
 		].sort();
 
+		// The page's own spelling, so the stored link matches the file
+		// rather than a first-letter guess — see groupDisplayNames.
+		const displayOf = ops.groupDisplayNames();
 		const save = () => {
 			void this.updateContactData(
 				"groups",
-				[...member].sort().map((g) => ContactOperations.groupLink(g))
+				[...member]
+					.sort()
+					.map((g) =>
+						ContactOperations.groupLink(g, displayOf.get(g))
+					)
 			);
 		};
 
@@ -1923,7 +1959,9 @@ export class ContactPageView extends ItemView {
 			const dot = chip.createSpan({ cls: "group-dot" });
 			dot.style.backgroundColor =
 				colorOf.get(name) ?? "var(--background-modifier-border)";
-			chip.createSpan({ text: ops.prettyGroupName(name) });
+			chip.createSpan({
+				text: displayOf.get(name) ?? ops.prettyGroupName(name),
+			});
 			chip.addEventListener("click", () => {
 				member.has(name) ? member.delete(name) : member.add(name);
 				chip.toggleClass("selected", member.has(name));
@@ -2491,7 +2529,7 @@ export class ContactPageView extends ItemView {
 		const existing = new Set(this.resolvePlanMembers().map((f) => f.path));
 		const groups = ops.getGroupInfos(contacts).map((g) => ({
 			name: g.name,
-			label: ops.prettyGroupName(g.name),
+			label: ops.labelOf(g),
 			color: g.color,
 		}));
 		new AddPlanMemberModal(
@@ -3411,7 +3449,7 @@ export class ContactPageView extends ItemView {
 				void ops
 					.addFriendToGroup(contact.file, groupName)
 					.then(() => this.render()),
-			`Add to ${ops.prettyGroupName(groupName)}…`
+			`Add to ${ops.groupLabel(groupName)}…`
 		).open();
 	}
 
@@ -4050,7 +4088,8 @@ export class ContactPageView extends ItemView {
 				variant: "timeline",
 			},
 			// Removing them would leave the event with nowhere to land.
-			[`[[${file.basename}]]`]
+			[`[[${file.basename}]]`],
+			true
 		).open();
 	}
 
@@ -4071,8 +4110,18 @@ export class ContactPageView extends ItemView {
 	}
 
 	public openEditEventModal(event: EventInfo) {
-		new EventModal(this.app, this.plugin, event, () =>
-			this.render()
+		const file = this._file;
+		new EventModal(
+			this.app,
+			this.plugin,
+			event,
+			() => this.render(),
+			undefined,
+			// Locked, not just pre-filled: removing the person whose page
+			// this is would leave the event with nowhere to land, same as
+			// on Add. Other people on the event stay removable as normal.
+			file ? [`[[${file.basename}]]`] : [],
+			true
 		).open();
 	}
 

@@ -47,7 +47,21 @@ export class EventModal extends FormModal {
 		 * opened from. Taking them off would contradict where you are, and
 		 * leave the event with nowhere to land.
 		 */
-		private lockedPeople: string[] = []
+		private lockedPeople: string[] = [],
+		/**
+		 * Opened from a person's own page — either adding or editing an
+		 * event on their timeline, rather than from the Dashboard or the
+		 * Events list.
+		 *
+		 * On their page, "does this show on their timeline?" isn't a real
+		 * question — it's why the event is being touched here at all. So
+		 * this suppresses the friend-timelines tick entirely rather than
+		 * defaulting it, and every person on the event (this one, and
+		 * anyone added afterward) gets it on their own timeline the same
+		 * way. Distinct from `askVisibility`, which is about the dashboard
+		 * question and only ever applies to a brand-new event.
+		 */
+		private readonly fromPersonPage: boolean = false
 	) {
 		super(app);
 		this.type = existing?.type ?? prefill?.type ?? "hangout";
@@ -191,7 +205,7 @@ export class EventModal extends FormModal {
 			showLabel.createSpan({
 				text: "Add to upcoming events on Dashboard?",
 			});
-		} else {
+		} else if (!this.fromPersonPage) {
 			// From your own calendar — it shows there by definition, so the
 			// open question is whether anyone named on it sees it too.
 			const timelineField = contentEl.createDiv({
@@ -203,7 +217,7 @@ export class EventModal extends FormModal {
 			timelineBox = timelineLabel.createEl("input", {
 				attr: { type: "checkbox" },
 			});
-			timelineLabel.createSpan({ text: "Add to friend timelines?" });
+			timelineLabel.createSpan({ text: "Show on their timelines?" });
 			const box = timelineBox;
 			// Meaningless with nobody on the event — and it must fall back
 			// to unchecked when the last person goes, or a hidden tick would
@@ -367,9 +381,13 @@ export class EventModal extends FormModal {
 				// Flags the form doesn't edit carry over unchanged.
 				source: this.existing?.source || this.prefill?.source,
 				// Only the calendar-side form asks this. From a person's page
-				// the answer is already yes — that's where it's being added —
-				// and with nobody on it there's no timeline either way, so
-				// the default (absent, meaning yes) is the honest record.
+				// the answer is already yes — that's where it's being added
+				// or edited — and with nobody on it there's no timeline
+				// either way, so the default (absent, meaning yes) is the
+				// honest record. An edit reached from a person's page can
+				// only be an event already showing there, so keeping
+				// `this.existing?.showOnTimelines` rather than forcing it
+				// comes out the same either way, without a special case here.
 				showOnTimelines: timelineBox
 					? picked.length > 0
 						? timelineBox.checked

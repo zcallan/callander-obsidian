@@ -121,6 +121,8 @@ export class AddContactModal extends FormModal {
 		const chipsRow = groupsWrap.createDiv({ cls: "contact-group-chips" });
 		const infos = ops.getGroupInfos();
 		const colorOf = new Map(infos.map((i) => [i.name, i.color]));
+		// The page's own spelling, for both the chip text and the stored link.
+		const displayOf = ops.groupDisplayNames();
 
 		const addChip = (name: string) => {
 			// type=button so chips don't submit the form
@@ -131,7 +133,9 @@ export class AddContactModal extends FormModal {
 			const dot = chip.createSpan({ cls: "group-dot" });
 			dot.style.backgroundColor =
 				colorOf.get(name) ?? "var(--background-modifier-border)";
-			chip.createSpan({ text: ops.prettyGroupName(name) });
+			chip.createSpan({
+				text: displayOf.get(name) ?? ops.prettyGroupName(name),
+			});
 			chip.addEventListener("click", () => {
 				member.has(name) ? member.delete(name) : member.add(name);
 				chip.toggleClass("selected", member.has(name));
@@ -174,7 +178,9 @@ export class AddContactModal extends FormModal {
 				// Stored as links to the group pages — see groupsOf.
 				data.groups = [...member]
 					.sort()
-					.map((g) => ContactOperations.groupLink(g));
+					.map((g) =>
+						ContactOperations.groupLink(g, displayOf.get(g))
+					);
 			}
 			if (relationshipInput.value) {
 				const relationship = relationshipInput.value.toLowerCase();

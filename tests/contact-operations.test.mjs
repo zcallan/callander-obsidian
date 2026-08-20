@@ -320,6 +320,33 @@ export async function run() {
 		"[[Uni friends]]"
 	);
 	eq("blank produces nothing", ContactOperations.groupLink("  "), "");
+	// The page's own spelling wins when it's known. Without it the fallback
+	// capitalises the first letter only, which mangles anything multi-word:
+	// a group page called "Run n' Chug" was being linked as "[[Run n' chug]]".
+	eq(
+		"a known page's capitalisation is used verbatim",
+		ContactOperations.groupLink("run n' chug", "Run n' Chug"),
+		"[[Run n' Chug]]"
+	);
+	eq(
+		"the fallback only capitalises the first word",
+		ContactOperations.groupLink("run n' chug"),
+		"[[Run n' chug]]"
+	);
+	eq(
+		"a blank display falls back rather than linking to nothing",
+		ContactOperations.groupLink("uni friends", "   "),
+		"[[Uni friends]]"
+	);
+	// However it's spelled, it still reads back as the same bare key — which
+	// is what every membership comparison relies on.
+	eq(
+		"a page-cased link still reads as its key",
+		ContactOperations.groupsOf({
+			groups: [ContactOperations.groupLink("run n' chug", "Run n' Chug")],
+		}),
+		["run n' chug"]
+	);
 	// Round-trip: storing then reading must give back what matching expects.
 	eq(
 		"link and read round-trip",
