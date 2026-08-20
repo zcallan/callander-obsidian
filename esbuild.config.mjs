@@ -63,6 +63,13 @@ const stampDevBuild = () => {
 const BASE_CSS = path.join("src", "styles", "base.css");
 
 /**
+ * The most recent CSS Modules output esbuild handed us, kept in memory
+ * across builds — see the note on `lastScoped` below for why this can't
+ * just be re-read from disk each time.
+ */
+let lastScoped = "";
+
+/**
  * Obsidian loads exactly one stylesheet — `styles.css` — so the shipped file
  * is the hand-written base plus whatever the `.module.css` imports compiled
  * to. esbuild emits those next to main.js as `main.css`, which Obsidian would
@@ -70,17 +77,27 @@ const BASE_CSS = path.join("src", "styles", "base.css");
  *
  * Written to the repo root as well as the vault: the root copy is the release
  * artifact, and the e2e harness copies it into its throwaway vault.
+ *
+ * Two independent watchers call this: esbuild's own, after every JS/CSS
+ * Modules rebuild, and the plain `fs.watch(BASE_CSS)` below, after a
+ * base.css-only edit that never touches the JS graph. The second one used
+ * to regress every module class in the shipped stylesheet to nothing —
+ * `emitted` had already been read and deleted by the JS watcher's last
+ * pass, so a base.css-only save found no `main.css` on disk and rewrote
+ * `styles.css` as base CSS alone, discarding every `.module.css` rule that
+ * had been in it. Caching the last real reading in `lastScoped` instead of
+ * falling back to "" is what stops that: a base.css save now repeats
+ * whatever module CSS was last known, rather than erasing it.
  */
 const buildStyles = () => {
 	const base = fs.readFileSync(BASE_CSS, "utf8");
 	const emitted = path.join(outDir, "main.css");
-	let scoped = "";
 	if (fs.existsSync(emitted)) {
-		scoped = fs.readFileSync(emitted, "utf8");
+		lastScoped = fs.readFileSync(emitted, "utf8");
 		fs.rmSync(emitted);
 	}
-	const css = scoped
-		? `${base}\n/* ---- generated from *.module.css — do not edit ---- */\n${scoped}`
+	const css = lastScoped
+		? `${base}\n/* ---- generated from *.module.css — do not edit ---- */\n${lastScoped}`
 		: base;
 	fs.writeFileSync("styles.css", css);
 	if (outDir !== ".") {
