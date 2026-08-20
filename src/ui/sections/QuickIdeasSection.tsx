@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { PLAN_IDEA_CATEGORIES } from "@/constants";
 import { PlanOperations } from "@/services/PlanOperations";
 import {
@@ -87,8 +88,13 @@ export function QuickIdeasSection({
 				</div>
 			)}
 
+			{/* Fragments, not wrapper divs: the headings and rows must stay
+			    siblings, because `.plan-quick-idea-group:first-child` drops
+			    the top margin on the first heading only. Nested one per
+			    wrapper, every heading is a first child and the gap between
+			    categories collapses. */}
 			{groups.map((group, g) => (
-				<div key={group.label || `ungrouped-${g}`}>
+				<Fragment key={group.label || `ungrouped-${g}`}>
 					{/* A blank label is the single ungrouped case — nothing is
 					    categorised, so a heading would name a distinction
 					    that isn't being drawn. */}
@@ -107,7 +113,7 @@ export function QuickIdeasSection({
 							onClick={() => onOpen(index)}
 						/>
 					))}
-				</div>
+				</Fragment>
 			))}
 
 			<div className="contact-section-footer">
