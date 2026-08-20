@@ -268,10 +268,19 @@ export class ContactOperations {
 	 * case-insensitively either way, but a lowercase link beside a
 	 * capitalised note reads like a mistake.
 	 */
-	static groupLink(name: string): string {
+	static groupLink(name: string, display?: string): string {
 		const bare = ContactOperations.groupName(name);
 		if (!bare) return "";
-		return `[[${bare.charAt(0).toUpperCase()}${bare.slice(1)}]]`;
+		// `display` is the group page's own basename, so the link matches
+		// the file rather than a guess. Without it the fallback capitalises
+		// the first letter only, which mangles anything multi-word —
+		// "run n' chug" became "[[Run n' chug]]" beside a page actually
+		// called "Run n' Chug". Obsidian resolves that case-insensitively so
+		// it still worked, but it read like a typo and would break the day
+		// anything compared link text to a file name.
+		const label =
+			display?.trim() || `${bare.charAt(0).toUpperCase()}${bare.slice(1)}`;
+		return `[[${label}]]`;
 	}
 
 	// ---- Folders ----
@@ -357,6 +366,36 @@ export class ContactOperations {
 		return name.charAt(0).toUpperCase() + name.slice(1);
 	}
 
+	/**
+	 * Lowercased group key → the capitalisation its own page uses.
+	 *
+	 * Groups are keyed lowercase everywhere so membership compares cleanly,
+	 * which means the display spelling only survives on the page's file
+	 * name. `prettyGroupName` is a lossy stand-in for that — fine for a
+	 * single word, wrong for "Run n' Chug" — so anything shown to the
+	 * reader, or written into a link, should come from here when a page
+	 * exists.
+	 *
+	 * One folder walk per call, so build it once and reuse it across a loop
+	 * rather than asking per chip.
+	 */
+	groupDisplayNames(): Map<string, string> {
+		return new Map(
+			this.getGroupInfos().map((info) => [info.name, this.labelOf(info)])
+		);
+	}
+
+	/** The same spelling, when you already hold the info and need no walk. */
+	labelOf(info: GroupInfo): string {
+		return info.file ? info.file.basename : this.prettyGroupName(info.name);
+	}
+
+	/** One group's display spelling — see groupDisplayNames. */
+	groupLabel(name: string): string {
+		const key = ContactOperations.groupName(name);
+		return this.groupDisplayNames().get(key) ?? this.prettyGroupName(key);
+	}
+
 	async setGroupColor(name: string, color: string): Promise<TFile> {
 		const file = await this.ensureGroupFile(name);
 		await this.writeFrontMatter(file, (fm) => {
@@ -371,6 +410,12 @@ export class ContactOperations {
 		const normalized = newName.trim().toLowerCase();
 		if (!normalized || normalized === oldName) return;
 
+		// Built once, outside the per-file loop — each call walks the
+		// Groups folder. The renamed group's page hasn't moved yet, so its
+		// new spelling comes from `newName` rather than the map.
+		const display = this.groupDisplayNames();
+		display.set(normalized, newName.trim());
+
 		await this.forEachContactFile((file, fm) => {
 			const groups = ContactOperations.groupsOf(fm);
 			if (groups.includes(oldName)) {
@@ -378,7 +423,7 @@ export class ContactOperations {
 					...new Set(
 						groups.map((g) => (g === oldName ? normalized : g))
 					),
-				].map((g) => ContactOperations.groupLink(g));
+				].map((g) => ContactOperations.groupLink(g, display.get(g)));
 			}
 		});
 
@@ -407,13 +452,14 @@ export class ContactOperations {
 
 	/** Remove the group from every member and trash its page */
 	async deleteGroup(name: string): Promise<void> {
+		const display = this.groupDisplayNames();
 		await this.forEachContactFile((file, fm) => {
 			const groups = ContactOperations.groupsOf(fm);
 			if (groups.includes(name)) {
 				const kept = groups.filter((g) => g !== name);
 				if (kept.length > 0) {
 					fm.groups = kept.map((g) =>
-						ContactOperations.groupLink(g)
+						ContactOperations.groupLink(g, display.get(g))
 					);
 				} else delete fm.groups;
 			}
@@ -431,25 +477,27 @@ export class ContactOperations {
 	}
 
 	async addFriendToGroup(file: TFile, group: string): Promise<void> {
+		const display = this.groupDisplayNames();
 		await this.writeFrontMatter(file, (fm) => {
 				fm.groups = [
 					...new Set([
 						...ContactOperations.groupsOf(fm),
 						ContactOperations.groupName(group),
 					]),
-				].map((g) => ContactOperations.groupLink(g));
+				].map((g) => ContactOperations.groupLink(g, display.get(g)));
 			}
 		);
 	}
 
 	async removeFriendFromGroup(file: TFile, group: string): Promise<void> {
+		const display = this.groupDisplayNames();
 		await this.writeFrontMatter(file, (fm) => {
 				const groups = ContactOperations.groupsOf(fm).filter(
 					(g) => g !== group
 				);
 				if (groups.length > 0) {
 					fm.groups = groups.map((g) =>
-						ContactOperations.groupLink(g)
+						ContactOperations.groupLink(g, display.get(g))
 					);
 				} else delete fm.groups;
 			}
@@ -612,6 +660,7 @@ export class ContactOperations {
 
 	/** Merge `duplicate` into `keep`: fill gaps, concat lists, append body, trash duplicate */
 	async mergeFriends(keep: TFile, duplicate: TFile): Promise<void> {
+		const display = this.groupDisplayNames();
 		const dupMeta = await this.readFrontmatter(duplicate);
 		const dupContent = await this.app.vault.read(duplicate);
 		const dupBodyRaw = splitFrontmatter(dupContent).body;
@@ -654,7 +703,7 @@ export class ContactOperations {
 				];
 				if (groups.length > 0) {
 					fm.groups = [...new Set(groups)].map((g) =>
-						ContactOperations.groupLink(g)
+						ContactOperations.groupLink(g, display.get(g))
 					);
 				}
 				if (dupMeta.notes) {

@@ -875,7 +875,7 @@ export class DashboardView extends ItemView {
 			const dot = label.createSpan({ cls: "group-dot" });
 			dot.style.backgroundColor =
 				info.color ?? "var(--background-modifier-border)";
-			label.createSpan({ text: ops.prettyGroupName(info.name) });
+			label.createSpan({ text: ops.labelOf(info) });
 			label.createSpan({
 				cls: "dashboard-row-date",
 				text: ` · ${count} member${count === 1 ? "" : "s"}`,

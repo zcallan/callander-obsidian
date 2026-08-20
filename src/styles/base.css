@@ -1872,6 +1872,19 @@ If your plugin does not need CSS, delete this file.
 	cursor: default;
 }
 
+/* The group's name inside a read-only chip, when its page exists — the
+   value really is a link, so it reads and behaves like one. Only the label
+   is the target, not the whole chip: the coloured dot is a swatch rather
+   than part of the link. */
+.contact-group-chip-link {
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.contact-group-chip-link:hover {
+	text-decoration: underline;
+}
+
 .contact-member-chip .contact-member-remove {
 	color: var(--text-muted);
 	cursor: pointer;

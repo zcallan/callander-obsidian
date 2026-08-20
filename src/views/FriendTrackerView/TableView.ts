@@ -28,6 +28,8 @@ export class TableView {
 	private searchQuery = "";
 	private contacts: ContactWithCountdown[] = [];
 	private groupColors = new Map<string, string | null>();
+	/** Group key → the spelling its page uses; see ContactOperations.labelOf. */
+	private groupLabels = new Map<string, string>();
 	private listEl: HTMLElement | null = null;
 
 	constructor(private view: FriendTrackerView) {}
@@ -68,6 +70,9 @@ export class TableView {
 		const ops = this.view.contactOperations;
 		const infos = ops.getGroupInfos(contacts);
 		this.groupColors = new Map(infos.map((i) => [i.name, i.color]));
+		this.groupLabels = new Map(
+			infos.map((i) => [i.name, ops.labelOf(i)])
+		);
 		if (infos.length > 0) {
 			const pills = wrap.createDiv({
 				cls: "contact-group-chips friend-list-groups",
@@ -81,7 +86,7 @@ export class TableView {
 				const dot = chip.createSpan({ cls: "group-dot" });
 				dot.style.backgroundColor =
 					info.color ?? "var(--background-modifier-border)";
-				chip.createSpan({ text: ops.prettyGroupName(info.name) });
+				chip.createSpan({ text: ops.labelOf(info) });
 				chip.addEventListener("click", () => {
 					this.view.groupFilter =
 						this.view.groupFilter === info.name ? "" : info.name;
@@ -215,7 +220,9 @@ export class TableView {
 					this.groupColors.get(g) ??
 					"var(--background-modifier-border)";
 				tag.createSpan({
-					text: this.view.contactOperations.prettyGroupName(g),
+					text:
+						this.groupLabels.get(g) ??
+						this.view.contactOperations.prettyGroupName(g),
 				});
 			}
 

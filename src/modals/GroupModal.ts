@@ -25,7 +25,7 @@ export class GroupModal extends FormModal {
 		contentEl.empty();
 		contentEl.createEl("h2", {
 			text: this.existing
-				? `Edit group: ${ops.prettyGroupName(this.existing.name)}`
+				? `Edit group: ${ops.labelOf(this.existing)}`
 				: "New group",
 		});
 
@@ -38,7 +38,7 @@ export class GroupModal extends FormModal {
 			attr: { type: "text", placeholder: "e.g. Basketball" },
 		});
 		if (this.existing) {
-			nameInput.value = ops.prettyGroupName(this.existing.name);
+			nameInput.value = ops.labelOf(this.existing);
 		}
 
 		// Color: fixed palette of swatches

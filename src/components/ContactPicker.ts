@@ -3,7 +3,10 @@ import type { ContactWithCountdown } from "@/types";
 import { compareByFirstName } from "@/utils/nameFormat";
 
 export interface ContactPickerHandle {
-	/** The picked people: "[[Basename]]" for contacts, bare names for guests. */
+	/**
+	 * The picked people: "[[Basename]]" for anything backed by a real note
+	 * — contacts and group pages alike — and bare names for guests.
+	 */
 	wikilinks(): string[];
 }
 
@@ -30,15 +33,28 @@ export interface ContactPickerOptions {
 interface Picked {
 	name: string;
 	contact?: ContactWithCountdown;
+	/**
+	 * Basename of a note that resolves but isn't in `contacts` — a group
+	 * page, most often, since an event can name a whole group.
+	 *
+	 * Kept as its own case so it re-serialises as a link rather than a bare
+	 * name. Without it these were dropped on open and gone on save: an
+	 * event on a group's timeline lost the group the first time anyone
+	 * opened it, and then matched nothing anywhere.
+	 */
+	link?: string;
 }
 
 /**
  * A people picker backed by real contacts — a dropdown that adds removable
  * pills, stored as wikilinks so other pages can resolve the same people
- * later. Initial links that no longer resolve (renamed or deleted files)
- * are silently dropped rather than shown as dead entries, unless
- * `allowGuests` is set, in which case anything unresolved is kept as a
- * plain name.
+ * later.
+ *
+ * Only links that no longer resolve (renamed or deleted files) are dropped,
+ * and only when `allowGuests` is off — with it on, anything unresolved is
+ * kept as a plain name. A link that *does* resolve is always kept, even
+ * when it points at something outside `contacts`: an event can name a whole
+ * group, and the group's page is a real note, not a dead link.
  */
 export function appendContactPicker(
 	container: HTMLElement,
@@ -53,7 +69,11 @@ export function appendContactPicker(
 	// matches whether it arrived as a link or a bare name.
 	const lockedKeys = new Set(locked.map((l) => l.trim()));
 	const keyOf = (p: Picked) =>
-		p.contact ? `[[${p.contact.file.basename}]]` : p.name;
+		p.contact
+			? `[[${p.contact.file.basename}]]`
+			: p.link
+			? `[[${p.link}]]`
+			: p.name;
 	const picker = container.createDiv({ cls: "people-field" });
 	const select = picker.createEl("select", {
 		cls: "quick-idea-input people-select",
@@ -83,6 +103,13 @@ export function appendContactPicker(
 			: undefined;
 		if (match) {
 			const p: Picked = { name: match.displayName, contact: match };
+			if (!has(p)) selected.push(p);
+		} else if (dest) {
+			// Resolves to a real note that simply isn't a contact — a group
+			// page. Dropping it is only right for a link that no longer
+			// points anywhere; this one does, so it's kept and written back
+			// as the same link.
+			const p: Picked = { name: dest.basename, link: dest.basename };
 			if (!has(p)) selected.push(p);
 		} else if (allowGuests) {
 			const p: Picked = { name: linktext };
@@ -122,7 +149,9 @@ export function appendContactPicker(
 			const pill = pills.createSpan({
 				cls: [
 					"people-pill",
-					p.contact ? "" : "is-guest",
+					// A resolved non-contact is a real note, so it doesn't
+					// get the guest treatment reserved for bare names.
+					p.contact || p.link ? "" : "is-guest",
 					isLocked ? "is-locked" : "",
 				]
 					.filter(Boolean)
@@ -205,7 +234,11 @@ export function appendContactPicker(
 	return {
 		wikilinks: () =>
 			selected.map((p) =>
-				p.contact ? `[[${p.contact.file.basename}]]` : p.name
+				p.contact
+					? `[[${p.contact.file.basename}]]`
+					: p.link
+					? `[[${p.link}]]`
+					: p.name
 			),
 	};
 }
