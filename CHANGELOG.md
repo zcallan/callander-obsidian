@@ -6,6 +6,56 @@ Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidia
 Versions marked *(tag only)* shipped as a tag without published release notes;
 their entries are reconstructed from the commits they contain.
 
+## 1.7.0 — 2026-08-19
+
+### Fixed
+
+- **Plugin review blocker resolved.** React DOM 19's bundled preload machinery
+  tripped Obsidian's static scanner ("Found 3 dynamic `<script>` element
+  creations"), even though nothing in Callander reaches that code path. The
+  renderer is now Preact via `preact/compat`, which contains no such code —
+  and the bundle shrinks by roughly 45% as a side effect.
+
+### Person pages
+
+- **Life goals** — a new section under Interests for things a friend wants to
+  do someday ("learn Spanish", "run a marathon"). Add notes, mark one done
+  (it stays listed under "Completed" rather than disappearing), and jump
+  straight to adding an idea or event about it.
+- **Parents, Siblings, Friends and Related files** are new fields that accept
+  either a `[[Wikilink]]` to another note or plain text. Linked entries are
+  real, indexed links — graph view and backlinks included — and render as
+  clickable, purple-highlighted links that open in a new tab.
+- **Groups are now stored as wikilinks** too, for the same reason: real graph
+  edges and backlinks between a person and their groups. Existing vaults
+  convert automatically the next time each person is saved — no migration
+  step needed.
+- Field labels are properly spaced ("Legal name", not "LegalName"), and most
+  fields now have an info button explaining what they're for, with an
+  example — visible only while editing.
+- The "About" accordion remembers whether you left it open or closed, across
+  files and restarts.
+- Added a **Legal name** field.
+- Fixed three fields — Life goals, plus the pre-existing Notes-adjacent
+  extras and Inside jokes — quietly duplicating themselves into the About
+  section despite already having their own place on the page.
+
+### Plans
+
+- Quick idea categories are added through a small dedicated dialog instead of
+  an inline text box, and get proper spacing between groups again.
+- Empty days on the Timeline now offer quick-add buttons on hover, prefilled
+  with that day.
+
+### Internal
+
+- **The rest of the Plan and Person pages now render with React**, joining
+  the sections ported in 1.6.0 — Timeline, Cost breakdown, Members, Ideas,
+  Interests, Quotes, and everything else. The view files are substantially
+  smaller as a result, with the day-grouping, row-counting and "who owes
+  what" math extracted into tested, pure functions rather than living inside
+  a render pass.
+
 ## 1.6.0 — 2026-08-18
 
 ### Plans
