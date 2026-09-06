@@ -2,6 +2,7 @@ import { TFile, TFolder, normalizePath, parseYaml } from "obsidian";
 import type FriendTracker from "@/main";
 import type { DiaryEntry } from "@/types";
 import { fieldOf, isRecord, toText } from "@/utils/fm";
+import { todayISO } from "@/utils/flexdate";
 
 export class DiaryOperations {
 	constructor(private plugin: FriendTracker) {}
@@ -120,7 +121,7 @@ export class DiaryOperations {
 	async createEntry(title: string, date: string): Promise<TFile> {
 		await this.ensureDiaryFolder();
 		const path = await this.getAvailablePath(date, title);
-		const created = new Date().toISOString().split("T")[0];
+		const created = todayISO();
 		const content = `---\ntitle: ${JSON.stringify(
 			title
 		)}\ndate: ${date}\ncreated: ${created}\n---\n\n`;

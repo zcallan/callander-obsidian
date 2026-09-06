@@ -1382,7 +1382,7 @@ export default class FriendTracker extends Plugin {
 		const lines: string[] = [
 			`# Your friendships in ${year}`,
 			"",
-			`*Generated ${new Date().toISOString().split("T")[0]}. Counts, not scores — Callander doesn't grade friendships.*`,
+			`*Generated ${todayISO()}. Counts, not scores — Callander doesn't grade friendships.*`,
 			"",
 		];
 
@@ -1600,8 +1600,11 @@ export default class FriendTracker extends Plugin {
 	private async checkBirthdays() {
 		if (!this.settings.showBirthdayReminders) return;
 
-		// Only remind once per day, however many times the vault is opened
-		const today = new Date().toISOString().split("T")[0];
+		// Only remind once per day, however many times the vault is opened.
+		// The local day, not UTC: "once a day" has to mean the day you're
+		// having, or an evening in the US would tick tomorrow off early and
+		// swallow tomorrow's digest.
+		const today = todayISO();
 		if (this.settings.lastBirthdayNoticeDate === today) return;
 		this.settings.lastBirthdayNoticeDate = today;
 		await this.saveSettings();

@@ -3,6 +3,7 @@ import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import type { ContactWithCountdown } from "@/types";
 import { createFlexDateInput } from "@/components/FlexDateInput";
+import { todayISO } from "@/utils/flexdate";
 
 /**
  * Log one event onto several friends' timelines at once —
@@ -73,7 +74,7 @@ export class GroupEventModal extends FormModal {
 			row.createSpan({ text: c.displayName });
 		});
 
-		let dateValue = new Date().toISOString().split("T")[0];
+		let dateValue = todayISO();
 		const dateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});

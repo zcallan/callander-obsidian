@@ -1,5 +1,6 @@
 import { App, Setting } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import { todayISO } from "@/utils/flexdate";
 interface DiaryEntryModalValues {
 	title: string;
 	date: string;
@@ -18,7 +19,7 @@ export class DiaryEntryModal extends FormModal {
 			? { ...existing }
 			: {
 					title: "",
-					date: new Date().toISOString().split("T")[0],
+					date: todayISO(),
 			  };
 	}
 

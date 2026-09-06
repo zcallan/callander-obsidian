@@ -198,7 +198,7 @@ export class ContactOperations {
 
 	/** Capture a raw thought onto a friend (or the inbox) for later triage */
 	async addDraft(file: TFile, text: string): Promise<void> {
-		const created = new Date().toISOString().split("T")[0];
+		const created = todayISO();
 		await this.writeFrontMatter(file, (fm) => {
 				fm.drafts = [
 					...ContactOperations.draftsOf(fm),

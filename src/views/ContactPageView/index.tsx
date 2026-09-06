@@ -2044,7 +2044,7 @@ export class ContactPageView extends ItemView {
 		const notice = new Notice(fragment, 8000);
 		const logIdeaAsEvent = async () => {
 			notice.hide();
-			const today = new Date().toISOString().split("T")[0];
+			const today = todayISO();
 			// Gifts given get their own type; everything else was time spent
 			const type: EventType =
 				this.normalizeCategory(idea) === "gift" ? "given" : "hangout";
@@ -3585,7 +3585,7 @@ export class ContactPageView extends ItemView {
 			this.app,
 			this.contactData.displayName || this.contactData.name || "",
 			async (text, date) => {
-				const created = new Date().toISOString().split("T")[0];
+				const created = todayISO();
 				this.pushToList("drafts", {
 					text,
 					created,
