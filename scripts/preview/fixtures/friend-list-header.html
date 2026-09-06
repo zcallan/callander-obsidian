@@ -1,0 +1,198 @@
+<!--
+  The All friends page chrome, in both of its states.
+
+  The layout question this answers is a crowding one: header, a search+sort
+  line, a row of group chips and a row of tabs all stack before the first
+  friend, and each was added at a different time. Rendered together is the
+  only way to see whether they still read as four separate controls or as
+  one undifferentiated pile — which is what they had become.
+
+  Both blocks matter. Tabs are underlined and chips are pills on purpose;
+  seeing them adjacent is the check that the two never read as one control
+  with two rows of options. The second block also proves the sort dropdown
+  is gone on Timeline rather than merely inert.
+-->
+<div class="friend-list-container">
+	<div class="dashboard-section-header">
+		<h2>All friends</h2>
+		<button class="callander-button friend-list-add-button">
+			<span>Add friend</span>
+		</button>
+	</div>
+
+	<div class="friend-list-toolbar">
+		<input
+			class="contact-field-input friend-list-search"
+			type="text"
+			placeholder="Search friends…"
+		/>
+		<div class="friend-list-sort">
+			<select class="dropdown" aria-label="Sort friends">
+				<option>Birthday</option>
+			</select>
+		</div>
+	</div>
+
+	<div class="contact-group-chips friend-list-groups">
+		<button class="contact-group-chip">
+			<span class="group-dot" style="background-color: #5cb870"></span
+			><span>Family</span>
+		</button>
+		<button class="contact-group-chip">
+			<span class="group-dot" style="background-color: #a48cf0"></span
+			><span>Pipelabs</span>
+		</button>
+		<button class="contact-group-chip selected">
+			<span class="group-dot" style="background-color: #5a9bf6"></span
+			><span>Run n' Chug</span>
+		</button>
+		<button class="contact-group-chip">
+			<span class="group-dot" style="background-color: #e0c341"></span
+			><span>Wuckfes</span>
+		</button>
+	</div>
+
+	<div class="friend-list-tabs" role="tablist">
+		<button class="friend-list-tab active" role="tab" aria-selected="true">
+			List
+		</button>
+		<button class="friend-list-tab" role="tab" aria-selected="false">
+			Timeline
+		</button>
+		<button class="friend-list-tab" role="tab" aria-selected="false">
+			Calendar
+		</button>
+	</div>
+
+	<div class="friend-list-content">
+		<div class="friend-list">
+			<div class="friend-list-row">
+				<div class="friend-list-info">
+					<div class="friend-list-main">
+						<span class="friend-list-name">Lauren Delbridge</span>
+						<span class="friend-list-group-tag"
+							><span
+								class="group-dot"
+								style="background-color: #5cb870"
+							></span
+							><span>Family</span></span
+						>
+					</div>
+					<div class="friend-list-detail">26 Sep 1992 • Age 33</div>
+				</div>
+				<button class="callander-button friend-list-glance">
+					<span class="friend-list-glance-label">Glance</span>
+				</button>
+			</div>
+			<div class="friend-list-row">
+				<div class="friend-list-info">
+					<div class="friend-list-main">
+						<span class="friend-list-name">Enrique Perez</span>
+						<span class="friend-list-group-tag"
+							><span
+								class="group-dot"
+								style="background-color: #5a9bf6"
+							></span
+							><span>Run n' Chug</span></span
+						>
+					</div>
+					<div class="friend-list-detail">20 Oct 2001 • Age 24</div>
+				</div>
+				<button class="callander-button friend-list-glance">
+					<span class="friend-list-glance-label">Glance</span>
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="friend-list-container">
+	<div class="dashboard-section-header">
+		<h2>All friends</h2>
+		<button class="callander-button friend-list-add-button">
+			<span>Add friend</span>
+		</button>
+	</div>
+
+	<div class="friend-list-toolbar">
+		<input
+			class="contact-field-input friend-list-search"
+			type="text"
+			placeholder="Search friends…"
+		/>
+		<!-- Sort is hidden on Timeline: chronological is the only order. -->
+		<div class="friend-list-sort is-hidden">
+			<select class="dropdown" aria-label="Sort friends">
+				<option>Birthday</option>
+			</select>
+		</div>
+	</div>
+
+	<div class="contact-group-chips friend-list-groups">
+		<button class="contact-group-chip">
+			<span class="group-dot" style="background-color: #5cb870"></span
+			><span>Family</span>
+		</button>
+		<button class="contact-group-chip">
+			<span class="group-dot" style="background-color: #5a9bf6"></span
+			><span>Run n' Chug</span>
+		</button>
+	</div>
+
+	<div class="friend-list-tabs" role="tablist">
+		<button class="friend-list-tab" role="tab" aria-selected="false">
+			List
+		</button>
+		<button class="friend-list-tab active" role="tab" aria-selected="true">
+			Timeline
+		</button>
+		<button class="friend-list-tab" role="tab" aria-selected="false">
+			Calendar
+		</button>
+	</div>
+
+	<div class="friend-list-content">
+		<div class="contact-timeline friend-timeline">
+			<div class="contact-timeline-year">September 2026</div>
+			<div class="contact-timeline-item friend-timeline-row">
+				<span class="contact-timeline-dot"></span>
+				<div class="contact-timeline-date">Mon 21 Sep • Turns 34</div>
+				<div class="contact-timeline-text">
+					Lauren Delbridge<span class="friend-list-group-tag"
+						><span
+							class="group-dot"
+							style="background-color: #5cb870"
+						></span
+						><span>Family</span></span
+					>
+				</div>
+			</div>
+			<div class="contact-timeline-item friend-timeline-row">
+				<span class="contact-timeline-dot"></span>
+				<div class="contact-timeline-date">Sat 26 Sep • Turns 25</div>
+				<div class="contact-timeline-text">
+					Enrique Perez<span class="friend-list-group-tag"
+						><span
+							class="group-dot"
+							style="background-color: #5a9bf6"
+						></span
+						><span>Run n' Chug</span></span
+					>
+				</div>
+			</div>
+			<div class="contact-timeline-year">October 2026</div>
+			<div class="contact-timeline-item plan-timeline-empty">
+				<span class="plan-timeline-empty-text">No birthdays</span>
+			</div>
+			<div class="contact-timeline-year">November 2026</div>
+			<div class="contact-timeline-item friend-timeline-row">
+				<span class="contact-timeline-dot"></span>
+				<div class="contact-timeline-date">Mon 30 Nov</div>
+				<div class="contact-timeline-text">Lindsay Shean</div>
+			</div>
+		</div>
+		<div class="section-helper-text friend-timeline-note">
+			2 friends have no birthday set.
+		</div>
+	</div>
+</div>

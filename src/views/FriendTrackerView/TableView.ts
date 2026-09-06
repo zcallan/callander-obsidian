@@ -1,11 +1,17 @@
 import { setIcon } from "obsidian";
 import type { FriendTrackerView } from "./index";
-import type { ContactWithCountdown, FriendListSort } from "@/types";
+import type {
+	ContactWithCountdown,
+	FriendListSort,
+	FriendListTab,
+} from "@/types";
 import {
 	parseFlexDate,
 	flexSortKey,
 	formatShortFlexDate,
+	formatShortWeekdayDate,
 } from "@/utils/flexdate";
+import { birthdayMonths } from "@/utils/friendTimeline";
 import { GlanceModal } from "@/modals/GlanceModal";
 
 const SORT_OPTIONS: Array<{ id: FriendListSort; label: string }> = [
@@ -20,9 +26,17 @@ const SORT_OPTIONS: Array<{ id: FriendListSort; label: string }> = [
 	{ id: "modified", label: "Last modified" },
 ];
 
+const TABS: Array<{ id: FriendListTab; label: string }> = [
+	{ id: "list", label: "List" },
+	{ id: "timeline", label: "Timeline" },
+	{ id: "calendar", label: "Calendar" },
+];
+
 /**
- * The All friends page: a two-line list in the same visual language as
- * the dashboard, with search, group-pill filtering, and a remembered sort.
+ * The All friends page: search, group-pill filtering and a remembered sort
+ * over three presentations of the same people — a two-line list in the
+ * dashboard's visual language, a year of birthdays as a timeline, and a
+ * calendar grid still to come.
  */
 export class TableView {
 	private searchQuery = "";
@@ -30,7 +44,16 @@ export class TableView {
 	private groupColors = new Map<string, string | null>();
 	/** Group key → the spelling its page uses; see ContactOperations.labelOf. */
 	private groupLabels = new Map<string, string>();
-	private listEl: HTMLElement | null = null;
+	/**
+	 * Which presentation is showing. Lives here rather than in settings for
+	 * the same reason searchQuery does — it survives a refresh, but a fresh
+	 * open starts on List, which is the only tab guaranteed to have
+	 * something in it.
+	 */
+	private tab: FriendListTab = "list";
+	private tabsEl: HTMLElement | null = null;
+	private sortEl: HTMLElement | null = null;
+	private contentEl: HTMLElement | null = null;
 
 	constructor(private view: FriendTrackerView) {}
 
@@ -54,79 +77,151 @@ export class TableView {
 			void this.view.openAddContactModal()
 		);
 
-		// Search
-		const searchWrap = wrap.createDiv({ cls: "dashboard-search" });
-		const searchInput = searchWrap.createEl("input", {
+		// Narrow the people first, then pick a view of them: search and
+		// sort, group chips, and the tabs last so they sit directly above
+		// the thing they switch.
+		this.renderToolbar(wrap);
+		this.renderGroupPills(wrap, contacts);
+		this.renderTabs(wrap);
+
+		this.contentEl = wrap.createDiv({ cls: "friend-list-content" });
+		this.renderContent();
+	}
+
+	/**
+	 * Which view of the page — underlined rather than pill-shaped, so they
+	 * never read as another row of group chips sitting just below them.
+	 */
+	private renderTabs(wrap: HTMLElement) {
+		const tabs = wrap.createDiv({
+			cls: "friend-list-tabs",
+			attr: { role: "tablist" },
+		});
+		for (const { id, label } of TABS) {
+			const active = this.tab === id;
+			const button = tabs.createEl("button", {
+				cls: `friend-list-tab${active ? " active" : ""}`,
+				text: label,
+				attr: {
+					type: "button",
+					role: "tab",
+					"aria-selected": String(active),
+				},
+			});
+			button.addEventListener("click", () => this.selectTab(id));
+		}
+		this.tabsEl = tabs;
+	}
+
+	/** Search and sort share a line — the tabs above need the room. */
+	private renderToolbar(wrap: HTMLElement) {
+		const toolbar = wrap.createDiv({ cls: "friend-list-toolbar" });
+
+		const searchInput = toolbar.createEl("input", {
 			attr: { type: "text", placeholder: "Search friends…" },
-			cls: "contact-field-input",
+			cls: "contact-field-input friend-list-search",
 		});
 		searchInput.value = this.searchQuery;
 		searchInput.addEventListener("input", () => {
 			this.searchQuery = searchInput.value;
-			this.renderList();
+			this.renderContent();
 		});
 
-		// Group pills filter
-		const ops = this.view.contactOperations;
-		const infos = ops.getGroupInfos(contacts);
-		this.groupColors = new Map(infos.map((i) => [i.name, i.color]));
-		this.groupLabels = new Map(
-			infos.map((i) => [i.name, ops.labelOf(i)])
-		);
-		if (infos.length > 0) {
-			const pills = wrap.createDiv({
-				cls: "contact-group-chips friend-list-groups",
-			});
-			for (const info of infos) {
-				const chip = pills.createEl("button", {
-					cls: `contact-group-chip ${
-						this.view.groupFilter === info.name ? "selected" : ""
-					}`,
-				});
-				const dot = chip.createSpan({ cls: "group-dot" });
-				dot.style.backgroundColor =
-					info.color ?? "var(--background-modifier-border)";
-				chip.createSpan({ text: ops.labelOf(info) });
-				chip.addEventListener("click", () => {
-					this.view.groupFilter =
-						this.view.groupFilter === info.name ? "" : info.name;
-					pills
-						.findAll(".contact-group-chip")
-						.forEach((el) => el.removeClass("selected"));
-					if (this.view.groupFilter === info.name) {
-						chip.addClass("selected");
-					}
-					this.renderList();
-				});
-			}
-		}
-
-		// Sort
-		const sortRow = wrap.createDiv({
-			cls: "friend-list-sort-row",
+		// No "Sort" label: the options name themselves, and the row is
+		// carrying the search box now.
+		const sort = toolbar.createDiv({
+			cls: `friend-list-sort${this.tab === "list" ? "" : " is-hidden"}`,
 		});
-		sortRow.createSpan({
-			cls: "friend-list-sort-label",
-			text: "Sort",
+		const select = sort.createEl("select", {
+			cls: "dropdown",
+			attr: { "aria-label": "Sort friends" },
 		});
-		const select = sortRow.createEl("select", { cls: "dropdown" });
 		SORT_OPTIONS.forEach((o) =>
 			select.createEl("option", { value: o.id, text: o.label })
 		);
 		select.value = this.view.settings.friendListSort;
 		const handleSortChange = async () => {
 			await this.view.setFriendListSort(select.value as FriendListSort);
-			this.renderList();
+			this.renderContent();
 		};
 		select.addEventListener("change", () => void handleSortChange());
-
-		this.listEl = wrap.createDiv({ cls: "friend-list" });
-		this.renderList();
+		this.sortEl = sort;
 	}
 
-	private sortedFiltered(): ContactWithCountdown[] {
+	private renderGroupPills(
+		wrap: HTMLElement,
+		contacts: ContactWithCountdown[]
+	) {
+		const ops = this.view.contactOperations;
+		const infos = ops.getGroupInfos(contacts);
+		this.groupColors = new Map(infos.map((i) => [i.name, i.color]));
+		this.groupLabels = new Map(infos.map((i) => [i.name, ops.labelOf(i)]));
+		if (infos.length === 0) return;
+
+		const pills = wrap.createDiv({
+			cls: "contact-group-chips friend-list-groups",
+		});
+		for (const info of infos) {
+			const chip = pills.createEl("button", {
+				cls: `contact-group-chip ${
+					this.view.groupFilter === info.name ? "selected" : ""
+				}`,
+			});
+			const dot = chip.createSpan({ cls: "group-dot" });
+			dot.style.backgroundColor =
+				info.color ?? "var(--background-modifier-border)";
+			chip.createSpan({ text: ops.labelOf(info) });
+			chip.addEventListener("click", () => {
+				this.view.groupFilter =
+					this.view.groupFilter === info.name ? "" : info.name;
+				pills
+					.findAll(".contact-group-chip")
+					.forEach((el) => el.removeClass("selected"));
+				if (this.view.groupFilter === info.name) {
+					chip.addClass("selected");
+				}
+				this.renderContent();
+			});
+		}
+	}
+
+	/**
+	 * Swap presentations without a full re-render: rebuilding the toolbar
+	 * would replace the search box mid-typing and take the caret with it.
+	 */
+	private selectTab(tab: FriendListTab) {
+		if (this.tab === tab) return;
+		this.tab = tab;
+		this.tabsEl?.findAll(".friend-list-tab").forEach((el, i) => {
+			const active = TABS[i].id === tab;
+			el.toggleClass("active", active);
+			el.setAttribute("aria-selected", String(active));
+		});
+		// Sorting is a List-only question. A timeline is chronological by
+		// definition, so a dropdown that changed nothing would read as broken.
+		this.sortEl?.toggleClass("is-hidden", tab !== "list");
+		this.renderContent();
+	}
+
+	private renderContent() {
+		if (!this.contentEl) return;
+		this.contentEl.empty();
+		if (this.tab === "timeline") {
+			this.renderTimeline();
+		} else if (this.tab === "calendar") {
+			this.contentEl.createDiv({
+				cls: "section-helper-text",
+				text: "Coming soon!",
+			});
+		} else {
+			this.renderList();
+		}
+	}
+
+	/** Group pill + search, shared by every tab. */
+	private filtered(): ContactWithCountdown[] {
 		const q = this.searchQuery.trim().toLowerCase();
-		const list = this.contacts.filter(
+		return this.contacts.filter(
 			(c) =>
 				(!this.view.groupFilter ||
 					c.groups.includes(this.view.groupFilter)) &&
@@ -134,6 +229,10 @@ export class TableView {
 					c.displayName.toLowerCase().includes(q) ||
 					c.name.toLowerCase().includes(q))
 		);
+	}
+
+	private sortedFiltered(): ContactWithCountdown[] {
+		const list = this.filtered();
 
 		const lastEventKey = (c: ContactWithCountdown): number => {
 			let max = -1;
@@ -179,24 +278,44 @@ export class TableView {
 		return list;
 	}
 
+	/** "Nothing here" — which of the two depends on why. */
+	private renderEmptyState(parent: HTMLElement) {
+		parent.createDiv({
+			cls: "section-helper-text",
+			text:
+				this.contacts.length === 0
+					? "No friends yet. Add your first — a first name is all you need."
+					: "No friends match.",
+		});
+	}
+
+	/** The dot-and-name group tags carried by both the list and the timeline. */
+	private appendGroupTags(parent: HTMLElement, contact: ContactWithCountdown) {
+		for (const g of contact.groups) {
+			const tag = parent.createSpan({ cls: "friend-list-group-tag" });
+			const dot = tag.createSpan({ cls: "group-dot" });
+			dot.style.backgroundColor =
+				this.groupColors.get(g) ?? "var(--background-modifier-border)";
+			tag.createSpan({
+				text:
+					this.groupLabels.get(g) ??
+					this.view.contactOperations.prettyGroupName(g),
+			});
+		}
+	}
+
 	private renderList() {
-		if (!this.listEl) return;
-		this.listEl.empty();
+		if (!this.contentEl) return;
+		const listEl = this.contentEl.createDiv({ cls: "friend-list" });
 		const list = this.sortedFiltered();
 
 		if (list.length === 0) {
-			this.listEl.createDiv({
-				cls: "section-helper-text",
-				text:
-					this.contacts.length === 0
-						? "No friends yet. Add your first — a first name is all you need."
-						: "No friends match.",
-			});
+			this.renderEmptyState(listEl);
 			return;
 		}
 
 		for (const contact of list) {
-			const row = this.listEl.createDiv({
+			const row = listEl.createDiv({
 				cls: "friend-list-row",
 			});
 			row.addEventListener("click", () =>
@@ -211,20 +330,7 @@ export class TableView {
 				cls: "friend-list-name",
 				text: contact.displayName,
 			});
-			for (const g of contact.groups) {
-				const tag = main.createSpan({
-					cls: "friend-list-group-tag",
-				});
-				const dot = tag.createSpan({ cls: "group-dot" });
-				dot.style.backgroundColor =
-					this.groupColors.get(g) ??
-					"var(--background-modifier-border)";
-				tag.createSpan({
-					text:
-						this.groupLabels.get(g) ??
-						this.view.contactOperations.prettyGroupName(g),
-				});
-			}
+			this.appendGroupTags(main, contact);
 
 			// Line 2: birthday as a plain date, then age
 			const parts: string[] = [];
@@ -254,6 +360,93 @@ export class TableView {
 					this.view.callander,
 					contact
 				).open();
+			});
+		}
+	}
+
+	/**
+	 * The year ahead, as birthdays. Every month the window touches gets a
+	 * heading, quiet ones included — the point is to read the year as a
+	 * continuous span rather than a dense list of the next few people.
+	 */
+	private renderTimeline() {
+		if (!this.contentEl) return;
+		// Alphabetical in, so friends sharing a date read A-Z out:
+		// birthdayMonths orders by date and leaves ties as it found them.
+		const people = this.filtered().sort((a, b) =>
+			a.displayName.localeCompare(b.displayName)
+		);
+
+		if (people.length === 0) {
+			this.renderEmptyState(this.contentEl);
+			return;
+		}
+
+		const months = birthdayMonths(people, new Date());
+		const timeline = this.contentEl.createDiv({
+			cls: "contact-timeline friend-timeline",
+		});
+		let placed = 0;
+
+		for (const month of months) {
+			// Headings and rows are appended as direct children on purpose.
+			// `.contact-timeline-year:first-child` drops the top margin on
+			// the first heading only; wrapping each month in a div would
+			// make every heading match it. Same trap as the plan timeline.
+			timeline.createDiv({
+				cls: "contact-timeline-year",
+				text: month.label,
+			});
+
+			if (month.entries.length === 0) {
+				const quiet = timeline.createDiv({
+					cls: "contact-timeline-item plan-timeline-empty",
+				});
+				quiet.createSpan({
+					cls: "plan-timeline-empty-text",
+					text: "No birthdays",
+				});
+				continue;
+			}
+
+			for (const entry of month.entries) {
+				placed++;
+				const row = timeline.createDiv({
+					cls: "contact-timeline-item friend-timeline-row",
+				});
+				row.createSpan({ cls: "contact-timeline-dot" });
+				// Date and age share the muted line, the way a list row
+				// reads "26 Sep 1992 • Age 33". Over a year of these, a
+				// third line each just to say "Turns 34" is a screenful.
+				const when = [
+					formatShortWeekdayDate(new Date(`${entry.date}T00:00:00`)),
+					entry.turning !== null ? `Turns ${entry.turning}` : "",
+				].filter(Boolean);
+				row.createDiv({
+					cls: "contact-timeline-date",
+					text: when.join(" • "),
+				});
+				const text = row.createDiv({ cls: "contact-timeline-text" });
+				text.createSpan({
+					cls: "friend-list-name",
+					text: entry.person.displayName,
+				});
+				this.appendGroupTags(text, entry.person);
+				row.addEventListener("click", () =>
+					void this.view.openContact(entry.person.file)
+				);
+			}
+		}
+
+		// Nobody should vanish from a page called All friends without being
+		// told why — a birthday needs a day to land on.
+		const missing = people.length - placed;
+		if (missing > 0) {
+			this.contentEl.createDiv({
+				cls: "section-helper-text friend-timeline-note",
+				text: `${missing} ${
+					missing === 1 ? "friend has" : "friends have"
+				} no birthday set.`,
 			});
 		}
 	}

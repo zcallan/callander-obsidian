@@ -1142,52 +1142,6 @@ If your plugin does not need CSS, delete this file.
 	margin-left: -2px;
 }
 
-.contact-tabs {
-	display: flex;
-	border-bottom: 1px solid var(--background-modifier-border);
-	margin: 0;
-	padding: 16px 16px 0;
-	gap: 12px;
-}
-
-.contact-tab {
-	position: relative;
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 8px 2px;
-	color: var(--text-muted);
-	font-size: 14px;
-	background: none;
-	box-shadow: none;
-	border: none;
-	border-bottom: 2px solid transparent;
-	margin-bottom: -1px;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	font-weight: 500;
-	-webkit-appearance: none;
-	appearance: none;
-	border-radius: 0;
-}
-
-.contact-tab:hover {
-	color: var(--text-normal);
-	background: none;
-}
-
-.contact-tab:focus {
-	outline: none;
-	box-shadow: none;
-	background: none;
-}
-
-.contact-tab.active {
-	color: var(--text-accent);
-	border-bottom-color: var(--text-accent);
-	background: none;
-}
-
 /* Remove border-top from sections */
 .contact-notes-section,
 .contact-events-section,
@@ -1196,13 +1150,7 @@ If your plugin does not need CSS, delete this file.
 	border-top: none;
 }
 
-/* Make tabs more compact on mobile */
 @media (max-width: 600px) {
-	.contact-tabs {
-		gap: 16px;
-		padding: 16px 16px 0;
-	}
-
 	.contact-events-header,
 	.contact-extras-header {
 		grid-template-columns: 1fr;
@@ -1317,28 +1265,6 @@ If your plugin does not need CSS, delete this file.
 .contact-interaction-submit,
 .contact-add-field-submit {
 	/* Remove all styles */
-}
-
-/* Update tab styles to not conflict with button styles */
-.contact-tab {
-	position: relative;
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 8px 2px;
-	color: var(--text-muted);
-	font-size: 14px;
-	background: none;
-	box-shadow: none;
-	border: none;
-	border-bottom: 2px solid transparent;
-	margin-bottom: -1px;
-	cursor: pointer;
-	transition: all 0.2s ease;
-	font-weight: 500;
-	-webkit-appearance: none;
-	appearance: none;
-	border-radius: 0;
 }
 
 /* Style for helper text */
@@ -3138,8 +3064,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* All friends list view */
 .friend-list-container {
 	padding: 16px 24px;
-	max-width: 760px;
-	margin: 0 auto;
 }
 
 .friend-list-container h2 {
@@ -3147,19 +3071,78 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 .friend-list-groups {
-	margin: 10px 0 4px;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0 0 14px;
 }
 
-.friend-list-sort-row {
+/* Search and sort share a line, so the tabs below get a line of their own
+   without pushing the list off the first screen. */
+.friend-list-toolbar {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	margin: 10px 0 4px;
+	margin: 0 0 12px;
 }
 
-.friend-list-sort-label {
+/* The search box takes whatever the sort control doesn't. */
+.friend-list-search {
+	flex: 1;
+	min-width: 0;
+}
+
+.friend-list-sort {
+	flex: 0 0 auto;
+}
+
+/* Sorting is a List-only question — hidden rather than inert on the other
+   tabs, since a dropdown that changes nothing reads as broken. */
+.friend-list-sort.is-hidden {
+	display: none;
+}
+
+/* Which view of the page. Underlined rather than pill-shaped on purpose:
+   the group chips directly above are pills, and two rows of the same shape
+   would read as one control with two rows of options. */
+.friend-list-tabs {
+	display: flex;
+	gap: 18px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	margin: 0 0 8px;
+}
+
+.friend-list-tab {
+	padding: 6px 2px;
 	color: var(--text-muted);
-	font-size: 0.85em;
+	font-size: 14px;
+	font-weight: 500;
+	background: none;
+	box-shadow: none;
+	border: none;
+	border-radius: 0;
+	border-bottom: 2px solid transparent;
+	/* Sits on the container's own border rather than above it, so the
+	   active underline replaces that line instead of doubling it. */
+	margin-bottom: -1px;
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+.friend-list-tab:hover {
+	color: var(--text-normal);
+	background: none;
+}
+
+.friend-list-tab:focus-visible {
+	outline: 1px solid var(--background-modifier-border-focus, var(--text-accent));
+	outline-offset: 2px;
+}
+
+.friend-list-tab.active {
+	color: var(--text-accent);
+	border-bottom-color: var(--text-accent);
 }
 
 .friend-list-row {
@@ -3240,11 +3223,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin: 4px 0 14px;
 }
 
-/* Sort control sits right */
-.friend-list-sort-row {
-	justify-content: flex-end;
-}
-
 /* Group tags on friend rows: dot + name, quiet */
 .friend-list-group-tag {
 	display: inline-flex;
@@ -3295,6 +3273,37 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .friend-list-glance {
 	align-self: center;
+}
+
+/* All friends -> Timeline: a year of birthdays on the same rail the person
+   and plan timelines use, so the three read as one idea rather than three
+   takes on it. */
+.friend-timeline {
+	margin-top: 4px;
+}
+
+/* No horizontal padding: the dot is positioned against this row's padding
+   box, so padding it would walk the dot off the rail. The hover fills the
+   row's natural width instead. */
+.friend-timeline-row {
+	cursor: pointer;
+	border-radius: 4px;
+}
+
+.friend-timeline-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* The name carries the row, as it does in the list — there the weight comes
+   from .friend-list-main, which the timeline has no use for. */
+.friend-timeline-row .contact-timeline-text {
+	font-weight: 600;
+}
+
+/* Nobody drops off a page called All friends without a word. Set off from
+   the last month rather than crowding it. */
+.friend-timeline-note {
+	margin-top: 16px;
 }
 
 /* Plan idea priority tag */
@@ -3897,7 +3906,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 /* All friends: let the header + sort controls wrap on narrow screens */
 .is-phone .friend-list-container .dashboard-section-header,
-.is-phone .friend-list-sort-row {
+.is-phone .friend-list-toolbar {
 	flex-wrap: wrap;
 }
 

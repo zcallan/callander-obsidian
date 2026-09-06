@@ -102,6 +102,14 @@ export type FriendListSort =
 	| "eldest"
 	| "modified";
 
+/**
+ * Which presentation the All friends page is showing.
+ *
+ * Deliberately not a setting: "calendar" is a stub, and a remembered tab
+ * would reopen the page onto it.
+ */
+export type FriendListTab = "list" | "timeline" | "calendar";
+
 export interface Contact {
 	name: string;
 	birthday: string;

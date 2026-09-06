@@ -16,6 +16,7 @@ import {
 	flexSortKey,
 	todayISO,
 } from "@/utils/flexdate";
+import { nextBirthdayOccurrence } from "@/utils/friendTimeline";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import {
 	joinFrontmatter,
@@ -967,33 +968,15 @@ export class ContactOperations {
 		return formatFlexDate({ ...parsed, year: null });
 	}
 
+	/**
+	 * Days to the next birthday, or null when it isn't known to the day.
+	 *
+	 * The rule itself lives in `nextBirthdayOccurrence` so the All friends
+	 * timeline and this countdown can't drift apart on which day a birthday
+	 * next falls — they are the same question asked twice.
+	 */
 	public calculateDaysUntilBirthday(birthday: string): number | null {
-		// Only month + day are needed — works for year-less birthdays too
-		const parsed = parseFlexDate(birthday);
-		if (!parsed || parsed.month === null || parsed.day === null) {
-			return null;
-		}
-
-		// Get today at local midnight
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-
-		// Create this year's birthday at local midnight
-		const thisYearBirthday = new Date(
-			today.getFullYear(),
-			parsed.month - 1,
-			parsed.day
-		);
-		thisYearBirthday.setHours(0, 0, 0, 0);
-
-		// If this year's birthday has already passed, use next year's birthday
-		if (thisYearBirthday < today) {
-			thisYearBirthday.setFullYear(today.getFullYear() + 1);
-		}
-
-		// Calculate days difference
-		const diffTime = thisYearBirthday.getTime() - today.getTime();
-		return Math.round(diffTime / (1000 * 60 * 60 * 24));
+		return nextBirthdayOccurrence(birthday)?.days ?? null;
 	}
 
 	/**
