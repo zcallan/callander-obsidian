@@ -3066,6 +3066,30 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	padding: 16px 24px;
 }
 
+/* Flat buttons on this page. Add friend, the tabs and a Glance on every
+   row were each carrying a filled box, and stacked above the list they
+   read as chrome rather than as things to press. The box-shadow goes with
+   the fill — Obsidian's own button styling supplies both, and half of it
+   left behind is worse than either.
+
+   The sort dropdown is pointedly not in here. It's a select, not a
+   button: strip its fill and it loses the affordance that says it opens,
+   leaving a bare word floating beside a bordered button. */
+.friend-list-container .callander-button,
+.friend-list-container .friend-list-tab {
+	background: transparent;
+	box-shadow: none;
+}
+
+/* Buttons keep their hover fill. Needed explicitly because the rule above
+   is as specific as .callander-button:hover and comes later, so without
+   this the fill would be gone on hover too — pressable things have to
+   answer the pointer. Tabs are excluded on purpose: they answer with
+   their label colour, and a filled tab would undo the point above. */
+.friend-list-container .callander-button:hover {
+	background: var(--background-modifier-hover);
+}
+
 .friend-list-container h2 {
 	margin: 0;
 }
@@ -3278,8 +3302,43 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* All friends -> Timeline: a year of birthdays on the same rail the person
    and plan timelines use, so the three read as one idea rather than three
    takes on it. */
+/* Set well clear of the tab strip: the first month heading is small,
+   uppercase and muted, and butted up under the tabs it read as a second
+   row of them. */
 .friend-timeline {
-	margin-top: 4px;
+	margin-top: 20px;
+}
+
+/* Roomier than the plan timeline it borrows from: that one covers a long
+   weekend, this one covers a year, and at a year's length tight rows read
+   as a wall rather than a list. */
+.friend-timeline .contact-timeline-item {
+	padding: 10px 0;
+}
+
+/* Purple months, agreeing with the active tab above them — between them
+   they're the page's only structural markers. */
+.friend-timeline .contact-timeline-year {
+	color: var(--text-accent);
+	margin: 24px 0 6px;
+}
+
+/* Restores the global :first-child reset, which the rule above outranks
+   by a class and would otherwise indent the opening month. */
+.friend-timeline .contact-timeline-year:first-child {
+	margin-top: 0;
+}
+
+/* The date reads as a label for the name under it, not as a line of its
+   own competing with it. */
+.friend-timeline .contact-timeline-date {
+	margin-bottom: 5px;
+}
+
+/* Realigned to the date line now the row is taller — the shared rule sits
+   the dot where a 6px row put it. */
+.friend-timeline .contact-timeline-dot {
+	top: 15px;
 }
 
 /* No horizontal padding: the dot is positioned against this row's padding

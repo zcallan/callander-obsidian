@@ -9,13 +9,21 @@ import {
 	parseFlexDate,
 	flexSortKey,
 	formatShortFlexDate,
-	formatShortWeekdayDate,
+	monthName,
 } from "@/utils/flexdate";
-import { birthdayMonths } from "@/utils/friendTimeline";
+import {
+	birthdayMonths,
+	calendarBirthdayKey,
+} from "@/utils/friendTimeline";
 import { GlanceModal } from "@/modals/GlanceModal";
 
 const SORT_OPTIONS: Array<{ id: FriendListSort; label: string }> = [
-	{ id: "birthday", label: "Birthday" },
+	// "Next" rather than plain "Birthday": the two calendar orderings below
+	// are birthday sorts too, and the difference between them is the whole
+	// reason all three exist.
+	{ id: "birthday", label: "Next birthday" },
+	{ id: "birthdayJanDec", label: "Birthday (Jan-Dec)" },
+	{ id: "birthdayDecJan", label: "Birthday (Dec-Jan)" },
 	{ id: "alphabetical", label: "Name (A-Z)" },
 	{ id: "alphabeticalDesc", label: "Name (Z-A)" },
 	{ id: "newest", label: "Newest added" },
@@ -44,18 +52,18 @@ export class TableView {
 	private groupColors = new Map<string, string | null>();
 	/** Group key → the spelling its page uses; see ContactOperations.labelOf. */
 	private groupLabels = new Map<string, string>();
-	/**
-	 * Which presentation is showing. Lives here rather than in settings for
-	 * the same reason searchQuery does — it survives a refresh, but a fresh
-	 * open starts on List, which is the only tab guaranteed to have
-	 * something in it.
-	 */
-	private tab: FriendListTab = "list";
+	/** Which presentation is showing; seeded from the remembered choice. */
+	private tab: FriendListTab;
 	private tabsEl: HTMLElement | null = null;
 	private sortEl: HTMLElement | null = null;
 	private contentEl: HTMLElement | null = null;
 
-	constructor(private view: FriendTrackerView) {}
+	constructor(private view: FriendTrackerView) {
+		// Read off the parameter rather than `this.view`, which isn't
+		// assigned until the parameter properties are, and fall back in
+		// case a vault predates the setting.
+		this.tab = view.settings.friendListTab ?? "list";
+	}
 
 	async render(container: HTMLElement, contacts: ContactWithCountdown[]) {
 		this.contacts = contacts;
@@ -201,6 +209,11 @@ export class TableView {
 		// definition, so a dropdown that changed nothing would read as broken.
 		this.sortEl?.toggleClass("is-hidden", tab !== "list");
 		this.renderContent();
+		// Saved after the swap, not before it. The write is what makes the
+		// choice stick between sessions, but it also fires settings-changed
+		// and a full refresh a beat later — the tab has to look switched
+		// now, not once the disk catches up.
+		void this.view.setFriendListTab(tab);
 	}
 
 	private renderContent() {
@@ -234,6 +247,10 @@ export class TableView {
 	private sortedFiltered(): ContactWithCountdown[] {
 		const list = this.filtered();
 
+		// Unknown sorts past December in either direction.
+		const calendarRank = (c: ContactWithCountdown): number =>
+			calendarBirthdayKey(c.birthday) ?? 99_99;
+
 		const lastEventKey = (c: ContactWithCountdown): number => {
 			let max = -1;
 			for (const e of c.events) {
@@ -256,6 +273,23 @@ export class TableView {
 						(a.daysUntilBirthday ?? 9999) -
 						(b.daysUntilBirthday ?? 9999)
 				);
+				break;
+			// Calendar position, not proximity: January first whatever the
+			// date is today. Anyone with no month recorded has no place in
+			// that order and goes last in both directions, rather than
+			// leading the reverse.
+			case "birthdayJanDec":
+				list.sort((a, b) => calendarRank(a) - calendarRank(b));
+				break;
+			case "birthdayDecJan":
+				list.sort((a, b) => {
+					const ka = calendarBirthdayKey(a.birthday);
+					const kb = calendarBirthdayKey(b.birthday);
+					if (ka === null || kb === null) {
+						return calendarRank(a) - calendarRank(b);
+					}
+					return kb - ka;
+				});
 				break;
 			case "lastEvent":
 				list.sort((a, b) => lastEventKey(b) - lastEventKey(a));
@@ -414,13 +448,31 @@ export class TableView {
 				const row = timeline.createDiv({
 					cls: "contact-timeline-item friend-timeline-row",
 				});
-				row.createSpan({ cls: "contact-timeline-dot" });
+				const dot = row.createSpan({ cls: "contact-timeline-dot" });
+				// The first group's colour, so a run of the same group reads
+				// as a band down the rail. Strictly the first, not the first
+				// that happens to have a colour set — a dot in the second
+				// group's colour would be a puzzle, not a hint. Ungrouped
+				// falls back to the theme's own text colour: near-white on
+				// dark, near-black on light.
+				const firstGroup = entry.person.groups[0];
+				dot.style.backgroundColor =
+					(firstGroup ? this.groupColors.get(firstGroup) : null) ??
+					"var(--text-normal)";
 				// Date and age share the muted line, the way a list row
 				// reads "26 Sep 1992 • Age 33". Over a year of these, a
-				// third line each just to say "Turns 34" is a screenful.
+				// third line each just to say "Turning 34" is a screenful.
+				const on = new Date(`${entry.date}T00:00:00`);
 				const when = [
-					formatShortWeekdayDate(new Date(`${entry.date}T00:00:00`)),
-					entry.turning !== null ? `Turns ${entry.turning}` : "",
+					`${on.getDate()} ${monthName(on.getMonth() + 1)}`,
+					// Past tense once the day has gone: the current month is
+					// shown whole, so its earlier half is behind us and
+					// "Turning" would be plainly wrong there.
+					entry.turning === null
+						? ""
+						: `${entry.days < 0 ? "Turned" : "Turning"} ${
+								entry.turning
+						  }`,
 				].filter(Boolean);
 				row.createDiv({
 					cls: "contact-timeline-date",

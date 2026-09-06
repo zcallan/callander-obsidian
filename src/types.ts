@@ -60,6 +60,13 @@ export interface FriendTrackerSettings {
 	/** Sort order for the All friends list, remembered across opens */
 	friendListSort: FriendListSort;
 	/**
+	 * Which All friends tab was last open. Remembered across sessions, so
+	 * someone who lives in the Timeline isn't sent back to the List every
+	 * time the page opens. Incidental UI state rather than a settings-tab
+	 * option, like friendListSort.
+	 */
+	friendListTab: FriendListTab;
+	/**
 	 * Whether the dashboard's Drafts accordion is collapsed. Open by
 	 * default — drafts are meant to nag — but the choice sticks, since the
 	 * view is rebuilt from scratch every time the dashboard opens and would
@@ -97,6 +104,8 @@ export type FriendListSort =
 	| "newest"
 	| "oldest"
 	| "birthday"
+	| "birthdayJanDec"
+	| "birthdayDecJan"
 	| "lastEvent"
 	| "youngest"
 	| "eldest"
@@ -565,6 +574,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	hemisphere: "northern",
 	lastBirthdayNoticeDate: "",
 	friendListSort: "birthday",
+	friendListTab: "list",
 	draftsCollapsed: false,
 	birthdaysCollapsed: false,
 	aboutExpanded: false,

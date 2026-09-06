@@ -75,16 +75,27 @@ export function nextBirthdayOccurrence(
 }
 
 /**
- * Birthdays across the coming year, bucketed by calendar month.
+ * Birthdays across a year of whole calendar months, starting with the one
+ * we're in.
  *
- * Every month the window touches is returned, including the empty ones —
- * the All friends timeline renders the year as a continuous span, so a
- * quiet month has to be a heading with nothing under it rather than a gap.
+ * Whole months, rather than the next 365 days: the current month is shown
+ * complete, so on 20 September a birthday on the 10th is still there,
+ * above today rather than banished eleven months down the page. It reads
+ * as a calendar, which is what a month heading promises.
  *
- * That span is 12 or 13 buckets, and the 13th is the point: a birthday
- * earlier this month has already rolled to next year, so it lands in the
- * same month name twelve months out. A fixed twelve buckets would drop
- * exactly the people whose birthday just passed.
+ * The cost of that is `days` going negative for a birthday already past
+ * this month, and callers should say "Turned" rather than "Turning" when
+ * it does. The gain is exactly twelve buckets, with no second September
+ * at the bottom holding the people the first one couldn't take.
+ *
+ * Note this deliberately does NOT use `nextBirthdayOccurrence` — that
+ * answers "when is it next", which is the right question for a countdown
+ * and the wrong one here, since it would push the earlier half of the
+ * current month a year out.
+ *
+ * Every month is returned including the empty ones: the timeline renders
+ * the year as a continuous span, so a quiet month is a heading with
+ * nothing under it rather than a gap.
  *
  * Entries within a month are ordered by date, and same-day birthdays keep
  * the order they arrived in — pass people in alphabetically and a shared
@@ -96,17 +107,17 @@ export function nextBirthdayOccurrence(
 export function birthdayMonths<T extends DatedPerson>(
 	people: readonly T[],
 	now: Date = new Date(),
-	windowDays = 365
+	windowMonths = 12
 ): Array<BirthdayMonth<T>> {
-	const start = new Date(now);
-	start.setHours(0, 0, 0, 0);
-	const end = new Date(start);
-	end.setDate(end.getDate() + Math.max(0, windowDays - 1));
+	const today = new Date(now);
+	today.setHours(0, 0, 0, 0);
+	// The window opens on the 1st, which is the whole point — everything
+	// below keys off it rather than off today.
+	const opens = new Date(today.getFullYear(), today.getMonth(), 1);
 
 	const months = new Map<string, BirthdayMonth<T>>();
-	const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-	const last = new Date(end.getFullYear(), end.getMonth(), 1);
-	while (cursor <= last) {
+	const cursor = new Date(opens);
+	for (let i = 0; i < Math.max(1, windowMonths); i++) {
 		const key = monthKey(cursor);
 		months.set(key, {
 			key,
@@ -117,24 +128,40 @@ export function birthdayMonths<T extends DatedPerson>(
 	}
 
 	for (const person of people) {
-		const occurrence = nextBirthdayOccurrence(person.birthday, start);
-		if (!occurrence) continue;
-		// Membership decides the window, not the day count: a leap year can
-		// put an occurrence a day past `windowDays`, and dropping it here is
-		// the same question as "is there a heading for it".
-		const month = months.get(occurrence.date.slice(0, 7));
+		const parsed = parseFlexDate(person.birthday);
+		if (!parsed || parsed.month === null || parsed.day === null) continue;
+
+		// This year's, unless that fell before the window opened — in which
+		// case it belongs to the far end of the window, next year.
+		const occurrence = new Date(
+			opens.getFullYear(),
+			parsed.month - 1,
+			parsed.day
+		);
+		occurrence.setHours(0, 0, 0, 0);
+		if (occurrence < opens) {
+			occurrence.setFullYear(opens.getFullYear() + 1);
+		}
+
+		// Membership decides the window rather than any day count: 29 Feb
+		// lands on 1 March in a common year, and whether to keep it is the
+		// same question as whether there's a heading for it.
+		const month = months.get(monthKey(occurrence));
 		if (!month) continue;
 
-		const parsed = parseFlexDate(person.birthday);
-		const year = Number(occurrence.date.slice(0, 4));
 		month.entries.push({
 			person,
-			date: occurrence.date,
-			days: occurrence.days,
+			date: isoDay(occurrence),
+			days: Math.round(
+				(occurrence.getTime() - today.getTime()) / 86_400_000
+			),
 			// From the years themselves rather than a stored age, which is
 			// "age today" and is already a year out on the morning of the
 			// birthday itself.
-			turning: parsed?.year != null ? year - parsed.year : null,
+			turning:
+				parsed.year != null
+					? occurrence.getFullYear() - parsed.year
+					: null,
 		});
 	}
 
@@ -142,6 +169,26 @@ export function birthdayMonths<T extends DatedPerson>(
 		month.entries.sort((a, b) => a.days - b.days);
 	}
 	return [...months.values()];
+}
+
+/**
+ * Where a birthday sits in the calendar year, as a sortable number.
+ *
+ * Month and day only, deliberately: this is the "Jan-Dec" ordering, which
+ * asks where in the year a birthday falls, not how soon it comes round.
+ * The two genuinely differ — on 20 September, "next birthday" opens with
+ * late September and closes with early September, while this opens with
+ * January whatever today is.
+ *
+ * A birthday known only to its month still has a place in that order and
+ * sorts to the head of its month. One with no month at all — a bare year,
+ * or nothing recorded — has no place, and returns null for the caller to
+ * put wherever it puts unknowns.
+ */
+export function calendarBirthdayKey(birthday: string): number | null {
+	const parsed = parseFlexDate(birthday);
+	if (!parsed || parsed.month === null) return null;
+	return parsed.month * 100 + (parsed.day ?? 0);
 }
 
 /** Local YYYY-MM-DD — never toISOString, which shifts to UTC. */

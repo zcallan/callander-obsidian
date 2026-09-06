@@ -2,7 +2,11 @@ import { ItemView, WorkspaceLeaf, EventRef, TFile } from "obsidian";
 import type FriendTracker from "@/main";
 import { TableView } from "./TableView";
 import { ContactOperations } from "@/services/ContactOperations";
-import type { ContactWithCountdown, FriendListSort } from "@/types";
+import type {
+	ContactWithCountdown,
+	FriendListSort,
+	FriendListTab,
+} from "@/types";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { DeleteContactModal } from "@/modals/DeleteContactModal";
 
@@ -26,6 +30,11 @@ export class FriendTrackerView extends ItemView {
 
 	public async setFriendListSort(sort: FriendListSort) {
 		this.plugin.settings.friendListSort = sort;
+		await this.plugin.saveSettings();
+	}
+
+	public async setFriendListTab(tab: FriendListTab) {
+		this.plugin.settings.friendListTab = tab;
 		await this.plugin.saveSettings();
 	}
 

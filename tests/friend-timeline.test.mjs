@@ -1,6 +1,7 @@
 import { createSuite } from "./harness.mjs";
 import {
 	birthdayMonths,
+	calendarBirthdayKey,
 	nextBirthdayOccurrence,
 } from "./.build/callander.mjs";
 
@@ -59,25 +60,33 @@ export function run() {
 
 	// ---------- birthdayMonths: the window ----------
 	const empty = birthdayMonths([], NOW);
-	eq("a mid-month window spans thirteen buckets", empty.length, 13);
-	eq("it starts on the current month", keys(empty)[0], "2026-09");
-	eq("and ends on the same month a year on", keys(empty).at(-1), "2027-09");
+	eq("the window is twelve whole months", empty.length, 12);
+	eq("it opens on the current month", keys(empty)[0], "2026-09");
+	eq("and closes eleven months on", keys(empty).at(-1), "2027-08");
+	eq(
+		"no second September at the far end",
+		keys(empty).filter((k) => k.endsWith("-09")).length,
+		1
+	);
 	eq(
 		"every month is present even with nobody in it",
 		empty.every((m) => m.entries.length === 0),
 		true
 	);
-	// The year is what tells the two Septembers apart.
+	// The window crosses a new year, so the label has to carry one.
 	eq("labels carry the year", [empty[0]?.label, empty.at(-1)?.label], [
 		"September 2026",
-		"September 2027",
+		"August 2027",
 	]);
 
-	// Starting on the 1st, the year closes exactly and needs no 13th.
+	// Whole months, so the day of the month can't change the shape.
 	eq(
-		"a window opening on the 1st spans twelve",
-		keys(birthdayMonths([], new Date(2026, 8, 1))).length,
-		12
+		"the day of the month doesn't change the span",
+		[
+			keys(birthdayMonths([], new Date(2026, 8, 1))),
+			keys(birthdayMonths([], new Date(2026, 8, 30))),
+		],
+		[keys(empty), keys(empty)]
 	);
 
 	// ---------- birthdayMonths: placement ----------
@@ -90,13 +99,28 @@ export function run() {
 	];
 	const months = birthdayMonths(people, NOW);
 
-	eq("an upcoming birthday sits in this month", named(find(months, "2026-09")), [
-		"Later this month",
-	]);
 	eq(
-		"one that just passed sits in next year's September",
-		named(find(months, "2027-09")),
-		["Just gone"]
+		"an upcoming birthday sits in this month",
+		named(find(months, "2026-09")).includes("Later this month"),
+		true
+	);
+	// The reason the window is whole months: on the 20th, the 10th is
+	// still this month's business, not something to find eleven months
+	// down the page.
+	eq(
+		"one already past this month stays in this month",
+		named(find(months, "2026-09")).includes("Just gone"),
+		true
+	);
+	eq(
+		"it sorts above the ones still to come",
+		named(find(months, "2026-09")),
+		["Just gone", "Later this month"]
+	);
+	eq(
+		"and counts backwards, so callers can say Turned",
+		find(months, "2026-09").entries[0].days,
+		-4
 	);
 	eq("a January birthday sits in January", named(find(months, "2027-01")), [
 		"Midwinter",
@@ -144,8 +168,15 @@ export function run() {
 	// Counted to the occurrence, not to today — on the morning of a birthday
 	// a stored "age" is already a year behind what the row should read.
 	eq(
-		"a birthday that has rolled counts to next year's",
-		turning(find(birthdayMonths([person("A", "1997-09-02")], NOW), "2027-09")),
+		"one already past this month reports the age just reached",
+		turning(find(birthdayMonths([person("A", "1997-09-02")], NOW), "2026-09")),
+		[29]
+	);
+	// A birthday in an earlier month has genuinely rolled, and lands at the
+	// far end of the window with next year's age.
+	eq(
+		"an earlier month rolls to next year",
+		turning(find(birthdayMonths([person("A", "1997-04-02")], NOW), "2027-04")),
 		[30]
 	);
 	eq(
@@ -153,6 +184,46 @@ export function run() {
 		turning(find(birthdayMonths([person("A", "09-21")], NOW), "2026-09")),
 		[null]
 	);
+
+	// ---------- calendarBirthdayKey ----------
+	// The All friends "Jan-Dec" sort. Distinct from "next birthday": this
+	// one opens with January whatever today is.
+	const order = (list) =>
+		[...list]
+			.sort((a, b) => calendarBirthdayKey(a[1]) - calendarBirthdayKey(b[1]))
+			.map((p) => p[0]);
+
+	// Day numbers deliberately reversed against the months: with a key that
+	// forgot the month, Dec 2 would beat Jan 30 and this would pass by luck.
+	eq("January comes before December", order([
+		["Dec", "1990-12-02"],
+		["Jan", "1990-01-30"],
+	]), ["Jan", "Dec"]);
+	eq("and days order within a month", order([
+		["late", "1990-03-28"],
+		["early", "1990-03-02"],
+	]), ["early", "late"]);
+	// The year has no bearing at all — that's what makes it calendar order
+	// rather than a date sort.
+	eq(
+		"the birth year is ignored",
+		calendarBirthdayKey("1990-03-14") === calendarBirthdayKey("2005-03-14"),
+		true
+	);
+	eq(
+		"a year-less birthday keys the same as a dated one",
+		calendarBirthdayKey("03-14"),
+		calendarBirthdayKey("1990-03-14")
+	);
+	// Known to the month is still a place in the year; it just leads its
+	// month rather than falling on a day in it.
+	eq(
+		"a month-only birthday heads its month",
+		calendarBirthdayKey("1990-03") < calendarBirthdayKey("1990-03-01"),
+		true
+	);
+	eq("a year-only birthday has no place", calendarBirthdayKey("1990"), null);
+	eq("nor does a blank one", calendarBirthdayKey(""), null);
 
 	return result();
 }
