@@ -3,7 +3,6 @@ import {
 	AbstractInputSuggest,
 	PluginSettingTab,
 	Setting,
-	TFolder,
 	normalizePath,
 	type SettingDefinitionItem,
 } from "obsidian";
@@ -24,10 +23,11 @@ class FolderSuggest extends AbstractInputSuggest<string> {
 	}
 
 	getSuggestions(inputStr: string): string[] {
-		const folders = this.app.vault
-			.getAllLoadedFiles()
-			.filter((f) => f instanceof TFolder)
-			.map((f) => f.path);
+		// getAllFolders rather than filtering getAllLoadedFiles: a folder
+		// picker has no business reading every file path in the vault, and
+		// this asks for exactly what it needs. Root included, since it's a
+		// legitimate — if unusual — place to keep the plugin's folders.
+		const folders = this.app.vault.getAllFolders(true).map((f) => f.path);
 		return folders.filter((f) =>
 			f.toLowerCase().includes(inputStr.toLowerCase())
 		);

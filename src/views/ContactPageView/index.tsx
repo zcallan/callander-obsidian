@@ -56,7 +56,7 @@ import { AddFieldModal } from "@/modals/AddFieldModal";
 import { NoteSuggest } from "@/components/NoteSuggest";
 import { LifeGoalModal } from "@/modals/LifeGoalModal";
 import { LifeGoalViewModal } from "@/modals/LifeGoalViewModal";
-import { groupLifeGoals, parseLifeGoals } from "@/utils/lifeGoals";
+import { parseLifeGoals } from "@/utils/lifeGoals";
 import { fieldHelp, fieldLabel, type FieldHelp } from "@/utils/fieldLabel";
 import {
 	formatLinkField,

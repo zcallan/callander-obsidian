@@ -2459,11 +2459,12 @@ If your plugin does not need CSS, delete this file.
 
 /* Done, but still listed. Muted and struck rather than hidden: keeping the
    record is half the point of the section. Struck on the text alone, so the
-   note marker beside it stays legible. */
+   note marker beside it stays legible. The strike inherits its colour from
+   `color` rather than being tinted separately — the longhand that would do
+   that is flagged as only partially supported by the plugin review scan. */
 .contact-life-goal.is-done .contact-life-goal-text {
 	color: var(--text-muted);
 	text-decoration: line-through;
-	text-decoration-color: var(--text-faint);
 }
 
 .contact-interest-chip-remove {

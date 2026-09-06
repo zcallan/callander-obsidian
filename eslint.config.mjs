@@ -43,5 +43,13 @@ export default defineConfig([
 				__CALLANDER_BUILD__: "readonly",
 			},
 		},
+		rules: {
+			// Severity only, so the inherited options (args: "none",
+			// ignoreRestSiblings) still apply. An unused import shipped in
+			// 1.7.1 because this was a warning: `eslint .` exits 0 on
+			// warnings, so preflight passed and the plugin review scan was
+			// the thing that noticed. Dead code is worth a failed gate.
+			"@typescript-eslint/no-unused-vars": "error",
+		},
 	},
 ]);
