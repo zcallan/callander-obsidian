@@ -420,7 +420,7 @@ export class TableView {
 		const timeline = this.contentEl.createDiv({
 			cls: "contact-timeline friend-timeline",
 		});
-		let placed = 0;
+		const placed = new Set<ContactWithCountdown>();
 
 		for (const month of months) {
 			// Headings and rows are appended as direct children on purpose.
@@ -444,21 +444,7 @@ export class TableView {
 			}
 
 			for (const entry of month.entries) {
-				placed++;
-				const row = timeline.createDiv({
-					cls: "contact-timeline-item friend-timeline-row",
-				});
-				const dot = row.createSpan({ cls: "contact-timeline-dot" });
-				// The first group's colour, so a run of the same group reads
-				// as a band down the rail. Strictly the first, not the first
-				// that happens to have a colour set — a dot in the second
-				// group's colour would be a puzzle, not a hint. Ungrouped
-				// falls back to the theme's own text colour: near-white on
-				// dark, near-black on light.
-				const firstGroup = entry.person.groups[0];
-				dot.style.backgroundColor =
-					(firstGroup ? this.groupColors.get(firstGroup) : null) ??
-					"var(--text-normal)";
+				placed.add(entry.person);
 				// Date and age share the muted line, the way a list row
 				// reads "26 Sep 1992 • Age 33". Over a year of these, a
 				// third line each just to say "Turning 34" is a screenful.
@@ -474,33 +460,75 @@ export class TableView {
 								entry.turning
 						  }`,
 				].filter(Boolean);
-				row.createDiv({
-					cls: "contact-timeline-date",
-					text: when.join(" • "),
-				});
-				const text = row.createDiv({ cls: "contact-timeline-text" });
-				text.createSpan({
-					cls: "friend-list-name",
-					text: entry.person.displayName,
-				});
-				this.appendGroupTags(text, entry.person);
-				row.addEventListener("click", () =>
-					void this.view.openContact(entry.person.file)
+				this.appendTimelineRow(
+					timeline,
+					entry.person,
+					when.join(" • ")
 				);
 			}
 		}
 
-		// Nobody should vanish from a page called All friends without being
-		// told why — a birthday needs a day to land on.
-		const missing = people.length - placed;
-		if (missing > 0) {
-			this.contentEl.createDiv({
-				cls: "section-helper-text friend-timeline-note",
-				text: `${missing} ${
-					missing === 1 ? "friend has" : "friends have"
-				} no birthday set.`,
-			});
+		// Everyone the timeline can't place. A section rather than the
+		// footnote this used to be: they're friends, not an error message,
+		// and reading their names is what prompts you to go and fill one in.
+		// Membership comes from what actually landed above, so it can't
+		// drift from whatever birthdayMonths decides is placeable.
+		const unknown = people.filter((p) => !placed.has(p));
+		if (unknown.length === 0) return;
+
+		this.contentEl.createDiv({ cls: "friend-timeline-divider" });
+		const undated = this.contentEl.createDiv({
+			cls: "contact-timeline friend-timeline friend-timeline-unknown",
+		});
+		undated.createDiv({
+			cls: "contact-timeline-year",
+			text: "Unknown birthdays",
+		});
+		for (const person of unknown) {
+			this.appendTimelineRow(undated, person, "");
 		}
+	}
+
+	/**
+	 * One person on the timeline: a dot in their first group's colour, an
+	 * optional date line, then name and group tags.
+	 *
+	 * Shared by the months and the unknown-birthday section so the two
+	 * can't drift into looking like different kinds of thing — they're the
+	 * same friends, and only the date separates them.
+	 */
+	private appendTimelineRow(
+		parent: HTMLElement,
+		person: ContactWithCountdown,
+		when: string
+	) {
+		const row = parent.createDiv({
+			cls: `contact-timeline-item friend-timeline-row${
+				when ? "" : " is-undated"
+			}`,
+		});
+		const dot = row.createSpan({ cls: "contact-timeline-dot" });
+		// The first group's colour, so a run of the same group reads as a
+		// band down the rail. Strictly the first, not the first that happens
+		// to have a colour set — a dot in the second group's colour would be
+		// a puzzle, not a hint. Ungrouped falls back to the theme's own text
+		// colour: near-white on dark, near-black on light.
+		const firstGroup = person.groups[0];
+		dot.style.backgroundColor =
+			(firstGroup ? this.groupColors.get(firstGroup) : null) ??
+			"var(--text-normal)";
+		if (when) {
+			row.createDiv({ cls: "contact-timeline-date", text: when });
+		}
+		const text = row.createDiv({ cls: "contact-timeline-text" });
+		text.createSpan({
+			cls: "friend-list-name",
+			text: person.displayName,
+		});
+		this.appendGroupTags(text, person);
+		row.addEventListener("click", () =>
+			void this.view.openContact(person.file)
+		);
 	}
 
 	/** Birthday as a plain date: "21 Aug 1997", "21 Aug", or "Aug 1997". */

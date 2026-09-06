@@ -3335,10 +3335,10 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin-bottom: 5px;
 }
 
-/* Realigned to the date line now the row is taller — the shared rule sits
-   the dot where a 6px row put it. */
+/* Centred on the date line, which is the smaller of the row's two lines —
+   the shared rule sits the dot where a 6px row put it. */
 .friend-timeline .contact-timeline-dot {
-	top: 15px;
+	top: 12px;
 }
 
 /* No horizontal padding: the dot is positioned against this row's padding
@@ -3359,10 +3359,24 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	font-weight: 600;
 }
 
-/* Nobody drops off a page called All friends without a word. Set off from
-   the last month rather than crowding it. */
-.friend-timeline-note {
-	margin-top: 16px;
+/* Nobody drops off a page called All friends without a word — the ones the
+   timeline can't place get their own section under a rule, well clear of
+   December so it never reads as a thirteenth month. */
+.friend-timeline-divider {
+	margin-top: 30px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Muted, not purple. Purple is this page's mark for a month, and the whole
+   point of this heading is that it isn't one. */
+.friend-timeline-unknown .contact-timeline-year {
+	color: var(--text-muted);
+}
+
+/* An undated row's one line is the name, set larger than the date line a
+   month row leads with, so its centre — and the dot's — sit lower. */
+.friend-timeline-row.is-undated .contact-timeline-dot {
+	top: 15px;
 }
 
 /* Plan idea priority tag */
