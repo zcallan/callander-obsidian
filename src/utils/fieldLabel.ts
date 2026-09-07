@@ -89,6 +89,9 @@ const HELP: Record<string, FieldHelp> = {
 	siblings: {
 		text: "Their brothers and sisters. Link a name to another note, or just type it.",
 	},
+	children: {
+		text: "Their kids. Link a name to another note, or just type it.",
+	},
 	friends: {
 		text: "People they know, so you can see how a circle connects. Link a name to another note, or just type it.",
 	},

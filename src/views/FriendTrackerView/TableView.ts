@@ -14,6 +14,7 @@ import {
 import {
 	birthdayMonths,
 	calendarBirthdayKey,
+	nextBirthdayOccurrence,
 } from "@/utils/friendTimeline";
 import { GlanceModal } from "@/modals/GlanceModal";
 
@@ -34,10 +35,15 @@ const SORT_OPTIONS: Array<{ id: FriendListSort; label: string }> = [
 	{ id: "modified", label: "Last modified" },
 ];
 
+// Labels only — the ids are what's stored in settings, so renaming a tab
+// can't strand anyone on a view that no longer resolves. Both non-list
+// tabs say "B'day" because that's all either shows: the Events page has
+// its own Timeline, and without the qualifier the two read as the same
+// thing under different menus.
 const TABS: Array<{ id: FriendListTab; label: string }> = [
 	{ id: "list", label: "List" },
-	{ id: "timeline", label: "Timeline" },
-	{ id: "calendar", label: "Calendar" },
+	{ id: "timeline", label: "B'day Timeline" },
+	{ id: "calendar", label: "B'day Calendar" },
 ];
 
 /**
@@ -102,13 +108,13 @@ export class TableView {
 	 */
 	private renderTabs(wrap: HTMLElement) {
 		const tabs = wrap.createDiv({
-			cls: "friend-list-tabs",
+			cls: "callander-tabs",
 			attr: { role: "tablist" },
 		});
 		for (const { id, label } of TABS) {
 			const active = this.tab === id;
 			const button = tabs.createEl("button", {
-				cls: `friend-list-tab${active ? " active" : ""}`,
+				cls: `callander-tab${active ? " active" : ""}`,
 				text: label,
 				attr: {
 					type: "button",
@@ -200,7 +206,7 @@ export class TableView {
 	private selectTab(tab: FriendListTab) {
 		if (this.tab === tab) return;
 		this.tab = tab;
-		this.tabsEl?.findAll(".friend-list-tab").forEach((el, i) => {
+		this.tabsEl?.findAll(".callander-tab").forEach((el, i) => {
 			const active = TABS[i].id === tab;
 			el.toggleClass("active", active);
 			el.setAttribute("aria-selected", String(active));
@@ -260,6 +266,16 @@ export class TableView {
 			return max;
 		};
 
+		// Days to the next birthday, counting a month-only one as the 1st of
+		// that month so it sorts with its month rather than falling to the
+		// bottom with the people who have no birthday at all. The dashboard
+		// countdown deliberately doesn't do this — see OccurrenceOptions.
+		const now = new Date();
+		const untilBirthday = (c: ContactWithCountdown): number =>
+			nextBirthdayOccurrence(c.birthday, now, {
+				assumeFirstOfMonth: true,
+			})?.days ?? 9999;
+
 		switch (this.view.settings.friendListSort) {
 			case "newest":
 				list.sort((a, b) => b.file.stat.ctime - a.file.stat.ctime);
@@ -268,11 +284,7 @@ export class TableView {
 				list.sort((a, b) => a.file.stat.ctime - b.file.stat.ctime);
 				break;
 			case "birthday":
-				list.sort(
-					(a, b) =>
-						(a.daysUntilBirthday ?? 9999) -
-						(b.daysUntilBirthday ?? 9999)
-				);
+				list.sort((a, b) => untilBirthday(a) - untilBirthday(b));
 				break;
 			// Calendar position, not proximity: January first whatever the
 			// date is today. Anyone with no month recorded has no place in
@@ -379,23 +391,36 @@ export class TableView {
 			}
 
 			// Quick overview without leaving the list
-			const glanceButton = row.createEl("button", {
-				cls: "callander-button friend-list-glance",
-			});
-			setIcon(glanceButton, "eye");
-			glanceButton.createSpan({
-				cls: "friend-list-glance-label",
-				text: "Glance",
-			});
-			glanceButton.addEventListener("click", (e) => {
-				e.stopPropagation();
-				new GlanceModal(
-					this.view.app,
-					this.view.callander,
-					contact
-				).open();
-			});
+			this.appendGlanceButton(row, contact);
 		}
+	}
+
+	/**
+	 * A quick overview without leaving the page, on both the list and the
+	 * timeline — the same friend offering the same thing either way.
+	 */
+	private appendGlanceButton(
+		row: HTMLElement,
+		contact: ContactWithCountdown
+	) {
+		const glanceButton = row.createEl("button", {
+			cls: "callander-button friend-list-glance",
+			attr: { type: "button", "aria-label": `Glance at ${contact.displayName}` },
+		});
+		setIcon(glanceButton, "eye");
+		glanceButton.createSpan({
+			cls: "friend-list-glance-label",
+			text: "Glance",
+		});
+		// The row opens the person's page; the button has its own job.
+		glanceButton.addEventListener("click", (e) => {
+			e.stopPropagation();
+			new GlanceModal(
+				this.view.app,
+				this.view.callander,
+				contact
+			).open();
+		});
 	}
 
 	/**
@@ -450,7 +475,14 @@ export class TableView {
 				// third line each just to say "Turning 34" is a screenful.
 				const on = new Date(`${entry.date}T00:00:00`);
 				const when = [
-					`${on.getDate()} ${monthName(on.getMonth() + 1)}`,
+					// A month-only birthday is filed under the right month
+					// heading; what's missing is the day, and saying so is
+					// more use than repeating the month back. The date on
+					// the entry is the 1st, which is a sort position and
+					// not something to print.
+					entry.exact
+						? `${on.getDate()} ${monthName(on.getMonth() + 1)}`
+						: "Unknown day",
 					// Past tense once the day has gone: the current month is
 					// shown whole, so its earlier half is behind us and
 					// "Turning" would be plainly wrong there.
@@ -517,15 +549,19 @@ export class TableView {
 		dot.style.backgroundColor =
 			(firstGroup ? this.groupColors.get(firstGroup) : null) ??
 			"var(--text-normal)";
+		// Date and name share a column so Glance can sit beside them rather
+		// than under them, the same shape a list row has.
+		const main = row.createDiv({ cls: "friend-timeline-main" });
 		if (when) {
-			row.createDiv({ cls: "contact-timeline-date", text: when });
+			main.createDiv({ cls: "contact-timeline-date", text: when });
 		}
-		const text = row.createDiv({ cls: "contact-timeline-text" });
+		const text = main.createDiv({ cls: "contact-timeline-text" });
 		text.createSpan({
 			cls: "friend-list-name",
 			text: person.displayName,
 		});
 		this.appendGroupTags(text, person);
+		this.appendGlanceButton(row, person);
 		row.addEventListener("click", () =>
 			void this.view.openContact(person.file)
 		);

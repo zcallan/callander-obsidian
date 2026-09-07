@@ -16,29 +16,56 @@ export interface DatedPerson {
 
 export interface BirthdayEntry<T> {
 	person: T;
-	/** Local YYYY-MM-DD of the occurrence. */
+	/**
+	 * Local YYYY-MM-DD of the occurrence. When only the month is recorded
+	 * this is the 1st, which is a sort position rather than a claim — see
+	 * `exact`, and don't print this date without checking it.
+	 */
 	date: string;
 	days: number;
 	/** Age reached on that date, or null when the birth year is unknown. */
 	turning: number | null;
+	/** False when only the month is known, so the day above was assumed. */
+	exact: boolean;
 }
 
 export interface BirthdayMonth<T> {
 	/** "YYYY-MM" — sortable, and unique across the two Septembers a year
 	 * window can contain. */
 	key: string;
-	/** "September 2026". The year is always shown: a window that wraps holds
-	 * two months of the same name, and only the year tells them apart. */
+	/**
+	 * "September", or "January 2027" once the window crosses into a year
+	 * that isn't this one.
+	 *
+	 * Safe to leave the year off in the current one because the window is
+	 * twelve *whole* months from the month we're in, so no month name can
+	 * appear twice — back when it ran thirteen and held two Septembers,
+	 * the year was the only thing telling them apart.
+	 */
 	label: string;
 	entries: BirthdayEntry<T>[];
+}
+
+export interface OccurrenceOptions {
+	/**
+	 * Treat a birthday known only to its month as falling on the 1st.
+	 *
+	 * Off by default, and deliberately so: the dashboard countdown reads
+	 * this as "in 12 days", and saying that about a date whose day nobody
+	 * recorded would be inventing precision. It's on for the timeline and
+	 * the list's birthday sort, which need only an order to put people in
+	 * and label what they show honestly.
+	 */
+	assumeFirstOfMonth?: boolean;
 }
 
 /**
  * The next time a birthday comes round, counted from today.
  *
  * Only month and day are consulted, so a birthday recorded without a year
- * ("03-14") works exactly like one recorded with it. A birthday known only
- * to the month or the year has no day to land on and returns null.
+ * ("03-14") works exactly like one recorded with it. A birthday with no
+ * month has nothing to place it by and returns null; one with a month but
+ * no day does too, unless `assumeFirstOfMonth` says otherwise.
  *
  * 29 February in a non-leap year rolls into 1 March, which is what
  * `new Date(y, 1, 29)` does and what this has always done — deliberately
@@ -47,10 +74,12 @@ export interface BirthdayMonth<T> {
  */
 export function nextBirthdayOccurrence(
 	birthday: string,
-	now: Date = new Date()
+	now: Date = new Date(),
+	{ assumeFirstOfMonth = false }: OccurrenceOptions = {}
 ): BirthdayOccurrence | null {
 	const parsed = parseFlexDate(birthday);
-	if (!parsed || parsed.month === null || parsed.day === null) return null;
+	if (!parsed || parsed.month === null) return null;
+	if (parsed.day === null && !assumeFirstOfMonth) return null;
 
 	const today = new Date(now);
 	today.setHours(0, 0, 0, 0);
@@ -58,7 +87,7 @@ export function nextBirthdayOccurrence(
 	const occurrence = new Date(
 		today.getFullYear(),
 		parsed.month - 1,
-		parsed.day
+		parsed.day ?? 1
 	);
 	occurrence.setHours(0, 0, 0, 0);
 	// Already been and gone this year — the next one is next year's.
@@ -119,9 +148,13 @@ export function birthdayMonths<T extends DatedPerson>(
 	const cursor = new Date(opens);
 	for (let i = 0; i < Math.max(1, windowMonths); i++) {
 		const key = monthKey(cursor);
+		const name = monthName(cursor.getMonth() + 1);
 		months.set(key, {
 			key,
-			label: `${monthName(cursor.getMonth() + 1)} ${cursor.getFullYear()}`,
+			label:
+				cursor.getFullYear() === today.getFullYear()
+					? name
+					: `${name} ${cursor.getFullYear()}`,
 			entries: [],
 		});
 		cursor.setMonth(cursor.getMonth() + 1);
@@ -129,14 +162,21 @@ export function birthdayMonths<T extends DatedPerson>(
 
 	for (const person of people) {
 		const parsed = parseFlexDate(person.birthday);
-		if (!parsed || parsed.month === null || parsed.day === null) continue;
+		// A month is enough to place someone. Only the day is missing, and
+		// the month heading is the answer the timeline is giving anyway —
+		// leaving them out of their own month to sit under "Unknown" was
+		// the less honest of the two.
+		if (!parsed || parsed.month === null) continue;
+		const exact = parsed.day !== null;
 
 		// This year's, unless that fell before the window opened — in which
-		// case it belongs to the far end of the window, next year.
+		// case it belongs to the far end of the window, next year. A month
+		// without a day sorts as the 1st, which is a position in the list
+		// rather than a claim about the date; `exact` carries that on.
 		const occurrence = new Date(
 			opens.getFullYear(),
 			parsed.month - 1,
-			parsed.day
+			parsed.day ?? 1
 		);
 		occurrence.setHours(0, 0, 0, 0);
 		if (occurrence < opens) {
@@ -151,6 +191,7 @@ export function birthdayMonths<T extends DatedPerson>(
 
 		month.entries.push({
 			person,
+			exact,
 			date: isoDay(occurrence),
 			days: Math.round(
 				(occurrence.getTime() - today.getTime()) / 86_400_000

@@ -42,7 +42,6 @@ import {
 	relativeFromDays,
 	upcomingWhen,
 } from "@/utils/upcomingWhen";
-import { PlanOperations } from "@/services/PlanOperations";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -648,11 +647,9 @@ export class DashboardView extends ItemView {
 				}
 			}
 
-			// Location and rough budget sit beside the name
+			// Location sits beside the name
 			const details: string[] = [];
 			if (plan.location) details.push(plan.location);
-			const est = PlanOperations.estimate({ items: plan.items });
-			if (est > 0) details.push(`~$${est}`);
 
 			buildUpcomingRow(section, {
 				icon: lead ? lead.emoji : "🗺️",

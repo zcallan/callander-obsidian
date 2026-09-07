@@ -175,16 +175,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: "Upcoming window",
-						desc: "How far ahead the dashboard's Upcoming section looks. Anything further out stays tucked behind its \"Show all\" button",
-						control: {
-							type: "number",
-							key: "upcomingDays",
-							min: 1,
-							max: 365,
-						},
-					},
-					{
 						name: "Somedays shown",
 						desc: 'How many somedays the dashboard lists before the rest become a "+N more" link',
 						control: {
@@ -435,29 +425,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 						this.plugin.settings.belatedBirthdayDays = Math.min(
 							60,
 							Math.max(0, Math.round(parsed))
-						);
-						await this.plugin.saveSettings();
-					}
-				});
-			});
-
-		new Setting(containerEl)
-			.setName("Upcoming window")
-			.setDesc(
-				'How far ahead the dashboard\'s Upcoming section looks. Anything further out stays tucked behind its "Show all" button'
-			)
-			.addText((text) => {
-				text.inputEl.type = "number";
-				text.inputEl.min = "1";
-				text.inputEl.max = "365";
-				text.setValue(
-					String(this.plugin.settings.upcomingDays)
-				).onChange(async (value) => {
-					const parsed = Number(value);
-					if (Number.isFinite(parsed)) {
-						this.plugin.settings.upcomingDays = Math.min(
-							365,
-							Math.max(1, Math.round(parsed))
 						);
 						await this.plugin.saveSettings();
 					}

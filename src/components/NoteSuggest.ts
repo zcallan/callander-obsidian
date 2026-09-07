@@ -3,7 +3,7 @@ import { asWikilink, replaceEntryAt } from "@/utils/linkField";
 
 /**
  * Note-name autocomplete for the linkable fields (parents, siblings,
- * friends, related files).
+ * children, friends, related files).
  *
  * Not Obsidian's own `[[` suggester — that one is an `EditorSuggest`, bound
  * to a CodeMirror editor, and can't attach to a plain `<input>`.

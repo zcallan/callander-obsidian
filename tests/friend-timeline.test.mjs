@@ -47,6 +47,18 @@ export function run() {
 	});
 
 	eq("a month-only birthday has no day to land on", nextBirthdayOccurrence("1997-09", NOW), null);
+	// ...unless the caller says to assume one. Off by default because the
+	// dashboard countdown reads this as "in N days".
+	eq(
+		"which the timeline and the list sort opt into",
+		nextBirthdayOccurrence("1997-09", NOW, { assumeFirstOfMonth: true }),
+		{ date: "2027-09-01", days: 360 }
+	);
+	eq(
+		"a year-only birthday stays unplaceable either way",
+		nextBirthdayOccurrence("1997", NOW, { assumeFirstOfMonth: true }),
+		null
+	);
 	eq("a year-only birthday has none either", nextBirthdayOccurrence("1997", NOW), null);
 	eq("nothing recorded, nothing returned", nextBirthdayOccurrence("", NOW), null);
 
@@ -73,11 +85,30 @@ export function run() {
 		empty.every((m) => m.entries.length === 0),
 		true
 	);
-	// The window crosses a new year, so the label has to carry one.
-	eq("labels carry the year", [empty[0]?.label, empty.at(-1)?.label], [
-		"September 2026",
+	// This year needs no saying; the year appears the moment the window
+	// crosses into another one.
+	eq("labels drop the current year", [empty[0]?.label, empty.at(-1)?.label], [
+		"September",
 		"August 2027",
 	]);
+	eq(
+		"every month this year is bare",
+		empty.slice(0, 4).map((m) => m.label),
+		["September", "October", "November", "December"]
+	);
+	eq(
+		"and every month next year carries it",
+		empty.slice(4, 7).map((m) => m.label),
+		["January 2027", "February 2027", "March 2027"]
+	);
+	// What makes dropping the year safe: twelve whole months means no name
+	// can appear twice, which is why the old thirteen-bucket window needed
+	// the year on everything.
+	eq(
+		"no month name appears twice",
+		new Set(empty.map((m) => m.label.split(" ")[0])).size,
+		12
+	);
 
 	// Whole months, so the day of the month can't change the shape.
 	eq(
@@ -96,6 +127,7 @@ export function run() {
 		person("Midwinter", "1990-01-14"),
 		person("No year", "11-30"),
 		person("Month only", "1997-04"),
+		person("Year only", "1997"),
 	];
 	const months = birthdayMonths(people, NOW);
 
@@ -128,9 +160,41 @@ export function run() {
 	eq("a year-less birthday is placed like any other", named(find(months, "2026-11")), [
 		"No year",
 	]);
+	// A month is enough to place someone: the heading is the answer the
+	// timeline gives anyway, and only the day is missing.
+	eq("a month-only birthday lands in its month", named(find(months, "2027-04")), [
+		"Month only",
+	]);
+	const exactness = (months, key) =>
+		(find(months, key)?.entries ?? []).map((e) => e.exact);
 	eq(
-		"a month-only birthday appears nowhere",
-		months.flatMap(named).includes("Month only"),
+		"and is flagged so the row doesn't print a day nobody recorded",
+		exactness(months, "2027-04"),
+		[false]
+	);
+	// Two dated birthdays share September; both carry a real day.
+	eq("while a full date is exact", exactness(months, "2026-09"), [true, true]);
+	// Sorted as the 1st, so it heads its month rather than falling among
+	// the dated ones by accident.
+	eq(
+		"a month-only birthday sorts to the head of its month",
+		named(
+			find(
+				birthdayMonths(
+					[
+						person("Dated 5th", "1990-04-05"),
+						person("Month only", "1990-04"),
+					],
+					NOW
+				),
+				"2027-04"
+			)
+		),
+		["Month only", "Dated 5th"]
+	);
+	eq(
+		"a year-only birthday still appears nowhere",
+		months.flatMap(named).includes("Year only"),
 		false
 	);
 

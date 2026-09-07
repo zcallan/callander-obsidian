@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import type { EventInfo } from "@/types";
 import { eventRowFields } from "@/utils/eventRow";
-import { upcomingItems, withinWindow } from "@/utils/upcomingList";
+import { upcomingItems, thisAndNextWeek } from "@/utils/upcomingList";
+import { groupEventsByPeriod } from "@/utils/eventGroups";
 import { EventModal } from "@/modals/EventModal";
 import { EventViewModal } from "@/modals/EventViewModal";
 import { usePlugin } from "@/ui/PluginContext";
@@ -26,11 +27,11 @@ const MAX_ROWS = 10;
 export function UpcomingSection() {
 	const plugin = usePlugin();
 	const version = useVaultVersion();
-	const windowDays = plugin.settings.upcomingDays;
 
 	const { shown, hiddenCount, total } = useMemo(() => {
-		const all = upcomingItems(plugin.eventOperations.getEvents(), new Date());
-		const near = withinWindow(all, windowDays);
+		const now = new Date();
+		const all = upcomingItems(plugin.eventOperations.getEvents(), now);
+		const near = thisAndNextWeek(all, now);
 		const visible = near.slice(0, MAX_ROWS);
 		return {
 			shown: visible,
@@ -40,7 +41,7 @@ export function UpcomingSection() {
 		// `version` is the dependency on purpose: it's the invalidation
 		// signal, and the read it guards (getEvents) has no stable identity
 		// of its own to depend on. See useVaultVersion.
-	}, [version, windowDays, plugin]);
+	}, [version, plugin]);
 
 	// Same resolution the plan pages use — wikilinks to display names, with
 	// a dead link falling back to its own text.
@@ -53,6 +54,18 @@ export function UpcomingSection() {
 		// No onChange callback that re-renders: the write is what tells us.
 		new EventViewModal(plugin.app, plugin, event, () => undefined).open();
 	};
+
+	const row = (event: EventInfo) => (
+		<UpcomingRow
+			key={event.file.path}
+			{...eventRowFields(event, new Date(), peopleNames(event), {
+				// The dashboard is a "what's next" view — anything inside a
+				// fortnight reads better by weekday.
+				conversational: true,
+			})}
+			onClick={() => openEvent(event)}
+		/>
+	);
 
 	return (
 		<div className="dashboard-section dashboard-upcoming-section">
@@ -90,21 +103,34 @@ export function UpcomingSection() {
 
 			{total > 0 && shown.length === 0 && (
 				<div className="section-helper-text">
-					Nothing in the next {windowDays} days.
+					Nothing this week or next.
 				</div>
 			)}
 
-			{shown.map(({ event }) => (
-				<UpcomingRow
-					key={event.file.path}
-					{...eventRowFields(event, new Date(), peopleNames(event), {
-						// The dashboard is a "what's next" view — anything
-						// inside a fortnight reads better by weekday.
-						conversational: true,
-					})}
-					onClick={() => openEvent(event)}
-				/>
-			))}
+			{/* Grouped, but only ever into "This week", "Next week" and the
+			    undated group — the section reaches no further than that, so
+			    the headings the Events page uses for months never appear. */}
+			{shown.length > 0 && (
+				<div className="dashboard-upcoming-timeline">
+					{groupEventsByPeriod(
+						shown.map((i) => i.event),
+						(e) => e.date,
+						new Date()
+					).map((group) => (
+						// Fragments, not wrapper divs: headings and rows must
+						// stay direct children, or
+						// `.contact-timeline-year:first-child` — which drops
+						// the top margin on the first heading only — matches
+						// every one of them and the groups run together.
+						<Fragment key={group.key || "undated"}>
+							<div className="contact-timeline-year">
+								{group.label}
+							</div>
+							{group.items.map((event) => row(event))}
+						</Fragment>
+					))}
+				</div>
+			)}
 
 			{hiddenCount > 0 && (
 				<div

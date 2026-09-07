@@ -34,8 +34,6 @@ export interface FriendTrackerSettings {
 	relationshipTypes: string[];
 	defaultActiveTab: "notes" | "events" | "ideas" | "markdown";
 	belatedBirthdayDays: number;
-	/** How far ahead the dashboard's Upcoming section looks, in days */
-	upcomingDays: number;
 	/** How many somedays the dashboard's shortlist shows before "+N more" */
 	dashboardSomedayCount: number;
 	/** Default sales tax %, offered on a "by receipt" expense split */
@@ -66,6 +64,8 @@ export interface FriendTrackerSettings {
 	 * option, like friendListSort.
 	 */
 	friendListTab: FriendListTab;
+	/** Same, for the Events page. See friendListTab. */
+	eventsTab: FriendListTab;
 	/**
 	 * Whether the dashboard's Drafts accordion is collapsed. Open by
 	 * default — drafts are meant to nag — but the choice sticks, since the
@@ -112,10 +112,8 @@ export type FriendListSort =
 	| "modified";
 
 /**
- * Which presentation the All friends page is showing.
- *
- * Deliberately not a setting: "calendar" is a stub, and a remembered tab
- * would reopen the page onto it.
+ * Which presentation a list page is showing. Shared by All friends and
+ * Events, which offer the same three.
  */
 export type FriendListTab = "list" | "timeline" | "calendar";
 
@@ -557,7 +555,6 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	relationshipTypes: ["family", "friend", "colleague", "pet"],
 	defaultActiveTab: "notes",
 	belatedBirthdayDays: 14,
-	upcomingDays: 30,
 	dashboardSomedayCount: 10,
 	receiptTaxPercent: 6.25,
 	receiptTipPercent: 20,
@@ -575,6 +572,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	lastBirthdayNoticeDate: "",
 	friendListSort: "birthday",
 	friendListTab: "list",
+	eventsTab: "timeline",
 	draftsCollapsed: false,
 	birthdaysCollapsed: false,
 	aboutExpanded: false,

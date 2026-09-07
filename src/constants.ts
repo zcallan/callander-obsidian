@@ -15,6 +15,7 @@ export const STANDARD_FIELDS = {
 	LOCATION: "location",
 	PARENTS: "parents",
 	SIBLINGS: "siblings",
+	CHILDREN: "children",
 	FRIENDS: "friends",
 	RELATED_FILES: "relatedFiles",
 	GROUPS: "groups",
@@ -58,6 +59,7 @@ export const STANDARD_FIELDS = {
 export const LINKABLE_FIELDS: string[] = [
 	"parents",
 	"siblings",
+	"children",
 	"friends",
 	"relatedFiles",
 ];
@@ -206,6 +208,7 @@ export const EVENT_TYPES = [
 	{ id: "concert", label: "Concert", emoji: "🎸" },
 	{ id: "movie", label: "Movie", emoji: "🍿" },
 	{ id: "comedy", label: "Comedy", emoji: "🎭" },
+	{ id: "activity", label: "Activity", emoji: "🥾" },
 	{ id: "event", label: "Event", emoji: "📅" },
 	{ id: "trip", label: "Trip", emoji: "✈️" },
 	{ id: "milestone", label: "Milestone", emoji: "🏅" },

@@ -30,7 +30,6 @@ const DEFAULT_SETTINGS = {
 	yourName: "Callan",
 	belatedBirthdayDays: 14,
 	birthdayReminderDays: 7,
-	upcomingDays: 30,
 	receiptTaxPercent: 6.25,
 	receiptTipPercent: 20,
 	relationshipTypes: ["friend", "family"],

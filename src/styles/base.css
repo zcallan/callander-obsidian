@@ -1878,6 +1878,18 @@ If your plugin does not need CSS, delete this file.
 	margin: 0 0 6px;
 }
 
+/* Grouped Upcoming. Headings stay muted — the base colour — rather than
+   accented like the Events page's: this is one section among many on a
+   dense page, and a column of purple would compete with the section
+   headings themselves. */
+.dashboard-upcoming-timeline .contact-timeline-year {
+	margin: 14px 0 4px;
+}
+
+.dashboard-upcoming-timeline .contact-timeline-year:first-child {
+	margin-top: 0;
+}
+
 .dashboard-group-label {
 	display: inline-flex;
 	align-items: center;
@@ -2108,6 +2120,12 @@ If your plugin does not need CSS, delete this file.
 
 .contact-timeline-dot.type-comedy {
 	background: #45b8ac;
+}
+
+/* Moss, kept clear of type-life's brighter green — a walk and a life event
+   sit near each other on a timeline often enough to need telling apart. */
+.contact-timeline-dot.type-activity {
+	background: #7aa64a;
 }
 
 .contact-timeline-dot.type-event {
@@ -3061,9 +3079,13 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	flex-wrap: wrap;
 }
 
-/* All friends list view */
+/* All friends list view. Same column the dashboard uses: a birthday row is
+   a name and a date, and run full-bleed across a wide pane the two ends
+   drift so far apart the row stops reading as one thing. */
 .friend-list-container {
 	padding: 16px 24px;
+	max-width: 760px;
+	margin: 0 auto;
 }
 
 /* Flat buttons on this page. Add friend, the tabs and a Glance on every
@@ -3075,8 +3097,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
    The sort dropdown is pointedly not in here. It's a select, not a
    button: strip its fill and it loses the affordance that says it opens,
    leaving a bare word floating beside a bordered button. */
-.friend-list-container .callander-button,
-.friend-list-container .friend-list-tab {
+.friend-list-container .callander-button {
 	background: transparent;
 	box-shadow: none;
 }
@@ -3126,23 +3147,28 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	display: none;
 }
 
-/* Which view of the page. Underlined rather than pill-shaped on purpose:
-   the group chips directly above are pills, and two rows of the same shape
-   would read as one control with two rows of options. */
-.friend-list-tabs {
+/* Which view of the page — shared by All friends and Events. Underlined
+   rather than pill-shaped on purpose: both pages sit these directly under
+   a row of filter pills, and two rows of the same shape would read as one
+   control with two rows of options. */
+.callander-tabs {
 	display: flex;
 	gap: 18px;
 	border-bottom: 1px solid var(--background-modifier-border);
-	margin: 0 0 8px;
+	/* The gap under the rule does the separating — a heading butted up
+	   against it reads as a second row of tabs. */
+	margin: 0 0 22px;
 }
 
-.friend-list-tab {
+/* Two classes deep so it outranks Obsidian's own button styling, which
+   supplies a fill and a shadow these must not have. */
+.callander-tabs .callander-tab {
+	background: transparent;
+	box-shadow: none;
 	padding: 6px 2px;
 	color: var(--text-muted);
 	font-size: 14px;
 	font-weight: 500;
-	background: none;
-	box-shadow: none;
 	border: none;
 	border-radius: 0;
 	border-bottom: 2px solid transparent;
@@ -3154,17 +3180,17 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	appearance: none;
 }
 
-.friend-list-tab:hover {
+.callander-tabs .callander-tab:hover {
 	color: var(--text-normal);
 	background: none;
 }
 
-.friend-list-tab:focus-visible {
+.callander-tabs .callander-tab:focus-visible {
 	outline: 1px solid var(--background-modifier-border-focus, var(--text-accent));
 	outline-offset: 2px;
 }
 
-.friend-list-tab.active {
+.callander-tabs .callander-tab.active {
 	color: var(--text-accent);
 	border-bottom-color: var(--text-accent);
 }
@@ -3306,6 +3332,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
    uppercase and muted, and butted up under the tabs it read as a second
    row of them. */
 .friend-timeline {
+	margin-top: 4px;
+}
+
+/* The undated section sits after a rule rather than under the tabs, so it
+   needs the spacing the rule above no longer provides. */
+.friend-timeline-unknown {
 	margin-top: 20px;
 }
 
@@ -3347,6 +3379,17 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .friend-timeline-row {
 	cursor: pointer;
 	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+/* Date and name stack; Glance sits beside them. min-width lets a long name
+   truncate rather than shoving the button off the row. */
+.friend-timeline-main {
+	flex: 1;
+	min-width: 0;
 }
 
 .friend-timeline-row:hover {
@@ -3373,10 +3416,27 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	color: var(--text-muted);
 }
 
-/* An undated row's one line is the name, set larger than the date line a
-   month row leads with, so its centre — and the dot's — sit lower. */
+/* An undated row is one line of name against a taller Glance button, so
+   the flex centring puts that line lower in the row than a dated row's
+   date line sits. Measured, not guessed. */
 .friend-timeline-row.is-undated .contact-timeline-dot {
-	top: 15px;
+	top: 23px;
+}
+
+/* Events -> Timeline: a heading per period over the page's own event rows.
+   No dotted rail like the friends timeline — these rows aren't that kind,
+   and half a rail reads worse than none.
+
+   Headings keep .contact-timeline-year's own muted colour rather than the
+   accent, matching the dashboard's grouped Upcoming: on a page that is
+   almost entirely rows, a column of purple down the left competes with the
+   rows for attention instead of quietly ordering them. */
+.events-timeline .contact-timeline-year {
+	margin: 22px 0 6px;
+}
+
+.events-timeline .contact-timeline-year:first-child {
+	margin-top: 0;
 }
 
 /* Plan idea priority tag */
@@ -4307,6 +4367,26 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* The always-visible day filters, on their own line under the search bar. */
 .someday-quick-days {
 	margin: 10px 0 8px;
+}
+
+/* Which half of the timeline, and the filter toggle, on one line: they
+   narrow the same list, so splitting them across two strips read as two
+   unrelated controls. The pills keep their own margin, so the row itself
+   needs none. */
+.events-when-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+/* The pills wrap; the button doesn't shrink to make room for them. */
+.events-when-row .someday-filter-options {
+	min-width: 0;
+}
+
+.events-when-row .someday-filter-toggle {
+	flex: 0 0 auto;
 }
 
 /* Promote-someday confirmation: the name being promoted, and the

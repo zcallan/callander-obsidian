@@ -1,5 +1,5 @@
 import { createSuite } from "./harness.mjs";
-import { upcomingItems, withinWindow } from "./.build/callander.mjs";
+import { upcomingItems, thisAndNextWeek } from "./.build/callander.mjs";
 
 /**
  * What reaches the dashboard's Upcoming section. These rules used to live
@@ -102,25 +102,41 @@ export function run() {
 		]);
 	}
 
-	// ---------- the near-horizon window ----------
+	// ---------- this week and next ----------
 	{
+		// Wednesday 19 August 2026: this week opened Monday the 17th and
+		// next week closes Sunday the 30th.
+		const wed = new Date(2026, 7, 19);
 		const list = upcomingItems(
 			[
-				ev({ name: "near", date: "2026-08-20" }),
+				// A task, because upcomingItems drops any other event once
+				// its date has passed — a passed task is the only thing that
+				// can sit behind today, and the window has to reach it.
+				ev({ name: "monday task", date: "2026-08-17", type: "task" }),
+				ev({ name: "next sunday", date: "2026-08-30" }),
+				ev({ name: "day after", date: "2026-08-31" }),
 				ev({ name: "far", date: "2027-06-01" }),
 				ev({ name: "undated" }),
 			],
-			now
+			wed
 		);
-		eq("the window keeps what's close", names(withinWindow(list, 30)), [
+		eq("the fortnight keeps what's inside it", names(thisAndNextWeek(list, wed)), [
 			"undated",
-			"near",
+			"monday task",
+			"next sunday",
 		]);
+		// The day either side of the span is the whole test: a rolling
+		// 14-day count from Wednesday would have swallowed the 31st.
+		eq(
+			"and drops the day after it closes",
+			names(thisAndNextWeek(list, wed)).includes("day after"),
+			false
+		);
 		// An undated item has no distance, so no window can put it beyond.
 		eq(
-			"...and always keeps the undated",
-			names(withinWindow(list, 1)),
-			["undated"]
+			"...while the undated always stays",
+			names(thisAndNextWeek(list, wed)).includes("undated"),
+			true
 		);
 	}
 

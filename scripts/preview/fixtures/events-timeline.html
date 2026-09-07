@@ -1,0 +1,124 @@
+<!--
+  The Events page's Timeline tab: a heading per week over the page's own
+  event rows.
+
+  Worth a fixture because the heading is the only new element and it's
+  borrowed — .contact-timeline-year was written for a dotted rail it no
+  longer sits inside here. This checks it still reads as a heading standing
+  alone, and that the spacing between a heading and the rows under it
+  doesn't collapse into the previous group's.
+
+  The chrome above it matters too: the when pills and the Filters button
+  share one line, and Filters has to stay put while the pills wrap.
+
+  Three cases in the labels: the relative near-future headings, a month
+  further out, and the undated group that leads.
+-->
+<div class="somedays-container">
+	<div class="someday-toolbar">
+		<input
+			class="contact-field-input someday-toolbar-search"
+			type="text"
+			placeholder="Search events…"
+		/>
+	</div>
+
+	<!-- Which half of the timeline on the left, Filters hard right. -->
+	<div class="events-when-row">
+		<div class="someday-filter-options someday-quick-days">
+			<button class="someday-filter-pill is-active">Upcoming</button>
+			<button class="someday-filter-pill">Past</button>
+			<button class="someday-filter-pill">All</button>
+		</div>
+		<button class="callander-button someday-filter-toggle">
+			<span>Filters</span><span class="someday-filter-count">2</span>
+		</button>
+	</div>
+
+	<div class="callander-tabs" role="tablist">
+		<button class="callander-tab active" role="tab" aria-selected="true">
+			Timeline
+		</button>
+		<button class="callander-tab" role="tab" aria-selected="false">
+			List
+		</button>
+		<button class="callander-tab" role="tab" aria-selected="false">
+			Calendar
+		</button>
+	</div>
+
+	<div class="someday-list">
+		<div class="events-timeline">
+			<div class="contact-timeline-year events-timeline-week">
+				No exact date
+			</div>
+			<div class="dashboard-row dashboard-row-clickable dashboard-upcoming-row">
+				<div class="dashboard-upcoming-main">
+					<div class="dashboard-upcoming-when">📅 Anytime</div>
+					<div class="dashboard-upcoming-name">
+						<span>Coffee with Deepa</span
+						><span class="dashboard-upcoming-person">
+							• Deepa Iyer</span
+						>
+					</div>
+				</div>
+			</div>
+
+			<div class="contact-timeline-year events-timeline-week">
+				This week
+			</div>
+			<div class="dashboard-row dashboard-row-clickable dashboard-upcoming-row">
+				<div class="dashboard-upcoming-main">
+					<div class="dashboard-upcoming-when">🥾 Wed 9 Sep</div>
+					<div class="dashboard-upcoming-name">
+						<span>Hike at Mount Wilson</span
+						><span class="dashboard-upcoming-person">
+							• Lauren, Enrique</span
+						>
+					</div>
+				</div>
+				<span class="dashboard-upcoming-rel dashboard-rel-soon">in 3 days</span>
+			</div>
+			<div class="dashboard-row dashboard-row-clickable dashboard-upcoming-row">
+				<div class="dashboard-upcoming-main">
+					<div class="dashboard-upcoming-when">🎸 Fri 11 Sep · 8:00 PM</div>
+					<div class="dashboard-upcoming-name">
+						<span>Gig at the Corner</span
+						><span class="dashboard-upcoming-person">
+							• Marcus Webb</span
+						>
+					</div>
+				</div>
+				<span class="dashboard-upcoming-rel">in 5 days</span>
+			</div>
+
+			<div class="contact-timeline-year events-timeline-week">
+				October
+			</div>
+			<div class="dashboard-row dashboard-row-clickable dashboard-upcoming-row">
+				<div class="dashboard-upcoming-main">
+					<div class="dashboard-upcoming-when">✈️ Thu 1 Oct</div>
+					<div class="dashboard-upcoming-name">
+						<span>Flight to Sydney</span>
+					</div>
+				</div>
+				<span class="dashboard-upcoming-rel">in 25 days</span>
+			</div>
+
+			<div class="contact-timeline-year events-timeline-week">
+				September 2027
+			</div>
+			<div class="dashboard-row dashboard-row-clickable dashboard-upcoming-row">
+				<div class="dashboard-upcoming-main">
+					<div class="dashboard-upcoming-when">🎉 Sat 4 Sep</div>
+					<div class="dashboard-upcoming-name">
+						<span>Lauren's 35th</span
+						><span class="dashboard-upcoming-person">
+							• Lauren Delbridge</span
+						>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

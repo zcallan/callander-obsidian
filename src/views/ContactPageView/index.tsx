@@ -253,6 +253,7 @@ const CLEARABLE_FIELDS = [
 	// leaving an empty array behind in the frontmatter.
 	"parents",
 	"siblings",
+	"children",
 	"friends",
 	"relatedFiles",
 	// Legacy keys: migrated into ideas/events on load, then dropped

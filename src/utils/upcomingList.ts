@@ -72,13 +72,30 @@ export function upcomingItems(
 }
 
 /**
- * The near horizon. Anything further out lives on the Events page, so a
- * booking eight months away doesn't crowd out this week — but an undated
- * item has no distance to be beyond the window, so it always stays.
+ * This week and next. Anything further out lives on the Events page, so a
+ * booking eight months away doesn't crowd out the next fortnight — but an
+ * undated item has no distance to be beyond the window, so it always stays.
+ *
+ * Whole weeks rather than a rolling count of days: on a Friday, "the next
+ * 14 days" quietly means most of the week after next, while "this week and
+ * next" is a span you can picture. It also matches the headings the
+ * timeline view groups by.
+ *
+ * The window reaches backwards to Monday, which matters for exactly one
+ * thing: upcomingItems keeps a passed *task* for a week so it can still be
+ * ticked off, and that task should stay in view rather than fall out of a
+ * window that opens today. Every other kind of event is already gone by
+ * the time its date passes.
  */
-export function withinWindow(
+export function thisAndNextWeek(
 	items: readonly UpcomingItem[],
-	windowDays: number
+	now: Date = new Date()
 ): UpcomingItem[] {
-	return items.filter((i) => i.days === null || i.days <= windowDays);
+	// How many days back this week's Monday is; 0 on a Monday, -6 on a
+	// Sunday. getDay is 0 for Sunday, which is 6 days *after* its Monday.
+	const opened = -((now.getDay() + 6) % 7);
+	const closes = opened + 13;
+	return items.filter(
+		(i) => i.days === null || (i.days >= opened && i.days <= closes)
+	);
 }

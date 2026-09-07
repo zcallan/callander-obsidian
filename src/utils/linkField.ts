@@ -1,6 +1,6 @@
 /**
  * Reading and writing the fields whose entries name other notes — parents,
- * siblings, friends, related files.
+ * siblings, children, friends, related files.
  *
  * Each entry is either a `[[Wikilink]]` or plain text, and the two are
  * deliberately interchangeable: a relative with no note of their own is still

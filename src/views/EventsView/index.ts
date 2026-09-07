@@ -6,7 +6,11 @@ import {
 } from "obsidian";
 import { fieldOf } from "@/utils/fm";
 import type FriendTracker from "@/main";
-import type { ContactWithCountdown, EventInfo } from "@/types";
+import type {
+	ContactWithCountdown,
+	EventInfo,
+	FriendListTab,
+} from "@/types";
 import { EventModal } from "@/modals/EventModal";
 import { EventViewModal } from "@/modals/EventViewModal";
 import { EVENT_TYPES, type EventType } from "@/constants";
@@ -22,6 +26,7 @@ import {
 } from "@/utils/eventRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
 import { registerVaultRefresh } from "@/utils/vaultRefresh";
+import { groupEventsByPeriod } from "@/utils/eventGroups";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
 
@@ -58,10 +63,18 @@ export class EventsView extends ItemView {
 	// the list high; the toggle's badge keeps active filters visible while
 	// it's shut.
 	private filtersOpen = false;
+	/**
+	 * Which presentation is showing, remembered across sessions the same
+	 * way All friends remembers its own.
+	 */
+	private tab: FriendListTab;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
 		this.navigation = true;
+		// Off the parameter, not `this.plugin` — parameter properties are
+		// assigned before field initialisers, but not before this line.
+		this.tab = plugin.settings.eventsTab ?? "timeline";
 	}
 
 	getViewType(): string {
@@ -261,10 +274,13 @@ export class EventsView extends ItemView {
 		if (this.events.length > 0) {
 			this.renderToolbar(container);
 			this.renderWhenStrip(container);
+			// Narrow first, then pick a view of what's left — the same order
+			// the All friends page puts these in.
+			this.renderTabs(container);
 		}
 
 		this.listEl = container.createDiv({ cls: "someday-list" });
-		this.renderList();
+		this.renderContent();
 
 		container.scrollTop = scrollTop;
 	}
@@ -300,7 +316,11 @@ export class EventsView extends ItemView {
 	 * mode, not a facet you'd want priced.
 	 */
 	private renderWhenStrip(container: HTMLElement) {
-		const strip = container.createDiv({
+		// Which half of the timeline on the left, the filter toggle hard
+		// right: both narrow the same list, so they belong on one line
+		// rather than in two separate strips.
+		const row = container.createDiv({ cls: "events-when-row" });
+		const strip = row.createDiv({
 			cls: "someday-filter-options someday-quick-days",
 		});
 		for (const { id, label } of EVENT_WHEN_FILTERS) {
@@ -310,6 +330,35 @@ export class EventsView extends ItemView {
 				this.render();
 			});
 		}
+
+		// Labelled rather than icon-only: it sits alone out here now, with
+		// no toolbar around it to lend it context.
+		const filterBtn = row.createEl("button", {
+			cls: `callander-button someday-filter-toggle${
+				this.filtersOpen ? " is-open" : ""
+			}`,
+			attr: {
+				type: "button",
+				"aria-expanded": String(this.filtersOpen),
+			},
+		});
+		setIcon(filterBtn, "filter");
+		filterBtn.createSpan({ text: "Filters" });
+		const active = this.activeFilterCount();
+		if (active > 0) {
+			filterBtn.createSpan({
+				cls: "someday-filter-count",
+				text: String(active),
+			});
+		}
+		filterBtn.addEventListener("click", () => {
+			this.filtersOpen = !this.filtersOpen;
+			this.render();
+		});
+
+		// Opens directly under the button rather than above the pills,
+		// which is where it landed when it belonged to the toolbar.
+		this.maybeFilterPanel(container);
 	}
 
 	/**
@@ -330,6 +379,12 @@ export class EventsView extends ItemView {
 			this.renderList();
 		});
 
+		// Sorting only means something on the List. The timeline is
+		// chronological by definition, so rather than leave a dropdown that
+		// changes nothing, it isn't drawn. Only the sort is skipped — the
+		// filters below apply to every tab.
+		if (this.tab !== "list") return;
+
 		const sortSel = toolbar.createEl("select", {
 			cls: "dropdown someday-filter-select",
 		});
@@ -348,30 +403,98 @@ export class EventsView extends ItemView {
 		};
 		sortSel.addEventListener("change", () => void handleSortChange());
 
-		const filterBtn = toolbar.createEl("button", {
-			cls: `callander-button someday-filter-toggle${
-				this.filtersOpen ? " is-open" : ""
-			}`,
-			attr: {
-				type: "button",
-				"aria-label": "Toggle filters",
-				"aria-expanded": String(this.filtersOpen),
-			},
+	}
+
+	private maybeFilterPanel(container: HTMLElement) {
+		if (this.filtersOpen) this.renderFilterPanel(container);
+	}
+
+	/** List / Timeline / Calendar, as on All friends. */
+	private renderTabs(container: HTMLElement) {
+		const tabs = container.createDiv({
+			cls: "callander-tabs",
+			attr: { role: "tablist" },
 		});
-		setIcon(filterBtn, "filter");
-		const active = this.activeFilterCount();
-		if (active > 0) {
-			filterBtn.createSpan({
-				cls: "someday-filter-count",
-				text: String(active),
+		const TABS: Array<{ id: FriendListTab; label: string }> = [
+			{ id: "timeline", label: "Timeline" },
+			{ id: "list", label: "List" },
+			{ id: "calendar", label: "Calendar" },
+		];
+		for (const { id, label } of TABS) {
+			const active = this.tab === id;
+			const button = tabs.createEl("button", {
+				cls: `callander-tab${active ? " active" : ""}`,
+				text: label,
+				attr: {
+					type: "button",
+					role: "tab",
+					"aria-selected": String(active),
+				},
+			});
+			button.addEventListener("click", () => {
+				if (this.tab === id) return;
+				this.tab = id;
+				this.render();
+				// After the redraw: the write fires settings-changed and a
+				// refresh of its own, and the tab has to look switched now.
+				this.plugin.settings.eventsTab = id;
+				void this.plugin.saveSettings();
 			});
 		}
-		filterBtn.addEventListener("click", () => {
-			this.filtersOpen = !this.filtersOpen;
-			this.render();
-		});
+	}
 
-		if (this.filtersOpen) this.renderFilterPanel(container);
+	private renderContent() {
+		if (this.tab === "timeline") {
+			this.renderTimeline();
+		} else if (this.tab === "calendar") {
+			this.listEl?.createDiv({
+				cls: "section-helper-text",
+				text: "Coming soon!",
+			});
+		} else {
+			this.renderList();
+		}
+	}
+
+	/**
+	 * The same events the List would show, under a heading per week.
+	 *
+	 * Headings name the near future by how soon it is — This week, Next
+	 * week, Later this month — and everything past that by its month. Only
+	 * groups holding something are drawn: this follows the Upcoming / Past
+	 * / All mode, and on Past that reaches back years, where empty headings
+	 * would bury the real ones. Rows are the List's own, so an event looks
+	 * the same whichever tab you're on.
+	 */
+	private renderTimeline() {
+		const listEl = this.listEl;
+		if (!listEl) return;
+		listEl.empty();
+
+		const list = this.sorted();
+		if (list.length === 0) {
+			listEl.createDiv({
+				cls: "section-helper-text",
+				text: this.emptyMessage(),
+			});
+			return;
+		}
+
+		const wrap = listEl.createDiv({ cls: "events-timeline" });
+		// Looking backwards, every month heading carries its year: a bare
+		// "August" next to "August 2025" reads as two different kinds of
+		// thing when both are simply months that have been. Upcoming keeps
+		// the bare form, where this year needs no saying.
+		const groups = groupEventsByPeriod(list, (e) => e.date, new Date(), {
+			alwaysYear: this.when !== "upcoming",
+		});
+		for (const period of groups) {
+			wrap.createDiv({
+				cls: "contact-timeline-year events-timeline-week",
+				text: period.label,
+			});
+			for (const event of period.items) this.renderRow(wrap, event);
+		}
 	}
 
 	private renderFilterPanel(container: HTMLElement) {

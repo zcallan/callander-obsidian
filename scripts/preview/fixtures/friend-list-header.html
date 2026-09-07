@@ -52,15 +52,15 @@
 		</button>
 	</div>
 
-	<div class="friend-list-tabs" role="tablist">
-		<button class="friend-list-tab active" role="tab" aria-selected="true">
+	<div class="callander-tabs" role="tablist">
+		<button class="callander-tab active" role="tab" aria-selected="true">
 			List
 		</button>
-		<button class="friend-list-tab" role="tab" aria-selected="false">
-			Timeline
+		<button class="callander-tab" role="tab" aria-selected="false">
+			B'day Timeline
 		</button>
-		<button class="friend-list-tab" role="tab" aria-selected="false">
-			Calendar
+		<button class="callander-tab" role="tab" aria-selected="false">
+			B'day Calendar
 		</button>
 	</div>
 
@@ -139,81 +139,122 @@
 		</button>
 	</div>
 
-	<div class="friend-list-tabs" role="tablist">
-		<button class="friend-list-tab" role="tab" aria-selected="false">
+	<div class="callander-tabs" role="tablist">
+		<button class="callander-tab" role="tab" aria-selected="false">
 			List
 		</button>
-		<button class="friend-list-tab active" role="tab" aria-selected="true">
-			Timeline
+		<button class="callander-tab active" role="tab" aria-selected="true">
+			B'day Timeline
 		</button>
-		<button class="friend-list-tab" role="tab" aria-selected="false">
-			Calendar
+		<button class="callander-tab" role="tab" aria-selected="false">
+			B'day Calendar
 		</button>
 	</div>
 
 	<div class="friend-list-content">
 		<div class="contact-timeline friend-timeline">
-			<div class="contact-timeline-year">September 2026</div>
+			<div class="contact-timeline-year">September</div>
 			<div class="contact-timeline-item friend-timeline-row">
 				<span
 					class="contact-timeline-dot"
 					style="background-color: #e0c341"
 				></span>
-				<div class="contact-timeline-date">10 September • Turned 29</div>
-				<div class="contact-timeline-text">
-					Priya Raman<span class="friend-list-group-tag"
-						><span
-							class="group-dot"
-							style="background-color: #e0c341"
-						></span
-						><span>Wuckfes</span></span
-					>
+				<div class="friend-timeline-main">
+					<div class="contact-timeline-date">10 September • Turned 29</div>
+					<div class="contact-timeline-text">
+						Priya Raman<span class="friend-list-group-tag"
+							><span
+								class="group-dot"
+								style="background-color: #e0c341"
+							></span
+							><span>Wuckfes</span></span
+						>
+					</div>
 				</div>
+				<button class="callander-button friend-list-glance">
+					<span class="friend-list-glance-label">Glance</span>
+				</button>
 			</div>
 			<div class="contact-timeline-item friend-timeline-row">
 				<span
 					class="contact-timeline-dot"
 					style="background-color: #5cb870"
 				></span>
-				<div class="contact-timeline-date">21 September • Turning 34</div>
-				<div class="contact-timeline-text">
-					Lauren Delbridge<span class="friend-list-group-tag"
-						><span
-							class="group-dot"
-							style="background-color: #5cb870"
-						></span
-						><span>Family</span></span
-					>
+				<div class="friend-timeline-main">
+					<div class="contact-timeline-date">21 September • Turning 34</div>
+					<div class="contact-timeline-text">
+						Lauren Delbridge<span class="friend-list-group-tag"
+							><span
+								class="group-dot"
+								style="background-color: #5cb870"
+							></span
+							><span>Family</span></span
+						>
+					</div>
 				</div>
+				<button class="callander-button friend-list-glance">
+					<span class="friend-list-glance-label">Glance</span>
+				</button>
 			</div>
 			<div class="contact-timeline-item friend-timeline-row">
 				<span
 					class="contact-timeline-dot"
 					style="background-color: #5a9bf6"
 				></span>
-				<div class="contact-timeline-date">26 September • Turning 25</div>
-				<div class="contact-timeline-text">
-					Enrique Perez<span class="friend-list-group-tag"
-						><span
-							class="group-dot"
-							style="background-color: #5a9bf6"
-						></span
-						><span>Run n' Chug</span></span
-					>
+				<div class="friend-timeline-main">
+					<div class="contact-timeline-date">26 September • Turning 25</div>
+					<div class="contact-timeline-text">
+						Enrique Perez<span class="friend-list-group-tag"
+							><span
+								class="group-dot"
+								style="background-color: #5a9bf6"
+							></span
+							><span>Run n' Chug</span></span
+						>
+					</div>
 				</div>
+				<button class="callander-button friend-list-glance">
+					<span class="friend-list-glance-label">Glance</span>
+				</button>
 			</div>
-			<div class="contact-timeline-year">October 2026</div>
-			<div class="contact-timeline-item plan-timeline-empty">
-				<span class="plan-timeline-empty-text">No birthdays</span>
+			<div class="contact-timeline-year">October</div>
+			<!-- Month recorded but not the day: placed in its month, and
+			     saying what is missing rather than printing a 1st nobody
+			     entered. -->
+			<div class="contact-timeline-item friend-timeline-row">
+				<span
+					class="contact-timeline-dot"
+					style="background-color: #5a9bf6"
+				></span>
+				<div class="friend-timeline-main">
+					<div class="contact-timeline-date">Unknown day • Turning 31</div>
+					<div class="contact-timeline-text">
+						Tomas Reyes<span class="friend-list-group-tag"
+							><span
+								class="group-dot"
+								style="background-color: #5a9bf6"
+							></span
+							><span>Run n' Chug</span></span
+						>
+					</div>
+				</div>
+				<button class="callander-button friend-list-glance">
+					<span class="friend-list-glance-label">Glance</span>
+				</button>
 			</div>
-			<div class="contact-timeline-year">November 2026</div>
+			<div class="contact-timeline-year">November</div>
 			<div class="contact-timeline-item friend-timeline-row">
 				<span
 					class="contact-timeline-dot"
 					style="background-color: var(--text-normal)"
 				></span>
-				<div class="contact-timeline-date">30 November</div>
-				<div class="contact-timeline-text">Lindsay Shean</div>
+				<div class="friend-timeline-main">
+					<div class="contact-timeline-date">30 November</div>
+					<div class="contact-timeline-text">Lindsay Shean</div>
+				</div>
+				<button class="callander-button friend-list-glance">
+					<span class="friend-list-glance-label">Glance</span>
+				</button>
 			</div>
 		</div>
 		<div class="friend-timeline-divider"></div>
@@ -224,22 +265,32 @@
 					class="contact-timeline-dot"
 					style="background-color: #a48cf0"
 				></span>
-				<div class="contact-timeline-text">
-					Deepa Iyer<span class="friend-list-group-tag"
-						><span
-							class="group-dot"
-							style="background-color: #a48cf0"
-						></span
-						><span>Pipelabs</span></span
-					>
+				<div class="friend-timeline-main">
+					<div class="contact-timeline-text">
+						Deepa Iyer<span class="friend-list-group-tag"
+							><span
+								class="group-dot"
+								style="background-color: #a48cf0"
+							></span
+							><span>Pipelabs</span></span
+						>
+					</div>
 				</div>
+				<button class="callander-button friend-list-glance">
+					<span class="friend-list-glance-label">Glance</span>
+				</button>
 			</div>
 			<div class="contact-timeline-item friend-timeline-row is-undated">
 				<span
 					class="contact-timeline-dot"
 					style="background-color: var(--text-normal)"
 				></span>
-				<div class="contact-timeline-text">Marcus Webb</div>
+				<div class="friend-timeline-main">
+					<div class="contact-timeline-text">Marcus Webb</div>
+				</div>
+				<button class="callander-button friend-list-glance">
+					<span class="friend-list-glance-label">Glance</span>
+				</button>
 			</div>
 		</div>
 	</div>
