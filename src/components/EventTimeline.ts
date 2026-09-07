@@ -2,7 +2,7 @@ import { setIcon } from "obsidian";
 import type { ContactPageView } from "@/views/ContactPageView";
 import type { EventInfo, FriendEvent } from "@/types";
 import { ConfirmModal } from "@/modals/ConfirmModal";
-import { EVENT_TYPES } from "@/constants";
+import { eventColour, EVENT_TYPES } from "@/constants";
 import {
 	parseFlexDate,
 	formatFlexDate,
@@ -214,11 +214,12 @@ export class EventTimeline {
 			}
 		});
 
-		// Typed events get a colored dot; untyped render neutral
+		// Typed events get a coloured dot; untyped render neutral. The colour
+		// comes from EVENT_TYPES rather than a `.type-x` CSS rule, so the
+		// calendar chip and this dot can't drift apart.
 		const type = EVENT_TYPES.find((t) => t.id === content.type);
-		item.createDiv({
-			cls: `contact-timeline-dot${type ? ` type-${type.id}` : ""}`,
-		});
+		const dot = item.createDiv({ cls: "contact-timeline-dot" });
+		dot.style.backgroundColor = eventColour(String(content.type ?? ""));
 
 		// Upcoming items keep the full date (incl. year); past items sit inside
 		// a year group so they drop the year: "May 12", "May", "Sometime that year".

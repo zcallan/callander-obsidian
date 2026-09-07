@@ -203,22 +203,34 @@ export type InterestCategory = (typeof INTEREST_CATEGORIES)[number]["id"];
 // (things that happened). "Task" is the odd one out: not really an event,
 // but a person-less "renew passport" needs somewhere to live too.
 export const EVENT_TYPES = [
-	{ id: "hangout", label: "Hangout", emoji: "🤝" },
-	{ id: "party", label: "Party", emoji: "🎉" },
-	{ id: "concert", label: "Concert", emoji: "🎸" },
-	{ id: "movie", label: "Movie", emoji: "🍿" },
-	{ id: "comedy", label: "Comedy", emoji: "🎭" },
-	{ id: "activity", label: "Activity", emoji: "🥾" },
-	{ id: "event", label: "Event", emoji: "📅" },
-	{ id: "trip", label: "Trip", emoji: "✈️" },
-	{ id: "milestone", label: "Milestone", emoji: "🏅" },
-	{ id: "life", label: "Life event", emoji: "🌱" },
-	{ id: "given", label: "Given", emoji: "🎁" },
-	{ id: "task", label: "Task", emoji: "⏰" },
-	{ id: "other", label: "Other", emoji: "✨" },
+	{ id: "hangout", label: "Hangout", emoji: "🤝", color: "#5a9cf8" },
+	{ id: "party", label: "Party", emoji: "🎉", color: "#e0559a" },
+	{ id: "concert", label: "Concert", emoji: "🎸", color: "#d95757" },
+	{ id: "movie", label: "Movie", emoji: "🍿", color: "#dcc22e" },
+	{ id: "comedy", label: "Comedy", emoji: "🎭", color: "#45b8ac" },
+	{ id: "activity", label: "Activity", emoji: "🥾", color: "#7aa64a" },
+	{ id: "event", label: "Event", emoji: "📅", color: "#8f9aa5" },
+	{ id: "trip", label: "Trip", emoji: "✈️", color: "#45b8ac" },
+	{ id: "milestone", label: "Milestone", emoji: "🏅", color: "#dcc22e" },
+	{ id: "life", label: "Life event", emoji: "🌱", color: "#5cb870" },
+	{ id: "given", label: "Given", emoji: "🎁", color: "#e69735" },
+	{ id: "task", label: "Task", emoji: "⏰", color: "#6c7a89" },
+	{ id: "other", label: "Other", emoji: "✨", color: "#9a7ef0" },
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number]["id"];
+
+/**
+ * The colour that stands for an event type — the timeline dot, the calendar
+ * chip's edge. Falls back to the neutral border colour for an untyped event,
+ * which is what an uncoloured dot has always rendered as.
+ */
+export function eventColour(type: string): string {
+	return (
+		EVENT_TYPES.find((t) => t.id === type)?.color ??
+		"var(--background-modifier-border)"
+	);
+}
 
 
 // Where you're sleeping — deliberately few; untyped stays render the bed.

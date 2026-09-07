@@ -2089,52 +2089,19 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* Event type dot colors */
-.contact-timeline-dot.type-hangout {
-	background: #5a9cf8;
-}
 
-.contact-timeline-dot.type-life {
-	background: #5cb870;
-}
 
-.contact-timeline-dot.type-given {
-	background: #e69735;
-}
 
-.contact-timeline-dot.type-other {
-	background: #9a7ef0;
-}
 
-.contact-timeline-dot.type-party {
-	background: #e0559a;
-}
 
 /* The reminder types that joined the merged vocabulary */
-.contact-timeline-dot.type-concert {
-	background: #d95757;
-}
 
-.contact-timeline-dot.type-movie {
-	background: #dcc22e;
-}
 
-.contact-timeline-dot.type-comedy {
-	background: #45b8ac;
-}
 
 /* Moss, kept clear of type-life's brighter green — a walk and a life event
    sit near each other on a timeline often enough to need telling apart. */
-.contact-timeline-dot.type-activity {
-	background: #7aa64a;
-}
 
-.contact-timeline-dot.type-event {
-	background: #8f9aa5;
-}
 
-.contact-timeline-dot.type-task {
-	background: #6c7a89;
-}
 
 /* Plans */
 .plan-meta {
@@ -3311,11 +3278,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	flex-shrink: 0;
 }
 
-/* Trip event dot */
-.contact-timeline-dot.type-trip {
-	background: #45b8ac;
-}
-
 /* Center the Glance button against the two-line row */
 .friend-list-row {
 	align-items: center;
@@ -3437,6 +3399,278 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .events-timeline .contact-timeline-year:first-child {
 	margin-top: 0;
+}
+
+/* ---- Events -> Calendar ------------------------------------------------
+   A month or week grid. The whole thing sizes off the *pane*, not the
+   window: an Obsidian sidebar on a 27-inch monitor is narrower than a
+   phone, so a media query would get it wrong in both directions. */
+/* The containment root is .cal itself, not .somedays-container — that class
+   is shared with the Somedays page, and container-type carries layout
+   containment with it. .cal fills the pane, so querying it measures the
+   same width without putting containment on a page that never asked. */
+.cal {
+	container-type: inline-size;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.cal-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.cal-period {
+	font-size: 15px;
+	font-weight: 650;
+	font-variant-numeric: tabular-nums;
+}
+
+.cal-nav {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+
+.cal-nav-button,
+.cal-mode {
+	margin-top: 0;
+	padding: 3px 10px;
+	font-size: 13px;
+}
+
+.cal-modes {
+	display: flex;
+	gap: 4px;
+	margin-left: 6px;
+}
+
+.cal-mode.is-active {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+/* minmax(0, 1fr), not 1fr: a chip sets its column's min-content width and
+   `auto` refuses to shrink below it, so the grid overflows the pane and the
+   columns walk out from under their weekday headers. Same failure that
+   min-width: 0 guards against on a flex child. */
+.cal-weekdays,
+.cal-grid,
+.cal-week {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 1px;
+}
+
+.cal-weekdays span {
+	font-size: 10px;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	font-weight: 600;
+	text-align: center;
+	padding-bottom: 2px;
+}
+
+.cal-grid,
+.cal-week {
+	background: var(--background-modifier-border);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.cal-cell {
+	background: var(--background-primary);
+	min-width: 0;
+	min-height: 92px;
+	padding: 4px 5px 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	cursor: pointer;
+}
+
+.cal-week .cal-cell {
+	min-height: 190px;
+}
+
+.cal-cell:hover {
+	background: var(--background-modifier-hover);
+}
+
+.cal-cell.is-outside {
+	background: var(--background-primary-alt);
+}
+
+.cal-cell.is-outside .cal-daynum {
+	color: var(--text-faint);
+}
+
+/* Today is washed rather than outlined: an outline on a grid cell reads as
+   a selection, and the selected day has its own mark. */
+.cal-cell.is-today {
+	background: var(--background-modifier-hover);
+}
+
+.cal-cell-head {
+	display: flex;
+	align-items: baseline;
+	gap: 5px;
+}
+
+.cal-daynum {
+	font-size: 12px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-muted);
+	line-height: 1.5;
+}
+
+.cal-cell.is-today .cal-daynum {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-radius: 999px;
+	min-width: 20px;
+	text-align: center;
+	padding: 0 5px;
+}
+
+.cal-dow {
+	font-size: 10px;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	font-weight: 600;
+}
+
+.cal-chip {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11.5px;
+	line-height: 1.35;
+	padding: 2px 4px;
+	border-radius: 3px;
+	background: var(--background-secondary);
+	border-left: 3px solid var(--cal-chip, var(--background-modifier-border));
+	white-space: nowrap;
+	overflow: hidden;
+	cursor: pointer;
+}
+
+.cal-chip:hover {
+	background: var(--background-modifier-hover);
+}
+
+.cal-chip-time {
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+	flex: 0 0 auto;
+}
+
+.cal-chip-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.cal-more {
+	font-size: 11px;
+	color: var(--text-muted);
+	padding-left: 4px;
+}
+
+.cal-dots {
+	display: flex;
+	gap: 3px;
+	flex-wrap: wrap;
+}
+
+.cal-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+}
+
+.cal-agenda-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	font-size: 10px;
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	font-weight: 600;
+	margin-bottom: 2px;
+}
+
+.cal-agenda-add {
+	margin-top: 0;
+	padding: 2px 9px;
+	font-size: 11px;
+}
+
+/* Wide enough for chips: the dots and the day list are the narrow answer
+   and stay out of the way. */
+@container (min-width: 621px) {
+	.cal-dots,
+	.cal-agenda {
+		display: none;
+	}
+}
+
+/* Too narrow for seven columns of text. The grid keeps its shape and drops
+   to dots, and the selected day's events list underneath — the answer
+   Google Calendar, Apple and Fantastical all arrive at. */
+@container (max-width: 620px) {
+	.cal-cell {
+		min-height: 46px;
+		align-items: center;
+		gap: 4px;
+		padding: 4px 2px;
+	}
+
+	.cal-chip,
+	.cal-more {
+		display: none;
+	}
+
+	.cal-cell.is-selected {
+		outline: 2px solid var(--text-accent);
+		outline-offset: -2px;
+	}
+
+	/* A week of seven narrow columns is unreadable too; it stacks into day
+	   sections, which is the shape the Timeline tab already uses. */
+	.cal-week {
+		grid-template-columns: 1fr;
+	}
+
+	.cal-week .cal-cell {
+		min-height: 0;
+		align-items: stretch;
+	}
+
+	.cal-week .cal-chip,
+	.cal-week .cal-more {
+		display: flex;
+	}
+
+	.cal-week .cal-dots {
+		display: none;
+	}
+
+	.cal-agenda {
+		border-top: 1px solid var(--background-modifier-border);
+		padding-top: 10px;
+	}
 }
 
 /* Plan idea priority tag */
@@ -3707,9 +3941,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	border-radius: 6px;
 }
 
-.contact-timeline-dot.type-milestone {
-	background: #dcc22e;
-}
 
 .copy-event-search {
 	width: 100%;

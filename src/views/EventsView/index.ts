@@ -7,13 +7,14 @@ import {
 import { fieldOf } from "@/utils/fm";
 import type FriendTracker from "@/main";
 import type {
+	CalendarMode,
 	ContactWithCountdown,
 	EventInfo,
 	FriendListTab,
 } from "@/types";
 import { EventModal } from "@/modals/EventModal";
 import { EventViewModal } from "@/modals/EventViewModal";
-import { EVENT_TYPES, type EventType } from "@/constants";
+import { EVENT_TYPES, eventColour, type EventType } from "@/constants";
 import {
 	EVENT_SORTS,
 	EVENT_WHEN_FILTERS,
@@ -27,8 +28,38 @@ import {
 import { buildUpcomingRow } from "@/components/UpcomingRow";
 import { registerVaultRefresh } from "@/utils/vaultRefresh";
 import { groupEventsByPeriod } from "@/utils/eventGroups";
+import { formatShortWeekdayDate, todayISO } from "@/utils/flexdate";
+import type { CalendarDay } from "@/utils/calendarGrid";
+import {
+	eventsByDay,
+	monthGrid,
+	monthLabel,
+	weekGrid,
+	weekLabel,
+} from "@/utils/calendarGrid";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
+
+/** Chips a month cell shows before it says "+N more". */
+const CAL_CHIPS = 3;
+/** Dots a narrow cell shows; past four they stop being countable anyway. */
+const CAL_DOTS = 4;
+/**
+ * Pane width, in px, below which a month cell can't hold a readable chip.
+ * Must match the container query in base.css — the stylesheet decides what
+ * is drawn, this decides what a tap does.
+ */
+const CAL_NARROW = 620;
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** "8pm", "7:30pm" — compact enough for a chip, where "7:30 PM" wraps. */
+function shortTime(time: string): string {
+	const [h, m] = time.split(":").map(Number);
+	if (Number.isNaN(h)) return time;
+	const period = h < 12 ? "am" : "pm";
+	const hour = h % 12 || 12;
+	return m ? `${hour}:${String(m).padStart(2, "0")}${period}` : `${hour}${period}`;
+}
 
 /**
  * The full page of Events — everything on the calendar, past and future.
@@ -68,6 +99,16 @@ export class EventsView extends ItemView {
 	 * way All friends remembers its own.
 	 */
 	private tab: FriendListTab;
+	/** Month or week on the Calendar tab; remembered like the tab itself. */
+	private calMode: CalendarMode;
+	/**
+	 * Which month or week the calendar is showing. Not remembered: paging
+	 * away and coming back to March would be a puzzle, and "today" is the
+	 * only defensible place to open on.
+	 */
+	private calCursor = new Date();
+	/** The day whose events list under a narrow month grid. */
+	private calSelected = todayISO();
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -75,6 +116,7 @@ export class EventsView extends ItemView {
 		// Off the parameter, not `this.plugin` — parameter properties are
 		// assigned before field initialisers, but not before this line.
 		this.tab = plugin.settings.eventsTab ?? "timeline";
+		this.calMode = plugin.settings.eventsCalendarMode ?? "month";
 	}
 
 	getViewType(): string {
@@ -237,12 +279,16 @@ export class EventsView extends ItemView {
 	private pipeline(over: {
 		type?: EventType;
 		personPath?: string;
+		/** Skip the Upcoming / Past / All filter — the Calendar's arrows
+		 * are its own, and a "when" on top of them would blank out half
+		 * the month being looked at. */
+		anyWhen?: boolean;
 	}): EventInfo[] {
 		const q = this.searchQuery.trim().toLowerCase();
 		const now = new Date();
 		const matches = this.events.filter(
 			(e) =>
-				matchesEventWhen(e.date, this.when, now) &&
+				(over.anyWhen || matchesEventWhen(e.date, this.when, now)) &&
 				this.matchesFilters(e, over) &&
 				this.matchesSearch(e, q)
 		);
@@ -273,7 +319,11 @@ export class EventsView extends ItemView {
 
 		if (this.events.length > 0) {
 			this.renderToolbar(container);
-			this.renderWhenStrip(container);
+			// Upcoming / Past / All is a time filter, and on the Calendar
+			// the arrows already are one. Leaving it up would let "Upcoming"
+			// blank out the first half of the month you're looking at.
+			if (this.tab !== "calendar") this.renderWhenStrip(container);
+			else this.renderFilterRow(container);
 			// Narrow first, then pick a view of what's left — the same order
 			// the All friends page puts these in.
 			this.renderTabs(container);
@@ -331,8 +381,237 @@ export class EventsView extends ItemView {
 			});
 		}
 
-		// Labelled rather than icon-only: it sits alone out here now, with
-		// no toolbar around it to lend it context.
+		this.appendFilterToggle(row);
+		// Opens directly under the button rather than above the pills,
+		// which is where it landed when it belonged to the toolbar.
+		this.maybeFilterPanel(container);
+	}
+
+	/**
+	 * The Filters button on its own line, for the Calendar tab — which has
+	 * no when-pills to share a row with, but still filters by type, person
+	 * and search like every other tab.
+	 */
+	/**
+	 * The Calendar tab: a month or week grid with events in the cells.
+	 *
+	 * Deliberately not an hour grid, which is what a calendar of this shape
+	 * usually is. Every event in Google Calendar has a start and an end;
+	 * Callander's carry a flex date, often no time at all, and "Anytime" is
+	 * a real value. A week of mostly-empty hour rows would assert a
+	 * precision the notes don't have, so a week here is seven day columns.
+	 */
+	private renderCalendar() {
+		const listEl = this.listEl;
+		if (!listEl) return;
+		listEl.empty();
+		const wrap = listEl.createDiv({ cls: "cal" });
+
+		// The calendar navigates time itself, so it reads past the when
+		// filter — but still honours type, person and search.
+		const byDay = eventsByDay(
+			this.pipeline({ anyWhen: true }),
+			(e) => e.date,
+			(e) => e.time
+		);
+
+		this.appendCalBar(wrap);
+		const days =
+			this.calMode === "month"
+				? monthGrid(this.calCursor)
+				: weekGrid(this.calCursor);
+
+		if (this.calMode === "month") {
+			const head = wrap.createDiv({ cls: "cal-weekdays" });
+			for (const d of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
+				head.createSpan({ text: d });
+			}
+		}
+
+		const grid = wrap.createDiv({
+			cls: this.calMode === "month" ? "cal-grid" : "cal-week",
+		});
+		for (const day of days) {
+			this.appendCalCell(grid, day, byDay.get(day.date) ?? []);
+		}
+
+		// Always built, never conditionally: the container query decides
+		// whether it shows, and rebuilding on resize is not something a
+		// stylesheet can ask a view to do.
+		if (this.calMode === "month") this.appendDayAgenda(wrap, byDay);
+	}
+
+	/** Period label on the left, navigation and the month/week pair right. */
+	private appendCalBar(wrap: HTMLElement) {
+		const bar = wrap.createDiv({ cls: "cal-bar" });
+		bar.createSpan({
+			cls: "cal-period",
+			text:
+				this.calMode === "month"
+					? monthLabel(this.calCursor)
+					: weekLabel(this.calCursor),
+		});
+
+		const nav = bar.createDiv({ cls: "cal-nav" });
+		const step = (by: number) => {
+			const next = new Date(this.calCursor);
+			if (this.calMode === "month") next.setMonth(next.getMonth() + by);
+			else next.setDate(next.getDate() + by * 7);
+			this.calCursor = next;
+			this.renderContent();
+		};
+		const button = (
+			label: string,
+			aria: string,
+			onClick: () => void
+		): HTMLElement => {
+			const b = nav.createEl("button", {
+				cls: "callander-button cal-nav-button",
+				text: label,
+				attr: { type: "button", "aria-label": aria },
+			});
+			b.addEventListener("click", onClick);
+			return b;
+		};
+		button("‹", "Previous", () => step(-1));
+		button("Today", "Today", () => {
+			this.calCursor = new Date();
+			this.calSelected = todayISO();
+			this.renderContent();
+		});
+		button("›", "Next", () => step(1));
+
+		const modes = nav.createDiv({ cls: "cal-modes" });
+		for (const mode of ["month", "week"] as CalendarMode[]) {
+			const active = this.calMode === mode;
+			const b = modes.createEl("button", {
+				cls: `callander-button cal-mode${active ? " is-active" : ""}`,
+				text: mode === "month" ? "Month" : "Week",
+				attr: { type: "button", "aria-pressed": String(active) },
+			});
+			b.addEventListener("click", () => {
+				if (this.calMode === mode) return;
+				this.calMode = mode;
+				this.renderContent();
+				this.plugin.settings.eventsCalendarMode = mode;
+				void this.plugin.saveSettings();
+			});
+		}
+	}
+
+	private appendCalCell(
+		grid: HTMLElement,
+		day: CalendarDay,
+		events: EventInfo[]
+	) {
+		const cls = ["cal-cell"];
+		if (!day.inMonth) cls.push("is-outside");
+		if (day.isToday) cls.push("is-today");
+		if (day.date === this.calSelected) cls.push("is-selected");
+		const cell = grid.createDiv({ cls: cls.join(" ") });
+
+		const head = cell.createDiv({ cls: "cal-cell-head" });
+		head.createSpan({ cls: "cal-daynum", text: String(day.day) });
+		if (this.calMode === "week") {
+			head.createSpan({
+				cls: "cal-dow",
+				text: WEEKDAYS[(new Date(day.date + "T00:00:00").getDay() + 6) % 7],
+			});
+		}
+
+		// Chips on a wide pane; the dots below are what a narrow one shows.
+		for (const event of events.slice(0, CAL_CHIPS)) {
+			this.appendCalChip(cell, event);
+		}
+		if (events.length > CAL_CHIPS) {
+			cell.createDiv({
+				cls: "cal-more",
+				text: `+${events.length - CAL_CHIPS} more`,
+			});
+		}
+		if (events.length > 0) {
+			const dots = cell.createDiv({ cls: "cal-dots" });
+			for (const event of events.slice(0, CAL_DOTS)) {
+				const dot = dots.createSpan({ cls: "cal-dot" });
+				dot.style.backgroundColor = eventColour(event.type);
+			}
+		}
+
+		// Empty space in a cell adds an event on that day. The chips stop
+		// their own clicks, so this only fires where nothing was hit.
+		cell.addEventListener("click", () => {
+			this.calSelected = day.date;
+			// On a narrow pane a tap picks the day rather than opening a
+			// modal — the day's events are what you're reaching for, and
+			// they're right underneath.
+			if (this.isNarrow()) this.renderContent();
+			else this.openEditor({ date: day.date });
+		});
+	}
+
+	private appendCalChip(cell: HTMLElement, event: EventInfo) {
+		const chip = cell.createDiv({ cls: "cal-chip" });
+		chip.style.setProperty("--cal-chip", eventColour(event.type));
+		const type = EVENT_TYPES.find((t) => t.id === event.type);
+		if (type) chip.createSpan({ text: type.emoji });
+		if (event.time) {
+			chip.createSpan({ cls: "cal-chip-time", text: shortTime(event.time) });
+		}
+		chip.createSpan({ cls: "cal-chip-name", text: event.name });
+		chip.addEventListener("click", (e) => {
+			e.stopPropagation();
+			this.openViewModal(event);
+		});
+	}
+
+	/**
+	 * The selected day's events, listed under a narrow month grid.
+	 *
+	 * Seven columns of chips don't fit a phone, so the grid keeps its shape
+	 * and drops to dots while the detail moves here — the same answer Google
+	 * Calendar, Apple and Fantastical all arrive at.
+	 */
+	private appendDayAgenda(wrap: HTMLElement, byDay: Map<string, EventInfo[]>) {
+		const day = new Date(this.calSelected + "T00:00:00");
+		const agenda = wrap.createDiv({ cls: "cal-agenda" });
+		const head = agenda.createDiv({ cls: "cal-agenda-head" });
+		head.createSpan({ text: formatShortWeekdayDate(day) });
+		const add = head.createEl("button", {
+			cls: "callander-button cal-agenda-add",
+			text: "+ Add",
+			attr: { type: "button" },
+		});
+		add.addEventListener("click", () =>
+			this.openEditor({ date: this.calSelected })
+		);
+
+		const events = byDay.get(this.calSelected) ?? [];
+		if (events.length === 0) {
+			agenda.createDiv({
+				cls: "section-helper-text",
+				text: "Nothing on this day",
+			});
+			return;
+		}
+		for (const event of events) this.renderRow(agenda, event);
+	}
+
+	/** Whether the pane is too narrow for chips — matches the CSS breakpoint. */
+	private isNarrow(): boolean {
+		const el = this.containerEl.children[1] as HTMLElement;
+		return el.clientWidth > 0 && el.clientWidth <= CAL_NARROW;
+	}
+
+	private renderFilterRow(container: HTMLElement) {
+		const row = container.createDiv({ cls: "events-when-row" });
+		row.createSpan();
+		this.appendFilterToggle(row);
+		this.maybeFilterPanel(container);
+	}
+
+	/** Labelled rather than icon-only: out here it has no toolbar around it
+	 * to lend it context. */
+	private appendFilterToggle(row: HTMLElement) {
 		const filterBtn = row.createEl("button", {
 			cls: `callander-button someday-filter-toggle${
 				this.filtersOpen ? " is-open" : ""
@@ -355,10 +634,6 @@ export class EventsView extends ItemView {
 			this.filtersOpen = !this.filtersOpen;
 			this.render();
 		});
-
-		// Opens directly under the button rather than above the pills,
-		// which is where it landed when it belonged to the toolbar.
-		this.maybeFilterPanel(container);
 	}
 
 	/**
@@ -447,10 +722,7 @@ export class EventsView extends ItemView {
 		if (this.tab === "timeline") {
 			this.renderTimeline();
 		} else if (this.tab === "calendar") {
-			this.listEl?.createDiv({
-				cls: "section-helper-text",
-				text: "Coming soon!",
-			});
+			this.renderCalendar();
 		} else {
 			this.renderList();
 		}
@@ -662,7 +934,13 @@ export class EventsView extends ItemView {
 		).open();
 	}
 
-	private openEditor() {
-		new EventModal(this.app, this.plugin, null, () => this.refresh()).open();
+	private openEditor(prefill?: { date: string }) {
+		new EventModal(
+			this.app,
+			this.plugin,
+			null,
+			() => this.refresh(),
+			prefill
+		).open();
 	}
 }

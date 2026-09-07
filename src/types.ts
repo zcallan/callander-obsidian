@@ -66,6 +66,8 @@ export interface FriendTrackerSettings {
 	friendListTab: FriendListTab;
 	/** Same, for the Events page. See friendListTab. */
 	eventsTab: FriendListTab;
+	/** Month or week on the Events calendar. See eventsTab. */
+	eventsCalendarMode: CalendarMode;
 	/**
 	 * Whether the dashboard's Drafts accordion is collapsed. Open by
 	 * default — drafts are meant to nag — but the choice sticks, since the
@@ -116,6 +118,9 @@ export type FriendListSort =
  * Events, which offer the same three.
  */
 export type FriendListTab = "list" | "timeline" | "calendar";
+
+/** Which grid the Events page's Calendar tab is drawing. */
+export type CalendarMode = "month" | "week";
 
 export interface Contact {
 	name: string;
@@ -573,6 +578,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	friendListSort: "birthday",
 	friendListTab: "list",
 	eventsTab: "timeline",
+	eventsCalendarMode: "month",
 	draftsCollapsed: false,
 	birthdaysCollapsed: false,
 	aboutExpanded: false,
