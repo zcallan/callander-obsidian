@@ -1346,8 +1346,6 @@ If your plugin does not need CSS, delete this file.
 /* Diary View */
 .diary-view-container {
 	padding: 16px 24px;
-	max-width: 720px;
-	margin: 0 auto;
 }
 
 .diary-header {
@@ -1508,11 +1506,79 @@ If your plugin does not need CSS, delete this file.
 	max-width: 80px;
 }
 
+/* ---- The reading column -------------------------------------------------
+   Every page is capped to the same width, rather than each carrying its own
+   (the diary used to sit at 720 while everything else sat at 760, which
+   nobody chose — it just happened). Turned off wholesale by a setting, or
+   for one page at a time by the button in its corner. */
+.callander-page {
+	max-width: 760px;
+	margin: 0 auto;
+	width: 100%;
+}
+
+.callander-page.is-wide {
+	max-width: none;
+}
+
+/* Zero-height and sticky: it takes no room in the flow, and it stays in the
+   corner as the page scrolls rather than riding away with the content. */
+.callander-width-bar {
+	position: sticky;
+	top: 0;
+	z-index: 5;
+	height: 0;
+	display: flex;
+	justify-content: flex-end;
+	pointer-events: none;
+}
+
+/* Only offered where there's somewhere to widen into — see observePageRoom,
+   which measures the leaf rather than the window. */
+.callander-width-toggle {
+	display: none;
+	pointer-events: auto;
+	align-items: center;
+	justify-content: center;
+	margin: 8px 6px 0 0;
+	padding: 5px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 5px;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+	/* Quiet until wanted: it sits over the page's own top-right corner, so
+	   at full strength it would read as part of the content. Gone entirely
+	   once pressed — see applyPageWidth. */
+	opacity: 0.35;
+	transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.callander-has-room .callander-width-toggle {
+	display: inline-flex;
+}
+
+.callander-width-toggle:hover {
+	opacity: 1;
+	color: var(--text-normal);
+}
+
+.callander-width-toggle:focus-visible {
+	opacity: 1;
+	outline: 2px solid var(--text-accent);
+	outline-offset: 1px;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+	.callander-width-toggle {
+		transition: none;
+	}
+}
+
 /* Dashboard */
 .dashboard-container {
 	padding: 16px 24px;
-	max-width: 760px;
-	margin: 0 auto;
 	overflow-y: auto;
 }
 
@@ -3046,13 +3112,10 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	flex-wrap: wrap;
 }
 
-/* All friends list view. Same column the dashboard uses: a birthday row is
-   a name and a date, and run full-bleed across a wide pane the two ends
-   drift so far apart the row stops reading as one thing. */
+/* All friends list view. The reading column comes from .callander-page,
+   which every page now shares. */
 .friend-list-container {
 	padding: 16px 24px;
-	max-width: 760px;
-	margin: 0 auto;
 }
 
 /* Flat buttons on this page. Add friend, the tabs and a Glance on every

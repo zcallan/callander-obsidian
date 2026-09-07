@@ -9,6 +9,7 @@ import { ExpensesSection } from "@/ui/sections/ExpensesSection";
 import { UpcomingSection } from "@/ui/sections/UpcomingSection";
 import { registerVaultRefresh } from "@/utils/vaultRefresh";
 import type FriendTracker from "@/main";
+import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type {
 	ContactWithCountdown,
 	Draft,
@@ -47,6 +48,8 @@ export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
 export class DashboardView extends ItemView {
 	private contacts: ContactWithCountdown[] = [];
+	/** Widened for this view only, until it closes. */
+	private pageWide = false;
 	private searchQuery = "";
 	// Only used when the Somedays sort is "Random" — fixed for the life of
 	// this dashboard so the list doesn't reshuffle on every refresh.
@@ -84,6 +87,9 @@ export class DashboardView extends ItemView {
 	}
 
 	async onOpen() {
+		// Once for the life of the view, not per render — it only has to
+		// know whether there's room beside the column.
+		this.register(observePageRoom(this));
 		// No-ops once the base folder exists — only a fresh install ever
 		// actually creates anything here.
 		await this.plugin.seedStarterVault();
@@ -261,6 +267,11 @@ export class DashboardView extends ItemView {
 		// Shared expenses — last, so it's the thing you scroll to the bottom
 		// for rather than something you pass on the way down.
 		//
+		applyPageWidth(container, this.plugin, this.pageWide, () => {
+			this.pageWide = true;
+			void this.render();
+		});
+
 		container.scrollTop = scrollTop;
 	}
 

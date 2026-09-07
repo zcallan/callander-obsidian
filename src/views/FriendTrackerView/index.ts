@@ -1,5 +1,6 @@
 import { ItemView, WorkspaceLeaf, EventRef, TFile } from "obsidian";
 import type FriendTracker from "@/main";
+import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import { TableView } from "./TableView";
 import { ContactOperations } from "@/services/ContactOperations";
 import type {
@@ -19,6 +20,8 @@ export class FriendTrackerView extends ItemView {
 	private fileChangeHandler: EventRef | null = null;
 	private isRefreshing = false;
 	private _contacts: ContactWithCountdown[] | null = null;
+	/** Widened for this view only, until it closes. */
+	private pageWide = false;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -78,6 +81,9 @@ export class FriendTrackerView extends ItemView {
 	}
 
 	async onOpen() {
+		// Once for the life of the view, not per render — it only has to
+		// know whether there's room beside the column.
+		this.register(observePageRoom(this));
 		// Settings are read at render time, so a change to one has to be
 		// heard rather than waited on — otherwise it only lands on reopen.
 		this.registerEvent(
@@ -147,6 +153,10 @@ export class FriendTrackerView extends ItemView {
 			const contacts = await this.contactOps.getContacts();
 			const tableContainer = container.createDiv();
 			await this.tableView.render(tableContainer, contacts);
+			applyPageWidth(container, this.plugin, this.pageWide, () => {
+				this.pageWide = true;
+				void this.refresh();
+			});
 		} finally {
 			this.isRefreshing = false;
 		}

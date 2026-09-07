@@ -6,6 +6,7 @@ import {
 } from "obsidian";
 import { fieldOf } from "@/utils/fm";
 import type FriendTracker from "@/main";
+import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type {
 	CalendarMode,
 	ContactWithCountdown,
@@ -94,6 +95,8 @@ export class EventsView extends ItemView {
 	// the list high; the toggle's badge keeps active filters visible while
 	// it's shut.
 	private filtersOpen = false;
+	/** Widened for this view only, until it closes. */
+	private pageWide = false;
 	/**
 	 * Which presentation is showing, remembered across sessions the same
 	 * way All friends remembers its own.
@@ -132,6 +135,9 @@ export class EventsView extends ItemView {
 	}
 
 	async onOpen() {
+		// Once for the life of the view, not per render — it only has to
+		// know whether there's room beside the column.
+		this.register(observePageRoom(this));
 		const folder = this.plugin.eventOperations.getEventsFolderPath();
 		// Settings are read at render time, so a change to one has to be
 		// heard rather than waited on — otherwise it only lands on reopen.
@@ -331,6 +337,11 @@ export class EventsView extends ItemView {
 
 		this.listEl = container.createDiv({ cls: "someday-list" });
 		this.renderContent();
+
+		applyPageWidth(container, this.plugin, this.pageWide, () => {
+			this.pageWide = true;
+			this.render();
+		});
 
 		container.scrollTop = scrollTop;
 	}

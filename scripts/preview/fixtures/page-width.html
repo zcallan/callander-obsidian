@@ -1,0 +1,33 @@
+<!--
+  The reading column and its escape hatch.
+
+  Two states worth seeing together: capped, with the widen button sitting
+  quiet in the gutter beside the column; and widened, where the button is
+  gone — it offered the gutter, and the page has taken it.
+
+  The button only appears when there is room beside the column for it — that
+  is a ResizeObserver on the leaf, not a media query, so it can't be shown
+  here by width alone. `callander-has-room` is what the observer sets.
+-->
+<div class="callander-has-room" style="position: relative">
+	<div class="callander-width-bar">
+		<button class="callander-width-toggle" aria-label="Use the full width">
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg>
+		</button>
+	</div>
+	<div class="callander-page">
+		<div class="dashboard-container">
+			<div class="dashboard-section-header"><h3>📌 Upcoming</h3></div>
+			<div class="section-helper-text">Capped to the reading column. The button sits in the gutter, quiet until you reach for it.</div>
+		</div>
+	</div>
+</div>
+
+<div class="callander-has-room" style="position: relative; margin-top: 24px">
+	<div class="callander-page is-wide">
+		<div class="dashboard-container">
+			<div class="dashboard-section-header"><h3>📌 Upcoming</h3></div>
+			<div class="section-helper-text">Widened for this page only, and the button has gone with the gutter it sat in. Reopening the page brings both back.</div>
+		</div>
+	</div>
+</div>

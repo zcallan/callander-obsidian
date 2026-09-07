@@ -94,6 +94,14 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				},
 			},
 			{
+				name: "Limit page width",
+				desc: "Keep Callander's pages to a reading column rather than letting them fill the pane. Any page can be widened for a moment with the button in its top corner",
+				control: {
+					type: "toggle",
+					key: "pageWidthContainer",
+				},
+			},
+			{
 				name: "Open friends in Callander view",
 				desc: "Clicking a friend's note anywhere (file explorer, quick switcher, links, graph) opens their Callander page instead of raw markdown. The Markdown tab still gets you to the underlying note.",
 				control: {
@@ -290,6 +298,20 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					.onChange((value) => {
 						this.plugin.settings.hemisphere = value as Hemisphere;
 						void this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Limit page width")
+			.setDesc(
+				"Keep Callander's pages to a reading column rather than letting them fill the pane. Any page can be widened for a moment with the button in its top corner"
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.pageWidthContainer)
+					.onChange(async (value) => {
+						this.plugin.settings.pageWidthContainer = value;
+						await this.plugin.saveSettings();
 					});
 			});
 

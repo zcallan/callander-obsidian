@@ -1,5 +1,6 @@
 import { ItemView, WorkspaceLeaf, MarkdownRenderer, setIcon } from "obsidian";
 import type FriendTracker from "@/main";
+import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type { DiaryEntry } from "@/types";
 import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
 import { DeleteDiaryEntryModal } from "@/modals/DeleteDiaryEntryModal";
@@ -9,6 +10,8 @@ export const VIEW_TYPE_DIARY = "callander-diary-view";
 
 export class DiaryView extends ItemView {
 	private entries: DiaryEntry[] = [];
+	/** Widened for this view only, until it closes. */
+	private pageWide = false;
 	private expandedPath: string | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
@@ -30,6 +33,9 @@ export class DiaryView extends ItemView {
 	}
 
 	async onOpen() {
+		// Once for the life of the view, not per render — it only has to
+		// know whether there's room beside the column.
+		this.register(observePageRoom(this));
 		// Settings are read at render time, so a change to one has to be
 		// heard rather than waited on — otherwise it only lands on reopen.
 		this.registerEvent(
@@ -69,6 +75,21 @@ export class DiaryView extends ItemView {
 	}
 
 	private render() {
+		this.renderBody();
+		// Wrapped after the fact rather than at each of renderBody's exits,
+		// which include an early return for an empty diary.
+		applyPageWidth(
+			this.containerEl.children[1] as HTMLElement,
+			this.plugin,
+			this.pageWide,
+			() => {
+				this.pageWide = true;
+				this.render();
+			}
+		);
+	}
+
+	private renderBody() {
 		const container = this.containerEl.children[1] as HTMLElement;
 		container.empty();
 		container.addClass("diary-view-container");

@@ -39,6 +39,7 @@ import {
 } from "@/ui/sections/PlanMembersSection";
 import { ViewStore } from "@/ui/viewStore";
 import type FriendTracker from "@/main";
+import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import { ContactFields } from "@/components/ContactFields";
 import { EventTimeline } from "@/components/EventTimeline";
 import type {
@@ -277,6 +278,8 @@ function toContactFrontmatter(parsed: unknown): ContactFrontmatter {
 export class ContactPageView extends ItemView {
 	private _file: TFile | null = null;
 	private contactData: ContactFrontmatter = {};
+	/** Widened for this view only, until it closes. */
+	private pageWide = false;
 	private contactFields: ContactFields;
 	private eventTimeline: EventTimeline;
 	public plugin: FriendTracker;
@@ -429,6 +432,9 @@ export class ContactPageView extends ItemView {
 	}
 
 	async onOpen() {
+		// Once for the life of the view, not per render — it only has to
+		// know whether there's room beside the column.
+		this.register(observePageRoom(this));
 		// Reload when this record changes on disk (e.g. an iCloud sync from
 		// another device), so an edit here can never overwrite fresher data
 		// with a stale in-memory copy.
@@ -600,6 +606,23 @@ export class ContactPageView extends ItemView {
 	}
 
 	render() {
+		this.renderBody();
+		// Wrapped after the fact rather than at each of renderBody's exits.
+		// Re-parenting moves the island hosts with everything else; a React
+		// root stays attached to its own element, so moving that element
+		// doesn't disturb it.
+		applyPageWidth(
+			this.containerEl.children[1] as HTMLElement,
+			this.plugin,
+			this.pageWide,
+			() => {
+				this.pageWide = true;
+				this.render();
+			}
+		);
+	}
+
+	private renderBody() {
 		const container = this.containerEl.children[1] as HTMLElement;
 		// Anchored into DOM this is about to discard, and its dismiss
 		// handlers are on the document — closing first keeps them from

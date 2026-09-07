@@ -69,6 +69,13 @@ export interface FriendTrackerSettings {
 	/** Month or week on the Events calendar. See eventsTab. */
 	eventsCalendarMode: CalendarMode;
 	/**
+	 * Cap every page to a reading column, or let them all run full width.
+	 * All or nothing on purpose — a per-page preference would be four more
+	 * settings to explain. Widening one page for a moment is the button in
+	 * its corner, which is view state rather than a setting.
+	 */
+	pageWidthContainer: boolean;
+	/**
 	 * Whether the dashboard's Drafts accordion is collapsed. Open by
 	 * default — drafts are meant to nag — but the choice sticks, since the
 	 * view is rebuilt from scratch every time the dashboard opens and would
@@ -579,6 +586,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	friendListTab: "list",
 	eventsTab: "timeline",
 	eventsCalendarMode: "month",
+	pageWidthContainer: true,
 	draftsCollapsed: false,
 	birthdaysCollapsed: false,
 	aboutExpanded: false,

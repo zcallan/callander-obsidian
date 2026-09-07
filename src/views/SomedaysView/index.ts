@@ -7,6 +7,7 @@ import {
 } from "obsidian";
 import { fieldOf } from "@/utils/fm";
 import type FriendTracker from "@/main";
+import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type { SomedayInfo } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
@@ -42,6 +43,8 @@ type DayFilter = "today" | "tomorrow" | "weekend";
  */
 export class SomedaysView extends ItemView {
 	private somedays: SomedayInfo[] = [];
+	/** Widened for this view only, until it closes. */
+	private pageWide = false;
 	private searchQuery = "";
 	private focusPath: string | null = null;
 	private listEl: HTMLElement | null = null;
@@ -80,6 +83,9 @@ export class SomedaysView extends ItemView {
 	}
 
 	async onOpen() {
+		// Once for the life of the view, not per render — it only has to
+		// know whether there's room beside the column.
+		this.register(observePageRoom(this));
 		// A fresh shuffle each time the page is opened.
 		this.randomSeed = Math.floor(Math.random() * 2 ** 31);
 		// Settings are read at render time, so a change to one has to be
@@ -296,6 +302,11 @@ export class SomedaysView extends ItemView {
 
 		this.listEl = container.createDiv({ cls: "someday-list" });
 		this.renderList();
+
+		applyPageWidth(container, this.plugin, this.pageWide, () => {
+			this.pageWide = true;
+			this.render();
+		});
 
 		container.scrollTop = scrollTop;
 	}
