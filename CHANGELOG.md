@@ -6,6 +6,72 @@ Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidia
 Versions marked *(tag only)* shipped as a tag without published release notes;
 their entries are reconstructed from the commits they contain.
 
+## 1.8.0 — 2026-09-07
+
+### All friends
+
+- **A B'day Timeline tab**, alongside List and a stubbed B'day Calendar.
+  A year of birthdays in whole calendar months, so the month you're in is
+  shown complete — on the 20th, a birthday on the 10th is still there,
+  above today, rather than eleven months down the page. Every month gets a
+  heading, quiet ones included, and dots take each friend's first group
+  colour.
+- **A birthday recorded to only its month now counts.** It's placed in
+  that month, sorted as the 1st, and reads "Unknown day" rather than
+  printing a date nobody entered. The birthday sort in the List tab uses
+  the same rule, so those people sort with their month instead of falling
+  to the bottom.
+- Friends the timeline can't place — no birthday, or only a year — get
+  their own **Unknown birthdays** section under a divider, rather than
+  being summarised as a count. They're friends, not an error message.
+- Two more sorts: **Birthday (Jan-Dec)** and **Birthday (Dec-Jan)**, for
+  where in the year a birthday falls rather than how soon it is. The
+  existing sort is renamed **Next birthday** now that the difference is
+  worth naming.
+- Glance is on timeline rows too, search and sort share a line, and the
+  page keeps its reading column.
+
+### Events
+
+- **A Timeline tab**, now the default, grouped by how soon rather than by
+  date: This week, Next week, Later this month, then months. Only groups
+  holding something are drawn.
+- Looking at **Past** or **All**, every month heading carries its year —
+  a bare "August" beside "August 2025" reads as two different kinds of
+  thing when both are simply months that have been.
+- Filters moved onto the Upcoming / Past / All line, gained a label, and
+  **now work on the Timeline as well as the List**.
+
+### Dashboard
+
+- **Upcoming is a timeline**, reaching this week and next. Whole weeks
+  rather than a rolling count of days: on a Friday, "the next 14 days"
+  quietly means most of the week after next.
+- The **Upcoming window** setting is gone with it — there's no longer a
+  number to tune.
+- Plan rows drop the estimated total; the Plan page's own cost breakdown
+  is unchanged.
+
+### People
+
+- A **Children** field below Siblings, linkable like Parents and Siblings:
+  entries can be `[[Wikilinks]]` with note autocomplete, so they show up
+  in graph view and backlinks.
+
+### Events and plans
+
+- A **🥾 Activity** event type.
+
+### Fixed
+
+- **New dates were recorded on the UTC day, not yours.** From an evening
+  in the US that stamped tomorrow; from a morning in Australia, yesterday.
+  It reached a new diary entry's date (which also names its file), the
+  prefilled date on a group event, the date stamped when an idea is logged
+  as an event, and the once-a-day guard on the birthday digest. Birthdays
+  and "met" dates were never affected — they're plain text, parsed without
+  going through a timezone.
+
 ## 1.7.1 — 2026-08-20
 
 ### Fixed
