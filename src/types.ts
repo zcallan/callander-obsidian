@@ -76,6 +76,12 @@ export interface FriendTrackerSettings {
 	 */
 	pageWidthContainer: boolean;
 	/**
+	 * Dashboard section ids, top to bottom. Empty means "never chosen", which
+	 * yields the shipped order — storing a copy of it instead would freeze
+	 * today's sections into every vault. See resolveDashboardOrder.
+	 */
+	dashboardOrder: string[];
+	/**
 	 * Whether the dashboard's Drafts accordion is collapsed. Open by
 	 * default — drafts are meant to nag — but the choice sticks, since the
 	 * view is rebuilt from scratch every time the dashboard opens and would
@@ -587,6 +593,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	eventsTab: "timeline",
 	eventsCalendarMode: "month",
 	pageWidthContainer: true,
+	dashboardOrder: [],
 	draftsCollapsed: false,
 	birthdaysCollapsed: false,
 	aboutExpanded: false,

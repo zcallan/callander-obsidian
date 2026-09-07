@@ -29,6 +29,7 @@ export * from "@/utils/planTimeline";
 export * from "@/utils/friendTimeline";
 export * from "@/utils/eventGroups";
 export * from "@/utils/calendarGrid";
+export * from "@/utils/dashboardOrder";
 export * from "@/utils/emoji";
 export {
 	formatSomedayDays,

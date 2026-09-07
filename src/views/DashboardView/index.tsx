@@ -10,12 +10,13 @@ import { UpcomingSection } from "@/ui/sections/UpcomingSection";
 import { registerVaultRefresh } from "@/utils/vaultRefresh";
 import type FriendTracker from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
+import { resolveDashboardOrder } from "@/utils/dashboardOrder";
 import type {
 	ContactWithCountdown,
 	Draft,
 	Idea,
 } from "@/types";
-import { IDEA_CATEGORIES } from "@/constants";
+import { DEFAULT_DASHBOARD_ORDER, IDEA_CATEGORIES } from "@/constants";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
 import { splitLeadingEmoji } from "@/components/EventTimeline";
@@ -207,72 +208,73 @@ export class DashboardView extends ItemView {
 		});
 		this.renderFriendList(friendList);
 
-		// Drafts to triage — kept high so they don't rot
-		await this.renderDrafts(container);
-
-		// Birthdays: upcoming + missed (not yet wished)
-		this.renderUpcomingBirthdays(container);
-		this.renderMissedBirthdays(container);
-
-		// Future-dated events coming up (React)
-		container.appendChild(this.island("upcoming", <UpcomingSection />));
-
-		// Anniversaries — events from this same day in past years
-		this.renderOnThisDay(container);
-
-		// Upcoming plans
-		this.renderPlans(container);
-
-		// Somedays: the wishlist of not-yet-plans
-		this.renderSomedays(container);
-
-		// Diary: the latest entries
-		this.renderDiary(container);
-
-		// Groups
-		this.renderGroups(container);
-
-		// Resurfacing ideas
-		const due = this.dueResurfacedIdeas();
-		if (due.length > 0) {
-			const section = container.createDiv({
-				cls: "dashboard-section",
-			});
-			section.createEl("h3", { text: "⏰ Resurfacing now" });
-			for (const { contact, idea } of due) {
-				const row = section.createDiv({
-					cls: "dashboard-row dashboard-row-clickable",
-				});
-				const cat = IDEA_CATEGORIES.find((c) => c.id === idea.category);
-				row.createSpan({
-					text: `${cat?.emoji ?? "✨"} ${idea.text}`,
-				});
-				row.createSpan({
-					cls: "dashboard-row-meta",
-					text: contact.displayName,
-				});
-				row.addEventListener("click", () =>
-					void this.openContact(contact.file)
-				);
-			}
+		// Sections in whatever order the settings hold, defaulting to the
+		// order they're declared in. Each is a `(el) => …` so the two React
+		// islands and the ten imperative sections are the same kind of thing
+		// to this loop.
+		const sections: Record<
+			string,
+			(el: HTMLElement) => void | Promise<void>
+		> = {
+			// Drafts to triage — kept high by default so they don't rot.
+			drafts: (el) => this.renderDrafts(el),
+			birthdays: (el) => this.renderUpcomingBirthdays(el),
+			missedBirthdays: (el) => this.renderMissedBirthdays(el),
+			// Future-dated events coming up (React).
+			upcoming: (el) => {
+				el.appendChild(this.island("upcoming", <UpcomingSection />));
+			},
+			// Anniversaries — events from this same day in past years.
+			onThisDay: (el) => this.renderOnThisDay(el),
+			plans: (el) => this.renderPlans(el),
+			// The wishlist of not-yet-plans.
+			somedays: (el) => this.renderSomedays(el),
+			diary: (el) => this.renderDiary(el),
+			// Shared expenses — who owes what (React).
+			expenses: (el) => {
+				el.appendChild(this.island("expenses", <ExpensesSection />));
+			},
+			groups: (el) => this.renderGroups(el),
+			resurfacing: (el) => this.renderResurfacing(el),
+			inbox: (el) => this.renderInbox(el),
+		};
+		for (const id of resolveDashboardOrder(
+			this.plugin.settings.dashboardOrder,
+			DEFAULT_DASHBOARD_ORDER
+		)) {
+			// Awaited in turn rather than in parallel: two of these read the
+			// vault, and whichever finished first would land first.
+			await sections[id]?.(container);
 		}
 
-		// Idea inbox
-		await this.renderInbox(container);
-
-		// Shared expenses — last, so it's the thing you scroll to the bottom
-		// for rather than something you pass on the way down. (React)
-		container.appendChild(this.island("expenses", <ExpensesSection />));
-
-		// Shared expenses — last, so it's the thing you scroll to the bottom
-		// for rather than something you pass on the way down.
-		//
 		applyPageWidth(container, this.plugin, this.pageWide, () => {
 			this.pageWide = true;
 			void this.render();
 		});
 
 		container.scrollTop = scrollTop;
+	}
+
+	/** Ideas whose resurface date has come round. */
+	private renderResurfacing(container: HTMLElement) {
+		const due = this.dueResurfacedIdeas();
+		if (due.length === 0) return;
+		const section = container.createDiv({ cls: "dashboard-section" });
+		section.createEl("h3", { text: "⏰ Resurfacing now" });
+		for (const { contact, idea } of due) {
+			const row = section.createDiv({
+				cls: "dashboard-row dashboard-row-clickable",
+			});
+			const cat = IDEA_CATEGORIES.find((c) => c.id === idea.category);
+			row.createSpan({ text: `${cat?.emoji ?? "✨"} ${idea.text}` });
+			row.createSpan({
+				cls: "dashboard-row-meta",
+				text: contact.displayName,
+			});
+			row.addEventListener("click", () =>
+				void this.openContact(contact.file)
+			);
+		}
 	}
 
 	private renderFriendList(listEl: HTMLElement) {

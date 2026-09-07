@@ -8,7 +8,13 @@ import {
 } from "obsidian";
 import type FriendTracker from "@/main";
 import type { FriendTrackerSettings } from "@/types";
-import { HEMISPHERES, RIBBON_ACTIONS } from "@/constants";
+import {
+	DASHBOARD_SECTIONS,
+	DEFAULT_DASHBOARD_ORDER,
+	HEMISPHERES,
+	RIBBON_ACTIONS,
+} from "@/constants";
+import { resolveDashboardOrder } from "@/utils/dashboardOrder";
 import type { Hemisphere } from "@/constants";
 
 // The declarative settings API arrived in 1.13; below that Obsidian renders
@@ -167,6 +173,33 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 						},
 					},
 				],
+			},
+			// Declared here and deliberately absent from display(), which makes
+			// it a 1.13+ feature for free: only 1.13 calls this method, and
+			// only 1.13 has a list that can be dragged. On anything older the
+			// dashboard simply keeps the shipped order.
+			{
+				type: "list",
+				heading: "Dashboard sections",
+				desc: "Drag to reorder. New sections added by an update slot in where they ship rather than at the bottom",
+				items: resolveDashboardOrder(
+					this.plugin.settings.dashboardOrder,
+					DEFAULT_DASHBOARD_ORDER
+				).map((id) => ({
+					name:
+						DASHBOARD_SECTIONS.find((s) => s.id === id)?.label ?? id,
+				})),
+				onReorder: (from: number, to: number) => {
+					const order = resolveDashboardOrder(
+						this.plugin.settings.dashboardOrder,
+						DEFAULT_DASHBOARD_ORDER
+					);
+					// Saved resolved rather than as a patch of the old array:
+					// what's stored should be what the list just showed.
+					order.splice(to, 0, ...order.splice(from, 1));
+					this.plugin.settings.dashboardOrder = order;
+					void this.plugin.saveSettings();
+				},
 			},
 			{
 				type: "group",
