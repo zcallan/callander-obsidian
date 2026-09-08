@@ -1,0 +1,156 @@
+<!--
+  The All friends B'day Calendar, month view.
+
+  Reuses the Events calendar's grid, chips and narrow behaviour, so the two
+  read as the same object with different contents. Worth its own fixture for
+  the parts that differ: a chip stacks, so the name gets a line to itself,
+  and a birthday known only to its month is named under the grid, because it
+  belongs to the month and to no square in it. Rows here carry no Glance
+  button — clicking anywhere in the calendar glances, so a second control
+  saying so would read as a different action.
+-->
+<div class="cal">
+	<div class="cal-bar">
+		<span class="cal-period">September 2026</span>
+		<div class="cal-nav">
+			<button class="callander-button cal-nav-button">&lsaquo;</button>
+			<button class="callander-button cal-nav-button">Today</button>
+			<button class="callander-button cal-nav-button">&rsaquo;</button>
+		</div>
+	</div>
+	<div class="cal-weekdays"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+	<div class="cal-grid">
+		<div class="cal-cell is-outside">
+			<div class="cal-cell-head"><span class="cal-daynum">31</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">1</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">2</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">3</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">4</span></div>
+			<div class="cal-chip is-stacked" style="--cal-chip: #e0c341"><div class="cal-chip-name">Priya Raman</div><div class="cal-chip-meta">&#127874; 30</div></div>
+			<div class="cal-dots"><span class="cal-dot" style="background-color: #e0c341"></span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">5</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">6</span></div>
+		</div>
+		<div class="cal-cell is-today">
+			<div class="cal-cell-head"><span class="cal-daynum">7</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">8</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">9</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">10</span></div>
+			<div class="cal-chip is-stacked" style="--cal-chip: var(--text-normal)"><div class="cal-chip-name">Marcus Webb</div><div class="cal-chip-meta">&#127874; 41</div></div>
+			<div class="cal-dots"><span class="cal-dot" style="background-color: var(--text-normal)"></span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">11</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">12</span></div>
+			<div class="cal-chip is-stacked" style="--cal-chip: #5cb870"><div class="cal-chip-name">Lauren Delbridge</div><div class="cal-chip-meta">&#127874; 34</div></div>
+			<div class="cal-dots"><span class="cal-dot" style="background-color: #5cb870"></span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">13</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">14</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">15</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">16</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">17</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">18</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">19</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">20</span></div>
+		</div>
+		<div class="cal-cell is-selected">
+			<div class="cal-cell-head"><span class="cal-daynum">21</span></div>
+			<div class="cal-chip is-stacked" style="--cal-chip: #a48cf0"><div class="cal-chip-name">Ada Okoro</div><div class="cal-chip-meta">&#127874; 28</div></div>
+			<div class="cal-chip is-stacked" style="--cal-chip: #5a9bf6"><div class="cal-chip-name">Bo Lin</div><div class="cal-chip-meta">&#127874; 33</div></div>
+			<div class="cal-chip is-stacked" style="--cal-chip: #5cb870"><div class="cal-chip-name">Cleo Ray</div><div class="cal-chip-meta">&#127874; 19</div></div>
+			<div class="cal-more">+1 more</div>
+			<div class="cal-dots"><span class="cal-dot" style="background-color: #a48cf0"></span><span class="cal-dot" style="background-color: #5a9bf6"></span><span class="cal-dot" style="background-color: #5cb870"></span><span class="cal-dot" style="background-color: var(--text-normal)"></span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">22</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">23</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">24</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">25</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">26</span></div>
+			<div class="cal-chip is-stacked" style="--cal-chip: #5a9bf6"><div class="cal-chip-name">Enrique Perez</div><div class="cal-chip-meta">&#127874; 25</div></div>
+			<div class="cal-dots"><span class="cal-dot" style="background-color: #5a9bf6"></span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">27</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">28</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">29</span></div>
+		</div>
+		<div class="cal-cell">
+			<div class="cal-cell-head"><span class="cal-daynum">30</span></div>
+		</div>
+		<div class="cal-cell is-outside">
+			<div class="cal-cell-head"><span class="cal-daynum">1</span></div>
+		</div>
+		<div class="cal-cell is-outside">
+			<div class="cal-cell-head"><span class="cal-daynum">2</span></div>
+		</div>
+		<div class="cal-cell is-outside">
+			<div class="cal-cell-head"><span class="cal-daynum">3</span></div>
+		</div>
+		<div class="cal-cell is-outside">
+			<div class="cal-cell-head"><span class="cal-daynum">4</span></div>
+		</div>
+	</div>
+	<div class="cal-agenda">
+		<div class="cal-agenda-head">Mon 21 Sep</div>
+		<div class="contact-timeline-item friend-timeline-row is-undated">
+			<span class="contact-timeline-dot" style="background-color: #a48cf0"></span>
+			<div class="friend-timeline-main"><div class="contact-timeline-text"><span class="friend-list-name">Ada Okoro</span></div></div>
+		</div>
+	</div>
+	<div class="cal-month-only">
+		<div class="cal-agenda-head">Day unknown</div>
+		<div class="contact-timeline-item friend-timeline-row is-undated">
+			<span class="contact-timeline-dot" style="background-color: #5a9bf6"></span>
+			<div class="friend-timeline-main"><div class="contact-timeline-text"><span class="friend-list-name">Tomas Reyes</span></div></div>
+		</div>
+	</div>
+</div>

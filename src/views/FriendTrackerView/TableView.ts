@@ -9,13 +9,17 @@ import {
 	parseFlexDate,
 	flexSortKey,
 	formatShortFlexDate,
+	formatShortWeekdayDate,
 	monthName,
 } from "@/utils/flexdate";
 import {
 	birthdayMonths,
 	calendarBirthdayKey,
+	dayKeyOf,
+	indexBirthdays,
 	nextBirthdayOccurrence,
 } from "@/utils/friendTimeline";
+import { monthGrid, monthLabel } from "@/utils/calendarGrid";
 import { GlanceModal } from "@/modals/GlanceModal";
 
 const SORT_OPTIONS: Array<{ id: FriendListSort; label: string }> = [
@@ -60,6 +64,11 @@ export class TableView {
 	private groupLabels = new Map<string, string>();
 	/** Which presentation is showing; seeded from the remembered choice. */
 	private tab: FriendListTab;
+	/** Which month the B'day Calendar is showing. Not remembered: paging away
+	 * and coming back to March would be a puzzle. */
+	private calCursor = new Date();
+	/** The day whose birthdays list under a narrow grid. */
+	private calSelected = "";
 	private tabsEl: HTMLElement | null = null;
 	private sortEl: HTMLElement | null = null;
 	private contentEl: HTMLElement | null = null;
@@ -228,10 +237,7 @@ export class TableView {
 		if (this.tab === "timeline") {
 			this.renderTimeline();
 		} else if (this.tab === "calendar") {
-			this.contentEl.createDiv({
-				cls: "section-helper-text",
-				text: "Coming soon!",
-			});
+			this.renderCalendar();
 		} else {
 			this.renderList();
 		}
@@ -424,6 +430,207 @@ export class TableView {
 	}
 
 	/**
+	 * A month of birthdays, one square per day.
+	 *
+	 * Month only — a week of birthdays is almost always empty, and the seven
+	 * columns would cost as much room as the month does to say much less.
+	 * The grid, the chips and the narrow behaviour are the Events calendar's,
+	 * so the two read as the same object with different contents.
+	 */
+	private renderCalendar() {
+		if (!this.contentEl) return;
+		// Alphabetical in, so a shared birthday reads A-Z in its square.
+		const people = this.filtered().sort((a, b) =>
+			a.displayName.localeCompare(b.displayName)
+		);
+		if (people.length === 0) {
+			this.renderEmptyState(this.contentEl);
+			return;
+		}
+
+		const wrap = this.contentEl.createDiv({ cls: "cal" });
+		const { byDay, monthOnly } = indexBirthdays(people);
+		const cursorMonth = this.calCursor.getMonth() + 1;
+
+		const bar = wrap.createDiv({ cls: "cal-bar" });
+		bar.createSpan({
+			cls: "cal-period",
+			text: monthLabel(this.calCursor),
+		});
+		const nav = bar.createDiv({ cls: "cal-nav" });
+		const step = (by: number) => {
+			const next = new Date(this.calCursor);
+			next.setMonth(next.getMonth() + by);
+			this.calCursor = next;
+			this.renderContent();
+		};
+		const button = (label: string, aria: string, onClick: () => void) => {
+			const b = nav.createEl("button", {
+				cls: "callander-button cal-nav-button",
+				text: label,
+				attr: { type: "button", "aria-label": aria },
+			});
+			b.addEventListener("click", onClick);
+		};
+		button("‹", "Previous month", () => step(-1));
+		button("Today", "This month", () => {
+			this.calCursor = new Date();
+			this.calSelected = "";
+			this.renderContent();
+		});
+		button("›", "Next month", () => step(1));
+
+		const head = wrap.createDiv({ cls: "cal-weekdays" });
+		for (const d of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
+			head.createSpan({ text: d });
+		}
+
+		const grid = wrap.createDiv({ cls: "cal-grid" });
+		for (const day of monthGrid(this.calCursor)) {
+			const cls = ["cal-cell"];
+			if (!day.inMonth) cls.push("is-outside");
+			if (day.isToday) cls.push("is-today");
+			if (day.date === this.calSelected) cls.push("is-selected");
+			const cell = grid.createDiv({ cls: cls.join(" ") });
+			cell
+				.createDiv({ cls: "cal-cell-head" })
+				.createSpan({ cls: "cal-daynum", text: String(day.day) });
+
+			// Borrowed days belong to a neighbouring month; drawing their
+			// birthdays would show the same person twice as you page.
+			const birthdays = day.inMonth
+				? byDay.get(dayKeyOf(day.date)) ?? []
+				: [];
+			for (const person of birthdays.slice(0, 3)) {
+				this.appendCalBirthday(cell, person, day.date);
+			}
+			if (birthdays.length > 3) {
+				cell.createDiv({
+					cls: "cal-more",
+					text: `+${birthdays.length - 3} more`,
+				});
+			}
+			if (birthdays.length > 0) {
+				const dots = cell.createDiv({ cls: "cal-dots" });
+				for (const person of birthdays.slice(0, 4)) {
+					const dot = dots.createSpan({ cls: "cal-dot" });
+					dot.style.backgroundColor = this.dotColour(person);
+				}
+			}
+			// No modal here: a birthday belongs to a person, not to a date,
+			// so there is nothing to add to an empty square. Tapping picks
+			// the day, which is what the narrow layout lists underneath.
+			cell.addEventListener("click", () => {
+				this.calSelected = day.date;
+				this.renderContent();
+			});
+		}
+
+		this.appendCalDayList(wrap, byDay);
+
+		// Known to the month but not the day: they belong to this month and
+		// to no square in it, so they're named under the grid rather than
+		// dropped. The Timeline says "Unknown day" on the row; a grid has no
+		// row to say it on.
+		const vague = monthOnly.get(cursorMonth) ?? [];
+		if (vague.length > 0) {
+			const note = wrap.createDiv({ cls: "cal-month-only" });
+			note.createDiv({
+				cls: "cal-agenda-head",
+				text: "Day unknown",
+			});
+			for (const person of vague) {
+				this.appendTimelineRow(note, person, "", {
+					onClick: () => this.openGlance(person),
+					glanceButton: false,
+				});
+			}
+		}
+	}
+
+	/**
+	 * A person's birthday as a chip: their name on a line of its own, with
+	 * the age they reach under it.
+	 *
+	 * Stacked rather than inline because the name is the thing you're
+	 * scanning for. Sharing a line with a cake and a number, it was the part
+	 * that got truncated first in a narrow column — which is the wrong way
+	 * round when the whole question is whose birthday it is.
+	 */
+	private appendCalBirthday(
+		cell: HTMLElement,
+		person: ContactWithCountdown,
+		isoDate: string
+	) {
+		const chip = cell.createDiv({ cls: "cal-chip is-stacked" });
+		chip.style.setProperty("--cal-chip", this.dotColour(person));
+		chip.createDiv({ cls: "cal-chip-name", text: person.displayName });
+		// Counted against the year on screen, so paging forward ages people
+		// rather than repeating this year's number.
+		const born = parseFlexDate(person.birthday)?.year;
+		chip.createDiv({
+			cls: "cal-chip-meta",
+			text:
+				born != null
+					? `🎂 ${Number(isoDate.slice(0, 4)) - born}`
+					: "🎂",
+		});
+		chip.addEventListener("click", (e) => {
+			e.stopPropagation();
+			this.openGlance(person);
+		});
+	}
+
+	/** The calendar's one action: a quick look, not a trip to their page. */
+	private openGlance(contact: ContactWithCountdown) {
+		new GlanceModal(this.view.app, this.view.callander, contact).open();
+	}
+
+	/** The selected day's birthdays, listed under a narrow grid. */
+	private appendCalDayList(
+		wrap: HTMLElement,
+		byDay: Map<string, ContactWithCountdown[]>
+	) {
+		const agenda = wrap.createDiv({ cls: "cal-agenda" });
+		if (!this.calSelected) {
+			agenda.createDiv({
+				cls: "section-helper-text",
+				text: "Pick a day to see whose birthday it is.",
+			});
+			return;
+		}
+		const day = new Date(this.calSelected + "T00:00:00");
+		agenda.createDiv({
+			cls: "cal-agenda-head",
+			text: formatShortWeekdayDate(day),
+		});
+		const birthdays = byDay.get(dayKeyOf(this.calSelected)) ?? [];
+		if (birthdays.length === 0) {
+			agenda.createDiv({
+				cls: "section-helper-text",
+				text: "No birthdays on this day",
+			});
+			return;
+		}
+		for (const person of birthdays) {
+			this.appendTimelineRow(agenda, person, "", {
+				onClick: () => this.openGlance(person),
+				glanceButton: false,
+			});
+		}
+	}
+
+	/** First group's colour, or the theme's text colour when ungrouped —
+	 * the same rule the timeline dots follow. */
+	private dotColour(person: ContactWithCountdown): string {
+		const first = person.groups[0];
+		return (
+			(first ? this.groupColors.get(first) : null) ??
+			"var(--text-normal)"
+		);
+	}
+
+	/**
 	 * The year ahead, as birthdays. Every month the window touches gets a
 	 * heading, quiet ones included — the point is to read the year as a
 	 * continuous span rather than a dense list of the next few people.
@@ -532,8 +739,17 @@ export class TableView {
 	private appendTimelineRow(
 		parent: HTMLElement,
 		person: ContactWithCountdown,
-		when: string
+		when: string,
+		options: {
+			/** What the row does. The timeline opens their page; the calendar
+			 * glances, so a month of birthdays never navigates away. */
+			onClick?: () => void;
+			/** Off where the row itself already glances — two ways to do the
+			 * same thing on one row reads as two different things. */
+			glanceButton?: boolean;
+		} = {}
 	) {
+		const { onClick, glanceButton = true } = options;
 		const row = parent.createDiv({
 			cls: `contact-timeline-item friend-timeline-row${
 				when ? "" : " is-undated"
@@ -561,9 +777,10 @@ export class TableView {
 			text: person.displayName,
 		});
 		this.appendGroupTags(text, person);
-		this.appendGlanceButton(row, person);
-		row.addEventListener("click", () =>
-			void this.view.openContact(person.file)
+		if (glanceButton) this.appendGlanceButton(row, person);
+		row.addEventListener(
+			"click",
+			onClick ?? (() => void this.view.openContact(person.file))
 		);
 	}
 

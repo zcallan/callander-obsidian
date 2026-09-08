@@ -1,6 +1,8 @@
 import { createSuite } from "./harness.mjs";
 import {
 	birthdayMonths,
+	dayKeyOf,
+	indexBirthdays,
 	calendarBirthdayKey,
 	nextBirthdayOccurrence,
 } from "./.build/callander.mjs";
@@ -288,6 +290,51 @@ export function run() {
 	);
 	eq("a year-only birthday has no place", calendarBirthdayKey("1990"), null);
 	eq("nor does a blank one", calendarBirthdayKey(""), null);
+
+	// ---------- indexBirthdays, for the B'day Calendar grid ----------
+	// A calendar cell is a day, and a birthday recurs, so the key carries no
+	// year — the same "09-21" serves whichever year is on screen.
+	const idx = indexBirthdays([
+		person("Lauren", "1992-09-21"),
+		person("Also 21st", "09-21"),
+		person("Enrique", "2001-10-20"),
+		person("Month only", "1997-04"),
+		person("Another April", "1990-04"),
+		person("Year only", "1997"),
+		person("Undated", ""),
+	]);
+	const dayNames = (key) => (idx.byDay.get(key) ?? []).map((p) => p.name);
+	const monthNames = (m) => (idx.monthOnly.get(m) ?? []).map((p) => p.name);
+
+	eq("a birthday keys on month and day", dayNames("09-21"), [
+		"Lauren",
+		"Also 21st",
+	]);
+	eq("a year-less birthday keys the same way", dayNames("10-20"), ["Enrique"]);
+	eq("days are zero-padded to match a grid key", [...idx.byDay.keys()].sort(), [
+		"09-21",
+		"10-20",
+	]);
+	// No square to draw them in, so they come back separately rather than
+	// being dropped or pinned to the 1st.
+	eq("a month-only birthday is held apart", monthNames(4), [
+		"Month only",
+		"Another April",
+	]);
+	eq("and doesn't appear in a day", [...idx.byDay.values()].flat().length, 3);
+	// Nothing places these at all; the Timeline's Unknown birthdays owns them.
+	eq(
+		"no month, no place in either bucket",
+		[...idx.byDay.values(), ...idx.monthOnly.values()]
+			.flat()
+			.map((p) => p.name)
+			.filter((n) => n === "Year only" || n === "Undated"),
+		[]
+	);
+	eq("nothing in, nothing out", indexBirthdays([]).byDay.size, 0);
+
+	// The grid hands over local YYYY-MM-DD; the index is keyed without a year.
+	eq("a cell date becomes a day key", dayKeyOf("2027-09-21"), "09-21");
 
 	return result();
 }

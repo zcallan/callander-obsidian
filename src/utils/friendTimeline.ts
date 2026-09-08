@@ -241,3 +241,64 @@ function isoDay(d: Date): string {
 function monthKey(d: Date): string {
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
+
+/** Birthdays arranged for a calendar month, keyed by where they can be drawn. */
+export interface BirthdayIndex<T> {
+	/**
+	 * "MM-DD" → everyone with a birthday that day, in the order they arrived.
+	 * Year-independent on purpose: a birthday recurs, so the same key serves
+	 * whichever year the calendar happens to be showing.
+	 */
+	byDay: Map<string, T[]>;
+	/**
+	 * Month (1-12) → people whose birthday is that month with no day recorded.
+	 * They belong to the month but to no square in it, so a grid can name
+	 * them beneath itself rather than drop them.
+	 */
+	monthOnly: Map<number, T[]>;
+}
+
+/**
+ * Birthdays indexed for a month grid.
+ *
+ * Two buckets rather than one because a calendar cell is a day: a birthday
+ * known only to its month can't be drawn in a square without inventing the
+ * square. The timeline solves that by saying "Unknown day" on the row; a
+ * grid has no row to say it on, so those people come back separately for
+ * the caller to list under the month.
+ *
+ * Anyone with no month at all is absent from both — there is nothing to
+ * place them by, and the B'day Timeline's Unknown birthdays section is
+ * where they're accounted for.
+ */
+export function indexBirthdays<T extends DatedPerson>(
+	people: readonly T[]
+): BirthdayIndex<T> {
+	const byDay = new Map<string, T[]>();
+	const monthOnly = new Map<number, T[]>();
+	for (const person of people) {
+		const parsed = parseFlexDate(person.birthday);
+		if (!parsed || parsed.month === null) continue;
+		if (parsed.day === null) {
+			push(monthOnly, parsed.month, person);
+			continue;
+		}
+		push(byDay, `${pad(parsed.month)}-${pad(parsed.day)}`, person);
+	}
+	return { byDay, monthOnly };
+}
+
+/** "MM-DD" for a calendar cell, from a local YYYY-MM-DD. */
+export function dayKeyOf(isoDate: string): string {
+	return isoDate.slice(5);
+}
+
+function push<K, T>(map: Map<K, T[]>, key: K, value: T) {
+	const list = map.get(key);
+	if (list) list.push(value);
+	else map.set(key, [value]);
+}
+
+function pad(n: number): string {
+	return String(n).padStart(2, "0");
+}
