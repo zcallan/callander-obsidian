@@ -1,7 +1,7 @@
 ---
 name: John Steinbeck
-birthday: 1962-09-21
-met: 2015-08-29
+birthday: 1962-10-19
+met: 2015-09-26
 relationship: friend
 groups:
   - book club
@@ -20,6 +20,6 @@ interests:
 funFacts:
   - Drove across America with his poodle Charley in a camper he named Rocinante, after Don Quixote's horse
   - Picked fruit and dug foundations before he ever earned a living writing
-created: 2026-08-11
-updated: 2026-08-11
+created: 2026-09-08
+updated: 2026-09-08
 ---

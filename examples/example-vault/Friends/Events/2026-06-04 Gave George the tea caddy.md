@@ -2,11 +2,11 @@
 kind: event
 name: Gave George the tea caddy
 status: open
-created: 2026-08-11
-date: 2026-05-07
+created: 2026-09-08
+date: 2026-06-04
 type: given
 people:
   - "[[George Orwell]]"
 variant: timeline
-updated: 2026-08-11
+updated: 2026-09-08
 ---

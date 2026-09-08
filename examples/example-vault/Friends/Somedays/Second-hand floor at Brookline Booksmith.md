@@ -2,7 +2,7 @@
 kind: someday
 name: Second-hand floor at Brookline Booksmith
 status: open
-created: 2026-08-11
+created: 2026-09-08
 types:
   - shopping
   - explore
@@ -12,5 +12,5 @@ days:
 times:
   - daytime
 company: either
-updated: 2026-08-11
+updated: 2026-09-08
 ---

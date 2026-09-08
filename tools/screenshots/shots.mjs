@@ -83,8 +83,33 @@ export const SHOTS = [
 	{ name: "dashboard-3", setup: command("callander:open-dashboard"), scrollTo: "Plans" },
 	{ name: "dashboard-4", setup: command("callander:open-dashboard"), scroll: "end" },
 	{ name: "all-friends-1", setup: command("callander:open-friends-table") },
+	// The other two tabs. Matched on the apostrophe-free part of the label,
+	// since the button renders a typographic apostrophe the regex would miss.
+	{
+		name: "all-friends-2",
+		setup: steps(
+			command("callander:open-friends-table"),
+			clickButton("day Timeline")
+		),
+	},
+	{
+		name: "all-friends-3",
+		setup: steps(
+			command("callander:open-friends-table"),
+			clickButton("day Calendar")
+		),
+	},
 	{ name: "somedays-1", setup: command("callander:open-somedays") },
+	// Events opens on its Timeline, so events-1 is that; these are the rest.
 	{ name: "events-1", setup: command("callander:open-events") },
+	{
+		name: "events-2",
+		setup: steps(command("callander:open-events"), clickButton("^Calendar$")),
+	},
+	{
+		name: "events-3",
+		setup: steps(command("callander:open-events"), clickButton("^List$")),
+	},
 	{ name: "diary-1", setup: command("callander:open-diary") },
 
 	{ name: "person-1", setup: openNote("person") },

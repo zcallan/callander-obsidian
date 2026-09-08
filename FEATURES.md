@@ -6,6 +6,8 @@ Callander remembers the things friendship runs on and your head doesn't hold: wh
 
 Every screenshot here is a real capture of the plugin running against the example vault in `examples/example-vault`, which regenerates from scratch with `npm run seed`. The cast is eight authors standing in for your actual friends — the trivia about them is real, the birthdays and gift ideas are not, and the whole thing is set around Boston and northern New England.
 
+Every page is kept to a comfortable reading width by default. When there's room beside it, a button in the top corner widens that one page for as long as you're on it, and the whole behaviour can be turned off in settings.
+
 **Jump to:** [Dashboard](#dashboard) · [Friends](#friends) · [Groups](#groups) · [Quick notes](#quick-notes) · [Events](#events) · [Diary](#diary) · [Somedays](#somedays) · [Plans](#plans) · [Expenses](#expenses) · [Suggesting a feature](#suggesting-a-feature)
 
 ---
@@ -20,7 +22,11 @@ Underneath is anything you've jotted down and not yet filed. The idea is that wr
 
 Birthdays come next, counting down the next thirty days, and each one tells you whether you actually have a gift idea ready. Below them sit the birthdays you just missed. Those don't quietly disappear once the day has passed — they stay put, with a button to tick off, so the one you forgot stays in front of you until you've done something about it.
 
-The rest of the page runs through what's coming up on the calendar, the bigger trips you're planning, the loose wishlist of things you'd like to do one day, your last few diary entries, your groups, and any one-off costs that still need settling. Everything is read straight from your notes, so nothing on this page can go out of date.
+What's coming up sits under headings that say when rather than making you read a column of dates — This week, Next week, and anything with no exact date at all. It reaches a fortnight and no further; the rest lives on the Events page.
+
+The rest of the page runs through the bigger trips you're planning, the loose wishlist of things you'd like to do one day, your last few diary entries, any one-off costs that still need settling, and your groups. Everything is read straight from your notes, so nothing on this page can go out of date.
+
+On Obsidian 1.13 and later you can drag those sections into whatever order suits you, in the plugin's settings. If money owed is the thing you open the app for, put it at the top.
 
 ![Callander dashboard showing friends, jotted notes and upcoming birthdays](examples/screenshots/dashboard-1.png) _Quick actions, friend search, and the notes waiting to be filed._
 
@@ -44,11 +50,17 @@ Their timeline is one merged history of the two of you. Anything coming up sits 
 
 The rest of the page is the character stuff. Interests are short and factual — a hobby, a drink they always order, a team they follow — kept that way so they're actually useful when you're buying a present. Fun facts is the trivia drawer. Inside jokes keep the shared reference next to the story of how it started, which is the half you always forget. Quotes holds the lines worth keeping, and there's a free-text area at the bottom for anything that doesn't fit a box.
 
-Your full list of friends lives on its own page. You can narrow it to a single group, and sort by birthday, name, who you added most recently, who you saw last, or age. Every row has a catch-up button that pulls up a short briefing on that person for when you're about to see them.
+Your full list of friends lives on its own page, and it shows the same people three ways. **List** is the plain roll-call: narrow it to a single group, and sort by next birthday, where in the year a birthday falls, name, who you added most recently, who you saw last, or age. **B'day Timeline** is the year ahead, month by month, with the age each person is turning. **B'day Calendar** is that same year as a month grid, one square per day. Every row and every square opens a short briefing on that person for when you're about to see them.
 
-Adding someone asks for very little — a first name is enough. Everything else is there for when you need it: what you actually call them, how their name should be shortened in lists, and a birthday you can give as a full date, a month and year, or just a day and month when nobody remembers the year. You can tick them into groups on the way in.
+A birthday you only know the month of still counts on both — it sits in the right month and says the day is unknown, rather than being hidden or given a date nobody wrote down. Anyone with no birthday at all is listed by name at the bottom of the timeline, because the fix is on their page and you can't do it if you can't see who they are.
+
+Adding someone asks for very little — a first name is enough. Everything else is there for when you need it: what you actually call them, how their name should be shortened in lists, their pronouns as free text so whatever they use goes in as they write it, and a birthday you can give as a full date, a month and year, or just a day and month when nobody remembers the year. You can tick them into groups on the way in.
 
 ![Full list of friends with group filters and sorting](examples/screenshots/all-friends-1.png) _Everyone in one list, filtered by group and sorted however you like._
+
+![The year of birthdays as a timeline, month by month](examples/screenshots/all-friends-2.png) _The same people as a year of birthdays, with the age each one is turning._
+
+![The same birthdays as a month calendar](examples/screenshots/all-friends-3.png) _And as a month grid, a square per day._
 
 ![The form for adding a new friend](examples/screenshots/add-friend-1.png) _Only the name is required — the rest is there when you want it._
 
@@ -86,11 +98,15 @@ Events are anything with a date on it, past or future — a dinner, a gig, someo
 
 The events page shows the lot, and you can flip between what's coming up, what's already happened, or everything together. Each entry shows what kind of thing it was, when, and who was there.
 
+It shows them three ways. **Timeline** groups by how soon rather than by date — This week, Next week, Later this month, then by month — which is how you actually think about what's ahead. **List** is the flat, sortable version. **Calendar** is a month or week grid with events in the squares; clicking an empty day starts a new event already dated. Looking backwards, month headings carry their year, so August 2025 and August 2026 can't be mistaken for each other.
+
 Something you cancelled stays on the list, crossed out and labelled, rather than being deleted. An evening that didn't happen is still part of the story.
 
 When you log one, you pick what sort of event it was from a row of options, and the date can be as vague as you like — a full date, just a month, or only a year, because something you remember as "sometime in 2019" shouldn't need a made-up day attached to it. You add whoever was there, and choose whether it shows up on their pages or stays private to your calendar.
 
-![The events page listing upcoming events](examples/screenshots/events-1.png) _Everything with a date, including the one that got cancelled._
+![The events page grouped by how soon each event is](examples/screenshots/events-1.png) _Grouped by how soon rather than by date — this week, next week, then by month._
+
+![The events page as a month calendar](examples/screenshots/events-2.png) _The same events as a month grid. Clicking an empty day starts a new one, already dated._
 
 ![The form for adding an event](examples/screenshots/add-event-1.png) _Pick the kind of thing it was, and be as vague about the date as you need to be._
 

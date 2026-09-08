@@ -2,8 +2,8 @@
 kind: event
 name: Red Sox vs Yankees
 status: open
-created: 2026-08-11
-date: 2026-09-05
+created: 2026-09-08
+date: 2026-10-03
 time: 19:10
 type: event
 people:
@@ -11,5 +11,5 @@ people:
   - "[[Cormac McCarthy]]"
 location: Fenway Park
 variant: reminder
-updated: 2026-08-11
+updated: 2026-09-08
 ---

@@ -1,7 +1,7 @@
 ---
 title: Coffee with Haruki
-date: 2026-08-11
-created: 2026-08-11
+date: 2026-09-08
+created: 2026-09-08
 ---
 
 Went with [[Haruki Murakami]] to the place on Mass Ave.

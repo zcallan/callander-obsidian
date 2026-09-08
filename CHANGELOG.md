@@ -4,6 +4,35 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
+## 1.9.0 — 2026-09-08
+
+### Events
+
+- **A Calendar tab** — a month or week grid with events in the squares. Clicking an empty day starts a new event already dated; clicking one that's there opens it. Week is seven day columns rather than an hour grid, because Callander's events carry a flexible date, most have no time, and "Anytime" is a real value — a wall of empty hour rows would claim a precision the notes don't have.
+- Month draws only the weeks it touches, so most months don't carry a wholly empty row.
+- Narrow panes drop to dots with the selected day listed underneath. It responds to the width of the *pane*, not the window, so a sidebar on a wide monitor behaves like the narrow thing it is.
+- Filters moved onto the Upcoming / Past / All line, gained a label, and **now work on the Timeline as well as the List**.
+
+### All friends
+
+- **A B'day Calendar tab** — the year as a month grid, one square per day, with the age each person is turning. Names get a line of their own so you can see who it is at a glance, and clicking anyone opens their briefing rather than navigating away.
+- Both new tabs are named **B'day Timeline** and **B'day Calendar**, so they don't read as the same thing as the Events page's.
+
+### People
+
+- **A Pronouns field**, free text, so whatever someone uses goes in as they write it. It sits with the naming fields rather than among the details.
+
+### Dashboard
+
+- **Sections can be reordered** by dragging them in settings, on Obsidian 1.13 and later. A section added by a future update slots in where it ships rather than at the bottom.
+- Expenses moves above Groups.
+- **Upcoming reaches this week and next**, grouped under headings that say when. Whole weeks rather than a rolling count of days: on a Friday, "the next 14 days" quietly means most of the week after next. The Upcoming window setting retires with it.
+- Plan rows drop the estimated total. The Plan page's own cost breakdown is unchanged.
+
+### Everywhere
+
+- **Every page is kept to one reading column**, and the width is the same on all of them — the Diary used to sit narrower than everything else, and the Person, Plan and Group pages weren't capped at all. A button in the top corner widens the page you're on for as long as you're on it, and a setting turns the whole thing off.
+
 ## 1.8.0 — 2026-09-07
 
 ### All friends

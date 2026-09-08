@@ -1,7 +1,7 @@
 ---
 name: Sally Rooney
-birthday: 1991-09-05
-met: 2024-09-10
+birthday: 1991-10-03
+met: 2024-10-08
 relationship: friend
 groups:
   - book club
@@ -20,6 +20,6 @@ interests:
 funFacts:
   - Was ranked the top competitive debater in Europe as a student, then quit and wrote an essay about why
   - Leaves out quotation marks too — she and Cormac have a running agreement about it
-created: 2026-08-11
-updated: 2026-08-11
+created: 2026-09-08
+updated: 2026-09-08
 ---

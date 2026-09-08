@@ -2,8 +2,8 @@
 kind: event
 name: Book club — Nineteen Eighty-Four
 status: open
-created: 2026-08-11
-date: 2026-08-28
+created: 2026-09-08
+date: 2026-09-25
 time: 19:00
 type: event
 people:
@@ -13,5 +13,5 @@ people:
 location: Brookline Booksmith
 description: George has promised not to spoil his own ending
 variant: reminder
-updated: 2026-08-11
+updated: 2026-09-08
 ---
