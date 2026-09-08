@@ -82,6 +82,10 @@ const HELP: Record<string, FieldHelp> = {
 	location: {
 		text: "Where they live now. Handy for working out who's nearby when you're travelling.",
 	},
+	pronouns: {
+		text: "How to refer to them. Free text, so whatever they use goes in as they write it.",
+		example: "“she/her”, “they/them”, “he/they”",
+	},
 	parents: {
 		text: "Their parents. Link a name to another note to connect the two, or just type it.",
 		example: "“[[Denise Chen]]” to link her note, or just “Denise”",

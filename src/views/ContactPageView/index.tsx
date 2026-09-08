@@ -252,6 +252,7 @@ const CLEARABLE_FIELDS = [
 	"ideas",
 	// Note-naming lists — clearing one has to drop the key rather than
 	// leaving an empty array behind in the frontmatter.
+	"pronouns",
 	"parents",
 	"siblings",
 	"children",

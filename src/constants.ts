@@ -7,6 +7,7 @@ export const STANDARD_FIELDS = {
 	SHORT_NAME: "shortName",
 	NICKNAMES: "nicknames",
 	LEGAL_NAME: "legalName",
+	PRONOUNS: "pronouns",
 	BIRTHDAY: "birthday",
 	BIRTHDAY_WISHED: "birthdayWished",
 	MET: "met",
