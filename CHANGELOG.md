@@ -4,6 +4,32 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
+## 1.9.1 — 2026-09-09
+
+### Plans
+
+- **Tapping a person opens their ledger** — every cost they're charged for, how each was split, the credits coming off, and the total left to pay. It replaces the read-only breakdown that used to sit behind a per-row button.
+- **Settling happens there now.** Tick a line as somebody hands that share over, or mark the lot settled in one go. The figure moves as you go, so a person who's square reads $0.00.
+- That replaces the checkbox on the "who owes what" row, which set a plan-level "done" flag that never touched the arithmetic — a person marked paid stayed struck through while still showing what they used to owe. The flag is still read, so anyone ticked off under the old scheme keeps showing as settled, but nothing writes it any more. The box is an indicator, and the whole row opens the ledger.
+- **Who owes what is no longer behind a disclosure.** Its summary line existed to carry the outstanding total while the list was hidden; the heading carries it now.
+- **Expenses and credits each get their own heading.** A credit was rendering in the same list as the costs, which made money coming off look like one more cost going on.
+- Rows in "who owes what" are larger and easier to read, and your own row is marked as what it is — a slashed box and a struck-through figure, since you can't owe yourself.
+- A credit with no note written on it says so rather than leaving the line blank, and the same figure no longer renders with a hyphen in one place and a true minus in another.
+
+### Events
+
+- **A 🏀 Sports event type**, between Activity and the generic Event.
+
+### Settings
+
+- **A Quick action turned off no longer comes back.** Hiding a ribbon icon removed its element but left Obsidian's own ribbon entry pointing at it, and the ribbon rebuilds itself from those entries on every change — so turning one action off and another on brought the first one back. Icons are now hidden rather than detached, and an action left off since install is never registered at all, which keeps it out of the ribbon popup on phones too.
+
+### Documentation
+
+- The README leads with what the plugin holds rather than five paragraphs of preamble, and gains a **How to Get Started** section.
+- **FEATURES gains a Plugin settings section**, and its Expenses and Plans sections are rewritten around the ledger.
+- Screenshot captions are centred under their images, and every shot is retaken — including two of the settings tab, which the docs referenced but nobody had ever captured.
+
 ## 1.9.0 — 2026-09-08
 
 ### Events
