@@ -1,7 +1,7 @@
 ---
 name: 🍁 Leaf-peeping in the White Mountains
-date: 2026-09-17
-endDate: 2026-09-19
+date: 2026-09-18
+endDate: 2026-09-20
 location: Franconia Notch, New Hampshire
 status: planning
 members:
@@ -17,7 +17,7 @@ items:
     time: 09:00
     location: Lafayette Place trailhead
     notes: About 8 hours with the ridge. Start early — the lot fills by seven.
-    date: 2026-09-18
+    date: 2026-09-19
   - text: Dinner at Polly's Pancake Parlor
     category: restaurant
     priority: must
@@ -25,18 +25,18 @@ items:
     location: Sugar Hill
     cost: 45
     people: everyone
-    date: 2026-09-17
+    date: 2026-09-18
   - text: Sunrise from Artist's Bluff
     category: activity
     priority: maybe
     time: 06:15
     people: Sally, me
-    date: 2026-09-19
+    date: 2026-09-20
   - text: Coffee in Lincoln
     category: coffee
     priority: maybe
     time: 08:00
-    date: 2026-09-18
+    date: 2026-09-19
   - text: The Flume Gorge, if it rains
     category: sightseeing
     priority: maybe
@@ -51,20 +51,20 @@ travel:
     people: Cormac, Sally, me
     booked: none
     cost: 62
-    date: 2026-09-17
+    date: 2026-09-18
   - text: Cannon Mountain tramway
     type: other
     time: 11:30
     duration: 10m
     booked: todo
     notes: Last car down is 17:00 — don't be the ones walking.
-    date: 2026-09-18
+    date: 2026-09-19
   - text: Drive home
     type: car
     time: 16:00
     duration: 2h 30m
     booked: none
-    date: 2026-09-19
+    date: 2026-09-20
 accommodation:
   - text: The Notch House
     stay: airbnb
@@ -73,7 +73,7 @@ accommodation:
     booked: booked
     cost: 340
     notes: Check-in from 16:00, key in the lockbox — code 4417.
-    date: 2026-09-17
+    date: 2026-09-18
   - text: Franconia Inn (backup)
     stay: hotel
     booked: todo
@@ -127,10 +127,10 @@ credits:
     note: Covered the trailhead parking
 drafts:
   - text: Someone said there's a good bakery in Littleton
-    created: 2026-09-06
-  - text: Check whether the ridge trail is open after the storm
     created: 2026-09-07
-    date: 2026-09-18
-created: 2026-09-08
-updated: 2026-09-08
+  - text: Check whether the ridge trail is open after the storm
+    created: 2026-09-08
+    date: 2026-09-19
+created: 2026-09-09
+updated: 2026-09-09
 ---

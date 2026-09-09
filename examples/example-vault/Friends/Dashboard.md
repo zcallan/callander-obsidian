@@ -35,5 +35,5 @@ expenses:
       tip: 20
 drafts:
   - text: Haruki mentioned a record fair in the fall — ask where
-    created: 2026-09-07
+    created: 2026-09-08
 ---

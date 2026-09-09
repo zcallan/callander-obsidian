@@ -1,8 +1,8 @@
 ---
 name: George R.R. Martin
 shortName: George R.R.
-birthday: 1948-11-10
-met: 2025-04-06
+birthday: 1948-11-11
+met: 2025-04-07
 relationship: friend
 groups:
   - writers' room
@@ -23,6 +23,6 @@ funFacts:
   - Ran chess tournaments professionally in the 1970s
   - Bought and restored an old Santa Fe cinema, and programmes it himself
   - Lives close enough to Cormac that they turn up to the same things by accident
-created: 2026-09-08
-updated: 2026-09-08
+created: 2026-09-09
+updated: 2026-09-09
 ---

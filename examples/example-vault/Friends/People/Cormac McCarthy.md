@@ -1,8 +1,8 @@
 ---
 name: Cormac McCarthy
 shortName: Mac
-birthday: 1955-08-31
-met: 2020-12-08
+birthday: 1955-09-01
+met: 2020-12-09
 relationship: friend
 groups:
   - writers' room
@@ -29,6 +29,6 @@ funFacts:
 insideJokes:
   - text: The eleven-dollar typewriter
     context: Still the best deal anyone at the table has made
-created: 2026-09-08
-updated: 2026-09-08
+created: 2026-09-09
+updated: 2026-09-09
 ---

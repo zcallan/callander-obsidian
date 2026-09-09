@@ -2,21 +2,47 @@
 
 **A private secondary memory for your friendships. Built on Obsidian.**
 
-We all want to be better friends than our memory allows. You forget a birthday. You lose track of a great conversation that got interrupted. You see the perfect gift in a shop window, think "Bob would love this," and by December you've completely forgotten it.
+We all want to be better friends than our memory allows. You forget a birthday. You lose track of a great conversation that got interrupted. You see the perfect gift for someone, think "Bob would love this," and a day later you've completely forgotten it — let alone 7 months later when it's December or their birthday rolls around and you're looking for a gift.
 
-Callander is a quiet, personal space where you jot down the little things that help you show up well for the people you care about — and it resurfaces them when they matter.
+Callander is a quiet, personal space where you jot down the little things that help you show up well for the people you care about — and it helps resurfaces them when they matter.
 
-You can also add events on the dashboard (upcoming bookings, tasks, anything worth keeping in view — with or without people attached), manage a list of "Somedays" which are loose plans you'd like to do solo or in a group someday soon, and create full plans with as precise or imprecise of a timeline as you like, with a full cost breakdown tool and note taking.
+What this plugin holds:
 
-This plugin is not designed to store opinions about people, ratings, or really even intimate details. It stores your _fascinations and excitements toward them_ — things you want to do, say, give, or remember.
+- **Birthdays.** A countdown that also tells you whether you have a gift idea ready, and holds the birthdays you've missed until mark them as done (sending that belated birthday message or a box of chocolates).
+- **Friends.** A dedicated page for each friend with everything you'd want in front of you before you saw them — ideas for conversations, interests, and a timeline of the two of you going back to the day you met.
+- **Events.** Anything with a date on it — a dinner, a movie, a gig, a booking, or a plain task with nobody attached. Displayable as a timeline, a list, or a calendar.
+- **Plans.** The bigger things: several days, several people, an itinerary, a packing list and shared money.
+- **Somedays.** The loose wishlist of things you'd like to do but haven't committed to, complete with filters and a dedicated page to help you tick off those things you've always wanted to do with friends or alone, but never sparked actual plans for it (trip to Maine when?).
+- **Expenses.** Split costs in five different ways — evenly, by percent, by share, by exact amount, or line-by-line off a receipt with sales tax and tip. Breakdowns display a person-by-person total, complete with a crediting system and checklist.
+- **Groups.** Group friends together and the circle assembles itself, with colour coding, ideas, and a timeline of its own.
+- **Diary.** Write about a day; mentioning someone is enough to link them to it and integrate it into their file.
 
-My philosophy for this project is: everything you record here should be okay for someone to read about themselves. However, you are more than welcome to use it in any way you like.
+<p align="center">
+	<img alt="The Callander dashboard" src="examples/screenshots/dashboard-1.png" />
+</p>
 
-![The Callander dashboard](examples/screenshots/dashboard-1.png)
+## Plugin Principles
+
+1. **Never creepy.** No fields for opinions, assessments, or sensitive personal details. If a feature would feel wrong if the friend saw it, it doesn't belong.
+2. **Honest imprecision.** Record vague truths, not false precision. Only know someone's birth month & year? The plugin doesn't mind; enter what you know and fill the rest in later.
+3. **Ten-second capture.** The core loop is jotting a thought before it evaporates.
+4. **Completely private.** Everything lives in your own vault as plain markdown. No sync, no network, no accounts — unless you want to set that up separately yourself.
+
+## How to Get Started
+
+1. In Obsidian, open **Settings → Community plugins → Browse**, search for **Callander**, then install and enable it.
+2. Open the dashboard — the Callander icon in the left ribbon, or **Callander: Open dashboard** from the command palette.
+3. That first open creates a `Friends` folder with one example friend in it, so the page isn't blank while you find your feet. **Add friend** starts a real one; a first name is all it asks for.
+
+Everything lives in that folder as ordinary Markdown, and you can point it somewhere else in the plugin's settings whenever you like.
 
 ## Features
 
-A short tour of the three pages you'll spend your time on. For the full walkthrough — groups, events, the diary, quick notes and every way of splitting a bill — see **[FEATURES.md](FEATURES.md)**.
+Here's a quick tour of some pages you'll spend your time on. For the full walkthrough — groups, events, the diary, quick notes, the plugin's settings and every way of splitting a bill — see **[FEATURES.md](FEATURES.md)**.
+
+Beyond the people themselves, the dashboard takes events (bookings, tasks, anything worth keeping in view, with or without people attached), a list of somedays — loose plans you'd like to get to alone or with others — and full plans with as precise or imprecise a timeline as you like, a cost breakdown tool and room for notes.
+
+None of it is built to store opinions about people, ratings, or really even intimate details. What it stores is your _fascinations and excitements toward them_ — things you want to do, say, give, or remember. The rule I hold it to is that everything recorded here should be okay for someone to read about themselves, though you're welcome to use it any way you like.
 
 ### 📋 Dashboard
 
@@ -30,9 +56,17 @@ The page you might start opening every day as a matter of habit. Everything on i
 
 **Somedays.** The loose wishlist of things you'd like to do but haven't committed to, each showing whatever you know about when it would work: a season, a stretch of weeks before the chance disappears, or just the days that suit it.
 
-![Upcoming and missed birthdays, and what's on the calendar](examples/screenshots/dashboard-2.png) _Birthdays with gift ideas flagged, missed ones held for you, and the events coming up._
+<p align="center">
+	<img alt="Upcoming and missed birthdays, and what's on the calendar" src="examples/screenshots/dashboard-2.png" />
+	<br />
+	<em>Birthdays with gift ideas flagged, missed ones held for you, and the events coming up.</em>
+</p>
 
-![Plans and the somedays wishlist](examples/screenshots/dashboard-3.png) _Trips you're planning, and the wishlist of things without a date yet._
+<p align="center">
+	<img alt="Plans and the somedays wishlist" src="examples/screenshots/dashboard-3.png" />
+	<br />
+	<em>Trips you're planning, and the wishlist of things without a date yet.</em>
+</p>
 
 ### 🧑‍🤝‍🧑 Friend page
 
@@ -42,9 +76,17 @@ Everything you'd want in front of you before you saw someone. A first name is al
 
 **Timeline.** One merged history of the two of you: anything coming up at the top, including trips they're part of, then a year-by-year record reaching back to the day you met — which is itself the first entry.
 
-![A friend's page showing their age, birthday and saved ideas](examples/screenshots/person-1.png) _Age and birthday worked out for you, and ideas grouped by kind._
+<p align="center">
+	<img alt="A friend's page showing their age, birthday and saved ideas" src="examples/screenshots/person-1.png" />
+	<br />
+	<em>Age and birthday worked out for you, and ideas grouped by kind.</em>
+</p>
 
-![A friend's timeline of shared history](examples/screenshots/person-2.png) _What's coming up, then the record going back to the day you met._
+<p align="center">
+	<img alt="A friend's timeline of shared history" src="examples/screenshots/person-2.png" />
+	<br />
+	<em>What's coming up, then the record going back to the day you met.</em>
+</p>
 
 ### 🗺️ Plan page
 
@@ -52,22 +94,23 @@ For the bigger things — a weekend away, several people, real money.
 
 **Timeline.** Everything with a date on it flows into a single running order for the trip: what you're doing, how you're getting there, where you're staying. A drive shows its length and who's in the car; where you're staying shows the address and the door code. Times can be exact or as loose as "late afternoon", and anything you haven't booked yet is flagged.
 
-**Cost breakdown.** Split each cost evenly, by percentage, by shares, by exact amounts, or line by line straight off the receipt. It all rolls up to one figure per person — with anything already settled taken out and money someone fronted deducted — and every number opens up to show its working, so nobody has to take the maths on trust.
+**Cost breakdown.** Split each cost evenly, by percentage, by shares, by exact amounts, or line by line straight off the receipt. It all rolls up to one figure per person — with anything already settled taken out and money someone fronted deducted. Tap anyone to open their ledger: every cost they're charged for, the credits coming off it, and the total left to pay, with each line tickable as they square up.
 
-![The running order for a trip](examples/screenshots/plan-2.png) _Journeys, meals and where you're staying, all in one running order._
+<p align="center">
+	<img alt="The running order for a trip" src="examples/screenshots/plan-2.png" />
+	<br />
+	<em>Journeys, meals and where you're staying, all in one running order.</em>
+</p>
 
-![Who owes what across a whole trip](examples/screenshots/plan-who-owes-1.png) _One figure per person across every cost, with what's still outstanding at the top._
+<p align="center">
+	<img alt="Who owes what across a whole trip" src="examples/screenshots/plan-who-owes-1.png" />
+	<br />
+	<em>Expenses, credits and who owes what — one figure per person, and the outstanding total beside the heading.</em>
+</p>
 
 ### All features
 
-For the full walkthrough — groups, events, the diary, quick notes and every way of splitting a bill — see **[FEATURES.md](FEATURES.md)**.
-
-## Project Principles
-
-1. **Never creepy.** No fields for opinions, assessments, or sensitive personal details. If a feature would feel wrong if the friend saw it, it doesn't belong.
-2. **Honest imprecision.** Record vague truths, not false precision.
-3. **Ten-second capture.** The core loop is jotting a thought before it evaporates.
-4. **Completely private.** Everything lives in your own vault as plain markdown. No sync, no network, no accounts — unless you want to set that up separately yourself.
+For the full walkthrough — groups, events, the diary, quick notes, the plugin's settings and every way of splitting a bill — see **[FEATURES.md](FEATURES.md)**.
 
 ## Plugin Notes
 

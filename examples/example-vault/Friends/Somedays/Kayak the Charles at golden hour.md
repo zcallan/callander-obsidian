@@ -2,7 +2,7 @@
 kind: someday
 name: Kayak the Charles at golden hour
 status: open
-created: 2026-09-08
+created: 2026-09-09
 types:
   - nature
   - activity
@@ -19,5 +19,5 @@ people:
   - "[[Cormac McCarthy]]"
 cost: 75
 notes: Only worth it on a still evening — check the wind before booking.
-updated: 2026-09-08
+updated: 2026-09-09
 ---

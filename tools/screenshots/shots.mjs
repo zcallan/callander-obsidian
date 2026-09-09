@@ -56,6 +56,62 @@ const clickButton = (label, scope = "body") =>
 		el.click();
 	}`;
 
+/**
+ * Open the plugin's own settings tab.
+ *
+ * `app.setting` isn't in the public typings, but this is capture tooling
+ * rather than plugin code, and a missing API bows out as a skip.
+ */
+const openSettings = () =>
+	`async () => {
+		const setting = window.app.setting;
+		if (!setting) return "no settings API on this build";
+		await setting.open();
+		setting.openTabById("callander");
+	}`;
+
+/**
+ * Put a settings heading at the top of the frame.
+ *
+ * The shooter's own `scroll` finds a scroller inside the active workspace
+ * leaf, and a modal isn't in one — so settings shots scroll themselves and
+ * set `noScrollReset`.
+ */
+const scrollSettingsTo = (heading) =>
+	`async () => {
+		const root = document.querySelector(".modal-container .vertical-tab-content")
+			?? document.querySelector(".modal-container");
+		if (!root) return "settings never opened";
+		const scrollers = [root, ...root.querySelectorAll("*")].filter(
+			(el) => el.scrollHeight > el.clientHeight + 20
+		);
+		const scroller = scrollers.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+		if (!scroller) return "settings tab does not scroll";
+		const label = ${JSON.stringify(heading)};
+		const el = [...scroller.querySelectorAll("*")].find(
+			(n) => n.children.length === 0 && (n.textContent || "").trim() === label
+		);
+		if (!el) return "no settings heading " + label;
+		scroller.scrollTop +=
+			el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 16;
+	}`;
+
+/**
+ * Put one of the cost breakdown's sub-headings at the top of the frame.
+ *
+ * The shooter's own `scrollTo` only looks at h1-h4, and these are divs —
+ * they're section dividers rather than document structure.
+ */
+const scrollToSubHeading = (text) =>
+	`async () => {
+		const label = ${JSON.stringify(text)};
+		const el = [...document.querySelectorAll(".callander-subheading")].find(
+			(n) => (n.textContent || "").includes(label)
+		);
+		if (!el) return "no sub-heading " + label;
+		el.scrollIntoView({ block: "center" });
+	}`;
+
 /** Do several in-renderer steps in order. */
 const steps = (...fns) =>
 	`async (ctx) => {
@@ -182,34 +238,44 @@ export const SHOTS = [
 		setup: steps(openNote("plan"), clickButton("^Add accommodation$")),
 	},
 	{
-		// "Who owes what" is a <details>, collapsed by default — open it and
-		// scroll it into frame rather than clicking, which would toggle
-		// whatever else matched.
+		// "Who owes what" is no longer behind a disclosure — it just needs
+		// scrolling into frame. Anchored on the sub-heading rather than a
+		// pixel offset, since the number of expenses above it moves with the
+		// seed data.
 		name: "plan-who-owes-1",
-		setup: steps(
-			openNote("plan"),
-			`async () => {
-				const details = [...document.querySelectorAll("details.expense-summary")];
-				if (details.length === 0) return "no expense summary on the page";
-				for (const d of details) d.open = true;
-				details[0].scrollIntoView({ block: "center" });
-			}`
-		),
+		setup: steps(openNote("plan"), scrollToSubHeading("Who owes what")),
 		noScrollReset: true,
 	},
 	{
-		// The per-person working: expand the summary, then open one person's
-		// Breakdown from it.
+		// The per-person working. The per-row "Breakdown" button is gone —
+		// the row itself opens it now, so this clicks the row rather than
+		// searching for a button that no longer exists.
 		name: "plan-breakdown-1",
 		setup: steps(
 			openNote("plan"),
 			`async () => {
-				const details = [...document.querySelectorAll("details.expense-summary")];
-				if (details.length === 0) return "no expense summary on the page";
-				for (const d of details) d.open = true;
-			}`,
-			clickButton("^Breakdown$", "details.expense-summary")
+				// Not your own row: yours has no tick boxes and no settle
+				// action, since you can't owe yourself — which makes it the
+				// least representative version of this modal to photograph.
+				const row = document.querySelector(
+					".expense-owed-row.is-clickable:not(.is-you)"
+				);
+				if (!row) return "nobody but you owes anything on this plan";
+				row.click();
+			}`
 		),
+		noScrollReset: true,
+	},
+
+	// ── Settings ─────────────────────────────────────────────────────────
+	// Two frames: the top of the tab, then the part that most needs showing
+	// — the ribbon toggles and the draggable dashboard order. Both scroll
+	// themselves, since the shooter's scroller lives in a workspace leaf and
+	// this is a modal.
+	{ name: "settings-1", setup: openSettings(), noScrollReset: true },
+	{
+		name: "settings-2",
+		setup: steps(openSettings(), scrollSettingsTo("Quick actions")),
 		noScrollReset: true,
 	},
 ];

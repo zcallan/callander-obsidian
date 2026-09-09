@@ -1,7 +1,7 @@
 ---
 name: Haruki Murakami
-birthday: 1949-09-22
-met: 2024-02-11
+birthday: 1949-09-23
+met: 2024-02-12
 relationship: friend
 groups:
   - book club
@@ -27,6 +27,6 @@ funFacts:
   - Has run a marathon almost every year for decades, and wrote a book about why
   - Translates American novels into Japanese for fun — Fitzgerald and Carver among them
   - Owns a record collection large enough to have its own filing system
-created: 2026-09-08
-updated: 2026-09-08
+created: 2026-09-09
+updated: 2026-09-09
 ---

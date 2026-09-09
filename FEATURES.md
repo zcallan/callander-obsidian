@@ -8,7 +8,7 @@ Every screenshot here is a real capture of the plugin running against the exampl
 
 Every page is kept to a comfortable reading width by default. When there's room beside it, a button in the top corner widens that one page for as long as you're on it, and the whole behaviour can be turned off in settings.
 
-**Jump to:** [Dashboard](#dashboard) · [Friends](#friends) · [Groups](#groups) · [Quick notes](#quick-notes) · [Events](#events) · [Diary](#diary) · [Somedays](#somedays) · [Plans](#plans) · [Expenses](#expenses) · [Suggesting a feature](#suggesting-a-feature)
+**Jump to:** [Dashboard](#dashboard) · [Friends](#friends) · [Groups](#groups) · [Quick notes](#quick-notes) · [Events](#events) · [Diary](#diary) · [Somedays](#somedays) · [Plans](#plans) · [Expenses](#expenses) · [Plugin settings](#plugin-settings) · [Suggesting a feature](#suggesting-a-feature)
 
 ---
 
@@ -28,13 +28,29 @@ The rest of the page runs through the bigger trips you're planning, the loose wi
 
 On Obsidian 1.13 and later you can drag those sections into whatever order suits you, in the plugin's settings. If money owed is the thing you open the app for, put it at the top.
 
-![Callander dashboard showing friends, jotted notes and upcoming birthdays](examples/screenshots/dashboard-1.png) _Quick actions, friend search, and the notes waiting to be filed._
+<p align="center">
+	<img alt="Callander dashboard showing friends, jotted notes and upcoming birthdays" src="examples/screenshots/dashboard-1.png" />
+	<br />
+	<em>Quick actions, friend search, and the notes waiting to be filed.</em>
+</p>
 
-![Upcoming and missed birthdays, and the events coming up](examples/screenshots/dashboard-2.png) _Birthdays with gift ideas flagged, missed ones held for you, and what's on the calendar._
+<p align="center">
+	<img alt="Upcoming and missed birthdays, and the events coming up" src="examples/screenshots/dashboard-2.png" />
+	<br />
+	<em>Birthdays with gift ideas flagged, missed ones held for you, and what's on the calendar.</em>
+</p>
 
-![Plans and the somedays wishlist](examples/screenshots/dashboard-3.png) _Trips in the diary, and the wishlist of things without a date yet._
+<p align="center">
+	<img alt="Plans and the somedays wishlist" src="examples/screenshots/dashboard-3.png" />
+	<br />
+	<em>Trips in the diary, and the wishlist of things without a date yet.</em>
+</p>
 
-![Recent diary entries, groups and shared costs](examples/screenshots/dashboard-4.png) _The tail of the page: recent entries, your groups, and money still to settle._
+<p align="center">
+	<img alt="Recent diary entries, groups and shared costs" src="examples/screenshots/dashboard-4.png" />
+	<br />
+	<em>The tail of the page: recent entries, your groups, and money still to settle.</em>
+</p>
 
 ---
 
@@ -56,19 +72,47 @@ A birthday you only know the month of still counts on both — it sits in the ri
 
 Adding someone asks for very little — a first name is enough. Everything else is there for when you need it: what you actually call them, how their name should be shortened in lists, their pronouns as free text so whatever they use goes in as they write it, and a birthday you can give as a full date, a month and year, or just a day and month when nobody remembers the year. You can tick them into groups on the way in.
 
-![Full list of friends with group filters and sorting](examples/screenshots/all-friends-1.png) _Everyone in one list, filtered by group and sorted however you like._
+<p align="center">
+	<img alt="Full list of friends with group filters and sorting" src="examples/screenshots/all-friends-1.png" />
+	<br />
+	<em>Everyone in one list, filtered by group and sorted however you like.</em>
+</p>
 
-![The year of birthdays as a timeline, month by month](examples/screenshots/all-friends-2.png) _The same people as a year of birthdays, with the age each one is turning._
+<p align="center">
+	<img alt="The year of birthdays as a timeline, month by month" src="examples/screenshots/all-friends-2.png" />
+	<br />
+	<em>The same people as a year of birthdays, with the age each one is turning.</em>
+</p>
 
-![The same birthdays as a month calendar](examples/screenshots/all-friends-3.png) _And as a month grid, a square per day._
+<p align="center">
+	<img alt="The same birthdays as a month calendar" src="examples/screenshots/all-friends-3.png" />
+	<br />
+	<em>And as a month grid, a square per day.</em>
+</p>
 
-![The form for adding a new friend](examples/screenshots/add-friend-1.png) _Only the name is required — the rest is there when you want it._
+<p align="center">
+	<img alt="The form for adding a new friend" src="examples/screenshots/add-friend-1.png" />
+	<br />
+	<em>Only the name is required — the rest is there when you want it.</em>
+</p>
 
-![A friend's page showing their age, birthday and saved ideas](examples/screenshots/person-1.png) _Age and birthday worked out for you, unfiled notes, and ideas grouped by kind._
+<p align="center">
+	<img alt="A friend's page showing their age, birthday and saved ideas" src="examples/screenshots/person-1.png" />
+	<br />
+	<em>Age and birthday worked out for you, unfiled notes, and ideas grouped by kind.</em>
+</p>
 
-![A friend's timeline of shared history](examples/screenshots/person-2.png) _Everything coming up, then a year-by-year record back to the day you met._
+<p align="center">
+	<img alt="A friend's timeline of shared history" src="examples/screenshots/person-2.png" />
+	<br />
+	<em>Everything coming up, then a year-by-year record back to the day you met.</em>
+</p>
 
-![Interests, fun facts, inside jokes and quotes](examples/screenshots/person-3.png) _The character stuff — what they're into, and the things you don't want to forget._
+<p align="center">
+	<img alt="Interests, fun facts, inside jokes and quotes" src="examples/screenshots/person-3.png" />
+	<br />
+	<em>The character stuff — what they're into, and the things you don't want to forget.</em>
+</p>
 
 ---
 
@@ -78,7 +122,11 @@ A group is any circle you want to keep track of — a book club, the people you 
 
 Each group gets a colour that shows up next to its members everywhere else, and its own page with the same ideas, timeline and notes a person has. That means an idea can belong to a whole circle rather than one individual — a bar to try with everyone, or a trip to float at the next meet-up.
 
-![A group page listing its members](examples/screenshots/group-1.png) _The book club, assembled from whoever's tagged into it._
+<p align="center">
+	<img alt="A group page listing its members" src="examples/screenshots/group-1.png" />
+	<br />
+	<em>The book club, assembled from whoever's tagged into it.</em>
+</p>
 
 ---
 
@@ -88,7 +136,11 @@ This is the smallest thing in Callander and possibly the most useful. Type the t
 
 It lands on the dashboard and on that person's page as something to sort later. The reason it's this bare is that deciding what a thought _is_ — a gift idea? a conversation? — is work, and work at the wrong moment means you don't write it down at all. So Callander lets you skip that decision entirely and come back to it.
 
-![The quick note form](examples/screenshots/quick-note-1.png) _Type it, save it, decide what it was later._
+<p align="center">
+	<img alt="The quick note form" src="examples/screenshots/quick-note-1.png" />
+	<br />
+	<em>Type it, save it, decide what it was later.</em>
+</p>
 
 ---
 
@@ -104,11 +156,23 @@ Something you cancelled stays on the list, crossed out and labelled, rather than
 
 When you log one, you pick what sort of event it was from a row of options, and the date can be as vague as you like — a full date, just a month, or only a year, because something you remember as "sometime in 2019" shouldn't need a made-up day attached to it. You add whoever was there, and choose whether it shows up on their pages or stays private to your calendar.
 
-![The events page grouped by how soon each event is](examples/screenshots/events-1.png) _Grouped by how soon rather than by date — this week, next week, then by month._
+<p align="center">
+	<img alt="The events page grouped by how soon each event is" src="examples/screenshots/events-1.png" />
+	<br />
+	<em>Grouped by how soon rather than by date — this week, next week, then by month.</em>
+</p>
 
-![The events page as a month calendar](examples/screenshots/events-2.png) _The same events as a month grid. Clicking an empty day starts a new one, already dated._
+<p align="center">
+	<img alt="The events page as a month calendar" src="examples/screenshots/events-2.png" />
+	<br />
+	<em>The same events as a month grid. Clicking an empty day starts a new one, already dated.</em>
+</p>
 
-![The form for adding an event](examples/screenshots/add-event-1.png) _Pick the kind of thing it was, and be as vague about the date as you need to be._
+<p align="center">
+	<img alt="The form for adding an event" src="examples/screenshots/add-event-1.png" />
+	<br />
+	<em>Pick the kind of thing it was, and be as vague about the date as you need to be.</em>
+</p>
 
 ---
 
@@ -120,7 +184,11 @@ Entries are grouped by month and show a preview of what you wrote. If you mentio
 
 Each entry is just a note, so you can write it however you like and the diary keeps up.
 
-![The diary, with entries grouped by month](examples/screenshots/diary-1.png) _Write about the day; mentioning someone is enough to link them to it._
+<p align="center">
+	<img alt="The diary, with entries grouped by month" src="examples/screenshots/diary-1.png" />
+	<br />
+	<em>Write about the day; mentioning someone is enough to link them to it.</em>
+</p>
 
 ---
 
@@ -134,11 +202,23 @@ The list can sort itself by what fits best given what you've told it, and there'
 
 Open one and you'll see everything you've pinned down, along with three buttons that are the whole point: mark it done, turn it into a dated event, or grow it into a full plan with people and a budget. A vague idea becomes a real trip without ever being retyped.
 
-![The somedays list](examples/screenshots/somedays-1.png) _Sorted by what fits, with buttons for what you could do today or this weekend._
+<p align="center">
+	<img alt="The somedays list" src="examples/screenshots/somedays-1.png" />
+	<br />
+	<em>Sorted by what fits, with buttons for what you could do today or this weekend.</em>
+</p>
 
-![A single someday with its details](examples/screenshots/someday-view-1.png) _What you know so far — and the buttons to turn it into an event or a plan._
+<p align="center">
+	<img alt="A single someday with its details" src="examples/screenshots/someday-view-1.png" />
+	<br />
+	<em>What you know so far — and the buttons to turn it into an event or a plan.</em>
+</p>
 
-![The form for adding a someday](examples/screenshots/add-somedays-1.png) _Say as much or as little as you want; a name on its own is a complete someday._
+<p align="center">
+	<img alt="The form for adding a someday" src="examples/screenshots/add-somedays-1.png" />
+	<br />
+	<em>Say as much or as little as you want; a name on its own is a complete someday.</em>
+</p>
 
 ---
 
@@ -152,27 +232,63 @@ You add the people going, and anyone who hasn't answered yet sits separately as 
 
 Everything you add that has a date on it — things to do, journeys, where you're staying — flows into a single running order for the trip, grouped by day and sorted by time. A drive shows its length, its cost and who's in the car. Dinner shows a rough price each. Where you're staying appears on the day you check in and says how long you're there, with the address and the door code right on it. Anything you haven't booked yet is flagged, so the loose ends stand out.
 
-Below the running order, everywhere you might stay is listed together, including the backup you haven't committed to and the date you need to decide by. There's a shared packing list that everyone can tick off, a full cost breakdown, and a free-text area at the bottom for booking confirmations and anything else that doesn't fit a box.
+Below the running order, everywhere you might stay is listed together, including the backup you haven't committed to and the date you need to decide by. There's a shared packing list that everyone can tick off, a full cost breakdown — the expenses, any credits, and who owes what, each under its own heading — and a free-text area at the bottom for booking confirmations and anything else that doesn't fit a box.
 
 Adding to a plan is quick. Things to do can be given a category, a day, and either an exact time or a rough one — "late afternoon" and "dinner time" are real answers that still sort correctly. Journeys pick how you're travelling, how long it takes and whether it's booked. Places to stay pick what kind of place it is, how many nights, and take an address that opens in Maps.
 
-![Setting up a new plan](examples/screenshots/add-plan-1.png) _A name and a rough date is enough to get started._
+<p align="center">
+	<img alt="Setting up a new plan" src="examples/screenshots/add-plan-1.png" />
+	<br />
+	<em>A name and a rough date is enough to get started.</em>
+</p>
 
-![A plan showing who's coming, including unconfirmed](examples/screenshots/plan-1.png) _Who's in, who hasn't answered, and the total cost so far._
+<p align="center">
+	<img alt="A plan showing who's coming, including unconfirmed" src="examples/screenshots/plan-1.png" />
+	<br />
+	<em>Who's in, who hasn't answered, and the total cost so far.</em>
+</p>
 
-![The first day of the trip's running order](examples/screenshots/plan-2.png) _Journeys, meals and where you're staying, all in one running order._
+<p align="center">
+	<img alt="The first day of the trip's running order" src="examples/screenshots/plan-2.png" />
+	<br />
+	<em>Journeys, meals and where you're staying, all in one running order.</em>
+</p>
 
-![Later days of the trip, and where you're staying](examples/screenshots/plan-3.png) _Unbooked things are flagged, and every option for where to stay is listed together._
+<p align="center">
+	<img alt="Later days of the trip, and where you're staying" src="examples/screenshots/plan-3.png" />
+	<br />
+	<em>Unbooked things are flagged, and every option for where to stay is listed together.</em>
+</p>
 
-![The packing list and cost breakdown](examples/screenshots/plan-4.png) _A shared packing list, and every shared cost with how it's being split._
+<p align="center">
+	<img alt="The packing list and cost breakdown" src="examples/screenshots/plan-4.png" />
+	<br />
+	<em>A shared packing list, and every shared cost with how it's being split.</em>
+</p>
 
-![Notes and extra details on a plan](examples/screenshots/plan-5.png) _Room for booking confirmations and anything else that doesn't fit a field._
+<p align="center">
+	<img alt="Notes and extra details on a plan" src="examples/screenshots/plan-5.png" />
+	<br />
+	<em>Room for booking confirmations and anything else that doesn't fit a field.</em>
+</p>
 
-![Adding something to do on a plan](examples/screenshots/plan-add-idea-1.png) _Only the days of the trip are offered, and the time can be rough._
+<p align="center">
+	<img alt="Adding something to do on a plan" src="examples/screenshots/plan-add-idea-1.png" />
+	<br />
+	<em>Only the days of the trip are offered, and the time can be rough.</em>
+</p>
 
-![Adding a journey to a plan](examples/screenshots/plan-add-travel-1.png) _How you're getting there, how long it takes, and whether it's booked._
+<p align="center">
+	<img alt="Adding a journey to a plan" src="examples/screenshots/plan-add-travel-1.png" />
+	<br />
+	<em>How you're getting there, how long it takes, and whether it's booked.</em>
+</p>
 
-![Adding somewhere to stay on a plan](examples/screenshots/plan-add-accommodation-1.png) _What kind of place, how many nights, and an address that opens in Maps._
+<p align="center">
+	<img alt="Adding somewhere to stay on a plan" src="examples/screenshots/plan-add-accommodation-1.png" />
+	<br />
+	<em>What kind of place, how many nights, and an address that opens in Maps.</em>
+</p>
 
 ---
 
@@ -184,28 +300,88 @@ Evenly is the common case — name who was there and it divides equally. Percent
 
 Off the receipt is the precise one: you type each person's own line from the bill. You can type sums rather than answers, and Callander keeps what you typed, so `38+23` stays readable as how you got to $61 rather than just showing the total. Tax and tip go on as percentages, each showing what they add, and the whole thing totals up so you can check it against the paper receipt before saving.
 
-All of that rolls up into one figure per person. Across a whole trip — different splits, one already settled and taken out, money someone fronted deducted — you get a single number each, and a running total of what's still outstanding. Anything already paid back comes off rather than becoming another line to divide.
+All of that rolls up into one figure per person. Across a whole trip — different splits, one already settled and taken out, money someone fronted deducted — you get a single number each, and a running total of what's still outstanding. It sits in the open under the costs rather than behind a disclosure, since it's the part you actually came to look at.
 
-And every number opens up. Tap through and you get that person's total broken down line by line: which cost, how it was split, what it came to. Nobody has to take the arithmetic on trust, which is the difference between a tool people use to settle up and a tool people argue with.
+A credit is the other half of that. Somebody covers the petrol and you'd rather not log it as an expense and split it back out — so you take the amount off what they owe, with a note saying what it was for. Credits are listed under their own heading, apart from the costs, because money coming off shouldn't look like one more cost going on.
 
-![Splitting a cost evenly between three people](examples/screenshots/expense-split-even-1.png) _The common case — name who was there and it divides equally._
+And every person opens up. Tap their row and you get their ledger: each cost they're charged for, how it was split, what it came to, then the credits coming off and the total left to pay. Nobody has to take the arithmetic on trust, which is the difference between a tool people use to settle up and a tool people argue with.
 
-![Splitting a cost by percentage](examples/screenshots/expense-split-percent-1.png) _Percentages with the real money alongside, and a total that tells you when it adds up._
+That's also where you settle. Tick a line as they hand that share over, or mark the lot settled in one go — the figure moves as you go, so a person who's square reads as $0.00 rather than as a struck-out row still showing what they used to owe.
 
-![Splitting a cost line by line off the receipt](examples/screenshots/expense-split-receipt-1.png) _Type sums, not answers — `38+23` stays readable as how you got to $61._
+<p align="center">
+	<img alt="Splitting a cost evenly between three people" src="examples/screenshots/expense-split-even-1.png" />
+	<br />
+	<em>The common case — name who was there and it divides equally.</em>
+</p>
 
-![Who owes what across a whole trip](examples/screenshots/plan-who-owes-1.png) _One figure per person across every cost, with what's still outstanding at the top._
+<p align="center">
+	<img alt="Splitting a cost by percentage" src="examples/screenshots/expense-split-percent-1.png" />
+	<br />
+	<em>Percentages with the real money alongside, and a total that tells you when it adds up.</em>
+</p>
 
-![One person's costs broken down line by line](examples/screenshots/plan-breakdown-1.png) _Every number opens up, so nobody has to take the maths on trust._
+<p align="center">
+	<img alt="Splitting a cost line by line off the receipt" src="examples/screenshots/expense-split-receipt-1.png" />
+	<br />
+	<em>Type sums, not answers — <code>38+23</code> stays readable as how you got to $61.</em>
+</p>
+
+<p align="center">
+	<img alt="Who owes what across a whole trip" src="examples/screenshots/plan-who-owes-1.png" />
+	<br />
+	<em>Expenses, credits and who owes what, each under its own heading — with the outstanding total beside the last.</em>
+</p>
+
+<p align="center">
+	<img alt="One person's ledger for a trip, with each line tickable" src="examples/screenshots/plan-breakdown-1.png" />
+	<br />
+	<em>One person's ledger: what they're charged for, what comes off, and what's left. Tick a line as they settle it, or the lot in one go.</em>
+</p>
+
+---
+
+## Plugin settings
+
+Most of what Callander does is meant to work without being configured. The settings are for the handful of choices where a sensible default is still somebody else's default — where your data lives, how much of the page it fills, and which parts of it are worth an icon in your sidebar.
+
+**Your name** is dropped into shared plan messages automatically, so you're counted in a split without having to add yourself as your own guest. **Hemisphere** decides which months each season covers, which is what makes a someday pinned to "next summer" mean the right half of the year.
+
+**Limit page width** keeps Callander's pages to a comfortable reading column instead of letting them fill the pane, and it's on to begin with. When there's room beside a page, a button in its top corner widens that one page for as long as you're on it — so a wide cost breakdown gets the space it needs without the dashboard being stretched to match. Turn the setting off and every page fills whatever it's given.
+
+**Open friends in Callander view** decides what happens when you click a friend's note anywhere else in Obsidian — the file explorer, the quick switcher, a link, the graph. On, you get their Callander page; off, you get the note underneath. Either way the Markdown tab is still one click away.
+
+**Birthday reminders on startup** puts up a notice when Obsidian opens, at most once a day, and you set how far ahead it looks.
+
+**Quick actions** are the icons down Obsidian's ribbon, each on its own toggle: the dashboard, the diary, the somedays and events pages, capturing an idea, and adding an event. A fresh install turns on only the dashboard, because six new icons in somebody's sidebar is a decision they should get to make rather than one they have to undo.
+
+**Files and folders** is where the data lives — the base folder holding People, Groups, Plans and Somedays, the note that opens the dashboard, and the folder diary entries are written to. Change any of them and Callander follows; the notes are ordinary Markdown wherever they sit.
+
+**Dashboard sections** is a drag-to-reorder list of everything the dashboard shows, on Obsidian 1.13 and later. If money owed is the thing you open the app for, put it at the top. A section added by a later update slots in where it ships rather than at the bottom, so a new feature doesn't arrive somewhere you'd never scroll to. On older versions the dashboard keeps the order it ships with.
+
+**Dashboard** covers the two numbers that change how much it holds: how long a birthday stays on the page after it's passed, so a forgotten one becomes a belated message rather than a lost cause, and how many somedays are listed before the rest fold into a "+N more" link.
+
+**Friends** turns the birthday trivia on and off one piece at a time — star sign, birthstone, birth flower, Chinese zodiac — for when you want the date without the astrology.
+
+**Cost breakdown** sets the sales tax and tip that come pre-filled on a by-receipt split, so the rates where you live are typed once rather than every time.
+
+<p align="center">
+	<img alt="The top of Callander's settings" src="examples/screenshots/settings-1.png" />
+	<br />
+	<em>Your name, the season calendar, page width, and how birthdays announce themselves.</em>
+</p>
+
+<p align="center">
+	<img alt="Quick action toggles, and the files and folders settings" src="examples/screenshots/settings-2.png" />
+	<br />
+	<em>Every ribbon icon on its own toggle, and where your data lives.</em>
+</p>
 
 ---
 
 ## Suggesting a feature
 
-Callander is shaped around my idea of what would help me remember and plan my friendships in as-detailed or as-little-detailed as I like, which means there are almost certainly things it should do that it doesn't yet. If you've run into one, please let me know by suggesting it below.
+Callander is shaped around what my own idea of note taking for personal relationships and general social-life could be, which means there are likely things you can think of that this plugin doesn't do yet. If you think of one, please let me know by suggesting it in the Issues tab.
 
 **[Suggest a feature →](https://github.com/zcallan/callander-obsidian/issues/new)**
 
-Before you do, it's worth [having a look at what's already been suggested](https://github.com/zcallan/callander-obsidian/issues). Someone may have got there first, and adding a 👍 or a comment to an existing thread says more than a second copy of it does.
-
-Bugs go in the same place. If something has gone wrong, the version you're on and what you did just before it happened will usually be enough to find it.
+Bugs go here too. If something has gone wrong, the plugin version & Obsidian version you're on and what you did just before it happened will usually be enough to find it.
