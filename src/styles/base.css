@@ -5753,3 +5753,21 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	border-top: 1px solid
 		color-mix(in srgb, var(--background-modifier-border), transparent 60%);
 }
+
+/* ---- Ribbon ---- */
+
+/*
+A Quick action turned off in settings.
+
+Hidden rather than detached, because the ribbon rebuilds its children from
+the element references its own item list holds — a detached icon gets put
+back on the next rebuild, which any ribbon change triggers. See
+refreshRibbonIcons() in main.ts.
+
+Two classes, so it beats a theme rule setting `display` on the ribbon action
+regardless of which stylesheet the app loads last. Not `!important`: the
+rebuild's show() only clears an inline `display`, and there isn't one here.
+*/
+.side-dock-ribbon-action.callander-ribbon-hidden {
+	display: none;
+}

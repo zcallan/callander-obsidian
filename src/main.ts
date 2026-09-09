@@ -155,9 +155,9 @@ export default class FriendTracker extends Plugin {
 	private eventMigration: EventMigration;
 	public lastQuickIdeaCategory: IdeaCategory = "gift";
 	private statusBarEl: HTMLElement | null = null;
-	/** Currently-added ribbon icons, keyed by their settings key — lets
-	 * refreshRibbonIcons() add/remove individual ones as their toggle
-	 * flips, rather than tearing down and rebuilding the whole ribbon. */
+	/** Every ribbon icon this plugin owns, keyed by its settings key. Added
+	 * once and then kept for the life of the plugin — refreshRibbonIcons()
+	 * shows and hides them rather than adding and removing them. */
 	private ribbonIcons = new Map<RibbonActionKey, HTMLElement>();
 
 	/** True when this install carries the .hotreload dev marker —
@@ -422,25 +422,58 @@ export default class FriendTracker extends Plugin {
 	}
 
 	/**
-	 * Adds or removes each ribbon icon to match its current setting.
-	 * Called once at load, and again whenever a Quick actions toggle
-	 * changes — Obsidian has no show/hide for a ribbon icon, only add and
-	 * remove, so a toggle turning back on has to re-add it from scratch.
+	 * Brings the ribbon in line with the Quick actions settings. Called once
+	 * at load, and again whenever one of those toggles changes.
+	 *
+	 * An icon is added the first time its action is switched on, and from
+	 * then on hidden and shown with a class rather than added and removed.
+	 * That looks like the long way round, and each half of it is load-bearing.
+	 *
+	 * `addRibbonIcon` registers an entry in `workspace.leftRibbon.items` and
+	 * hands back its element. Detaching that element does not touch the
+	 * entry, which goes on holding a `buttonEl` reference to the node we
+	 * just took out of the document. The ribbon rebuilds its children from
+	 * exactly those references — `setChildrenInPlace(items.map(i =>
+	 * i.buttonEl))` — every time anything is added to it or the user
+	 * reorders it. So a detached icon is put straight back: turn one action
+	 * off and then another on, and the first reappears, because turning the
+	 * second on is itself what triggers the rebuild. That is the reported
+	 * bug, and it needs no other plugin's involvement to happen.
+	 *
+	 * Obsidian's own remove path (`removeRibbonAction`, which clears the
+	 * entry's `buttonEl` so the rebuild skips it) is not part of the public
+	 * API and only runs on unload. A class is: the rebuild's `show()` only
+	 * clears an *inline* `display`, so a stylesheet rule survives it, where
+	 * `el.hide()` would be undone on the next pass.
+	 *
+	 * The other half — not adding an icon until its action is first switched
+	 * on — is for the phone. `showRibbonMenu` builds the toolbar's ribbon
+	 * popup fresh from that same item list, reading each entry's title, icon
+	 * and callback and skipping only the ones Obsidian's own ribbon config
+	 * has hidden. It never looks at our element, so no class can reach it.
+	 * An entry, once added, cannot be taken back out through the public API.
+	 * So an action left off since install is never registered at all, and
+	 * stays out of that popup.
+	 *
+	 * What survives is narrow and was already true: an action switched on
+	 * and later off keeps its place in the phone's popup, exactly as it did
+	 * when this detached the element, since the popup never read the DOM.
 	 */
 	public refreshRibbonIcons() {
 		const callbacks = this.ribbonCallbacks();
 		for (const action of RIBBON_ACTIONS) {
 			const visible = this.settings[action.key];
-			const existing = this.ribbonIcons.get(action.key);
-			if (visible && !existing) {
-				const el = this.addRibbonIcon(action.icon, action.name, () =>
+			let el = this.ribbonIcons.get(action.key);
+			if (!el) {
+				// Nothing to hide yet, and registering it would put it in
+				// the phone's ribbon popup for good — see above.
+				if (!visible) continue;
+				el = this.addRibbonIcon(action.icon, action.name, () =>
 					void callbacks[action.key]()
 				);
 				this.ribbonIcons.set(action.key, el);
-			} else if (!visible && existing) {
-				existing.remove();
-				this.ribbonIcons.delete(action.key);
 			}
+			el.toggleClass("callander-ribbon-hidden", !visible);
 		}
 	}
 
