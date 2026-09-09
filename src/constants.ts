@@ -242,6 +242,7 @@ export const EVENT_TYPES = [
 	{ id: "movie", label: "Movie", emoji: "🍿", color: "#dcc22e" },
 	{ id: "comedy", label: "Comedy", emoji: "🎭", color: "#45b8ac" },
 	{ id: "activity", label: "Activity", emoji: "🥾", color: "#7aa64a" },
+	{ id: "sports", label: "Sports", emoji: "🏀", color: "#e2703a" },
 	{ id: "event", label: "Event", emoji: "📅", color: "#8f9aa5" },
 	{ id: "trip", label: "Trip", emoji: "✈️", color: "#45b8ac" },
 	{ id: "milestone", label: "Milestone", emoji: "🏅", color: "#dcc22e" },
