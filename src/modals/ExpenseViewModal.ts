@@ -169,8 +169,11 @@ export class ExpenseViewModal extends Modal {
 
 		const settle = actions.createEl("button", { cls: "callander-button" });
 		setIcon(settle, c.settled ? "rotate-ccw" : "check-circle");
+		// "all", not "as": this ticks every person on the expense, which is
+		// the same wording the person ledger uses for the same action seen
+		// from the other side.
 		settle.createSpan({
-			text: c.settled ? "Mark as unsettled" : "Mark as settled",
+			text: c.settled ? "Mark all unsettled" : "Mark all settled",
 		});
 		settle.addEventListener("click", () => {
 			// Settling ticks everyone; unsettling clears them back to just

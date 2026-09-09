@@ -1,0 +1,169 @@
+<!--
+  The cost breakdown section on a plan, and the ledger a row opens.
+
+  Three lists of different things run back to back in the section — expenses,
+  credits, then who owes what — and the sub-headings are the only thing
+  separating them. Worth checking at 320px too: the credit note and the owed
+  rows both hold a figure out to the right that a long name must not shove
+  off.
+
+  Cases kept: a settled expense (green label), a credit with a long unbroken
+  note, a person who's square (struck through), your own row (slashed box and
+  struck figure, since you can't owe yourself), and in the ledger a settled
+  line, a credit, and the total set apart at the foot.
+-->
+<div class="contact-ideas-section plan-items-section">
+	<div class="callander-subheading"><span>Expenses</span></div>
+
+	<div class="ExpenseRow_row">
+		<div class="ExpenseRow_line">
+			<span class="ExpenseRow_label">Cabin, 3 nights</span>
+			<span class="ExpenseRow_status">1 of 4 paid</span>
+		</div>
+		<div class="ExpenseRow_line">
+			<span class="ExpenseRow_meta">$420.00 · split evenly</span>
+		</div>
+	</div>
+	<div class="ExpenseRow_row">
+		<div class="ExpenseRow_line">
+			<span class="ExpenseRow_label">Taxi back from the Wilbur</span>
+			<span class="ExpenseRow_status ExpenseRow_settled">Settled</span>
+		</div>
+		<div class="ExpenseRow_line">
+			<span class="ExpenseRow_meta">$48.00 · split evenly</span>
+		</div>
+	</div>
+
+	<div class="callander-subheading"><span>Credits</span></div>
+
+	<div class="plan-credit-row">
+		<span class="plan-credit-text"><strong>Steve</strong> · petrol on the way up</span>
+		<span class="plan-credit-amount">−$20.00</span>
+	</div>
+	<div class="plan-credit-row">
+		<span class="plan-credit-text"><strong>Priya</strong> · Supercalifragilisticexpialidociousunbrokenreason</span>
+		<span class="plan-credit-amount">−$14.00</span>
+	</div>
+
+	<div class="callander-subheading">
+		<span>Who owes what</span>
+		<span class="callander-subheading-trailing">$291.00 left</span>
+	</div>
+
+	<div class="expense-owed-list">
+		<div class="expense-owed-row is-you is-clickable">
+			<span class="expense-owed-check">
+				<input type="checkbox" tabindex="-1" aria-hidden="true" disabled>
+				<span class="expense-owed-name">Callan (Me)</span>
+			</span>
+			<span class="expense-owed-amount">$153.00</span>
+			<span class="expense-owed-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+		</div>
+		<div class="expense-owed-row is-clickable">
+			<span class="expense-owed-check">
+				<input type="checkbox" tabindex="-1" aria-hidden="true" disabled>
+				<span class="expense-owed-name">Steve</span>
+			</span>
+			<span class="expense-owed-amount">$146.00</span>
+			<span class="expense-owed-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+		</div>
+		<div class="expense-owed-row is-clickable paid">
+			<span class="expense-owed-check">
+				<input type="checkbox" tabindex="-1" aria-hidden="true" checked disabled>
+				<span class="expense-owed-name">Marcus</span>
+			</span>
+			<span class="expense-owed-amount">$0.00</span>
+			<span class="expense-owed-chevron"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+		</div>
+	</div>
+
+	<div class="contact-section-footer expense-footer">
+		<button class="callander-button">Add expense</button>
+		<button class="callander-button">Add credit</button>
+	</div>
+</div>
+
+<hr style="border:0;border-top:1px dashed rgba(128,128,128,.4);margin:20px 0">
+
+<!-- Somebody else's ledger: tickable lines and the settle-all action. -->
+<div class="expense-ledger-modal">
+	<h2 class="expense-breakdown-who">Steve</h2>
+
+	<div class="expense-ledger">
+		<div class="callander-subheading"><span>Expenses</span></div>
+		<div class="expense-ledger-row">
+			<input class="expense-ledger-check" type="checkbox">
+			<div class="expense-ledger-label">
+				<span class="expense-ledger-name">Cabin, 3 nights</span>
+				<div class="expense-ledger-how">split evenly</div>
+			</div>
+			<span class="expense-ledger-amount">$105.00</span>
+		</div>
+		<div class="expense-ledger-row">
+			<input class="expense-ledger-check" type="checkbox">
+			<div class="expense-ledger-label">
+				<span class="expense-ledger-name">Dinner at Neptune Oyster</span>
+				<div class="expense-ledger-how">by receipt</div>
+			</div>
+			<span class="expense-ledger-amount">$61.00</span>
+		</div>
+		<div class="expense-ledger-row">
+			<input class="expense-ledger-check" type="checkbox" checked>
+			<div class="expense-ledger-label">
+				<span class="expense-ledger-name">Taxi back from the Wilbur</span>
+				<div class="expense-ledger-how">split evenly</div>
+			</div>
+			<span class="expense-ledger-amount is-settled">$12.00</span>
+		</div>
+
+		<div class="callander-subheading"><span>Credits</span></div>
+		<div class="expense-ledger-row">
+			<div class="expense-ledger-check-spacer"></div>
+			<div class="expense-ledger-label">petrol on the way up</div>
+			<span class="expense-ledger-amount is-credit">−$20.00</span>
+		</div>
+
+		<div class="expense-ledger-row expense-ledger-total">
+			<div class="expense-ledger-check-spacer"></div>
+			<span class="expense-ledger-label">Total left to pay</span>
+			<span class="expense-ledger-amount">$146.00</span>
+		</div>
+	</div>
+
+	<div class="expense-ledger-actions">
+		<button class="callander-button button-full-width">Mark all settled</button>
+	</div>
+</div>
+
+<hr style="border:0;border-top:1px dashed rgba(128,128,128,.4);margin:20px 0">
+
+<!-- Your own ledger: no balance line, no ticks, and the total renamed. -->
+<div class="expense-ledger-modal">
+	<h2 class="expense-breakdown-who">Callan</h2>
+
+	<div class="expense-ledger">
+		<div class="callander-subheading"><span>Expenses</span></div>
+		<div class="expense-ledger-row">
+			<div class="expense-ledger-check-spacer"></div>
+			<div class="expense-ledger-label">
+				<span class="expense-ledger-name">Cabin, 3 nights</span>
+				<div class="expense-ledger-how">split evenly</div>
+			</div>
+			<span class="expense-ledger-amount">$105.00</span>
+		</div>
+		<div class="expense-ledger-row">
+			<div class="expense-ledger-check-spacer"></div>
+			<div class="expense-ledger-label">
+				<span class="expense-ledger-name">Dinner at Neptune Oyster</span>
+				<div class="expense-ledger-how">by receipt</div>
+			</div>
+			<span class="expense-ledger-amount">$48.00</span>
+		</div>
+
+		<div class="expense-ledger-row expense-ledger-total">
+			<div class="expense-ledger-check-spacer"></div>
+			<span class="expense-ledger-label">My total split</span>
+			<span class="expense-ledger-amount">$153.00</span>
+		</div>
+	</div>
+</div>

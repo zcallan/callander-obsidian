@@ -1,6 +1,7 @@
 import { createSuite } from "./harness.mjs";
 import {
 	breakdownFor,
+	formatMoney,
 	creditTotalFor,
 	expensesOf,
 	isFullyPaid,
@@ -11,6 +12,8 @@ import {
 	payersOf,
 	percentFromInput,
 	planOwedSummary,
+	setPaidOn,
+	settleAllFor,
 } from "./.build/callander.mjs";
 
 export function run() {
@@ -487,6 +490,131 @@ export function run() {
 		planOwedSummary([], [], [], "Me", []).rows,
 		[]
 	);
+
+	// ---------- breakdown rows carry their kind ----------
+	// The grouped breakdown puts expenses and credits under separate
+	// headings, and it can't tell them apart by label: an expense somebody
+	// named "Credit" would land in the wrong group.
+	{
+		const rows = breakdownFor(
+			"Riley",
+			[
+				{ label: "Dinner", amount: 20, split: { mode: "even" } },
+				// The collision the discriminator exists for.
+				{ label: "Credit", amount: 10, split: { mode: "even" } },
+			],
+			["Callan", "Riley"],
+			[{ person: "Riley", amount: 4, note: "petrol" }]
+		);
+		eq("every line says which it is", rows.map((r) => r.kind), [
+			"expense",
+			"expense",
+			"credit",
+		]);
+		eq(
+			"an expense named Credit is still an expense",
+			rows.find((r) => r.label === "Credit" && r.kind === "expense")?.amount,
+			5
+		);
+		eq("a credit is negative", rows.at(-1)?.amount, -4);
+		eq("and keeps its note", rows.at(-1)?.descriptor, "petrol");
+		// The note is what the row reads out, so an empty one still has to
+		// say something rather than leaving the line blank.
+		eq(
+			"an unnoted credit still says something",
+			breakdownFor("Riley", [], ["Riley"], [{ person: "Riley", amount: 4 }])[0]
+				?.descriptor,
+			"no reason given"
+		);
+		// Grouping must not disturb the arithmetic the modal totals.
+		eq("the total still nets out", modalTotal(rows), 11);
+		// The ledger ticks lines off in place, and writes back through this.
+		eq("expense lines carry their index", rows.map((r) => r.index), [
+			0,
+			1,
+			undefined,
+		]);
+	}
+
+	{
+		// An expense somebody isn't charged for has no line, so the indices
+		// have to be the position in the plan's list, not in the breakdown.
+		const rows = breakdownFor(
+			"Riley",
+			[
+				{ label: "Just Callan", amount: 10, split: { mode: "value", shares: { Callan: 10 } } },
+				{ label: "Both", amount: 20, split: { mode: "even" } },
+			],
+			["Callan", "Riley"]
+		);
+		eq("a line skipped over doesn't shift the ones after it", rows.map((r) => r.index), [1]);
+	}
+
+	// ---------- how a figure is written ----------
+	// Shared by the plan's list and the ledger, which show the same credit.
+	eq("a plain figure takes two decimals", formatMoney(146), "$146.00");
+	eq("and rounds to the cent", formatMoney(12.005), "$12.01");
+	// U+2212, not a hyphen: same width as a digit, so a tabular column stays
+	// in line whether or not a row is negative.
+	eq("a negative leads with a true minus", formatMoney(-20), "\u2212$20.00");
+	eq("the sign goes outside the dollar", formatMoney(-20).slice(0, 2), "\u2212$");
+	eq("zero carries no sign", formatMoney(0), "$0.00");
+
+	// ---------- settling from the ledger ----------
+	const even = (label, amount) => ({ label, amount, split: { mode: "even" } });
+	{
+		const cost = even("Dinner", 20);
+		const ticked = setPaidOn(cost, "Riley", true, ["Callan", "Riley"], "Callan");
+		eq("ticking records the person", ticked.paid, ["Callan", "Riley"]);
+		// You start ticked because you put the money down, so Riley's tick is
+		// the last one and the expense settles itself.
+		eq("the last tick settles the expense", ticked.settled, true);
+
+		const back = setPaidOn(ticked, "Riley", false, ["Callan", "Riley"], "Callan");
+		eq("unticking takes them back off", back.paid, ["Callan"]);
+		eq("and reopens the expense", back.settled, undefined);
+	}
+	{
+		// Three payers: one tick isn't enough to settle the whole thing.
+		const cost = even("Cabin", 30);
+		const one = setPaidOn(cost, "Riley", true, ["Callan", "Riley", "Laura"], "Callan");
+		eq("a tick short of everyone leaves it open", one.settled, undefined);
+		eq("...but is recorded", one.paid, ["Callan", "Riley"]);
+	}
+	{
+		const cost = even("Dinner", 20);
+		eq(
+			"someone the split doesn't charge is left alone",
+			setPaidOn(cost, "Nobody", true, ["Callan", "Riley"], "Callan"),
+			cost
+		);
+		// Idempotent, so a double-tap can't push a name in twice.
+		const once = setPaidOn(cost, "Riley", true, ["Callan", "Riley"], "Callan");
+		eq("ticking twice changes nothing", setPaidOn(once, "Riley", true, ["Callan", "Riley"], "Callan"), once);
+	}
+	{
+		const costs = [
+			even("Dinner", 20),
+			even("Cabin", 30),
+			// Riley is charged nothing here, so it must come back untouched.
+			{ label: "Callan only", amount: 10, split: { mode: "value", shares: { Callan: 10 } } },
+		];
+		const after = settleAllFor("Riley", costs, ["Callan", "Riley"], "Callan");
+		eq("settling everything ticks every line they're on", after.map((c) => c.paid ?? null), [
+			["Callan", "Riley"],
+			["Callan", "Riley"],
+			null,
+		]);
+		eq("one they aren't charged for is untouched", after[2], costs[2]);
+		// The whole point: their balance actually reaches zero.
+		eq(
+			"and it zeroes what they owe",
+			planOwedSummary(after, [], ["Callan", "Riley"], "Callan", []).rows.find(
+				(r) => r.person === "Riley"
+			).square,
+			true
+		);
+	}
 
 	return result();
 }

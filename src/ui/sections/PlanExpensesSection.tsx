@@ -1,6 +1,7 @@
 import type { Credit, Expense } from "@/types";
 import {
 	breakdownFor,
+	formatMoney as money,
 	planOwedSummary,
 	type OwedRow,
 } from "@/utils/expenseMath";
@@ -8,67 +9,105 @@ import { ExpenseRow } from "@/ui/components/ExpenseRow";
 import { Icon } from "@/ui/components/Icon";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
 
-const money = (n: number) =>
-	`${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
-
-/** One person's line: tick when they've paid, with a breakdown to check. */
+/**
+ * One person's line: what they owe, and whether they're square.
+ *
+ * The whole row opens their ledger, and the box is an indicator rather than
+ * a control. Settling is per-expense now, and lives in the ledger — a tick
+ * out here could only have said "done" without making the figure beside it
+ * agree, which is exactly the thing that used to leave a struck-through row
+ * still reading $87.50.
+ */
 function OwedPersonRow({
 	row,
 	breakdownCount,
-	onTogglePaid,
 	onBreakdown,
 }: {
 	row: OwedRow;
 	breakdownCount: number;
-	onTogglePaid: (person: string, done: boolean) => void;
 	onBreakdown: (person: string) => void;
 }) {
-	// You can't owe yourself, and there's nothing to tick off someone who
-	// owes nothing — both stay read-only.
-	const locked = row.isYou || row.square;
+	const canOpen = breakdownCount > 0;
 
 	return (
 		<div
 			className={`expense-owed-row${row.done ? " paid" : ""}${
-				locked ? "" : " is-clickable"
-			}`}
-			onClick={(e) => {
-				if (locked) return;
-				// The label toggles natively and Breakdown opens a modal —
-				// forwarding either would undo or hijack it. Everything else
-				// (the row's padding, the space by the amount) would
-				// otherwise be dead to a click.
-				const target = e.target as HTMLElement | null;
-				if (target?.closest("label, button")) return;
-				onTogglePaid(row.person, !row.done);
+				row.isYou ? " is-you" : ""
+			}${canOpen ? " is-clickable" : ""}`}
+			onClick={() => {
+				if (canOpen) onBreakdown(row.person);
 			}}
 		>
-			<label className={`expense-owed-check${locked ? " is-disabled" : ""}`}>
+			<span className="expense-owed-check">
 				<input
 					type="checkbox"
-					aria-label={`Mark ${row.person} paid`}
+					tabIndex={-1}
+					aria-hidden="true"
 					checked={row.done}
-					disabled={locked}
-					onChange={(e) =>
-						onTogglePaid(row.person, e.currentTarget.checked)
-					}
+					disabled
+					readOnly
 				/>
 				<span className="expense-owed-name">
 					{row.isYou ? `${row.person} (Me)` : row.person}
 				</span>
-			</label>
+			</span>
 			<span className="expense-owed-amount">{money(row.net)}</span>
-			{/* Always shown, disabled when they're in no expense at all.
-			    Gated on having something to list rather than on the amount:
+			{/* Gated on having something to list rather than on the amount:
 			    once everything of theirs is settled they owe nothing, but the
 			    settled lines are exactly what you'd open this to check. */}
-			<button
-				className="callander-button expense-breakdown-btn"
-				disabled={breakdownCount === 0}
-				onClick={() => onBreakdown(row.person)}
-			>
-				Breakdown
-			</button>
+			{canOpen && (
+				// chevron-down turned on its side. `chevron-right` is not on
+				// the verified list in CLAUDE.md, and setIcon renders nothing
+				// at all for a name Obsidian doesn't ship — a rotation is a
+				// cheaper certainty than a blank button.
+				<Icon name="chevron-down" className="expense-owed-chevron" />
+			)}
+		</div>
+	);
+}
+
+/**
+ * A sub-heading inside the cost breakdown — "Expenses", "Credits", "Who
+ * owes what" — with an optional figure held out to the right.
+ *
+ * The section runs three lists of different things back to back, and
+ * without these it reads as one list where some rows happen to be green.
+ */
+function SubHeading({ text, trailing }: { text: string; trailing?: string }) {
+	return (
+		<div className="callander-subheading">
+			<span>{text}</span>
+			{trailing && (
+				<span className="callander-subheading-trailing">
+					{trailing}
+				</span>
+			)}
+		</div>
+	);
+}
+
+/**
+ * Something the person covered that was never logged as an expense — their
+ * share of the petrol, say — taken off what they owe.
+ *
+ * Laid out like an expense row rather than beside one: the note reads on
+ * the left and the figure lands in the same right-hand column as an
+ * expense's tally, which is what lets the column be scanned at all.
+ */
+function CreditRow({
+	credit,
+	onClick,
+}: {
+	credit: Credit;
+	onClick: () => void;
+}) {
+	return (
+		<div className="plan-credit-row" onClick={onClick}>
+			<span className="plan-credit-text">
+				<strong>{credit.person}</strong>
+				{credit.note ? ` · ${credit.note}` : ""}
+			</span>
+			<span className="plan-credit-amount">{money(-credit.amount)}</span>
 		</div>
 	);
 }
@@ -91,7 +130,6 @@ export function PlanExpensesSection({
 	paid,
 	onOpenCost,
 	onOpenCredit,
-	onTogglePaid,
 	onBreakdown,
 	onAddExpense,
 	onAddCredit,
@@ -105,8 +143,7 @@ export function PlanExpensesSection({
 	paid: () => string[];
 	onOpenCost: (index: number, cost: Expense) => void;
 	onOpenCredit: (index: number, credit: Credit) => void;
-	onTogglePaid: (person: string, done: boolean) => void;
-	onBreakdown: (person: string, rows: ReturnType<typeof breakdownFor>) => void;
+	onBreakdown: (person: string) => void;
 	onAddExpense: () => void;
 	onAddCredit: () => void;
 }) {
@@ -138,13 +175,7 @@ export function PlanExpensesSection({
 			breakdownCount={
 				breakdownFor(row.person, costList, people, creditList).length
 			}
-			onTogglePaid={onTogglePaid}
-			onBreakdown={(person) =>
-				onBreakdown(
-					person,
-					breakdownFor(person, costList, people, creditList)
-				)
-			}
+			onBreakdown={onBreakdown}
 		/>
 	);
 
@@ -156,6 +187,7 @@ export function PlanExpensesSection({
 				</div>
 			)}
 
+			{costList.length > 0 && <SubHeading text="Expenses" />}
 			{costList.map((cost, index) => (
 				<ExpenseRow
 					key={index}
@@ -166,32 +198,28 @@ export function PlanExpensesSection({
 				/>
 			))}
 
-			{/* Money already handed over, shown after the expenses. */}
+			{/* Their own heading rather than trailing the expenses: a credit
+			    is money coming off, and interleaved with costs it read as one
+			    more cost that happened to be green. */}
+			{creditList.length > 0 && <SubHeading text="Credits" />}
 			{creditList.map((credit, index) => (
-				<div
+				<CreditRow
 					key={index}
-					className="contact-idea-item expense-row plan-credit-row plan-clickable-row"
+					credit={credit}
 					onClick={() => onOpenCredit(index, credit)}
-				>
-					<div className="contact-idea-text">
-						<span className="expense-label">{`↩ ${credit.person}`}</span>
-						<span className="item-cost plan-credit-amount">
-							{` · ${money(-credit.amount)}${
-								credit.note ? ` · ${credit.note}` : ""
-							}`}
-						</span>
-					</div>
-				</div>
+				/>
 			))}
 
 			{showSummary && (
-				// Collapsed by default — expand to see who owes what.
-				<details className="expense-summary">
-					<summary className="expense-summary-total">
-						<span>{`Who owes what · ${money(
-							outstanding
-						)} left`}</span>
-					</summary>
+				<>
+					{/* No longer behind a disclosure. The summary line existed
+					    to hold the total while the list was hidden, and the
+					    heading carries it now — so opening it bought nothing
+					    but a tap. */}
+					<SubHeading
+						text="Who owes what"
+						trailing={`${money(outstanding)} left`}
+					/>
 
 					{/* Each list bands independently, which is what lets plain
 					    :nth-child do it — nothing is hidden inside either. */}
@@ -213,7 +241,7 @@ export function PlanExpensesSection({
 							</div>
 						</details>
 					)}
-				</details>
+				</>
 			)}
 
 			<div className="contact-section-footer expense-footer">

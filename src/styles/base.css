@@ -3783,16 +3783,48 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	font-weight: 600;
 }
 
-/* No border here — the last expense row's own divider separates it, so a
-   border-top would read as a double line. */
-.expense-summary {
-	margin-top: 12px;
+/* Sub-headings inside the cost breakdown — Expenses, Credits, Who owes
+   what — and in the breakdown modal, which reuses them so the two read as
+   the same thing at two depths.
+
+   Small, quiet and lettered wide: they separate three lists of different
+   things without competing with the section heading above them. The rule
+   runs to the end of the row so the eye has a line to follow across to the
+   figure held out on the right. */
+.callander-subheading {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 14px 0 4px;
+	color: var(--text-muted);
+	font-size: 0.74em;
+	font-weight: 700;
+	letter-spacing: 0.09em;
+	text-transform: uppercase;
 }
 
-.expense-summary-total {
-	cursor: pointer;
-	font-weight: 600;
-	padding: 4px 0;
+/* Not ::before — the rule has to come after the text, and after the
+   trailing figure when there is one, so both read left to right. */
+.callander-subheading::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: var(--background-modifier-border);
+	/* Ordered last so it fills whatever the two labels leave. */
+	order: 2;
+}
+
+/* The outstanding total, held out beside "Who owes what". Drops the
+   heading's letter-spacing and caps: it's a figure, not a label, and
+   tabular so it lines up with the amounts below it. */
+.callander-subheading-trailing {
+	order: 1;
+	color: var(--text-muted);
+	font-size: 1.15em;
+	font-weight: 500;
+	letter-spacing: 0;
+	text-transform: none;
+	font-variant-numeric: tabular-nums;
 }
 
 .expense-owed-list {
@@ -3804,62 +3836,85 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .expense-owed-row {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 6px 8px;
-	border-radius: 4px;
-	color: var(--text-muted);
-	font-size: 0.92em;
+	gap: 10px;
+	padding: 11px 10px;
+	border-radius: 6px;
+	color: var(--text-normal);
+	font-size: 1em;
 }
 
 /* Barely-there banding. The name and its amount sit at opposite ends of a
    wide row, and a faint stripe is what stops the eye sliding a line as it
-   crosses the gap. Deliberately weak — it's a reading aid, not a state.
+   crosses the gap. Deliberately weak — it's a reading aid, not a state, and
+   at full hover strength it read as one row being singled out.
 
-   Settled people live in their own list inside the accordion, so neither
-   list has hidden rows and :nth-child bands each correctly on its own. */
+   Settled people live in their own list, so neither has hidden rows and
+   :nth-child bands each correctly on its own. */
 .expense-owed-row:nth-child(even) {
-	background: var(--background-modifier-hover);
+	background: color-mix(
+		in srgb,
+		var(--background-modifier-hover),
+		transparent 72%
+	);
 }
 
-/* The whole row toggles "paid", not just the label's own text — see the
-   click forwarding in renderPlanCosts. */
+/* The row opens the breakdown; the label inside it toggles "paid". Only
+   rows with something to show carry the class — see OwedPersonRow. */
 .expense-owed-row.is-clickable {
 	cursor: pointer;
 }
 
-/* Checkbox + name toggle "paid"; the rest of the row does not */
+.expense-owed-row.is-clickable:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* The box states whether they're square; it doesn't set it. Settling is
+   per-expense and lives in the ledger, so the whole row is one target and
+   nothing inside it takes a click of its own. */
 .expense-owed-check {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 10px;
 	flex: 1 1 auto;
 	min-width: 0;
-	cursor: pointer;
 }
 
-/* Sized explicitly (not just the disabled state below) so the gap to the
-   name reads the same on every row — native checkboxes carry their own
-   implicit spacing that doesn't match the disabled box's. */
+/* Sized explicitly so the gap to the name reads the same on every row —
+   native checkboxes carry their own implicit spacing that doesn't match a
+   restyled box's. Pointer events off so the row beneath owns every click,
+   including one that lands on the box. */
 .expense-owed-check input[type="checkbox"] {
-	width: 16px;
-	height: 16px;
+	width: 18px;
+	height: 18px;
 	flex: 0 0 auto;
 	margin: 0;
+	pointer-events: none;
+	opacity: 1;
 }
 
-/* Your own row can't be ticked — show a clear disabled grey box */
-.expense-owed-check input[type="checkbox"]:disabled {
+/* Your own row: struck out rather than ticked. You can't owe yourself, so
+   an empty box would read as "not yet paid" and a tick as "paid" — both
+   claims about a debt that was never there. The slash says neither. */
+.expense-owed-row.is-you .expense-owed-check input[type="checkbox"] {
 	-webkit-appearance: none;
 	appearance: none;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
-	background-color: var(--background-modifier-border);
-	opacity: 1;
-	cursor: not-allowed;
+	background-color: transparent;
+	background-image: linear-gradient(
+		to bottom right,
+		transparent calc(50% - 1px),
+		var(--text-faint) calc(50% - 1px),
+		var(--text-faint) calc(50% + 1px),
+		transparent calc(50% + 1px)
+	);
 }
 
-.expense-owed-check.is-disabled {
-	cursor: default;
+/* Your own share isn't owed to anybody, so the figure is struck through the
+   way a settled one is — it's there to be read, not chased. */
+.expense-owed-row.is-you .expense-owed-amount {
+	text-decoration: line-through;
+	opacity: 0.6;
 }
 
 .expense-owed-name {
@@ -3869,13 +3924,25 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .expense-owed-amount {
 	flex: 0 0 auto;
 	font-variant-numeric: tabular-nums;
+	font-weight: 600;
 }
 
-.expense-breakdown-btn {
+/* Where the per-row "Breakdown" button used to be. With the list always on
+   screen a button on every row competed with the section's own footer; the
+   chevron says the same thing at a fraction of the weight, and the row
+   itself is the target. Rotated because chevron-down is the verified icon
+   — see the note in OwedPersonRow. */
+.expense-owed-chevron {
 	flex: 0 0 auto;
-	margin-top: 0;
-	padding: 3px 9px;
-	font-size: 0.8em;
+	display: flex;
+	color: var(--text-muted);
+	transform: rotate(-90deg);
+}
+
+.expense-owed-chevron svg {
+	width: 17px;
+	height: 17px;
+	stroke-width: 2.5;
 }
 
 .expense-owed-row.paid .expense-owed-name,
@@ -3884,10 +3951,46 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	opacity: 0.6;
 }
 
-/* Credit rows: money already handed over (deducted from what's owed).
-   Shares item-cost sizing; just recolour. */
+/* A credit: something they covered that was never logged as an expense,
+   taken off what they owe. Laid out like an expense row rather than beside
+   one — note on the left, figure in the same right-hand column the tallies
+   use, which is what makes that column scannable. */
+.plan-credit-row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 0;
+	cursor: pointer;
+}
+
+.plan-credit-row + .plan-credit-row {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.plan-credit-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Long notes wrap rather than shoving the figure off the row; `anywhere`
+   covers a single run-on word, which `min-width: 0` alone does not. */
+.plan-credit-text {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.plan-credit-text strong {
+	color: var(--text-normal);
+	font-size: 1.06em;
+}
+
 .plan-credit-amount {
+	flex: 0 0 auto;
 	color: var(--color-green);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
 }
 
 /* Settled expense, in the cost view modal: only the word goes green — the
@@ -3963,48 +4066,115 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* Per-person breakdown modal */
-.expense-breakdown-list {
-	margin-top: 10px;
-	display: flex;
-	flex-direction: column;
+/* ---- The person ledger (breakdown modal) ---- */
+
+/* The person is the heading; the first sub-heading's own top padding
+   carries the space beneath it. */
+.expense-breakdown-who {
+	margin: 0 0 4px;
 }
 
-.expense-breakdown-row {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 7px 0;
-	border-bottom: 1px solid var(--background-modifier-border);
+/* No box. The sub-headings' rules already divide the groups, and an outer
+   border around them was a second frame saying the same thing. */
+.expense-ledger {
+	margin-top: 2px;
 }
 
-.expense-breakdown-label {
+.expense-ledger-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 0;
+}
+
+/* Between rows only, and never before a heading — the last row of a group
+   would otherwise rule itself off immediately above the next heading, which
+   is where the doubled line came from. */
+.expense-ledger-row + .expense-ledger-row {
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.expense-ledger-check {
+	width: 17px;
+	height: 17px;
+	flex: 0 0 auto;
+	margin: 0;
+	cursor: pointer;
+}
+
+/* Credits and your own lines have nothing to tick, but still need their
+   text to start where the tickable lines' text starts. */
+.expense-ledger-check-spacer {
+	width: 17px;
+	flex: 0 0 auto;
+}
+
+.expense-ledger-label {
 	flex: 1 1 auto;
 	min-width: 0;
+	overflow-wrap: anywhere;
+	color: var(--text-muted);
 }
 
-.expense-breakdown-amount {
+.expense-ledger-name {
+	color: var(--text-normal);
+	font-weight: 600;
+}
+
+/* How the line was arrived at — "2 shares", "by receipt" — under the name
+   rather than beside it, so a long expense name doesn't push it onto its
+   own wrapped line and look like a separate row. */
+.expense-ledger-how {
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.expense-ledger-amount {
 	flex: 0 0 auto;
 	font-variant-numeric: tabular-nums;
-}
-
-/* A settled line in the breakdown: "Settled" in green ahead of the figure,
-   the figure struck through since it no longer counts toward the total. */
-.expense-breakdown-settled {
-	flex: 0 0 auto;
-	color: var(--color-green, #5cb870);
-	font-size: 0.85em;
-}
-
-.expense-breakdown-amount.is-settled {
-	text-decoration: line-through;
-	opacity: 0.6;
-}
-
-.expense-breakdown-total {
 	font-weight: 600;
-	border-bottom: none;
-	margin-top: 2px;
+}
+
+.expense-ledger-amount.is-settled {
+	text-decoration: line-through;
+	opacity: 0.55;
+	font-weight: 500;
+}
+
+/* Green, matching the credit rows in the section this opened from. */
+.expense-ledger-amount.is-credit {
+	color: var(--color-green);
+}
+
+/* The total, set apart. Without the box around the ledger it has to carry
+   its own weight, so it takes the space either side, a size up, and a rule
+   that is its own rather than the one the previous row would have drawn —
+   `border-top` here replaces that, it doesn't add to it. */
+.expense-ledger-total {
+	margin-top: 18px;
+	padding-top: 14px;
+	padding-bottom: 2px;
+	border-top: 1px solid var(--background-modifier-border);
+	font-size: 1.06em;
+	font-weight: 700;
+}
+
+.expense-ledger-total .expense-ledger-label,
+.expense-ledger-total .expense-ledger-amount {
+	color: var(--text-normal);
+	font-weight: 700;
+}
+
+/* Clear of the total, which now rules itself off — at 14px the button read
+   as part of the total row rather than an action beneath it. */
+.expense-ledger-actions {
+	margin-top: 20px;
+}
+
+/* The ledger's rows are the modal's content, so it needs no extra padding
+   of its own beyond what the box carries. */
+.expense-ledger-modal .callander-button {
+	margin-top: 0;
 }
 
 .expense-shares {

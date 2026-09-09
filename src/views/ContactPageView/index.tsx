@@ -117,8 +117,11 @@ import { ContactOperations } from "@/services/ContactOperations";
 import { PlanDraftViewModal } from "@/modals/PlanDraftViewModal";
 import { resolvePeopleInfo, type PersonInfo } from "@/utils/people";
 import {
+	breakdownFor,
 	creditsOf,
 	expensesOf,
+	setPaidOn,
+	settleAllFor,
 } from "@/utils/expenseMath";
 import { ScheduleFieldOptions } from "@/modals/scheduleFields";
 import { InterestModal } from "@/modals/InterestModal";
@@ -838,6 +841,11 @@ export class ContactPageView extends ItemView {
 						credits={() => creditsOf(this.contactData)}
 						participants={() => this.planParticipants()}
 						yourName={() => this.plugin.settings.yourName}
+						// Read, never written any more: settling moved into
+						// the ledger, where it changes the figure rather than
+						// only striking it through. Existing vaults still
+						// carry the flag, and dropping it would un-settle
+						// whoever was ticked off under the old scheme.
 						paid={() =>
 							Array.isArray(this.contactData.costsPaid)
 								? this.contactData.costsPaid.map((v) => toText(v))
@@ -847,16 +855,7 @@ export class ContactPageView extends ItemView {
 						onOpenCredit={(index, credit) =>
 							this.openCreditModal(index, credit)
 						}
-						onTogglePaid={(person, done) =>
-							void this.togglePersonPaid(person, done)
-						}
-						onBreakdown={(person, rows) =>
-							new ExpenseBreakdownModal(
-								this.app,
-								person,
-								rows
-							).open()
-						}
+						onBreakdown={(person) => this.openBreakdown(person)}
 						onAddExpense={() => this.openAddExpense()}
 						onAddCredit={() => this.openCreditModal(null, null)}
 					/>
@@ -3421,17 +3420,67 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	private async togglePersonPaid(person: string, done: boolean) {
-		const current: string[] = Array.isArray(this.contactData.costsPaid)
-			? this.contactData.costsPaid.map((v) => toText(v))
-			: [];
-		const next = done
-			? Array.from(new Set([...current, person]))
-			: current.filter((n) => n !== person);
-		if (next.length > 0) this.contactData.costsPaid = next;
-		else delete this.contactData.costsPaid;
-		await this.saveContactData();
-		this.render();
+	/**
+	 * One person's ledger for this plan.
+	 *
+	 * `rows` is handed over as a function so the modal can redraw itself
+	 * from the vault after each tick, rather than over a snapshot taken when
+	 * it opened — the same reason the sections take their data as getters.
+	 */
+	private openBreakdown(person: string) {
+		const participants = () => this.planParticipants();
+		const yourName = this.plugin.settings.yourName;
+		const isYou =
+			!!yourName && person.toLowerCase() === yourName.toLowerCase();
+
+		new ExpenseBreakdownModal(
+			this.app,
+			person,
+			() =>
+				breakdownFor(
+					person,
+					expensesOf(this.contactData),
+					participants(),
+					creditsOf(this.contactData)
+				),
+			{
+				isYou,
+				onSetPaid: (index, paid) => {
+					const list = expensesOf(this.contactData);
+					const cost = list[index];
+					if (!cost) return Promise.resolve();
+					list[index] = setPaidOn(
+						cost,
+						person,
+						paid,
+						participants(),
+						yourName
+					);
+					return this.writeCosts(list);
+				},
+				onSettleAll: (settled) => {
+					const list = expensesOf(this.contactData);
+					return this.writeCosts(
+						settled
+							? settleAllFor(
+									person,
+									list,
+									participants(),
+									yourName
+							  )
+							: list.map((cost) =>
+									setPaidOn(
+										cost,
+										person,
+										false,
+										participants(),
+										yourName
+									)
+							  )
+					);
+				},
+			}
+		).open();
 	}
 
 	private openAddExpense() {

@@ -8,6 +8,19 @@ import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
  * same maths serves a trip's members and a one-off split alike.
  */
 
+/**
+ * A figure as it appears anywhere money is shown here.
+ *
+ * Shared because the same number is drawn twice — a credit shows in the
+ * plan's own list and again in that person's ledger — and the two had
+ * already drifted onto different minus signs. U+2212 rather than a hyphen:
+ * it's the width of a digit, so a column of tabular figures stays in line
+ * whether or not a row happens to be negative.
+ */
+export function formatMoney(n: number): string {
+	return `${n < 0 ? "\u2212" : ""}$${Math.abs(n).toFixed(2)}`;
+}
+
 /** How an expense is divided, for display: "By receipt", "Split evenly"… */
 export function splitModeLabel(
 	mode: "even" | "shares" | "percent" | "value" | "receipt"
@@ -255,19 +268,9 @@ export function breakdownFor(
 	costs: Expense[],
 	participants: string[],
 	credits: Credit[] = []
-): Array<{
-	label: string;
-	descriptor: string;
-	amount: number;
-	settled?: boolean;
-}> {
-	const rows: Array<{
-		label: string;
-		descriptor: string;
-		amount: number;
-		settled?: boolean;
-	}> = [];
-	for (const cost of costs) {
+): BreakdownRow[] {
+	const rows: BreakdownRow[] = [];
+	for (const [index, cost] of costs.entries()) {
 		const amount = owedFor(cost, participants)[person];
 		if (!amount || amount <= 0) continue;
 		const shares = cost.split.shares ?? {};
@@ -284,21 +287,99 @@ export function breakdownFor(
 			descriptor = splitModeLabel(cost.split.mode).toLowerCase();
 		}
 		rows.push({
+			kind: "expense",
+			index,
 			label: cost.label,
 			descriptor,
 			amount,
 			...(isPaidBy(cost, person) && { settled: true }),
 		});
 	}
-	// Credits come off as negative lines
+	// Credits come off as negative lines, carrying their kind so the caller
+	// can group them under their own heading. The label was the only thing
+	// telling them apart before, which an expense somebody named "Credit"
+	// would have collided with.
 	for (const c of credits.filter((c) => c.person === person)) {
 		rows.push({
+			kind: "credit",
 			label: "Credit",
-			descriptor: c.note || "already paid",
+			descriptor: c.note || "no reason given",
 			amount: -c.amount,
 		});
 	}
 	return rows;
+}
+
+/**
+ * One line of a person's breakdown. `kind` is the discriminator the grouped
+ * view sorts on: expenses are positive and count toward what's owed, credits
+ * are negative and come off it.
+ */
+export interface BreakdownRow {
+	kind: "expense" | "credit";
+	label: string;
+	descriptor: string;
+	amount: number;
+	/** Expenses only: this person's share of it is already square. */
+	settled?: boolean;
+	/**
+	 * Expenses only: where the expense sits in the plan's own list.
+	 *
+	 * The ledger ticks lines off in place, and this is what it writes back
+	 * through — the same reason `partitionExpenses` keeps its indices. A
+	 * credit has none: it lives in a different array, and the ledger shows
+	 * it without offering to settle it.
+	 */
+	index?: number;
+}
+
+/**
+ * One person's share of one expense, ticked off or put back.
+ *
+ * Derives `settled` from the result the way the expense's own view does:
+ * the last tick settles the whole expense, and unticking anyone reopens it.
+ * Returns the expense unchanged when it charges this person nothing, so a
+ * caller can map over the whole list without filtering first.
+ */
+export function setPaidOn(
+	cost: Expense,
+	person: string,
+	paid: boolean,
+	participants: string[],
+	yourName = ""
+): Expense {
+	const payers = payersOf(cost, participants);
+	if (!payers.includes(person)) return cost;
+
+	const current = paidStateOf(cost, payers, yourName);
+	if (current.includes(person) === paid) return cost;
+	const next = paid
+		? [...current, person]
+		: current.filter((p) => p !== person);
+
+	const updated: Expense = { ...cost, paid: next };
+	if (isFullyPaid(next, payers)) updated.settled = true;
+	else delete updated.settled;
+	return updated;
+}
+
+/**
+ * Tick one person off every expense that charges them — "they've squared up
+ * for the whole trip", in one action.
+ *
+ * Written as a fold over `setPaidOn` rather than its own loop, so settling
+ * everything and settling one line can't drift apart on the question of
+ * when an expense becomes settled outright.
+ */
+export function settleAllFor(
+	person: string,
+	costs: readonly Expense[],
+	participants: string[],
+	yourName = ""
+): Expense[] {
+	return costs.map((cost) =>
+		setPaidOn(cost, person, true, participants, yourName)
+	);
 }
 
 /** One person's line in "Who owes what". */
