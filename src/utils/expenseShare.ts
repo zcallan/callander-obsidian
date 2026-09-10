@@ -6,7 +6,6 @@ import {
 	owedFor,
 	payersOf,
 	planOwedSummary,
-	splitModeLabel,
 } from "@/utils/expenseMath";
 
 /**
@@ -24,8 +23,6 @@ import {
 
 /** What the copied text carries. */
 export interface ExpenseShareDetail {
-	/** How each expense was divided — "split evenly", "2 shares". */
-	split: boolean;
 	/** Each person's own share under an expense. */
 	people: boolean;
 	/** The credits block. */
@@ -61,7 +58,6 @@ const SCOPE_DEFAULTS: Record<
 	ExpenseShareDetail
 > = {
 	expense: {
-		split: true,
 		people: true,
 		credits: true,
 		totals: true,
@@ -69,15 +65,16 @@ const SCOPE_DEFAULTS: Record<
 		hideMe: true,
 	},
 	person: {
-		split: false,
 		people: true,
 		credits: true,
 		totals: true,
-		hideSettled: true,
+		// Shown here, unlike a section: a person's ledger is the answer to
+		// "what do I still owe you", and the lines already paid are the
+		// working that gets it to a smaller number than they expected.
+		hideSettled: false,
 		hideMe: true,
 	},
 	all: {
-		split: false,
 		people: true,
 		credits: true,
 		totals: true,
@@ -97,7 +94,6 @@ export const EXPENSE_SHARE_FIELDS: {
 	id: keyof ExpenseShareDetail;
 	label: string;
 }[] = [
-	{ id: "split", label: "Split" },
 	{ id: "people", label: "People" },
 	{ id: "credits", label: "Credits" },
 	{ id: "totals", label: "Totals" },
@@ -124,11 +120,11 @@ export function shareFieldsFor(
 ): typeof EXPENSE_SHARE_FIELDS {
 	const usable: Record<ExpenseShareScope["kind"], Array<keyof ExpenseShareDetail>> = {
 		// One expense: no credits to list, and its own total is the amount.
-		expense: ["split", "people", "hideMe", "hideSettled"],
+		expense: ["people", "hideMe", "hideSettled"],
 		// One person: "people" is the person, and hiding yourself from a
 		// ledger that is already about somebody else means nothing.
-		person: ["split", "credits", "totals", "hideSettled"],
-		all: ["split", "people", "credits", "totals", "hideMe", "hideSettled"],
+		person: ["credits", "totals", "hideSettled"],
+		all: ["people", "credits", "totals", "hideMe", "hideSettled"],
 	};
 	const allowed = usable[scope.kind];
 	return EXPENSE_SHARE_FIELDS.filter((f) => allowed.includes(f.id));
@@ -156,7 +152,7 @@ function expenseText(
 ): string[] {
 	const cost = input.expenses[index];
 	if (!cost) return [];
-	const lines = [expenseHeading(cost, detail)];
+	const lines = [expenseHeading(cost)];
 	if (detail.people) {
 		// A dash on its own line reads better than a colon when the line is
 		// a person rather than a heading — and this scope is all people.
@@ -165,11 +161,10 @@ function expenseText(
 	return lines;
 }
 
-function expenseHeading(cost: Expense, detail: ExpenseShareDetail): string {
-	const parts = [`${cost.label}: ${formatMoney(cost.amount)}`];
-	if (detail.split) parts.push(`(${splitModeLabel(cost.split.mode).toLowerCase()})`);
-	if (cost.settled) parts.push(PAID);
-	return parts.join(" ");
+function expenseHeading(cost: Expense): string {
+	return `${cost.label}: ${formatMoney(cost.amount)}${
+		cost.settled ? ` ${PAID}` : ""
+	}`;
 }
 
 /** How a squared-up line says so, wherever one is printed. */
@@ -232,11 +227,11 @@ function personText(
 			continue;
 		}
 		if (row.settled && detail.hideSettled) continue;
-		const parts = [row.label];
-		if (detail.split) parts.push(`(${row.descriptor})`);
-		parts.push(`— ${formatMoney(row.amount)}`);
-		if (row.settled) parts.push(PAID);
-		lines.push(parts.join(" "));
+		lines.push(
+			`${row.label} — ${formatMoney(row.amount)}${
+				row.settled ? ` ${PAID}` : ""
+			}`
+		);
 	}
 
 	if (detail.totals) {
@@ -275,7 +270,7 @@ function allText(
 			// every expense is a single line, and spacing them apart turns
 			// a tight list into a sparse one for no gain.
 			if (i > 0 && detail.people) lines.push("");
-			lines.push(expenseHeading(cost, detail));
+			lines.push(expenseHeading(cost));
 			if (detail.people) {
 				lines.push(...personLines(cost, input, detail, ":"));
 			}
