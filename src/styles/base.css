@@ -3758,11 +3758,54 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	.cal-week .cal-cell {
 		min-height: 0;
 		align-items: stretch;
+		gap: 6px;
+		padding: 10px 4px 14px;
 	}
 
 	.cal-week .cal-chip,
 	.cal-week .cal-more {
 		display: flex;
+	}
+
+	/* A stacked week gives a chip the whole width, where the month grid
+	   gives it a seventh. Nothing is competing for the room, so it takes
+	   the size it would have had all along — this is the one narrow view
+	   that can afford to be read rather than scanned. */
+	.cal-week .cal-chip {
+		font-size: 14px;
+		line-height: 1.4;
+		padding: 9px 11px;
+		gap: 6px;
+		border-radius: 5px;
+		border-left-width: 4px;
+	}
+
+	/* Truncation is a month-grid compromise. With the full width there's
+	   no reason to hide the end of a name. */
+	.cal-week .cal-chip,
+	.cal-week .cal-chip .cal-chip-name {
+		white-space: normal;
+		overflow: visible;
+	}
+
+	.cal-week .cal-chip .cal-chip-meta {
+		font-size: 0.88em;
+	}
+
+	/* The day heading grows with them, or it reads as a caption on the
+	   chips rather than the thing they belong to. */
+	.cal-week .cal-cell-head {
+		font-size: 13px;
+		gap: 6px;
+		padding-bottom: 2px;
+	}
+
+	.cal-week .cal-daynum {
+		font-size: 15px;
+	}
+
+	.cal-week .cal-dow {
+		font-size: 11px;
 	}
 
 	.cal-week .cal-dots {
