@@ -672,8 +672,32 @@ export class DashboardView extends ItemView {
 				relative: relativeText,
 				tone: relativeTone,
 				onClick: () => void this.openContact(plan.file),
+				// The only way back from "Hide from this list" in the plan's
+				// glance — that row is gone from Upcoming, so the offer to
+				// undo it has to live where the plan still shows.
+				...(plan.hiddenFromUpcoming && {
+					action: {
+						icon: "eye",
+						label: "Show in Upcoming",
+						ariaLabel: `Show ${plan.name} in Upcoming`,
+						onClick: (e: MouseEvent) => {
+							e.stopPropagation();
+							void this.showPlanInUpcoming(plan.file);
+						},
+					},
+				}),
 			});
 		}
+	}
+
+	/** Puts a hidden plan back on the Upcoming list. */
+	private async showPlanInUpcoming(file: TFile) {
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				delete fm.hiddenFromUpcoming;
+			}
+		);
 	}
 
 	private renderSomedays(container: HTMLElement) {

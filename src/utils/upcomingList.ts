@@ -126,6 +126,9 @@ export function upcomingPlans(
 	const items: UpcomingPlan[] = [];
 	for (const plan of plans) {
 		if (plan.status === "done") continue;
+		// Hidden by hand from this list only — it stays in the Plans
+		// section, which is where it can be put back.
+		if (plan.hiddenFromUpcoming) continue;
 		const p = parseFlexDate(plan.date);
 		if (!p || p.year === null) {
 			items.push({ plan, key: 0, days: null });

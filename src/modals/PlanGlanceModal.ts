@@ -21,7 +21,9 @@ export class PlanGlanceModal extends Modal {
 	constructor(
 		app: App,
 		private plan: PlanInfo,
-		private onOpenPlan: () => void
+		private onOpenPlan: () => void,
+		/** Takes the plan off the Upcoming list, or puts it back. */
+		private onSetHidden?: (hidden: boolean) => Promise<void>
 	) {
 		super(app);
 	}
@@ -89,6 +91,21 @@ export class PlanGlanceModal extends Modal {
 			this.close();
 			this.onOpenPlan();
 		});
+
+		// A trip you're not thinking about yet still belongs in Plans; it
+		// just isn't what "what's next" means. Closes on the way out — the
+		// row that opened this is about to disappear from under it.
+		if (this.onSetHidden) {
+			const hide = actions.createEl("button", {
+				cls: "callander-button",
+			});
+			setIcon(hide, "eye");
+			hide.createSpan({ text: "Hide from this list" });
+			hide.addEventListener("click", () => {
+				this.close();
+				void this.onSetHidden!(true);
+			});
+		}
 	}
 
 	/**

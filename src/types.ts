@@ -397,6 +397,15 @@ export interface PlanInfo {
 	items: PlanItem[];
 	/** Wikilink strings, e.g. "[[Austin Philleo]]" */
 	members: string[];
+	/**
+	 * Kept off the dashboard's Upcoming list.
+	 *
+	 * Per plan rather than a setting, because it answers a different
+	 * question: the setting is "do I read those as one list", this is "that
+	 * one trip isn't what I mean by what's next". A plan hidden here still
+	 * shows in the Plans section, which is where you turn it back on.
+	 */
+	hiddenFromUpcoming: boolean;
 }
 
 export interface GroupInfo {

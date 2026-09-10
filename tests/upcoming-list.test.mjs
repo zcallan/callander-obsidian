@@ -146,7 +146,7 @@ export function run() {
 	}
 
 	// ---------- plans on the same list ----------
-	const plan = (name, date, status = "planning") => ({
+	const plan = (name, date, status = "planning", extra = {}) => ({
 		file: { path: name },
 		name,
 		date,
@@ -155,6 +155,8 @@ export function run() {
 		status,
 		items: [],
 		members: [],
+		hiddenFromUpcoming: false,
+		...extra,
 	});
 	{
 		const plans = upcomingPlans(
@@ -172,6 +174,20 @@ export function run() {
 		// to some arbitrary date — it's the one that gets forgotten.
 		eq("an undated plan leads", plans[0]?.key, 0);
 		eq("and carries no countdown", plans[0]?.days, null);
+	}
+	{
+		// Hidden by hand, from this list only — it stays a plan, and the
+		// Plans section is where it gets put back.
+		const plans = upcomingPlans(
+			[
+				plan("Shown", "2026-09-20"),
+				plan("Hidden", "2026-09-21", "planning", {
+					hiddenFromUpcoming: true,
+				}),
+			],
+			now
+		);
+		eq("a hidden plan is left off", plans.map((p) => p.plan.name), ["Shown"]);
 	}
 	{
 		// One list, because "what's coming up" is one question.

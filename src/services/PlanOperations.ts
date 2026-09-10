@@ -479,6 +479,8 @@ export class PlanOperations {
 					status: str("status") || "planning",
 					items: PlanOperations.itemsOf(fm),
 					members: PlanOperations.membersOf(fm),
+					hiddenFromUpcoming:
+						fieldOf(fm, "hiddenFromUpcoming") === true,
 				};
 			});
 	}
