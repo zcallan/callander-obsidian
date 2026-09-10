@@ -211,5 +211,25 @@ export function run() {
 	}
 	eq("nothing in, nothing out", mergeUpcoming([], []), []);
 
+	// ---------- the window follows the week-start setting ----------
+	// `now` is Wednesday 5 August 2026. A Monday week opened 2 days ago, a
+	// Sunday week 3 — so something 3 days back is inside one and not the
+	// other. Measuring from a Monday while the calendars count from a
+	// Sunday would put the fortnight's edge in a different place on the two
+	// pages.
+	{
+		const item = (days) => ({ days });
+		const window = (startsOn) =>
+			thisAndNextWeek(
+				[item(-3), item(-2), item(0), item(10), item(11), item(12)],
+				now,
+				startsOn
+			).map((i) => i.days);
+		eq("a Monday week reaches back two days", window(1), [-2, 0, 10, 11]);
+		eq("a Sunday week reaches back three", window(0), [-3, -2, 0, 10]);
+		// Fourteen days wide either way — the edge moves, the span doesn't.
+		eq("both spans are a fortnight", [window(1).length, window(0).length], [4, 4]);
+	}
+
 	return result();
 }

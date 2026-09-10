@@ -39,6 +39,7 @@ import {
 	weekLabel,
 } from "@/utils/calendarGrid";
 import { splitLeadingEmoji } from "@/utils/emoji";
+import { summarisePeople } from "@/utils/nameFormat";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
 
@@ -114,6 +115,13 @@ export class EventsView extends ItemView {
 	 */
 	private calCursor = new Date();
 	/** The day whose events list under a narrow month grid. */
+	/**
+	 * The day whose events are listed under a narrow month grid.
+	 *
+	 * Empty once you page to another month: the day you picked isn't on
+	 * screen any more, so listing its events under a grid that doesn't
+	 * contain it reads as a bug.
+	 */
 	private calSelected = todayISO();
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
@@ -196,10 +204,37 @@ export class EventsView extends ItemView {
 		return path.split("/").pop()?.replace(/\.md$/, "") ?? path;
 	}
 
+	/**
+	 * Every name in full, joined — what the search reads.
+	 *
+	 * Deliberately not the summarised form the rows show: searching for
+	 * somebody has to find them on a busy event too, and a roster that
+	 * ended in "+3 more" would quietly stop matching the three.
+	 */
 	private peopleNames(e: EventInfo): string {
 		return this.peoplePaths(e)
 			.map((p) => this.displayName(p))
 			.join(", ");
+	}
+
+	/**
+	 * The same roster as a row shows it — full for one person, shortened
+	 * beyond that, and a count past three. A row has one line to spend on
+	 * this, and an event with the whole book club on it would otherwise
+	 * push its own name off the end.
+	 */
+	private peopleSummary(e: EventInfo): string {
+		return summarisePeople(
+			this.peoplePaths(e).map((path) => {
+				const match = this.contacts.find((c) => c.file.path === path);
+				return {
+					displayName: this.displayName(path),
+					// Only a contact has one; a group page or a link out of
+					// the People folder has nothing to shorten to.
+					shortName: match?.shortName ?? "",
+				};
+			})
+		);
 	}
 
 	/**
@@ -480,10 +515,16 @@ export class EventsView extends ItemView {
 		const bar = wrap.createDiv({ cls: "cal-bar" });
 		bar.createSpan({
 			cls: "cal-period",
+			// Abbreviated on a phone, where the bar has four buttons beside
+			// it and a nine-letter month pushed them onto a second row.
 			text:
 				this.calMode === "month"
-					? monthLabel(this.calCursor)
-					: weekLabel(this.calCursor, this.weekStartsOn()),
+					? monthLabel(this.calCursor, this.isNarrow())
+					: weekLabel(
+							this.calCursor,
+							this.weekStartsOn(),
+							this.isNarrow()
+					  ),
 		});
 
 		const nav = bar.createDiv({ cls: "cal-nav" });
@@ -492,6 +533,8 @@ export class EventsView extends ItemView {
 			if (this.calMode === "month") next.setMonth(next.getMonth() + by);
 			else next.setDate(next.getDate() + by * 7);
 			this.calCursor = next;
+			// The day you'd picked is in the month you just left.
+			this.calSelected = "";
 			this.renderContent();
 		};
 		const button = (
@@ -665,8 +708,17 @@ export class EventsView extends ItemView {
 	 * Calendar, Apple and Fantastical all arrive at.
 	 */
 	private appendDayAgenda(wrap: HTMLElement, byDay: Map<string, EventInfo[]>) {
-		const day = new Date(this.calSelected + "T00:00:00");
 		const agenda = wrap.createDiv({ cls: "cal-agenda" });
+		// Nothing picked in this month yet — say so rather than showing a
+		// day from the one before it.
+		if (!this.calSelected) {
+			agenda.createDiv({
+				cls: "section-helper-text",
+				text: "Pick a day to see what's on.",
+			});
+			return;
+		}
+		const day = new Date(this.calSelected + "T00:00:00");
 		const head = agenda.createDiv({ cls: "cal-agenda-head" });
 		head.createSpan({ text: formatShortWeekdayDate(day) });
 		const add = head.createEl("button", {
@@ -1025,7 +1077,7 @@ export class EventsView extends ItemView {
 		const fields = eventRowFields(
 			event,
 			new Date(),
-			this.peopleNames(event)
+			this.peopleSummary(event)
 		);
 		buildUpcomingRow(container, {
 			...fields,

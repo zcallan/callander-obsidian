@@ -67,9 +67,17 @@ export function weekGrid(
 	return days;
 }
 
-/** "September 2026" — the year always, since you can page years away. */
-export function monthLabel(cursor: Date): string {
-	return `${monthName(cursor.getMonth() + 1)} ${cursor.getFullYear()}`;
+/**
+ * "September 2026" — the year always, since you can page years away.
+ *
+ * `short` gives "Sep 2026". A phone's calendar bar holds this beside four
+ * buttons, and September is nine characters: at full length it pushed them
+ * onto a second row, which moved the grid down the screen every time the
+ * month happened to have a long name.
+ */
+export function monthLabel(cursor: Date, short = false): string {
+	const name = monthName(cursor.getMonth() + 1);
+	return `${short ? name.slice(0, 3) : name} ${cursor.getFullYear()}`;
 }
 
 /**
@@ -77,22 +85,31 @@ export function monthLabel(cursor: Date): string {
  * "28 September – 4 October 2026" across a month, and
  * "28 December 2026 – 3 January 2027" across a new year.
  */
-export function weekLabel(cursor: Date, startsOn: 0 | 1 = 1): string {
+export function weekLabel(
+	cursor: Date,
+	startsOn: 0 | 1 = 1,
+	short = false
+): string {
 	const start = weekStart(cursor, startsOn);
 	const end = new Date(start);
 	end.setDate(end.getDate() + 6);
 
+	// A week spanning two long months is the longest label this bar can be
+	// asked to hold — "28 September – 4 October 2026" — so it abbreviates
+	// on the same terms the month does.
+	const name = (d: Date) => {
+		const full = monthName(d.getMonth() + 1);
+		return short ? full.slice(0, 3) : full;
+	};
 	const sameYear = start.getFullYear() === end.getFullYear();
 	const sameMonth = sameYear && start.getMonth() === end.getMonth();
 	const from = sameMonth
 		? String(start.getDate())
-		: `${start.getDate()} ${monthName(start.getMonth() + 1)}${
+		: `${start.getDate()} ${name(start)}${
 				sameYear ? "" : ` ${start.getFullYear()}`
 		  }`;
 	// En dash, spaced — the same range mark the plan pages use.
-	return `${from} – ${end.getDate()} ${monthName(
-		end.getMonth() + 1
-	)} ${end.getFullYear()}`;
+	return `${from} – ${end.getDate()} ${name(end)} ${end.getFullYear()}`;
 }
 
 /**

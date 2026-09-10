@@ -42,9 +42,10 @@ export function run() {
 	// NOW is Sunday 6 Sept, so this week opened Monday 31 August.
 	eq("today is this week", label("2026-09-06"), "This week");
 	eq("so is the Monday it opened on", label("2026-08-31"), "This week");
-	// This week reaches back into August, but a date outside it is judged
-	// by its own month, not by the week that nearly caught it.
-	eq("the day before it opened is August's", label("2026-08-30"), "August");
+	// This week reaches back into August; the day before it opened belongs
+	// to the week before, which now has a name of its own rather than
+	// falling straight to its month.
+	eq("the day before it opened is last week's", label("2026-08-30"), "Last week");
 	eq("tomorrow starts next week", label("2026-09-07"), "Next week");
 	eq("and next Sunday closes it", label("2026-09-13"), "Next week");
 	// The gap the spec exists for: past next week, still this month.
@@ -62,7 +63,9 @@ export function run() {
 	// ---------- backwards, for Past and All ----------
 	// From NOW every September day is inside this week, so these use MID.
 	eq("a day behind this week is earlier this month", labelMid("2026-09-01"), "Earlier this month");
-	eq("right up to the day this week opened", labelMid("2026-09-13"), "Earlier this month");
+	// The day this week opened on is the last day of the week before it.
+	eq("the day before this week opened is last week", labelMid("2026-09-13"), "Last week");
+	eq("and the days before that are the month's", labelMid("2026-09-05"), "Earlier this month");
 	eq("which still leads with This week", labelMid("2026-09-16"), "This week");
 	eq("and Later this month still follows", labelMid("2026-09-29"), "Later this month");
 	eq("a past month in this year is bare", label("2026-06-14"), "June");
@@ -216,6 +219,50 @@ export function run() {
 		const wednesday = new Date(2026, 8, 2);
 		eq("midweek resolves to that week's Monday", iso(weekStart(wednesday, 1)), iso(monday));
 		eq("or that week's Sunday", iso(weekStart(wednesday, 0)), iso(new Date(2026, 7, 30)));
+	}
+
+	// ---------- looking back ----------
+	// The mirror of "Next week". NOW is Sunday 6 September 2026, so this
+	// week opened Monday 31 August and last week ran 24-30 August.
+	eq("the week before is named", label("2026-08-26"), "Last week");
+	eq("its last day is still in it", label("2026-08-30"), "Last week");
+	eq("the day after opens this week", label("2026-08-31"), "This week");
+	eq("the day before falls to its month", label("2026-08-23"), "August");
+	// It follows the setting, like every other week boundary: with weeks
+	// opening on Sunday, this week opened 30 August and last week 23rd-29th.
+	// NOW is itself a Sunday, so weeks opening on Sunday put this week at
+	// 6-12 September and last week at 30 August - 5 September.
+	eq(
+		"a Sunday week moves the boundary",
+		eventPeriod("2026-08-30", NOW, { weekStartsOn: 0 }).label,
+		"Last week"
+	);
+	eq(
+		"today opens its own week",
+		eventPeriod("2026-09-06", NOW, { weekStartsOn: 0 }).label,
+		"This week"
+	);
+	eq(
+		"and two weeks back falls to the month",
+		eventPeriod("2026-08-23", NOW, { weekStartsOn: 0 }).label,
+		"August"
+	);
+	{
+		// The order a Past page reads in: nearest first, then back.
+		const past = [
+			{ d: "2026-07-04" },
+			{ d: "2026-08-26" },
+			{ d: "2026-09-01" },
+			{ d: "2026-08-10" },
+		];
+		eq(
+			"backwards reads This week, Last week, then months",
+			groupEventsByPeriod(past, (i) => i.d, NOW, {
+				recentFirst: true,
+				alwaysYear: true,
+			}).map((g) => g.label),
+			["This week", "Last week", "August 2026", "July 2026"]
+		);
 	}
 
 	return result();

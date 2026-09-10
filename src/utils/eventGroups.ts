@@ -107,6 +107,15 @@ export function eventPeriod(
 	if (on >= nextWeek && on < afterNextWeek) {
 		return { key: isoDay(nextWeek), label: "Next week" };
 	}
+	// The mirror of "Next week", for a page reading backwards. Its key is
+	// that week's own start, which sorts between the month it began in and
+	// this week — so reversed, the headings come out This week, Last week,
+	// Earlier this month, then months.
+	const lastWeek = new Date(thisWeek);
+	lastWeek.setDate(lastWeek.getDate() - 7);
+	if (on >= lastWeek && on < thisWeek) {
+		return { key: isoDay(lastWeek), label: "Last week" };
+	}
 
 	const today = new Date(now);
 	today.setHours(0, 0, 0, 0);

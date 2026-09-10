@@ -10,7 +10,22 @@
   produces — measured against a ~46px column, three plus a count does not
   fit, so a busy day trades its third glyph for the count.
 -->
-<div class="cal" style="max-width:327px">
+<div class="cal" style="max-width:334px">
+	<!-- The bar is the tight one: a nine-letter month beside four buttons.
+	     It abbreviates on a narrow pane, and the label ellipses rather than
+	     letting the buttons wrap to a second row. -->
+	<div class="cal-bar">
+		<span class="cal-period">Sep 2026</span>
+		<div class="cal-nav">
+			<button class="callander-button cal-nav-button">‹</button>
+			<button class="callander-button cal-nav-button">Today</button>
+			<button class="callander-button cal-nav-button">›</button>
+			<div class="cal-modes">
+				<button class="callander-button cal-mode is-active">Month</button>
+				<button class="callander-button cal-mode">Week</button>
+			</div>
+		</div>
+	</div>
 	<div class="cal-weekdays"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
 	<div class="cal-grid">
 		<div class="cal-cell is-outside"><div class="cal-cell-head"><span class="cal-daynum">31</span></div></div>

@@ -3838,6 +3838,26 @@ body.is-mobile.callander-kb-open .modal-content > * {
 		border-top: 1px solid var(--background-modifier-border);
 		padding-top: 10px;
 	}
+
+	/* The label abbreviates on a narrow pane, but a long enough one would
+	   still push the buttons onto a second row and shift the grid down the
+	   screen. It shrinks instead — the buttons are the part you reach for,
+	   and they can't move to be reached. */
+	.cal-bar {
+		flex-wrap: nowrap;
+		gap: 8px;
+	}
+
+	.cal-period {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.cal-nav {
+		flex: 0 0 auto;
+	}
 }
 
 

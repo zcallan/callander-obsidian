@@ -48,7 +48,7 @@ export function UpcomingSection() {
 			? upcomingPlans(plugin.planOperations.getPlans(), now)
 			: [];
 		const all = mergeUpcoming(events, plans);
-		const near = thisAndNextWeek(all, now);
+		const near = thisAndNextWeek(all, now, plugin.settings.weekStartsOn);
 		const visible = near.slice(0, MAX_ROWS);
 		return {
 			shown: visible,

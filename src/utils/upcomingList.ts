@@ -89,11 +89,14 @@ export function upcomingItems(
  */
 export function thisAndNextWeek<T extends { days: number | null }>(
 	items: readonly T[],
-	now: Date = new Date()
+	now: Date = new Date(),
+	startsOn: 0 | 1 = 1
 ): T[] {
-	// How many days back this week's Monday is; 0 on a Monday, -6 on a
-	// Sunday. getDay is 0 for Sunday, which is 6 days *after* its Monday.
-	const opened = -((now.getDay() + 6) % 7);
+	// How many days back this week opened. Follows the same setting the
+	// calendars do — a fortnight measured from a Monday while the grids
+	// count from a Sunday would put the boundary in a different place on
+	// the two pages. The +7 keeps it negative-or-zero rather than wrapping.
+	const opened = -((now.getDay() - startsOn + 7) % 7);
 	const closes = opened + 13;
 	return items.filter(
 		(i) => i.days === null || (i.days >= opened && i.days <= closes)

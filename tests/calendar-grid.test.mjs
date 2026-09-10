@@ -65,6 +65,14 @@ export function run() {
 
 	// ---------- labels ----------
 	eq("months carry the year", monthLabel(new Date(2026, 8, 1)), "September 2026");
+	// A phone's calendar bar holds this beside four buttons, and September
+	// is nine characters — long enough to push them onto a second row.
+	eq("and abbreviate on request", monthLabel(new Date(2026, 8, 1), true), "Sep 2026");
+	eq(
+		"a short month is already short",
+		monthLabel(new Date(2026, 4, 1), true),
+		"May 2026"
+	);
 	eq("a week inside one month names it once", weekLabel(new Date(2026, 8, 9)), "7 – 13 September 2026");
 	eq(
 		"a week across two months names both",
@@ -76,6 +84,24 @@ export function run() {
 		"a week across new year names both years",
 		weekLabel(new Date(2026, 11, 30)),
 		"28 December 2026 – 3 January 2027"
+	);
+	// The longest thing the bar can be asked to hold, abbreviated on the
+	// same terms the month is.
+	eq(
+		"a week abbreviates both ends",
+		weekLabel(new Date(2026, 8, 30), 1, true),
+		"28 Sep – 4 Oct 2026"
+	);
+	eq(
+		"and keeps both years when it crosses one",
+		weekLabel(new Date(2026, 11, 30), 1, true),
+		"28 Dec 2026 – 3 Jan 2027"
+	);
+	// Abbreviating must not change which days the label names.
+	eq(
+		"the dates are the same either way",
+		weekLabel(new Date(2026, 8, 30), 1, true).replace(/Sep|Oct/g, "X"),
+		weekLabel(new Date(2026, 8, 30)).replace(/September|October/g, "X")
 	);
 
 	// ---------- eventsByDay ----------
