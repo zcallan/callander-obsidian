@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import {
-	EXPENSE_SHARE_DEFAULTS,
+	shareDefaultsFor,
 	shareFieldsFor,
 	type ExpenseShareDetail,
 	type ExpenseShareScope,
@@ -24,9 +24,7 @@ import {
  * backdrop click shakes the modal instead of discarding the edit.
  */
 export class ExpenseShareModal extends FormModal {
-	private detail: ExpenseShareDetail = structuredClone(
-		EXPENSE_SHARE_DEFAULTS
-	);
+	private detail: ExpenseShareDetail;
 	private preview!: HTMLTextAreaElement;
 
 	constructor(
@@ -36,6 +34,9 @@ export class ExpenseShareModal extends FormModal {
 		private onCopy: (text: string) => Promise<void>
 	) {
 		super(app);
+		// Per scope: a whole section is read as a chase-up, a single expense
+		// as an explanation of one bill. See shareDefaultsFor.
+		this.detail = shareDefaultsFor(shareScope);
 	}
 
 	onOpen() {
@@ -65,7 +66,13 @@ export class ExpenseShareModal extends FormModal {
 		}
 
 		this.preview = contentEl.createEl("textarea", {
-			cls: "plan-share-preview",
+			// One expense is a handful of lines — a full-height box would be
+			// mostly empty, and the buttons pushed off a phone screen.
+			cls: `plan-share-preview${
+				this.shareScope.kind === "expense"
+					? " plan-share-preview-short"
+					: ""
+			}`,
 			attr: { spellcheck: "false" },
 		});
 		this.refresh();

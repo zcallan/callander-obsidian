@@ -4169,9 +4169,21 @@ body.is-mobile.callander-kb-open .modal-content > * {
    as part of the total row rather than an action beneath it. */
 .expense-ledger-actions {
 	display: flex;
-	flex-direction: column;
+	flex-wrap: wrap;
 	gap: 8px;
 	margin-top: 20px;
+}
+
+.expense-ledger-actions .callander-button {
+	margin-top: 0;
+}
+
+/* Modal submit buttons are full width by convention — see
+   `.modal .callander-button.button-primary`. These two sit side by side
+   instead: neither is the modal's submit, the ledger has no submit, and
+   stretching one of them across pushed the other onto a line of its own. */
+.modal .expense-ledger-actions .callander-button.button-primary {
+	width: auto;
 }
 
 /* The ledger's rows are the modal's content, so it needs no extra padding
@@ -5638,6 +5650,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	min-width: 0;
 }
 
+/* The flat toggle row of the expense share sheet, which has no group
+   labels to space it off the preview beneath. */
+.plan-share-modal > .plan-share-group-options {
+	margin-bottom: 16px;
+}
+
 /* Narrow screens can't afford the label gutter. */
 @media (max-width: 480px) {
 	.plan-share-group {
@@ -5702,6 +5720,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	font-family: var(--font-monospace);
 	font-size: 0.85em;
 	line-height: 1.45;
+}
+
+/* One expense is a few lines. Half the height keeps the box from being
+   mostly empty, and keeps Copy on screen on a phone. */
+.plan-share-preview-short {
+	height: 100px;
 }
 
 .plan-share-preview:focus {

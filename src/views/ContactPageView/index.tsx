@@ -2970,14 +2970,6 @@ export class ContactPageView extends ItemView {
 						credits: creditsOf(this.contactData),
 						participants: this.planParticipants(),
 						yourName: this.plugin.settings.yourName,
-						// Same fallback chain the page's own heading uses.
-						...(scope.kind === "all" && {
-							title: toText(
-								this.contactData.displayName ||
-									this.contactData.name ||
-									""
-							),
-						}),
 					},
 					detail
 				),

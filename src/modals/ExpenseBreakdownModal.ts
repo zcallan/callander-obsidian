@@ -100,7 +100,7 @@ export class ExpenseBreakdownModal extends Modal {
 			this.appendSettleAll(actions, expenses);
 		}
 		const copy = actions.createEl("button", {
-			cls: "callander-button button-full-width",
+			cls: "callander-button",
 		});
 		setIcon(copy, "copy");
 		copy.createSpan({ text: "Copy as text" });
@@ -166,8 +166,10 @@ export class ExpenseBreakdownModal extends Modal {
 	 */
 	private appendSettleAll(actions: HTMLElement, expenses: BreakdownRow[]) {
 		const allSettled = expenses.every((r) => r.settled);
+		// The accent goes on settling: it's the one action here that changes
+		// anything, and copying is the incidental one beside it.
 		const button = actions.createEl("button", {
-			cls: "callander-button button-full-width",
+			cls: "callander-button button-primary",
 		});
 		setIcon(button, allSettled ? "rotate-ccw" : "check");
 		button.createSpan({
