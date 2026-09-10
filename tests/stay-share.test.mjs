@@ -4,7 +4,7 @@ import { STAY_SHARE_DEFAULTS, buildStayShareText } from "./.build/callander.mjs"
 const STAYS = [
 	{
 		text: "The Notch House",
-		// Thursday 17 September 2026; three nights lands on the Sunday.
+		// Thursday 17 September 2026 — so the nights are Thu, Fri, Sat.
 		date: "2026-09-17",
 		nights: 3,
 		checkIn: "16:00",
@@ -49,23 +49,34 @@ export function run() {
 	{
 		const lines = build().split("\n");
 		eq("the name stands alone", lines[0], "The Notch House");
-		// Spoken the way anybody would say it, with the length in brackets.
-		eq("the days lead the details", lines[1], "  Thursday to Sunday (3 nights)");
+		// The nights slept, not check-in to check-out: three from Thursday
+		// is Thu, Fri and Sat, and you leave on the Sunday.
+		eq("the nights lead the details", lines[1], "  Thursday-Saturday night (3 nights)");
 		eq("then the hours", lines[2], "  Check in 4pm, 10am out");
 		eq("then the address", lines[3], "  14 Profile Road, Franconia, NH");
 	}
 	eq(
-		"one night reads as one",
-		build({}, [{ text: "A", date: "2026-09-17", nights: 1 }]),
-		"A\n  Thursday to Friday (1 night)"
+		"one night names just that night",
+		build({}, [{ text: "A", date: "2026-09-18", nights: 1 }]),
+		"A\n  Friday night (1 night)"
 	);
-	// Past a week the weekday comes round again, so "Thursday to Thursday"
-	// could be seven nights or fourteen — the dates disambiguate it.
-	ok(
-		"a long stay carries its dates",
-		build({}, [{ text: "A", date: "2026-09-17", nights: 9 }]).includes(
-			"Thursday 17 September to Saturday 26 September (9 nights)"
-		)
+	// Two get a plus — listing both is shorter than any range of them.
+	eq(
+		"two nights are joined, not spanned",
+		build({}, [{ text: "A", date: "2026-09-18", nights: 2 }]),
+		"A\n  Friday+Saturday night (2 nights)"
+	);
+	eq(
+		"three or more take a dash",
+		build({}, [{ text: "A", date: "2026-09-18", nights: 3 }]),
+		"A\n  Friday-Sunday night (3 nights)"
+	);
+	// The same weekday can come round twice; no dates are added for it,
+	// because the count in brackets already says which one this is.
+	eq(
+		"a long stay leans on the count, not on dates",
+		build({}, [{ text: "A", date: "2026-09-18", nights: 8 }]),
+		"A\n  Friday-Friday night (8 nights)"
 	);
 	// With no check-in there are no days to name, but the length still holds.
 	eq(
@@ -117,7 +128,7 @@ export function run() {
 		// Notes last: a door code and a paragraph both live in that field.
 		eq("notes come last", all.split("\n\n")[0].split("\n").at(-1), "  Key in the lockbox — code 4417.");
 	}
-	ok("Dates off drops the days", !build({ dates: false }).includes("Thursday"));
+	ok("Dates off drops the nights line", !build({ dates: false }).includes("night ("));
 	ok("Address off drops it", !build({ address: false }).includes("Profile Road"));
 	ok("Notes off drops them", !build({ notes: false }).includes("lockbox"));
 	ok("People off drops them", !build({ people: false }).includes("Cormac"));

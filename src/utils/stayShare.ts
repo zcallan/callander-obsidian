@@ -104,12 +104,19 @@ function heading(stay: PlanSimpleItem, detail: StayShareDetail): string {
 }
 
 /**
- * "Thursday to Sunday (2 nights)" — which days the stay covers.
+ * "Friday+Saturday night (2 nights)" — the nights you're actually there.
  *
- * Weekday names alone read best and are how anybody says it out loud, but
- * they stop being unique past a week, so a longer stay gets the dates too.
+ * Named by the nights slept rather than check-in to check-out, because
+ * that's the question a stay answers: three nights from Friday is Friday,
+ * Saturday and Sunday, not "Friday to Monday". Two get a `+` because
+ * listing both is shorter than any range of them; three or more get a dash.
+ *
+ * No calendar dates, even for a long stay where the same weekday comes
+ * round twice — the count in brackets already says which "Friday-Friday"
+ * this is.
+ *
  * A stay with no check-in date falls back to its length; one with neither
- * has nothing to say and returns null.
+ * has nothing to say.
  */
 function stayDates(stay: PlanSimpleItem): string {
 	const nights = stay.nights ?? 0;
@@ -117,19 +124,21 @@ function stayDates(stay: PlanSimpleItem): string {
 	if (!start || isNaN(start.getTime()) || nights < 1) {
 		return nights > 0 ? nightsLabel(nights) : "";
 	}
-	const end = new Date(start);
-	end.setDate(end.getDate() + nights);
-	// Past a week the same weekday comes round again, so "Thursday to
-	// Thursday" could be seven nights or fourteen.
-	const long = nights > 6;
-	const label = (d: Date) =>
-		formatDate(
-			d,
-			long
-				? { weekday: "long", day: "numeric", month: "long" }
-				: { weekday: "long" }
-		);
-	return `${label(start)} to ${label(end)} (${nightsLabel(nights)})`;
+	const weekday = (offset: number) => {
+		const day = new Date(start);
+		day.setDate(day.getDate() + offset);
+		return formatDate(day, { weekday: "long" });
+	};
+	// The last night is the one before checkout, so it's nights - 1 on.
+	const first = weekday(0);
+	const last = weekday(nights - 1);
+	const span =
+		nights === 1
+			? first
+			: nights === 2
+			  ? `${first}+${last}`
+			  : `${first}-${last}`;
+	return `${span} night (${nightsLabel(nights)})`;
 }
 
 /**
