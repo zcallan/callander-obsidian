@@ -15,6 +15,7 @@ export * from "@/utils/nameFormat";
 export * from "@/utils/expenseMath";
 export * from "@/utils/expenseShare";
 export * from "@/utils/stayShare";
+export * from "@/utils/ideaShare";
 export * from "@/utils/people";
 export * from "@/utils/somedaySort";
 export * from "@/utils/somedayRow";

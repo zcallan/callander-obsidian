@@ -67,12 +67,15 @@ export function QuickIdeasSection({
 	shortenPeople,
 	onOpen,
 	onAdd,
+	onCopy,
 }: {
 	store: ViewStore;
 	ideas: () => PlanQuickIdea[];
 	shortenPeople: (people: string) => string;
 	onOpen: (index: number) => void;
 	onAdd: () => void;
+	/** Every idea as text. */
+	onCopy: () => void;
 }) {
 	useViewRevision(store);
 	const all = ideas();
@@ -116,11 +119,23 @@ export function QuickIdeasSection({
 				</Fragment>
 			))}
 
-			<div className="contact-section-footer">
+			<div className="contact-section-footer plan-timeline-footer">
 				<button className="callander-button" onClick={onAdd}>
 					<Icon name="plus" />
 					<span>Add idea</span>
 				</button>
+				{/* Nothing to copy before an idea exists. Set apart from the
+				    add the same way the other sections' are — it acts on the
+				    whole list rather than adding to it. */}
+				{all.length > 0 && (
+					<button
+						className="callander-button plan-timeline-copy"
+						onClick={onCopy}
+					>
+						<Icon name="copy" />
+						<span>Copy as text</span>
+					</button>
+				)}
 			</div>
 		</div>
 	);

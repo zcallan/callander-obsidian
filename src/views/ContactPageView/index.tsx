@@ -117,6 +117,11 @@ import { ContactOperations } from "@/services/ContactOperations";
 import { PlanDraftViewModal } from "@/modals/PlanDraftViewModal";
 import { resolvePeopleInfo, type PersonInfo } from "@/utils/people";
 import {
+	IDEA_SHARE_DEFAULTS,
+	IDEA_SHARE_FIELDS,
+	buildIdeaShareText,
+} from "@/utils/ideaShare";
+import {
 	STAY_SHARE_DEFAULTS,
 	STAY_SHARE_FIELDS,
 	buildStayShareText,
@@ -826,6 +831,7 @@ export class ContactPageView extends ItemView {
 						shortenPeople={(people) => this.shortenPlanPeople(people)}
 						onOpen={(index) => this.openQuickIdeaView(index)}
 						onAdd={() => this.openQuickIdeaModal(null, null)}
+						onCopy={() => this.openIdeaShare()}
 					/>
 				)
 			);
@@ -2988,6 +2994,25 @@ export class ContactPageView extends ItemView {
 			},
 			// One expense is a handful of lines.
 			{ short: scope.kind === "expense" }
+		).open();
+	}
+
+	/** Every idea as text, from the Ideas section's own button. */
+	private openIdeaShare() {
+		new ShareTextModal(
+			this.app,
+			IDEA_SHARE_FIELDS,
+			{ ...IDEA_SHARE_DEFAULTS },
+			(detail) =>
+				buildIdeaShareText(
+					PlanOperations.quickIdeasOf(this.contactData),
+					detail,
+					(people) => this.shortenPlanPeople(people)
+				),
+			async (text) => {
+				await navigator.clipboard.writeText(text);
+				new Notice("📋 Copied — ready to paste as text");
+			}
 		).open();
 	}
 
