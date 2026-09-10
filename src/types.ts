@@ -99,6 +99,19 @@ export interface FriendTrackerSettings {
 	 * UI state, so it isn't surfaced in the settings tab.
 	 */
 	aboutExpanded: boolean;
+	/**
+	 * Which of a plan's foldable sections are collapsed, by id.
+	 *
+	 * A list rather than a boolean each, so a section added later needs no
+	 * new setting — and absent means open, which is the right default for
+	 * something nobody has expressed a view about.
+	 *
+	 * Held across every plan rather than per plan: the sections are the same
+	 * five on all of them, and somebody who never uses What to bring wants
+	 * it folded on the next trip too. Incidental UI state, so it isn't
+	 * surfaced in the settings tab.
+	 */
+	planSectionsCollapsed: string[];
 	/** Sort for the Somedays page; the dashboard's list follows it. Like
 	 * friendListSort, incidental UI state rather than a settings-tab option. */
 	somedaySort: SomedaySort;
@@ -597,6 +610,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	draftsCollapsed: false,
 	birthdaysCollapsed: false,
 	aboutExpanded: false,
+	planSectionsCollapsed: [],
 	somedaySort: "recommended",
 	eventSort: "natural",
 	ribbonDashboard: true,

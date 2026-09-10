@@ -717,7 +717,23 @@ export class ContactPageView extends ItemView {
 			const planContent = container.createDiv({
 				cls: "contact-content contact-content-stacked",
 			});
-			const planSection = (icon: string, label: string) => {
+			/**
+			 * One section of the stacked plan page.
+			 *
+			 * Pass `collapseId` and it folds, remembering its state across
+			 * plans and restarts — the view is rebuilt from scratch on every
+			 * vault event, so anything held in memory would spring back open.
+			 *
+			 * Returns whatever the caller should append content to: the
+			 * section itself when it's fixed, the foldable body when it
+			 * isn't. Both sit inside `.contact-stack-section`, so a caller
+			 * reaching back up for the header can `closest()` either way.
+			 */
+			const planSection = (
+				icon: string,
+				label: string,
+				collapseId?: string
+			) => {
 				const wrap = planContent.createDiv({
 					cls: "contact-stack-section",
 				});
@@ -729,7 +745,38 @@ export class ContactPageView extends ItemView {
 					icon
 				);
 				header.createSpan({ text: label });
-				return wrap;
+				if (!collapseId) return wrap;
+
+				wrap.addClass("plan-accordion");
+				header.addClass("plan-accordion-header");
+				// Last in the header, and `margin-left: auto` carries it to
+				// the far edge — anything a caller adds afterwards is
+				// inserted ahead of it rather than beyond it.
+				setIcon(
+					header.createSpan({ cls: "plan-accordion-chevron" }),
+					"chevron-down"
+				);
+				const body = wrap.createDiv({ cls: "plan-accordion-body" });
+
+				const collapsed = () =>
+					this.collapsedPlanSections().includes(collapseId);
+				const apply = () => wrap.toggleClass("is-open", !collapsed());
+				apply();
+				header.addEventListener("click", (event) => {
+					// Headers can carry controls of their own — the
+					// timeline's "Copy as text" — and folding the section
+					// out from under a click meant for one of those is not
+					// what anybody pressed.
+					const target = event.target as HTMLElement | null;
+					if (target?.closest("button")) return;
+					const current = this.collapsedPlanSections();
+					this.plugin.settings.planSectionsCollapsed = collapsed()
+						? current.filter((id) => id !== collapseId)
+						: [...current, collapseId];
+					apply();
+					void this.plugin.saveSettings();
+				});
+				return body;
 			};
 
 			planSection("users", `Who's in (${this.planMemberCount()})`).appendChild(
@@ -756,7 +803,7 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			planSection("lightbulb", "Ideas").appendChild(
+			planSection("lightbulb", "Ideas", "ideas").appendChild(
 				this.island(
 					"quick-ideas",
 					<QuickIdeasSection
@@ -770,7 +817,7 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			const timelineWrap = planSection("calendar-clock", "Timeline");
+			const timelineWrap = planSection("calendar-clock", "Timeline", "timeline");
 			this.appendTimelineCopyButton(timelineWrap);
 			timelineWrap.appendChild(
 				this.island(
@@ -801,7 +848,7 @@ export class ContactPageView extends ItemView {
 			);
 			// Ported to React — the host is created once and re-attached on
 			// every render, so the section keeps its own subscription.
-			planSection("bed", "Accommodation").appendChild(
+			planSection("bed", "Accommodation", "accommodation").appendChild(
 				this.island(
 					"accommodation",
 					<AccommodationSection
@@ -818,7 +865,7 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			planSection("backpack", "What to bring").appendChild(
+			planSection("backpack", "What to bring", "bring").appendChild(
 				this.island(
 					"bring",
 					<BringSection
@@ -832,7 +879,7 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			planSection("dollar-sign", "Cost breakdown").appendChild(
+			planSection("dollar-sign", "Cost breakdown", "costs").appendChild(
 				this.island(
 					"plan-expenses",
 					<PlanExpensesSection
@@ -2891,12 +2938,26 @@ export class ContactPageView extends ItemView {
 	}
 
 	/** "Copy as text", top-right in the section header (desktop). */
+	/** Collapsed plan sections, tolerant of a hand-edited data.json. */
+	private collapsedPlanSections(): string[] {
+		const saved = this.plugin.settings.planSectionsCollapsed;
+		return Array.isArray(saved) ? saved.map((v) => toText(v)) : [];
+	}
+
 	private appendTimelineCopyButton(container: HTMLElement) {
-		const header = container.querySelector(".contact-stack-header");
+		// `container` is the foldable body now, so reach back up to the
+		// section for its header. `closest` also matches the section itself,
+		// which keeps this working if Timeline ever stops folding.
+		const header = container
+			.closest(".contact-stack-section")
+			?.querySelector(".contact-stack-header");
 		if (!header) return;
 		const copyButton = header.createEl("button", {
 			cls: "callander-button plan-timeline-copy",
 		});
+		// Ahead of the chevron, which owns the right edge of the header.
+		const chevron = header.querySelector(".plan-accordion-chevron");
+		if (chevron) header.insertBefore(copyButton, chevron);
 		setIcon(copyButton, "copy");
 		copyButton.createSpan({ text: "Copy as text" });
 		copyButton.addEventListener("click", () => {

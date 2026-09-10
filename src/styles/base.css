@@ -4660,6 +4660,23 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	padding: 4px 16px 12px;
 }
 
+/* ── Foldable plan sections ── */
+
+/* The stack header's bottom padding is normally 0, because the section's
+   content provides the space beneath it. Folded away there is no content,
+   so the heading would sit hard against the next section's rule. */
+.contact-stack-section.plan-accordion:not(.is-open) .contact-stack-header {
+	padding-bottom: 14px;
+}
+
+/* Timeline's "Copy as text" already claims the free space with its own
+   `margin-left: auto`. Two auto margins would split it between them and
+   leave the button adrift mid-header, so once it's there the chevron just
+   sits beside it. */
+.contact-stack-header .plan-timeline-copy + .plan-accordion-chevron {
+	margin-left: 8px;
+}
+
 /* General accordion: the page header already provides the divider above, so
    drop this section's own top border; balance the heading's spacing when collapsed. */
 .contact-general-accordion {
