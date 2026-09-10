@@ -31,3 +31,31 @@ export function nameWithoutLeadingEmoji(text: string): string {
 	if (!lead) return text.trim();
 	return lead.rest || text.trim();
 }
+
+/**
+ * Every emoji removed, not just a leading one.
+ *
+ * Shares the three shapes splitLeadingEmoji recognises — a flag pair, a
+ * keycap, or a pictographic base with its joiners, variation selectors and
+ * skin tones — so the two can't disagree about what an emoji is. The keycap
+ * needs its U+20E3 to match, which is what keeps a bare digit safe.
+ *
+ * Runs of spaces left behind are collapsed, and a space stranded at the end
+ * of a line goes with them — both are artifacts of the removal. Newlines
+ * survive, and so does a line's own leading indent, which may be the
+ * caller's. Text that is nothing but emoji comes back
+ * unchanged rather than empty — the same fallback nameWithoutLeadingEmoji
+ * makes, and for the same reason: a row still needs something to show.
+ */
+export function stripEmoji(text: string): string {
+	const stripped = text
+		.replace(
+			/\p{Regional_Indicator}{2}|[0-9#*]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\u200D\p{Extended_Pictographic}|[\uFE00-\uFE0F]|[\u{1F3FB}-\u{1F3FF}])*/gu,
+			""
+		)
+		.replace(/ {2,}/g, " ")
+		// The space an emoji leaves behind at a line's end.
+		.replace(/ +\n/g, "\n")
+		.trim();
+	return stripped || text.trim();
+}

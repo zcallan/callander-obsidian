@@ -1,5 +1,6 @@
 import type { PlanQuickIdea } from "@/types";
 import { PlanOperations } from "@/services/PlanOperations";
+import { stripEmoji } from "@/utils/emoji";
 import {
 	formatItemCost,
 	formatItemTime,
@@ -14,6 +15,10 @@ import {
  * renders from, so the message can't disagree with the screen about which
  * heading something sits under. An idea in two categories appears under
  * both here as well: that's what the field is for.
+ *
+ * Emoji come out entirely — the type icon the row draws was never in here,
+ * but people type them into an idea's own text, and a shortlist pasted into
+ * a chat reads better as plain words.
  *
  * Kept pure and out of the section so it can be exercised directly.
  */
@@ -63,7 +68,7 @@ export function buildIdeaShareText(
 		const lines: string[] = [];
 		// Empty when nothing is categorised — a list where everything sits
 		// in one bucket needs no heading naming it.
-		if (group.label) lines.push(group.label);
+		if (group.label) lines.push(stripEmoji(group.label));
 
 		for (const { idea } of group.entries) {
 			// Dates first, then the rough time: the same order the row on
@@ -77,15 +82,15 @@ export function buildIdeaShareText(
 				bits.push(formatItemCost(idea.cost));
 			}
 			if (detail.people && idea.people) {
-				bits.push(shortenPeople(idea.people));
+				bits.push(stripEmoji(shortenPeople(idea.people)));
 			}
 			const meta = bits.filter(Boolean).join(" • ");
-			lines.push(`- ${idea.text}${meta ? ` • ${meta}` : ""}`);
+			lines.push(`- ${stripEmoji(idea.text)}${meta ? ` • ${meta}` : ""}`);
 
 			// Its own line, indented under the item: a note is a sentence
 			// where the rest of the row is labels, and inline it would push
 			// the next idea off the end of the line.
-			if (detail.notes && idea.notes) lines.push(`  ${idea.notes}`);
+			if (detail.notes && idea.notes) lines.push(`  ${stripEmoji(idea.notes)}`);
 		}
 		if (lines.length > 0) blocks.push(lines.join("\n"));
 	}
