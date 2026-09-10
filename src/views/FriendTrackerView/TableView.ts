@@ -570,9 +570,12 @@ export class TableView {
 		const born = parseFlexDate(person.birthday)?.year;
 		chip.createDiv({
 			cls: "cal-chip-meta",
+			// "Turns 32", not a bare 32 — the number alone next to a name
+			// could as easily be their age today as the one they're
+			// reaching, and on a birthday those differ.
 			text:
 				born != null
-					? `🎂 ${Number(isoDate.slice(0, 4)) - born}`
+					? `🎂 Turns ${Number(isoDate.slice(0, 4)) - born}`
 					: "🎂",
 		});
 		chip.addEventListener("click", (e) => {

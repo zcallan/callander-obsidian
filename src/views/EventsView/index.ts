@@ -317,11 +317,15 @@ export class EventsView extends ItemView {
 		newBtn.createSpan({ text: "New event" });
 		newBtn.addEventListener("click", () => this.openEditor());
 
-		// What this page is, right under its name.
-		container.createDiv({
-			cls: "section-helper-text someday-intro-note",
-			text: "Everything on the calendar — what's coming up, and everything you've already done together.",
-		});
+		// What this page is — but only while it's empty. Once there are
+		// events on screen they say what the page is far better than a
+		// sentence does, and it becomes a line to scroll past every visit.
+		if (this.events.length === 0) {
+			container.createDiv({
+				cls: "section-helper-text someday-intro-note",
+				text: "Everything on the calendar — what's coming up, and everything you've already done together.",
+			});
+		}
 
 		if (this.events.length > 0) {
 			this.renderToolbar(container);

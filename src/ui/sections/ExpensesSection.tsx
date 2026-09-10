@@ -128,8 +128,6 @@ export function ExpensesSection() {
 			{expenses.length === 0 && (
 				<div className="section-helper-text">
 					Split a one-off cost — dinner, a taxi, the groceries.
-					Divide it evenly, by shares, or line by line off the
-					receipt.
 				</div>
 			)}
 

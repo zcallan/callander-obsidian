@@ -103,7 +103,7 @@ export class ExpenseBreakdownModal extends Modal {
 			cls: "callander-button",
 		});
 		setIcon(copy, "copy");
-		copy.createSpan({ text: "Copy as text" });
+		copy.createSpan({ text: "Copy text" });
 		copy.addEventListener("click", () => this.options.onCopy());
 	}
 

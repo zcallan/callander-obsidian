@@ -189,7 +189,7 @@ export class ExpenseViewModal extends Modal {
 
 		const copy = actions.createEl("button", { cls: "callander-button" });
 		setIcon(copy, "copy");
-		copy.createSpan({ text: "Copy as text" });
+		copy.createSpan({ text: "Copy text" });
 		copy.addEventListener("click", () => this.onCopy());
 
 		const edit = actions.createEl("button", { cls: "callander-button" });

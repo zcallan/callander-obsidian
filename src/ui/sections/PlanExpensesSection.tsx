@@ -267,7 +267,7 @@ export function PlanExpensesSection({
 						onClick={onCopy}
 					>
 						<Icon name="copy" />
-						<span>Copy as text</span>
+						<span>Copy text</span>
 					</button>
 				)}
 			</div>
