@@ -215,26 +215,28 @@ function personText(
 	);
 	const lines = [person, ""];
 
+	// Credits run in with the expenses rather than under a heading of their
+	// own. The `+` already says which way the money goes, and a two-line
+	// block introducing one credit was more scaffolding than the thing it
+	// held. breakdownFor returns expenses first, so they still land at the
+	// foot of the list.
 	for (const row of rows) {
-		if (row.kind !== "expense") continue;
+		if (row.kind === "credit") {
+			if (!detail.credits) continue;
+			// Positive, where every other line is money this person owes: a
+			// credit is the one that runs the other way, and a minus among
+			// debts reads as a smaller debt rather than as money back.
+			lines.push(
+				`${row.descriptor} — +${formatMoney(Math.abs(row.amount))}`
+			);
+			continue;
+		}
 		if (row.settled && detail.hideSettled) continue;
 		const parts = [row.label];
 		if (detail.split) parts.push(`(${row.descriptor})`);
 		parts.push(`— ${formatMoney(row.amount)}`);
 		if (row.settled) parts.push(PAID);
 		lines.push(parts.join(" "));
-	}
-
-	const creditRows = rows.filter((r) => r.kind === "credit");
-	if (detail.credits && creditRows.length > 0) {
-		lines.push("", "Credits", "");
-		for (const row of creditRows) {
-			// Positive here, where every other line is money this person
-			// owes: a credit is the one that runs the other way, and a
-			// minus among debts reads as a smaller debt rather than a
-			// payment in their favour.
-			lines.push(`${row.descriptor} — +${formatMoney(Math.abs(row.amount))}`);
-		}
 	}
 
 	if (detail.totals) {
@@ -244,15 +246,12 @@ function personText(
 			(sum, r) => (r.settled ? sum : sum + r.amount),
 			0
 		);
-		lines.push("", `${totalLabel(person, input.yourName)}: ${formatMoney(total)}`);
+		// Just "Total": the person's name is the first line of the message,
+		// so there's nobody else it could be the total for — and it reads
+		// the same whether the ledger is somebody else's or your own.
+		lines.push("", `Total: ${formatMoney(total)}`);
 	}
 	return lines;
-}
-
-/** You can't owe yourself, so your own line says what it actually is. */
-function totalLabel(person: string, yourName: string): string {
-	const isYou = !!yourName && person.toLowerCase() === yourName.toLowerCase();
-	return isYou ? "My total split" : "Total left to pay";
 }
 
 /** Every expense, every credit, and what each person is left owing. */

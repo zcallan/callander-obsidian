@@ -137,9 +137,17 @@ export function run() {
 		ok("a dash joins the cost to the figure", text.includes("Cabin (split evenly) — $100.00"));
 		ok("shares name the weighting", text.includes("Dinner (2 shares) — $60.00"));
 		// A credit runs the other way to every other line here, so it reads
-		// as a plus rather than as a smaller debt.
-		ok("credits are a plus, under their own heading", text.includes("Credits\n\npetrol — +$20.00"));
-		ok("and the total takes a colon", text.endsWith("Total left to pay: $140.00"));
+		// as a plus rather than as a smaller debt — which is enough on its
+		// own, so it sits in with the expenses rather than under a heading.
+		ok("credits run in with the expenses", text.includes("petrol — +$20.00"));
+		ok("with no heading of their own", !text.includes("Credits"));
+		// They come last, because they're what comes off the sum above.
+		eq(
+			"and they come after the costs",
+			text.split("\n").filter(Boolean).at(-2),
+			"petrol — +$20.00"
+		);
+		ok("and the total takes a colon", text.endsWith("Total: $140.00"));
 	}
 	eq(
 		"Split is off to begin with here",
@@ -150,7 +158,7 @@ export function run() {
 		// Settled is hidden by default in this scope.
 		const text = build({ kind: "person", person: "Riley" });
 		ok("a settled line is gone", !text.includes("Taxi"));
-		ok("without moving the total", text.endsWith("Total left to pay: $140.00"));
+		ok("without moving the total", text.endsWith("Total: $140.00"));
 	}
 	ok(
 		"a settled line says so when shown",
@@ -158,14 +166,23 @@ export function run() {
 			"Taxi (split evenly) — $10.00 (Paid)"
 		)
 	);
+	// The name is the first line, so the total needs no qualifying — and it
+	// reads the same for your own ledger as for anyone else's.
 	ok(
-		"your own row can't owe you, so it says what it is",
-		build({ kind: "person", person: "Callan" }).includes("My total split:")
+		"your own ledger totals the same way",
+		build({ kind: "person", person: "Callan" }).includes("Total: ")
 	);
-	ok(
-		"Credits off drops the block",
-		!build({ kind: "person", person: "Riley" }, { credits: false }).includes("Credits")
-	);
+	{
+		// The heading is gone, so this has to test the line itself — looking
+		// for the word "Credits" passed whatever the toggle did, which
+		// mutation testing caught.
+		const off = build({ kind: "person", person: "Riley" }, { credits: false });
+		ok("Credits off drops the credit line", !off.includes("petrol"));
+		ok("and no stray plus survives it", !off.includes("+$"));
+		// It comes off the sum either way — hiding a line can't change what
+		// somebody owes.
+		ok("without moving the total", off.endsWith("Total: $140.00"));
+	}
 
 	// ---------- the whole section ----------
 	{
