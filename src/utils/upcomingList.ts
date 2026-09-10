@@ -1,4 +1,4 @@
-import type { EventInfo } from "@/types";
+import type { EventInfo, PlanInfo } from "@/types";
 import { parseFlexDate, flexSortKey, isFlexUpcoming } from "@/utils/flexdate";
 import { daysUntilFlex } from "@/utils/upcomingWhen";
 
@@ -87,10 +87,10 @@ export function upcomingItems(
  * window that opens today. Every other kind of event is already gone by
  * the time its date passes.
  */
-export function thisAndNextWeek(
-	items: readonly UpcomingItem[],
+export function thisAndNextWeek<T extends { days: number | null }>(
+	items: readonly T[],
 	now: Date = new Date()
-): UpcomingItem[] {
+): T[] {
 	// How many days back this week's Monday is; 0 on a Monday, -6 on a
 	// Sunday. getDay is 0 for Sunday, which is 6 days *after* its Monday.
 	const opened = -((now.getDay() + 6) % 7);
@@ -98,4 +98,73 @@ export function thisAndNextWeek(
 	return items.filter(
 		(i) => i.days === null || (i.days >= opened && i.days <= closes)
 	);
+}
+
+/** A plan on the dashboard's Upcoming list, keyed like an event. */
+export interface UpcomingPlan {
+	plan: PlanInfo;
+	key: number;
+	days: number | null;
+}
+
+/**
+ * The plans worth showing beside what's coming up.
+ *
+ * The same window an event gets, and the same reasons for leaving one out:
+ * a plan you've marked done is history, and one whose date has gone by is
+ * either finished or was never dated properly — neither is "coming up".
+ *
+ * A plan with no date at all leads, keyed to 0 like an undated event. That's
+ * the common case early on: somebody says "we should do that", the plan
+ * exists before the date does, and it's exactly the one that gets forgotten
+ * if it sorts to the bottom.
+ */
+export function upcomingPlans(
+	plans: readonly PlanInfo[],
+	now: Date
+): UpcomingPlan[] {
+	const items: UpcomingPlan[] = [];
+	for (const plan of plans) {
+		if (plan.status === "done") continue;
+		const p = parseFlexDate(plan.date);
+		if (!p || p.year === null) {
+			items.push({ plan, key: 0, days: null });
+			continue;
+		}
+		if (!isFlexUpcoming(p, now)) continue;
+		items.push({
+			plan,
+			key: flexSortKey(p),
+			days: daysUntilFlex(plan.date, now),
+		});
+	}
+	return items.sort((a, b) => a.key - b.key);
+}
+
+/** One line of the Upcoming list: an event, or a plan. */
+export type UpcomingEntry =
+	| ({ kind: "event" } & UpcomingItem)
+	| ({ kind: "plan" } & UpcomingPlan);
+
+/**
+ * Events and plans interleaved by date.
+ *
+ * One list rather than two, because "what's coming up" is one question. A
+ * plan sorts among the events on the day it starts; the undated ones from
+ * either lead together, since both are keyed to 0.
+ *
+ * A tie puts the plan first. A plan is the container for a day and the
+ * events are what happens inside it, so a plan reading after them would be
+ * a heading trailing its own contents.
+ */
+export function mergeUpcoming(
+	events: readonly UpcomingItem[],
+	plans: readonly UpcomingPlan[]
+): UpcomingEntry[] {
+	const merged: UpcomingEntry[] = [
+		...events.map((e) => ({ kind: "event" as const, ...e })),
+		...plans.map((p) => ({ kind: "plan" as const, ...p })),
+	];
+	const rank = (e: UpcomingEntry) => (e.kind === "plan" ? 0 : 1);
+	return merged.sort((a, b) => a.key - b.key || rank(a) - rank(b));
 }

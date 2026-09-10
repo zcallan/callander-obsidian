@@ -121,6 +121,14 @@ export interface FriendTrackerSettings {
 	 * against the same scale it compares to.
 	 */
 	weekStartsOn: 0 | 1;
+	/**
+	 * Show plans among the dashboard's Upcoming items.
+	 *
+	 * On by default: a trip is the biggest thing in that window, and the
+	 * Plans section further down answers "what am I planning" rather than
+	 * "what's next". Off for anyone who reads the two as separate lists.
+	 */
+	upcomingShowPlans: boolean;
 	/** Sort for the Somedays page; the dashboard's list follows it. Like
 	 * friendListSort, incidental UI state rather than a settings-tab option. */
 	somedaySort: SomedaySort;
@@ -627,6 +635,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	aboutExpanded: false,
 	planSectionsCollapsed: [],
 	weekStartsOn: 1,
+	upcomingShowPlans: true,
 	somedaySort: "recommended",
 	eventSort: "natural",
 	ribbonDashboard: true,

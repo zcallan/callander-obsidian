@@ -1,7 +1,16 @@
 import { Fragment, useMemo } from "react";
-import type { EventInfo } from "@/types";
+import type { EventInfo, PlanInfo } from "@/types";
 import { eventRowFields } from "@/utils/eventRow";
-import { upcomingItems, thisAndNextWeek } from "@/utils/upcomingList";
+import {
+	mergeUpcoming,
+	thisAndNextWeek,
+	upcomingItems,
+	upcomingPlans,
+	type UpcomingEntry,
+} from "@/utils/upcomingList";
+import { PlanGlanceModal } from "@/modals/PlanGlanceModal";
+import { upcomingWhen } from "@/utils/upcomingWhen";
+import { splitLeadingEmoji } from "@/utils/emoji";
 import { groupEventsByPeriod } from "@/utils/eventGroups";
 import { EventModal } from "@/modals/EventModal";
 import { EventViewModal } from "@/modals/EventViewModal";
@@ -31,7 +40,14 @@ export function UpcomingSection() {
 
 	const { shown, hiddenCount, total } = useMemo(() => {
 		const now = new Date();
-		const all = upcomingItems(plugin.eventOperations.getEvents(), now);
+		const events = upcomingItems(plugin.eventOperations.getEvents(), now);
+		// A trip is the biggest thing in this window, so it belongs among
+		// what's next rather than only in the Plans section further down —
+		// but that's a reading preference, so it's a setting.
+		const plans = plugin.settings.upcomingShowPlans
+			? upcomingPlans(plugin.planOperations.getPlans(), now)
+			: [];
+		const all = mergeUpcoming(events, plans);
 		const near = thisAndNextWeek(all, now);
 		const visible = near.slice(0, MAX_ROWS);
 		return {
@@ -60,7 +76,7 @@ export function UpcomingSection() {
 		new EventViewModal(plugin.app, plugin, event, () => undefined).open();
 	};
 
-	const row = (event: EventInfo) => (
+	const eventRow = (event: EventInfo) => (
 		<UpcomingRow
 			key={event.file.path}
 			{...eventRowFields(event, new Date(), peopleNames(event), {
@@ -71,6 +87,45 @@ export function UpcomingSection() {
 			onClick={() => openEvent(event)}
 		/>
 	);
+
+	/**
+	 * A plan in the same shape as an event row.
+	 *
+	 * Built here rather than through eventRowFields: a plan has no type and
+	 * no time, and the fields it does share are read off different names. A
+	 * leading emoji in its own title stands in as the icon, which is how the
+	 * Plans section below already draws one.
+	 */
+	const planRow = (plan: PlanInfo) => {
+		const when = upcomingWhen(plan.date, new Date(), {
+			conversational: true,
+		});
+		const lead = splitLeadingEmoji(plan.name);
+		const people = resolvePeopleInfo(
+			plugin.app,
+			plan.file.path,
+			plan.members
+		);
+		return (
+			<UpcomingRow
+				key={plan.file.path}
+				icon={lead?.emoji ?? "🗺️"}
+				date={when.date}
+				name={lead ? lead.rest : plan.name}
+				suffix={people.length > 0 ? ` • ${summarisePeople(people)}` : ""}
+				relative={when.relative}
+				tone={when.tone}
+				onClick={() =>
+					new PlanGlanceModal(plugin.app, plan, () =>
+						void plugin.openContactPage(plan.file)
+					).open()
+				}
+			/>
+		);
+	};
+
+	const row = (entry: UpcomingEntry) =>
+		entry.kind === "plan" ? planRow(entry.plan) : eventRow(entry.event);
 
 	return (
 		<div className="dashboard-section dashboard-upcoming-section">
@@ -118,8 +173,8 @@ export function UpcomingSection() {
 			{shown.length > 0 && (
 				<div className="dashboard-upcoming-timeline">
 					{groupEventsByPeriod(
-						shown.map((i) => i.event),
-						(e) => e.date,
+						shown,
+						(i) => (i.kind === "plan" ? i.plan.date : i.event.date),
 						new Date()
 					).map((group) => (
 						// Fragments, not wrapper divs: headings and rows must
@@ -131,7 +186,7 @@ export function UpcomingSection() {
 							<div className="contact-timeline-year">
 								{group.label}
 							</div>
-							{group.items.map((event) => row(event))}
+							{group.items.map((entry) => row(entry))}
 						</Fragment>
 					))}
 				</div>

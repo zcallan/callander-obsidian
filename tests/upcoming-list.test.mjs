@@ -1,5 +1,10 @@
 import { createSuite } from "./harness.mjs";
-import { upcomingItems, thisAndNextWeek } from "./.build/callander.mjs";
+import {
+	mergeUpcoming,
+	thisAndNextWeek,
+	upcomingItems,
+	upcomingPlans,
+} from "./.build/callander.mjs";
 
 /**
  * What reaches the dashboard's Upcoming section. These rules used to live
@@ -139,6 +144,56 @@ export function run() {
 			true
 		);
 	}
+
+	// ---------- plans on the same list ----------
+	const plan = (name, date, status = "planning") => ({
+		file: { path: name },
+		name,
+		date,
+		endDate: "",
+		location: "",
+		status,
+		items: [],
+		members: [],
+	});
+	{
+		const plans = upcomingPlans(
+			[
+				plan("Soon", "2026-09-20"),
+				plan("Gone", "2026-08-01"),
+				plan("Finished", "2026-09-20", "done"),
+				// Somebody said "we should do that" and the date came later.
+				plan("Undated", ""),
+			],
+			now
+		);
+		eq("only what's still ahead", plans.map((p) => p.plan.name), ["Undated", "Soon"]);
+		// Keyed to 0 like an undated event, so it leads rather than sorting
+		// to some arbitrary date — it's the one that gets forgotten.
+		eq("an undated plan leads", plans[0]?.key, 0);
+		eq("and carries no countdown", plans[0]?.days, null);
+	}
+	{
+		// One list, because "what's coming up" is one question.
+		const merged = mergeUpcoming(
+			[
+				{ event: { file: { path: "e" }, name: "Event" }, key: 20260920, days: 11 },
+			],
+			[{ plan: plan("Plan", "2026-09-18"), key: 20260918, days: 9 }]
+		);
+		eq("they interleave by date", merged.map((i) => i.kind), ["plan", "event"]);
+		eq("and say which they are", merged[0]?.kind, "plan");
+	}
+	{
+		// A plan is the container for a day and the events are what happens
+		// in it, so the plan leading reads right when they tie.
+		const merged = mergeUpcoming(
+			[{ event: { file: { path: "e" }, name: "Event" }, key: 20260918, days: 9 }],
+			[{ plan: plan("Plan", "2026-09-18"), key: 20260918, days: 9 }]
+		);
+		eq("a tie puts the plan first", merged.map((i) => i.kind), ["plan", "event"]);
+	}
+	eq("nothing in, nothing out", mergeUpcoming([], []), []);
 
 	return result();
 }
