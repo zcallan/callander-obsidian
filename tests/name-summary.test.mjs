@@ -26,16 +26,16 @@ export function run() {
 		summarisePeople([p("Austin Philleo"), p("Riley Sorensen"), p("Bo Zephyr")]),
 		"Austin, Riley, Bo"
 	);
-	// Four is where a count starts saving room.
+	// Four is where the count starts: three named, the rest counted.
 	eq(
-		"four become two and a count",
+		"four become three and a count",
 		summarisePeople([
 			p("Austin Philleo"),
 			p("Riley Sorensen"),
 			p("Bo Zephyr"),
 			p("Cass Reid"),
 		]),
-		"Austin, Riley, +2 more"
+		"Austin, Riley, Bo, +1 more"
 	);
 	eq(
 		"and so do more",
@@ -46,7 +46,16 @@ export function run() {
 			p("Cass Reid"),
 			p("Dana Fox"),
 		]),
-		"Austin, Riley, +3 more"
+		"Austin, Riley, Bo, +2 more"
+	);
+	// The cap is the caller's — a modal has more room than a dashboard row.
+	eq(
+		"a caller can raise the cap",
+		summarisePeople(
+			[p("A One"), p("B Two"), p("C Three"), p("D Four")],
+			4
+		),
+		"A, B, C, D"
 	);
 
 	// A contact's own short name wins over the first-name rule — which is
@@ -64,7 +73,7 @@ export function run() {
 			p("Bo Zephyr"),
 			p("Cass Reid"),
 		]),
-		"Philleo, Riley, +2 more"
+		"Philleo, Riley, Bo, +1 more"
 	);
 	// Two people sharing a first name disambiguate rather than both reading
 	// the same — the whole point of routing through shortenMemberNames.
@@ -73,13 +82,5 @@ export function run() {
 		summarisePeople([p("Riley Sorensen"), p("Riley Adams")]),
 		"Riley S, Riley A"
 	);
-	// "+1 more" is longer than most names it would replace, so three names
-	// stay named. This is the boundary the count starts at.
-	eq(
-		"a count is never used to hide one name",
-		summarisePeople([p("A One"), p("B Two"), p("C Three")]).includes("more"),
-		false
-	);
-
 	return result();
 }

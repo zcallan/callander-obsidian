@@ -81,7 +81,7 @@ export function shortNameOverrides(
  * One person reads in full: there's room, and a bare first name where the
  * whole name fits tells you less. Two or more shorten, because at that
  * point the list is what you're reading rather than any one name in it.
- * Past three the tail becomes a count — "+2 more" costs four characters
+ * Past `shown` the tail becomes a count — "+2 more" costs four characters
  * where two more names cost twenty, and the row is a glance, not a guest
  * list.
  *
@@ -90,8 +90,8 @@ export function shortNameOverrides(
  */
 export function summarisePeople(
 	people: readonly { displayName: string; shortName: string }[],
-	/** Names shown before the rest become a count. */
-	shown = 2
+	/** The most names to print before the rest become a count. */
+	shown = 3
 ): string {
 	if (people.length === 0) return "";
 	if (people.length === 1) return people[0].displayName;
@@ -100,9 +100,7 @@ export function summarisePeople(
 		people.map((p) => p.displayName),
 		shortNameOverrides(people)
 	);
-	// Only worth a count when it saves something: "+1 more" is longer than
-	// most names it would stand in for.
-	if (short.length <= shown + 1) return short.join(", ");
+	if (short.length <= shown) return short.join(", ");
 	return `${short.slice(0, shown).join(", ")}, +${
 		short.length - shown
 	} more`;

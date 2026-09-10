@@ -112,7 +112,9 @@ export function UpcomingSection() {
 				icon={lead?.emoji ?? "🗺️"}
 				date={when.date}
 				name={lead ? lead.rest : plan.name}
-				suffix={people.length > 0 ? ` • ${summarisePeople(people)}` : ""}
+				// Bare names: UpcomingRow puts the bullet in front of the
+				// suffix itself, and one here made two.
+				suffix={people.length > 0 ? summarisePeople(people) : ""}
 				relative={when.relative}
 				tone={when.tone}
 				onClick={() =>
