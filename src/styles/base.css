@@ -3749,13 +3749,25 @@ body.is-mobile.callander-kb-open .modal-content > * {
 		outline-offset: -2px;
 	}
 
+	.cal-week .cal-cell:hover {
+		background: var(--background-primary);
+	}
+
+	.cal-week .cal-cell.is-selected {
+		outline: none;
+	}
+
 	/* A week of seven narrow columns is unreadable too; it stacks into day
 	   sections, which is the shape the Timeline tab already uses. */
 	.cal-week {
 		grid-template-columns: 1fr;
 	}
 
+	/* Nothing to select here: the stacked week already shows every day's
+	   events, so a highlight and a pointer would promise something the tap
+	   doesn't do. The chips inside stay clickable. */
 	.cal-week .cal-cell {
+		cursor: default;
 		min-height: 0;
 		align-items: stretch;
 		gap: 7px;

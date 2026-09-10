@@ -598,6 +598,11 @@ export class EventsView extends ItemView {
 		// Empty space in a cell adds an event on that day. The chips stop
 		// their own clicks, so this only fires where nothing was hit.
 		cell.addEventListener("click", () => {
+			// A narrow week is already every day stacked with its events
+			// under it — there is no agenda to point at, so picking a day
+			// would redraw the same screen and highlight one row of it for
+			// no reason.
+			if (this.isNarrow() && this.calMode === "week") return;
 			this.calSelected = day.date;
 			// On a narrow pane a tap picks the day rather than opening a
 			// modal — the day's events are what you're reaching for, and
@@ -806,7 +811,19 @@ export class EventsView extends ItemView {
 		}
 	}
 
+	/**
+	 * Rebuild just the list, keeping where you were reading.
+	 *
+	 * Every one of these empties the list before refilling it, and an empty
+	 * list is short enough that the browser clamps the scroll position to
+	 * fit — so picking a day in the calendar threw you back to the top and
+	 * made you scroll down again to see what you'd picked. Restoring after
+	 * the rebuild is enough: the content is back to full height by then, so
+	 * the position is still reachable.
+	 */
 	private renderContent() {
+		const container = this.containerEl.children[1] as HTMLElement;
+		const scrollTop = container.scrollTop;
 		if (this.tab === "timeline") {
 			this.renderTimeline();
 		} else if (this.tab === "calendar") {
@@ -814,6 +831,7 @@ export class EventsView extends ItemView {
 		} else {
 			this.renderList();
 		}
+		container.scrollTop = scrollTop;
 	}
 
 	/**
