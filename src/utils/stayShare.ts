@@ -53,7 +53,7 @@ export function buildStayShareText(
 	detail: StayShareDetail
 ): string {
 	const blocks: string[][] = [];
-	for (const stay of inCheckInOrder(stays)) {
+	for (const { stay } of staysInOrder(stays)) {
 		const lines = [heading(stay, detail)];
 		// Indented, so a stay's details read as belonging to the name above
 		// rather than as more stays.
@@ -148,16 +148,28 @@ function stayDates(stay: PlanSimpleItem): string {
  * itinerary is no order at all. Undated ones trail rather than lead: they're
  * the ones still being decided, and putting a maybe at the top of where
  * you're staying reads as the plan.
+ *
+ * Each stay keeps the index it has in the stored array, because that index
+ * is what an edit or a delete writes back through — the same reason
+ * partitionExpenses carries its own. Sorting a list of bare items and using
+ * the display position would edit the wrong stay.
+ *
+ * The sort is stable, so two stays checking in the same day stay in the
+ * order they were added rather than swapping about between renders.
  */
-function inCheckInOrder(
+export function staysInOrder(
 	stays: readonly PlanSimpleItem[]
-): PlanSimpleItem[] {
-	return [...stays].sort((a, b) => {
-		if (!a.date && !b.date) return 0;
-		if (!a.date) return 1;
-		if (!b.date) return -1;
-		return a.date.localeCompare(b.date);
-	});
+): Array<{ stay: PlanSimpleItem; index: number }> {
+	return stays
+		.map((stay, index) => ({ stay, index }))
+		.sort((a, b) => {
+			const left = a.stay.date;
+			const right = b.stay.date;
+			if (!left && !right) return 0;
+			if (!left) return 1;
+			if (!right) return -1;
+			return left.localeCompare(right);
+		});
 }
 
 /**

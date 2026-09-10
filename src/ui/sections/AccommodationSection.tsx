@@ -1,4 +1,5 @@
 import type { PlanSimpleItem } from "@/types";
+import { staysInOrder } from "@/utils/stayShare";
 import { Icon } from "@/ui/components/Icon";
 import { StayRow } from "@/ui/components/StayRow";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
@@ -32,7 +33,10 @@ export function AccommodationSection({
 	onCopy: () => void;
 }) {
 	useViewRevision(store);
-	const rows = items();
+	// Check-in order, not the order they were added — the same order the
+	// copied text uses, so the list and the message agree. Each row keeps
+	// its stored index, which is what an edit writes back through.
+	const rows = staysInOrder(items());
 
 	return (
 		<div className="contact-ideas-section plan-items-section">
@@ -42,19 +46,19 @@ export function AccommodationSection({
 				</div>
 			)}
 
-			{rows.map((item, index) => (
-				// Index as key: these rows have no stable id of their own, and
-				// the list is only ever rebuilt wholesale from frontmatter —
-				// there's no reorder or in-place edit for a keyed identity to
-				// preserve. Same reasoning the modal uses to address them.
+			{rows.map(({ stay, index }) => (
+				// The stored index as key, not the display position: it's the
+				// row's only stable identity, and it's what the modal edits
+				// through. Keying on the sorted position would hand a row's
+				// state to whichever stay took its place after a date change.
 				<StayRow
 					key={index}
-					item={item}
-					onClick={() => onOpen(index, item)}
+					item={stay}
+					onClick={() => onOpen(index, stay)}
 				/>
 			))}
 
-			<div className="contact-section-footer plan-timeline-footer">
+			<div className="contact-section-footer plan-timeline-footer plan-stay-footer">
 				<button
 					className="callander-button"
 					onClick={() => onOpen(null, null)}

@@ -1,5 +1,9 @@
 import { createSuite } from "./harness.mjs";
-import { STAY_SHARE_DEFAULTS, buildStayShareText } from "./.build/callander.mjs";
+import {
+	STAY_SHARE_DEFAULTS,
+	buildStayShareText,
+	staysInOrder,
+} from "./.build/callander.mjs";
 
 const STAYS = [
 	{
@@ -95,6 +99,44 @@ export function run() {
 		build({ dates: false }, [{ text: "A", date: "2026-09-17", nights: 3 }]),
 		"A: 3 nights"
 	);
+
+	// ---------- the order both views read in ----------
+	// The section on screen sorts through this too, and edits write back
+	// through the index — so it has to be the stored one, not the position
+	// the row ended up in.
+	{
+		const stored = [
+			{ text: "Third", date: "2026-09-20" },
+			{ text: "First", date: "2026-09-17" },
+			{ text: "Undated" },
+			{ text: "Second", date: "2026-09-18" },
+		];
+		const sorted = staysInOrder(stored);
+		eq("earliest check-in leads", sorted.map((r) => r.stay.text), [
+			"First",
+			"Second",
+			"Third",
+			"Undated",
+		]);
+		eq("and each keeps where it's stored", sorted.map((r) => r.index), [1, 3, 0, 2]);
+		// Editing the first row on screen must reach the stay it shows.
+		eq(
+			"so an edit reaches the row you tapped",
+			stored[sorted[0].index].text,
+			"First"
+		);
+		eq("nothing is lost or repeated", sorted.length, stored.length);
+	}
+	{
+		// Stable, so two stays checking in the same day don't swap about
+		// between renders.
+		const same = staysInOrder([
+			{ text: "A", date: "2026-09-17" },
+			{ text: "B", date: "2026-09-17" },
+		]);
+		eq("a shared date keeps the order it was stored in", same.map((r) => r.stay.text), ["A", "B"]);
+	}
+	eq("nothing in, nothing out", staysInOrder([]), []);
 
 	// ---------- chronological order ----------
 	{

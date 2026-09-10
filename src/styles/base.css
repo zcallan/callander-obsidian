@@ -4627,6 +4627,13 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin-top: 0;
 }
 
+/* The stay rows carry no bottom padding of their own, so the buttons sat
+   flush against the last one. The timeline's rows end with their own
+   spacing; this list doesn't. */
+.plan-stay-footer {
+	margin-top: 14px;
+}
+
 /* Copy as text acts on the whole timeline rather than adding anything to
    it, so it sits apart from the two adds instead of reading as a third one.
    An auto margin rather than `justify-content: space-between`, which would
