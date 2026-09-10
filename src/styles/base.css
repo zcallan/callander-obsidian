@@ -3758,8 +3758,8 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	.cal-week .cal-cell {
 		min-height: 0;
 		align-items: stretch;
-		gap: 6px;
-		padding: 10px 4px 14px;
+		gap: 8px;
+		padding: 14px 2px 20px;
 	}
 
 	.cal-week .cal-chip,
@@ -3772,40 +3772,50 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	   the size it would have had all along — this is the one narrow view
 	   that can afford to be read rather than scanned. */
 	.cal-week .cal-chip {
-		font-size: 14px;
+		font-size: 16px;
 		line-height: 1.4;
-		padding: 9px 11px;
+		padding: 13px 14px;
 		gap: 6px;
-		border-radius: 5px;
-		border-left-width: 4px;
+		border-radius: 6px;
+		border-left-width: 5px;
 	}
 
 	/* Truncation is a month-grid compromise. With the full width there's
-	   no reason to hide the end of a name. */
+	   no reason to hide the end of a name.
+
+	   `overflow-wrap: anywhere` as well as `white-space: normal`: normal
+	   only lets it wrap at spaces, so a single long word — a venue typed
+	   without them — still ran past the chip's edge and was clipped with
+	   nothing to say it had been. */
 	.cal-week .cal-chip,
 	.cal-week .cal-chip .cal-chip-name {
 		white-space: normal;
 		overflow: visible;
+		overflow-wrap: anywhere;
+		min-width: 0;
 	}
 
 	.cal-week .cal-chip .cal-chip-meta {
-		font-size: 0.88em;
+		font-size: 0.85em;
+		/* A touch of air under the name, which is now the taller of the
+		   two by enough that they'd otherwise read as one block. */
+		margin-top: 2px;
 	}
 
 	/* The day heading grows with them, or it reads as a caption on the
 	   chips rather than the thing they belong to. */
 	.cal-week .cal-cell-head {
-		font-size: 13px;
-		gap: 6px;
-		padding-bottom: 2px;
+		font-size: 15px;
+		gap: 7px;
+		padding-bottom: 4px;
 	}
 
 	.cal-week .cal-daynum {
-		font-size: 15px;
+		font-size: 18px;
 	}
 
 	.cal-week .cal-dow {
-		font-size: 11px;
+		font-size: 12px;
 	}
 
 	.cal-week .cal-dots {
