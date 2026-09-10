@@ -481,12 +481,14 @@ export class TableView {
 		button("›", "Next month", () => step(1));
 
 		const head = wrap.createDiv({ cls: "cal-weekdays" });
-		for (const d of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
+		const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+		const from = this.weekStartsOn();
+		for (const d of names.slice(from).concat(names.slice(0, from))) {
 			head.createSpan({ text: d });
 		}
 
 		const grid = wrap.createDiv({ cls: "cal-grid" });
-		for (const day of monthGrid(this.calCursor)) {
+		for (const day of monthGrid(this.calCursor, new Date(), this.weekStartsOn())) {
 			const cls = ["cal-cell"];
 			if (!day.inMonth) cls.push("is-outside");
 			if (day.isToday) cls.push("is-today");
@@ -557,6 +559,11 @@ export class TableView {
 	 * that got truncated first in a narrow column — which is the wrong way
 	 * round when the whole question is whose birthday it is.
 	 */
+	/** Which day the grid opens on — 1 Monday, 0 Sunday. */
+	private weekStartsOn(): 0 | 1 {
+		return this.view.callander.settings.weekStartsOn === 0 ? 0 : 1;
+	}
+
 	private appendCalBirthday(
 		cell: HTMLElement,
 		person: ContactWithCountdown,

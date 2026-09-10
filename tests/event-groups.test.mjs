@@ -195,5 +195,28 @@ export function run() {
 		eq("rows inside keep the caller's order", group.items.map((i) => i.n), ["a", "b"]);
 	}
 
+	// ---------- which day a week opens on ----------
+	// Monday by default; a setting moves it to Sunday. The day that moves
+	// between them is the Sunday itself, which belongs to the week before
+	// under Monday and opens the week under Sunday.
+	{
+		const sunday = new Date(2026, 8, 6);
+		const monday = new Date(2026, 7, 31);
+		eq("a Sunday belongs to the Monday six days back", iso(weekStart(sunday)), iso(monday));
+		eq("and opens its own week when weeks start on Sunday", iso(weekStart(sunday, 0)), iso(sunday));
+		// A Monday is the boundary in the other direction.
+		eq("a Monday opens a Monday week", iso(weekStart(monday, 1)), iso(monday));
+		eq(
+			"and belongs to the day before when weeks start on Sunday",
+			iso(weekStart(monday, 0)),
+			iso(new Date(2026, 7, 30))
+		);
+		// Midweek is the same day either way, only reached from a different
+		// end — proof the offset isn't just shifting everything by one.
+		const wednesday = new Date(2026, 8, 2);
+		eq("midweek resolves to that week's Monday", iso(weekStart(wednesday, 1)), iso(monday));
+		eq("or that week's Sunday", iso(weekStart(wednesday, 0)), iso(new Date(2026, 7, 30)));
+	}
+
 	return result();
 }

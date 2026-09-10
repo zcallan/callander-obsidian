@@ -117,5 +117,31 @@ export function run() {
 
 	eq("nothing in, nothing out", eventsByDay([], dateOf, timeOf).size, 0);
 
+	// ---------- a week that opens on Sunday ----------
+	// The whole grid shifts by a day, which changes which weeks a month
+	// touches — and so, sometimes, how many rows it needs.
+	{
+		const sun = monthGrid(new Date(2026, 8, 1), NOW, 0);
+		eq("it opens on the Sunday before the 1st", sun[0]?.date, "2026-08-30");
+		eq("and closes on a Saturday", sun.at(-1)?.date, "2026-10-03");
+		eq("still whole weeks", sun.length % 7, 0);
+		// September 2026 needs five rows either way, but from a different
+		// Sunday — the borrowed days at each end are what moved.
+		eq("September still needs five", sun.length / 7, 5);
+		eq("today is still flagged once", sun.filter((d) => d.isToday).length, 1);
+
+		const wk = weekGrid(new Date(2026, 8, 9), NOW, 0);
+		eq("a week opens on Sunday", wk[0]?.date, "2026-09-06");
+		eq("and closes on Saturday", wk[6]?.date, "2026-09-12");
+		// The label follows, or it would name a range the grid isn't showing.
+		eq("the label follows the grid", weekLabel(new Date(2026, 8, 9), 0), "6 – 12 September 2026");
+	}
+	// The default is Monday, so an omitted argument must not change anything.
+	eq(
+		"omitting it keeps Monday",
+		monthGrid(new Date(2026, 8, 1), NOW).map((d) => d.date),
+		monthGrid(new Date(2026, 8, 1), NOW, 1).map((d) => d.date)
+	);
+
 	return result();
 }

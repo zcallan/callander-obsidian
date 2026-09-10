@@ -100,6 +100,15 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				},
 			},
 			{
+				name: "Week starts on",
+				desc: "Which day calendars open the week with — the Events calendar, the B'day Calendar, and the week headings on timelines",
+				control: {
+					type: "dropdown",
+					key: "weekStartsOn",
+					options: { "1": "Monday", "0": "Sunday" },
+				},
+			},
+			{
 				name: "Limit page width",
 				desc: "Keep Callander's pages to a reading column rather than letting them fill the pane. Any page can be widened for a moment with the button in its top corner",
 				control: {
@@ -267,6 +276,11 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 	// Only ever invoked on 1.13+, but written without any 1.13-only calls
 	// (no super.*) so the plugin lints clean at the 1.7.2 floor.
 	getControlValue(key: string): unknown {
+		// Dropdown options are keyed by string; a number would match none of
+		// them and the control would open on nothing selected.
+		if (key === "weekStartsOn") {
+			return String(this.plugin.settings.weekStartsOn);
+		}
 		return this.plugin.settings[key as keyof FriendTrackerSettings];
 	}
 
@@ -274,6 +288,12 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		// Folder paths were normalized on entry before; keep that behavior
 		if (key === "baseFolder" || key === "diaryFolder") {
 			value = normalizePath(String(value));
+		}
+		// A dropdown's value is always a string, and everything downstream
+		// compares this against Date.getDay(). Storing "1" would make every
+		// comparison false and quietly move every calendar to Sunday.
+		if (key === "weekStartsOn") {
+			value = Number(value) === 0 ? 0 : 1;
 		}
 		// A basename, not a path — strip separators and stray whitespace
 		if (key === "dashboardFileName") {
@@ -395,6 +415,22 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 						);
 						await this.plugin.saveSettings();
 					}
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Week starts on")
+			.setDesc(
+				"Which day calendars open the week with — the Events calendar, the B'day Calendar, and the week headings on timelines"
+			)
+			.addDropdown((drop) => {
+				drop.addOption("1", "Monday");
+				drop.addOption("0", "Sunday");
+				drop.setValue(String(this.plugin.settings.weekStartsOn));
+				drop.onChange(async (value) => {
+					this.plugin.settings.weekStartsOn =
+						Number(value) === 0 ? 0 : 1;
+					await this.plugin.saveSettings();
 				});
 			});
 

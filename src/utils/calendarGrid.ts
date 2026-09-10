@@ -17,7 +17,7 @@ export interface CalendarDay {
 }
 
 /**
- * The days a month grid draws, Monday first.
+ * The days a month grid draws, opening on `startsOn`.
  *
  * As many whole weeks as the month actually touches — five for most, six
  * when a 31-day month opens late in the week, four for a non-leap February
@@ -25,20 +25,24 @@ export interface CalendarDay {
  * on most months; letting it vary costs a little height jump when you page
  * between months, which is the cheaper of the two.
  *
- * Monday first for the same reason the timeline groups by Monday weeks: the
- * plugin formats dates as en-AU throughout, and a weekend split across two
- * rows reads badly.
+ * Monday by default, for the same reason the timeline groups by Monday
+ * weeks: the plugin formats dates as en-AU throughout, and a weekend split
+ * across two rows reads badly. A setting moves it to Sunday.
  */
-export function monthGrid(cursor: Date, now: Date = new Date()): CalendarDay[] {
+export function monthGrid(
+	cursor: Date,
+	now: Date = new Date(),
+	startsOn: 0 | 1 = 1
+): CalendarDay[] {
 	const year = cursor.getFullYear();
 	const month = cursor.getMonth();
-	const first = weekStart(new Date(year, month, 1));
-	const last = weekStart(new Date(year, month + 1, 0));
+	const first = weekStart(new Date(year, month, 1), startsOn);
+	const last = weekStart(new Date(year, month + 1, 0), startsOn);
 
 	const days: CalendarDay[] = [];
 	const walk = new Date(first);
-	// `last` is the Monday of the week holding the month's final day, so the
-	// loop closes after drawing that week out to its Sunday.
+	// `last` opens the week holding the month's final day, so the loop
+	// closes after drawing that week out in full.
 	while (walk <= last) {
 		for (let i = 0; i < 7; i++) {
 			days.push(dayOf(walk, now, walk.getMonth() === month));
@@ -48,9 +52,13 @@ export function monthGrid(cursor: Date, now: Date = new Date()): CalendarDay[] {
 	return days;
 }
 
-/** The seven days of the week containing `cursor`, Monday first. */
-export function weekGrid(cursor: Date, now: Date = new Date()): CalendarDay[] {
-	const walk = weekStart(cursor);
+/** The seven days of the week containing `cursor`, opening on `startsOn`. */
+export function weekGrid(
+	cursor: Date,
+	now: Date = new Date(),
+	startsOn: 0 | 1 = 1
+): CalendarDay[] {
+	const walk = weekStart(cursor, startsOn);
 	const days: CalendarDay[] = [];
 	for (let i = 0; i < 7; i++) {
 		days.push(dayOf(walk, now, true));
@@ -69,8 +77,8 @@ export function monthLabel(cursor: Date): string {
  * "28 September – 4 October 2026" across a month, and
  * "28 December 2026 – 3 January 2027" across a new year.
  */
-export function weekLabel(cursor: Date): string {
-	const start = weekStart(cursor);
+export function weekLabel(cursor: Date, startsOn: 0 | 1 = 1): string {
+	const start = weekStart(cursor, startsOn);
 	const end = new Date(start);
 	end.setDate(end.getDate() + 6);
 

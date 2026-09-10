@@ -51,7 +51,8 @@ const CAL_DOTS = 4;
  * is drawn, this decides what a tap does.
  */
 const CAL_NARROW = 620;
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** Indexed by Date.getDay(), so Sunday leads whatever the week opens on. */
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** "8pm", "7:30pm" — compact enough for a chip, where "7:30 PM" wraps. */
 function shortTime(time: string): string {
@@ -282,6 +283,17 @@ export class EventsView extends ItemView {
 		);
 	}
 
+	/** Which day the grid opens on — 1 Monday, 0 Sunday. */
+	private weekStartsOn(): 0 | 1 {
+		return this.plugin.settings.weekStartsOn === 0 ? 0 : 1;
+	}
+
+	/** The column headings, rotated to match. */
+	private weekdayNames(): string[] {
+		const from = this.weekStartsOn();
+		return WEEKDAYS.slice(from).concat(WEEKDAYS.slice(0, from));
+	}
+
 	private pipeline(over: {
 		type?: EventType;
 		personPath?: string;
@@ -438,12 +450,12 @@ export class EventsView extends ItemView {
 		this.appendCalBar(wrap);
 		const days =
 			this.calMode === "month"
-				? monthGrid(this.calCursor)
-				: weekGrid(this.calCursor);
+				? monthGrid(this.calCursor, new Date(), this.weekStartsOn())
+				: weekGrid(this.calCursor, new Date(), this.weekStartsOn());
 
 		if (this.calMode === "month") {
 			const head = wrap.createDiv({ cls: "cal-weekdays" });
-			for (const d of ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]) {
+			for (const d of this.weekdayNames()) {
 				head.createSpan({ text: d });
 			}
 		}
@@ -469,7 +481,7 @@ export class EventsView extends ItemView {
 			text:
 				this.calMode === "month"
 					? monthLabel(this.calCursor)
-					: weekLabel(this.calCursor),
+					: weekLabel(this.calCursor, this.weekStartsOn()),
 		});
 
 		const nav = bar.createDiv({ cls: "cal-nav" });
@@ -535,7 +547,7 @@ export class EventsView extends ItemView {
 		if (this.calMode === "week") {
 			head.createSpan({
 				cls: "cal-dow",
-				text: WEEKDAYS[(new Date(day.date + "T00:00:00").getDay() + 6) % 7],
+				text: WEEKDAYS[new Date(day.date + "T00:00:00").getDay()],
 			});
 		}
 
@@ -779,6 +791,7 @@ export class EventsView extends ItemView {
 		// the bare form, where this year needs no saying.
 		const groups = groupEventsByPeriod(list, (e) => e.date, new Date(), {
 			alwaysYear: this.when !== "upcoming",
+			weekStartsOn: this.weekStartsOn(),
 			// Looking back, the headings run latest-first too — the rows
 			// inside them already do, and a timeline whose months descend
 			// while its rows ascend reads as neither order.

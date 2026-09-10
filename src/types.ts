@@ -112,6 +112,15 @@ export interface FriendTrackerSettings {
 	 * surfaced in the settings tab.
 	 */
 	planSectionsCollapsed: string[];
+	/**
+	 * Which day a calendar week opens on — 1 Monday, 0 Sunday.
+	 *
+	 * Monday by default: the plugin formats dates as en-AU throughout, and a
+	 * Monday week keeps a weekend in one row rather than splitting it across
+	 * two. Stored as the number `Date.getDay()` uses so the arithmetic reads
+	 * against the same scale it compares to.
+	 */
+	weekStartsOn: 0 | 1;
 	/** Sort for the Somedays page; the dashboard's list follows it. Like
 	 * friendListSort, incidental UI state rather than a settings-tab option. */
 	somedaySort: SomedaySort;
@@ -611,6 +620,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	birthdaysCollapsed: false,
 	aboutExpanded: false,
 	planSectionsCollapsed: [],
+	weekStartsOn: 1,
 	somedaySort: "recommended",
 	eventSort: "natural",
 	ribbonDashboard: true,

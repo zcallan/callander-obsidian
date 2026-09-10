@@ -17,17 +17,19 @@ export const UNDATED_KEY = "";
 const UNDATED_LABEL = "No exact date";
 
 /**
- * The Monday of the week containing `d`, at local midnight.
+ * The first day of the week containing `d`, at local midnight.
  *
  * Monday rather than Sunday: the rest of the plugin formats dates as en-AU,
  * where the week starts on Monday, and a weekend split across two headings
  * reads badly on a page mostly used to look at what's coming up.
  */
-export function weekStart(d: Date): Date {
+export function weekStart(d: Date, startsOn: 0 | 1 = 1): Date {
 	const start = new Date(d);
 	start.setHours(0, 0, 0, 0);
-	// getDay is 0 for Sunday, which is 6 days *after* the Monday it belongs to.
-	const back = (start.getDay() + 6) % 7;
+	// getDay is 0 for Sunday. The +7 keeps the result positive when the week
+	// opens on a Monday and the day is that Sunday, which would otherwise
+	// come out as -1.
+	const back = (start.getDay() - startsOn + 7) % 7;
 	start.setDate(start.getDate() - back);
 	return start;
 }
@@ -69,12 +71,14 @@ export interface PeriodOptions {
 	 * page already applied.
 	 */
 	recentFirst?: boolean;
+	/** Which day a week opens on — 1 Monday, 0 Sunday. See the setting. */
+	weekStartsOn?: 0 | 1;
 }
 
 export function eventPeriod(
 	date: string,
 	now: Date = new Date(),
-	{ alwaysYear = false }: PeriodOptions = {}
+	{ alwaysYear = false, weekStartsOn = 1 }: PeriodOptions = {}
 ): { key: string; label: string } {
 	const parsed = parseFlexDate(date);
 	const dayPrecise =
@@ -91,7 +95,7 @@ export function eventPeriod(
 	);
 	on.setHours(0, 0, 0, 0);
 
-	const thisWeek = weekStart(now);
+	const thisWeek = weekStart(now, weekStartsOn);
 	const nextWeek = new Date(thisWeek);
 	nextWeek.setDate(nextWeek.getDate() + 7);
 	const afterNextWeek = new Date(thisWeek);
