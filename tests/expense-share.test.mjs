@@ -185,6 +185,22 @@ export function run() {
 		ok("expenses are spaced apart", text.includes("$300.00 (split evenly)\n  Riley: $100.00\n  Laura: $100.00\n\nTaxi"));
 	}
 	{
+		// With no shares underneath, every expense is one line — the gap it
+		// was separating no longer exists, and spacing them apart only makes
+		// a tight list sparse.
+		const text = build({ kind: "all" }, { people: false, hideSettled: false });
+		eq("without People the expenses run together", text.split("\n").slice(0, 5), [
+			"Expenses",
+			"",
+			"Cabin: $300.00",
+			"Taxi: $30.00 (Paid)",
+			"Dinner: $90.00",
+		]);
+		// The heading's own blank line stays: it separates a heading from a
+		// list, which is a different job.
+		eq("but the heading keeps its own", text.split("\n")[1], "");
+	}
+	{
 		const text = build({ kind: "all" });
 		ok("Hide settled drops a settled expense outright", !text.includes("Taxi"));
 		ok("but keeps the open ones", text.includes("Cabin"));

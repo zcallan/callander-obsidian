@@ -270,9 +270,12 @@ function allText(
 	if (shown.length > 0) {
 		lines.push("Expenses", "");
 		shown.forEach((cost, i) => {
-			// A blank line between expenses, so a run of them doesn't read
-			// as one block of figures.
-			if (i > 0) lines.push("");
+			// A blank line between expenses, but only when each one carries
+			// its people underneath: the gap is there to say where one
+			// expense's shares end and the next begins. With People off
+			// every expense is a single line, and spacing them apart turns
+			// a tight list into a sparse one for no gain.
+			if (i > 0 && detail.people) lines.push("");
 			lines.push(expenseHeading(cost, detail));
 			if (detail.people) {
 				lines.push(...personLines(cost, input, detail, ":"));
