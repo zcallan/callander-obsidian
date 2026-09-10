@@ -110,9 +110,10 @@ export function run() {
 		ok("the address is there", all.includes("  14 Profile Road, Franconia, NH"));
 		ok("so are the people", all.includes("  Callan, Cormac"));
 		ok("and the cost", all.includes("  $340.00"));
-		// No toggle: a message about where you're staying that quietly omits
-		// "nobody has booked this" is the wrong message.
-		ok("and what's been booked", all.includes("  Booked"));
+		// Only the outstanding state earns a line — every stay listed is one
+		// you mean to use, so "Booked" on most of them buries the one that
+		// still needs doing.
+		ok("a booked stay says nothing about it", !all.includes("Booked"));
 		// Notes last: a door code and a paragraph both live in that field.
 		eq("notes come last", all.split("\n\n")[0].split("\n").at(-1), "  Key in the lockbox — code 4417.");
 	}
@@ -124,11 +125,16 @@ export function run() {
 	// "Need to book" rather than the shorter stored label: on a line of its
 	// own the short one reads as a category instead of a prompt.
 	ok("an unbooked stay says what's needed", build().includes("  Need to book"));
-	// A stay that needs no booking has nothing to say about one.
+	// Neither a stay that needs no booking nor one already made.
 	eq(
 		"and one that needs none says nothing",
 		build({}, [{ text: "A friend's spare room", booked: "none" }]),
 		"A friend's spare room"
+	);
+	eq(
+		"nor does one already booked",
+		build({}, [{ text: "The Notch House", booked: "booked" }]),
+		"The Notch House"
 	);
 
 	// ---------- more than one ----------

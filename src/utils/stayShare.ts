@@ -1,5 +1,4 @@
 import type { PlanSimpleItem } from "@/types";
-import { BOOKING_STATES } from "@/constants";
 import { formatDate } from "@/utils/dateFormat";
 import { formatMoney } from "@/utils/expenseMath";
 import { formatStayHours, nightsLabel } from "@/utils/planFormat";
@@ -155,15 +154,15 @@ function inCheckInOrder(
 /**
  * What's left to do about the booking, or nothing.
  *
+ * Only the outstanding state gets a line. "Booked" tells the reader nothing
+ * they need — every stay in the list is one you intend to use, so the
+ * absence of a warning is the good news, and printing it on most of them
+ * only buries the one that still needs doing.
+ *
  * "Need to book" rather than BOOKING_STATES' own "To book" — the same
  * wording the row on screen uses, since stated on a line of its own the
- * shorter label reads like a category instead of a prompt. A stay that
- * needs no booking says nothing at all.
+ * shorter label reads like a category instead of a prompt.
  */
 function bookingLabel(stay: PlanSimpleItem): string {
-	if (stay.booked === "todo") return "Need to book";
-	if (stay.booked === "booked") {
-		return BOOKING_STATES.find((b) => b.id === "booked")?.label ?? "Booked";
-	}
-	return "";
+	return stay.booked === "todo" ? "Need to book" : "";
 }
