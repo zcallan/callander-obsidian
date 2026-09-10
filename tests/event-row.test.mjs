@@ -590,5 +590,38 @@ export function run() {
 		"today"
 	);
 
+	// ---------- reading backwards ----------
+	// Looking at what's already happened, the natural order turns round:
+	// the near end of a past list is the recent end.
+	{
+		const list = [
+			{ file: { path: "a" }, name: "Older", date: "2026-05-01", created: "", updated: "", type: "hangout" },
+			{ file: { path: "b" }, name: "Newer", date: "2026-07-01", created: "", updated: "", type: "hangout" },
+			{ file: { path: "c" }, name: "Undated", date: "", created: "", updated: "", type: "hangout" },
+		];
+		eq(
+			"forwards is oldest first",
+			applyEventSort(list, "natural").map((e) => e.name),
+			["Older", "Newer", "Undated"]
+		);
+		eq(
+			"backwards is most recent first",
+			applyEventSort(list, "natural", { recentFirst: true }).map((e) => e.name),
+			["Newer", "Older", "Undated"]
+		);
+		// Undated sinks either way — the flip must not float it to the top.
+		eq(
+			"undated still sinks",
+			applyEventSort(list, "natural", { recentFirst: true }).at(-1)?.name,
+			"Undated"
+		);
+		// A named sort says which way it goes; a filter must not flip it.
+		eq(
+			"a named sort ignores the flag",
+			applyEventSort(list, "nameAsc", { recentFirst: true }).map((e) => e.name),
+			applyEventSort(list, "nameAsc").map((e) => e.name)
+		);
+	}
+
 	return result();
 }

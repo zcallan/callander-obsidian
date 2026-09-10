@@ -59,6 +59,16 @@ export interface PeriodOptions {
 	 * this is the caller's call rather than a rule here.
 	 */
 	alwaysYear?: boolean;
+	/**
+	 * Return the headings latest-first — for a view reading backwards,
+	 * where the nearest month is the most recent one rather than the
+	 * earliest.
+	 *
+	 * Only the headings turn round. What sits under each is the order the
+	 * caller passed, and reversing that here would fight whatever sort the
+	 * page already applied.
+	 */
+	recentFirst?: boolean;
 }
 
 export function eventPeriod(
@@ -154,10 +164,16 @@ export function groupEventsByPeriod<T>(
 	}
 
 	// The undated key is the empty string, which sorts before every date —
-	// exactly where it belongs, so it needs no special case.
-	return [...groups.values()].sort((a, b) =>
+	// exactly where it belongs, so it needs no special case. It stays there
+	// reading backwards too: something with no date is still the thing
+	// waiting on a decision, not the oldest thing that happened.
+	const sorted = [...groups.values()].sort((a, b) =>
 		a.key < b.key ? -1 : a.key > b.key ? 1 : 0
 	);
+	if (!options.recentFirst) return sorted;
+	const undated = sorted.filter((g) => g.key === "");
+	const dated = sorted.filter((g) => g.key !== "");
+	return [...undated, ...dated.reverse()];
 }
 
 /** Local YYYY-MM-DD — never toISOString, which shifts to UTC. */

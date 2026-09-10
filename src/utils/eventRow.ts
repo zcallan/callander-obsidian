@@ -264,7 +264,18 @@ function stampKey(stamp: string): number | null {
  */
 export function applyEventSort<T extends SortableEvent>(
 	list: readonly T[],
-	sort: EventSort
+	sort: EventSort,
+	options: {
+		/**
+		 * Read time backwards in the default order — for the Past filter,
+		 * where "chronological" means starting from the most recent.
+		 *
+		 * Only the natural order turns round. Every named sort already says
+		 * which way it goes, and flipping "Name A-Z" because of a filter
+		 * would make the label a lie.
+		 */
+		recentFirst?: boolean;
+	} = {}
 ): T[] {
 	const keys = new Map<string, number>();
 	for (const e of list) {
@@ -323,13 +334,20 @@ export function applyEventSort<T extends SortableEvent>(
 			default: {
 				// "Natural": chronological, so the next thing leads under
 				// Upcoming and the list reads as a timeline under All.
-				// Under the Past filter that reads oldest-first; "Newest"
-				// is the one to pick for most-recent-first there.
+				// Looking backwards it turns round, because the nearest end
+				// of a list of past events is the recent one — the same
+				// instinct that puts the next thing first when looking
+				// forwards.
 				const u = undated(a) - undated(b);
 				if (u !== 0) return u;
 				// Everything tied — name keeps the order stable rather than
-				// letting it drift between renders.
-				return keyOf(a) - keyOf(b) || byName(a, b);
+				// letting it drift between renders. The name doesn't flip
+				// with the dates: a tiebreak reversing itself reads as a
+				// glitch rather than as an order.
+				const chronological = options.recentFirst
+					? keyOf(b) - keyOf(a)
+					: keyOf(a) - keyOf(b);
+				return chronological || byName(a, b);
 			}
 		}
 	});

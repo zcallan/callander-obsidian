@@ -147,5 +147,53 @@ export function run() {
 	eq("only groups holding something are drawn", groups.length, 7);
 	eq("nothing in, nothing out", groupEventsByPeriod([], dateOf, NOW), []);
 
+	// ---------- reading backwards ----------
+	// A page showing what's already happened puts the nearest month first,
+	// the same instinct that puts the next thing first looking forward.
+	{
+		// Months well behind NOW, so every one is a month heading rather
+		// than "This week" — the reversal is what's under test, not the
+		// period naming.
+		const past = [
+			{ d: "2026-05-04" },
+			{ d: "2026-07-02" },
+			{ d: "2026-06-11" },
+			{ d: "" },
+		];
+		const labels = (opts) =>
+			groupEventsByPeriod(past, (i) => i.d, NOW, opts).map((g) => g.key);
+		eq("forwards runs earliest first", labels({}), [
+			"",
+			"2026-05-01",
+			"2026-06-01",
+			"2026-07-01",
+		]);
+		eq("backwards runs latest first", labels({ recentFirst: true }), [
+			"",
+			"2026-07-01",
+			"2026-06-01",
+			"2026-05-01",
+		]);
+		// Undated still leads: something with no date is the thing waiting
+		// on a decision, not the oldest thing that happened.
+		eq(
+			"and the undated group leads either way",
+			labels({ recentFirst: true })[0],
+			""
+		);
+	}
+	{
+		// Only the headings turn round — what sits under each is whatever
+		// order the caller passed, which is the page's own sort.
+		const items = [
+			{ d: "2026-07-04", n: "a" },
+			{ d: "2026-07-20", n: "b" },
+		];
+		const group = groupEventsByPeriod(items, (i) => i.d, NOW, {
+			recentFirst: true,
+		})[0];
+		eq("rows inside keep the caller's order", group.items.map((i) => i.n), ["a", "b"]);
+	}
+
 	return result();
 }

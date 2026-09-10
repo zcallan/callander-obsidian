@@ -298,7 +298,12 @@ export class EventsView extends ItemView {
 				this.matchesFilters(e, over) &&
 				this.matchesSearch(e, q)
 		);
-		return applyEventSort(matches, this.plugin.settings.eventSort);
+		// Looking back, the natural order runs the other way: the most
+		// recent thing is the near end of the list, the way the next thing
+		// is when looking forward.
+		return applyEventSort(matches, this.plugin.settings.eventSort, {
+			recentFirst: this.when === "past",
+		});
 	}
 
 	// ---- Rendering ----
@@ -774,6 +779,10 @@ export class EventsView extends ItemView {
 		// the bare form, where this year needs no saying.
 		const groups = groupEventsByPeriod(list, (e) => e.date, new Date(), {
 			alwaysYear: this.when !== "upcoming",
+			// Looking back, the headings run latest-first too — the rows
+			// inside them already do, and a timeline whose months descend
+			// while its rows ascend reads as neither order.
+			recentFirst: this.when === "past",
 		});
 		for (const period of groups) {
 			wrap.createDiv({
