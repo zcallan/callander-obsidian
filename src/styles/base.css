@@ -4168,6 +4168,9 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* Clear of the total, which now rules itself off — at 14px the button read
    as part of the total row rather than an action beneath it. */
 .expense-ledger-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 	margin-top: 20px;
 }
 
@@ -4616,7 +4619,8 @@ body.is-mobile.callander-kb-open .modal-content > * {
    it, so it sits apart from the two adds instead of reading as a third one.
    An auto margin rather than `justify-content: space-between`, which would
    also push the two adds away from each other. */
-.plan-timeline-footer .plan-timeline-copy {
+.plan-timeline-footer .plan-timeline-copy,
+.expense-footer .plan-timeline-copy {
 	margin-left: auto;
 }
 
@@ -4624,7 +4628,8 @@ body.is-mobile.callander-kb-open .modal-content > * {
    auto margin there takes every pixel of slack and flings this button to
    the far edge, adrift from the two adds it wraps with — measured at 657px
    into a 739px row, against 212px with the margin gone. */
-.is-phone .plan-timeline-footer .plan-timeline-copy {
+.is-phone .plan-timeline-footer .plan-timeline-copy,
+.is-phone .expense-footer .plan-timeline-copy {
 	margin-left: 0;
 }
 

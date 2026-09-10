@@ -13,6 +13,7 @@ export * from "@/utils/ideasMarkdown";
 export * from "@/utils/planFormat";
 export * from "@/utils/nameFormat";
 export * from "@/utils/expenseMath";
+export * from "@/utils/expenseShare";
 export * from "@/utils/people";
 export * from "@/utils/somedaySort";
 export * from "@/utils/somedayRow";

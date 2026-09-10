@@ -133,6 +133,7 @@ export function PlanExpensesSection({
 	onBreakdown,
 	onAddExpense,
 	onAddCredit,
+	onCopy,
 }: {
 	store: ViewStore;
 	costs: () => Expense[];
@@ -146,6 +147,8 @@ export function PlanExpensesSection({
 	onBreakdown: (person: string) => void;
 	onAddExpense: () => void;
 	onAddCredit: () => void;
+	/** The whole section as text. */
+	onCopy: () => void;
 }) {
 	useViewRevision(store);
 	const costList = costs();
@@ -253,6 +256,18 @@ export function PlanExpensesSection({
 					<button className="callander-button" onClick={onAddCredit}>
 						<Icon name="plus" />
 						<span>Add credit</span>
+					</button>
+				)}
+				{/* Nothing to copy before anything is recorded. Set apart
+				    from the adds the same way the timeline's is — it acts on
+				    the whole section rather than adding to it. */}
+				{(costList.length > 0 || creditList.length > 0) && (
+					<button
+						className="callander-button plan-timeline-copy"
+						onClick={onCopy}
+					>
+						<Icon name="copy" />
+						<span>Copy as text</span>
 					</button>
 				)}
 			</div>

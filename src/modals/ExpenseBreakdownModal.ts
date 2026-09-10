@@ -33,6 +33,8 @@ export class ExpenseBreakdownModal extends Modal {
 			isYou: boolean;
 			onSetPaid: (index: number, paid: boolean) => Promise<void>;
 			onSettleAll: (settled: boolean) => Promise<void>;
+			/** This person's ledger as text. */
+			onCopy: () => void;
 		}
 	) {
 		super(app);
@@ -88,11 +90,21 @@ export class ExpenseBreakdownModal extends Modal {
 			text: money(total),
 		});
 
+		const actions = contentEl.createDiv({
+			cls: "expense-ledger-actions",
+		});
 		// Nothing to settle on your own row, and nothing to settle when the
-		// person is charged for nothing.
+		// person is charged for nothing — but there's always something to
+		// copy once they have a line at all.
 		if (!this.options.isYou && expenses.length > 0) {
-			this.appendSettleAll(expenses);
+			this.appendSettleAll(actions, expenses);
 		}
+		const copy = actions.createEl("button", {
+			cls: "callander-button button-full-width",
+		});
+		setIcon(copy, "copy");
+		copy.createSpan({ text: "Copy as text" });
+		copy.addEventListener("click", () => this.options.onCopy());
 	}
 
 	private group(parent: HTMLElement, heading: string, rows: BreakdownRow[]) {
@@ -152,11 +164,8 @@ export class ExpenseBreakdownModal extends Modal {
 	 * so a mis-tap is undone the same way it was made rather than by
 	 * unticking each line.
 	 */
-	private appendSettleAll(expenses: BreakdownRow[]) {
+	private appendSettleAll(actions: HTMLElement, expenses: BreakdownRow[]) {
 		const allSettled = expenses.every((r) => r.settled);
-		const actions = this.contentEl.createDiv({
-			cls: "expense-ledger-actions",
-		});
 		const button = actions.createEl("button", {
 			cls: "callander-button button-full-width",
 		});

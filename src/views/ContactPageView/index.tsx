@@ -117,6 +117,10 @@ import { ContactOperations } from "@/services/ContactOperations";
 import { PlanDraftViewModal } from "@/modals/PlanDraftViewModal";
 import { resolvePeopleInfo, type PersonInfo } from "@/utils/people";
 import {
+	buildExpenseShareText,
+	type ExpenseShareScope,
+} from "@/utils/expenseShare";
+import {
 	breakdownFor,
 	creditsOf,
 	expensesOf,
@@ -128,6 +132,7 @@ import { InterestModal } from "@/modals/InterestModal";
 import { ExpenseModal } from "@/modals/ExpenseModal";
 import { ExpenseViewModal } from "@/modals/ExpenseViewModal";
 import { ExpenseBreakdownModal } from "@/modals/ExpenseBreakdownModal";
+import { ExpenseShareModal } from "@/modals/ExpenseShareModal";
 import { CreditModal } from "@/modals/CreditModal";
 import { NoteInputModal } from "@/modals/NoteInputModal";
 import { FunFactsModal } from "@/modals/FunFactsModal";
@@ -905,6 +910,7 @@ export class ContactPageView extends ItemView {
 						onBreakdown={(person) => this.openBreakdown(person)}
 						onAddExpense={() => this.openAddExpense()}
 						onAddCredit={() => this.openCreditModal(null, null)}
+						onCopy={() => this.openCostShare({ kind: "all" })}
 					/>
 				)
 			);
@@ -2944,6 +2950,44 @@ export class ContactPageView extends ItemView {
 		return Array.isArray(saved) ? saved.map((v) => toText(v)) : [];
 	}
 
+	/**
+	 * A plan's costs as text, at whatever scope the caller opened it from —
+	 * one expense, one person, or the section.
+	 *
+	 * The build closure re-reads the vault each time a toggle flips, so the
+	 * preview follows an edit made in another pane rather than a snapshot
+	 * taken when the sheet opened.
+	 */
+	private openCostShare(scope: ExpenseShareScope) {
+		new ExpenseShareModal(
+			this.app,
+			scope,
+			(detail) =>
+				buildExpenseShareText(
+					{
+						scope,
+						expenses: expensesOf(this.contactData),
+						credits: creditsOf(this.contactData),
+						participants: this.planParticipants(),
+						yourName: this.plugin.settings.yourName,
+						// Same fallback chain the page's own heading uses.
+						...(scope.kind === "all" && {
+							title: toText(
+								this.contactData.displayName ||
+									this.contactData.name ||
+									""
+							),
+						}),
+					},
+					detail
+				),
+			async (text) => {
+				await navigator.clipboard.writeText(text);
+				new Notice("📋 Copied — ready to paste as text");
+			}
+		).open();
+	}
+
 	/** The whole itinerary as text, from the timeline's own button row. */
 	private openPlanShare() {
 		new PlanShareModal(
@@ -3431,7 +3475,8 @@ export class ContactPageView extends ItemView {
 				list[index] = updated;
 				return this.writeCosts(list);
 			},
-			this.planShortNameOverrides()
+			this.planShortNameOverrides(),
+			() => this.openCostShare({ kind: "expense", index })
 		).open();
 	}
 
@@ -3490,6 +3535,7 @@ export class ContactPageView extends ItemView {
 				),
 			{
 				isYou,
+				onCopy: () => this.openCostShare({ kind: "person", person }),
 				onSetPaid: (index, paid) => {
 					const list = expensesOf(this.contactData);
 					const cost = list[index];

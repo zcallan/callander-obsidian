@@ -30,7 +30,9 @@ export class ExpenseViewModal extends Modal {
 			settled: boolean;
 		}) => Promise<void>,
 		/** Per-friend shortenPeopleList overrides — see shortNameOverrides. */
-		private shortNames: Map<string, string> = new Map()
+		private shortNames: Map<string, string> = new Map(),
+		/** This expense as text. */
+		private onCopy: () => void = () => undefined
 	) {
 		super(app);
 	}
@@ -184,6 +186,11 @@ export class ExpenseViewModal extends Modal {
 				: [...paying];
 			void this.commit(next, !c.settled);
 		});
+
+		const copy = actions.createEl("button", { cls: "callander-button" });
+		setIcon(copy, "copy");
+		copy.createSpan({ text: "Copy as text" });
+		copy.addEventListener("click", () => this.onCopy());
 
 		const edit = actions.createEl("button", { cls: "callander-button" });
 		setIcon(edit, "pencil");
