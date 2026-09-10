@@ -117,7 +117,14 @@ import { ContactOperations } from "@/services/ContactOperations";
 import { PlanDraftViewModal } from "@/modals/PlanDraftViewModal";
 import { resolvePeopleInfo, type PersonInfo } from "@/utils/people";
 import {
+	STAY_SHARE_DEFAULTS,
+	STAY_SHARE_FIELDS,
+	buildStayShareText,
+} from "@/utils/stayShare";
+import {
 	buildExpenseShareText,
+	shareDefaultsFor,
+	shareFieldsFor,
 	type ExpenseShareScope,
 } from "@/utils/expenseShare";
 import {
@@ -132,7 +139,7 @@ import { InterestModal } from "@/modals/InterestModal";
 import { ExpenseModal } from "@/modals/ExpenseModal";
 import { ExpenseViewModal } from "@/modals/ExpenseViewModal";
 import { ExpenseBreakdownModal } from "@/modals/ExpenseBreakdownModal";
-import { ExpenseShareModal } from "@/modals/ExpenseShareModal";
+import { ShareTextModal } from "@/modals/ShareTextModal";
 import { CreditModal } from "@/modals/CreditModal";
 import { NoteInputModal } from "@/modals/NoteInputModal";
 import { FunFactsModal } from "@/modals/FunFactsModal";
@@ -867,6 +874,7 @@ export class ContactPageView extends ItemView {
 						onOpen={(index, item) =>
 							this.openPlanAccommodationModal(index, item)
 						}
+						onCopy={() => this.openStayShare()}
 					/>
 				)
 			);
@@ -2959,9 +2967,10 @@ export class ContactPageView extends ItemView {
 	 * taken when the sheet opened.
 	 */
 	private openCostShare(scope: ExpenseShareScope) {
-		new ExpenseShareModal(
+		new ShareTextModal(
 			this.app,
-			scope,
+			shareFieldsFor(scope),
+			shareDefaultsFor(scope),
 			(detail) =>
 				buildExpenseShareText(
 					{
@@ -2971,6 +2980,29 @@ export class ContactPageView extends ItemView {
 						participants: this.planParticipants(),
 						yourName: this.plugin.settings.yourName,
 					},
+					detail
+				),
+			async (text) => {
+				await navigator.clipboard.writeText(text);
+				new Notice("📋 Copied — ready to paste as text");
+			},
+			// One expense is a handful of lines.
+			{ short: scope.kind === "expense" }
+		).open();
+	}
+
+	/** Every stay as text, from the Accommodation section's own button. */
+	private openStayShare() {
+		new ShareTextModal(
+			this.app,
+			STAY_SHARE_FIELDS,
+			{ ...STAY_SHARE_DEFAULTS },
+			(detail) =>
+				buildStayShareText(
+					PlanOperations.simpleListOf(
+						this.contactData,
+						"accommodation"
+					),
 					detail
 				),
 			async (text) => {

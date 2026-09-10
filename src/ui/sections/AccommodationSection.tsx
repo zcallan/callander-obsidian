@@ -21,12 +21,15 @@ export function AccommodationSection({
 	store,
 	items,
 	onOpen,
+	onCopy,
 }: {
 	store: ViewStore;
 	/** The plan's stays, re-read on every bump. */
 	items: () => PlanSimpleItem[];
 	/** Opens the add/edit modal — null index adds. */
 	onOpen: (index: number | null, item: PlanSimpleItem | null) => void;
+	/** Every stay as text. */
+	onCopy: () => void;
 }) {
 	useViewRevision(store);
 	const rows = items();
@@ -51,7 +54,7 @@ export function AccommodationSection({
 				/>
 			))}
 
-			<div className="contact-section-footer">
+			<div className="contact-section-footer plan-timeline-footer">
 				<button
 					className="callander-button"
 					onClick={() => onOpen(null, null)}
@@ -59,6 +62,18 @@ export function AccommodationSection({
 					<Icon name="plus" />
 					<span>Add accommodation</span>
 				</button>
+				{/* Nothing to copy before a stay exists. Set apart from the
+				    add the same way the timeline's is — it acts on the whole
+				    section rather than adding to it. */}
+				{rows.length > 0 && (
+					<button
+						className="callander-button plan-timeline-copy"
+						onClick={onCopy}
+					>
+						<Icon name="copy" />
+						<span>Copy as text</span>
+					</button>
+				)}
 			</div>
 		</div>
 	);

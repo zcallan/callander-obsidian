@@ -1,42 +1,54 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
-import {
-	shareDefaultsFor,
-	shareFieldsFor,
-	type ExpenseShareDetail,
-	type ExpenseShareScope,
-} from "@/utils/expenseShare";
+
+/** One toggle in a share sheet. */
+export interface ShareField<D> {
+	id: keyof D & string;
+	label: string;
+}
 
 /**
- * "Copy as text" for a plan's costs — one expense, one person, or the lot.
+ * "Copy as text": toggles above, an editable preview below, and what leaves
+ * is whatever is in the textarea when Copy is pressed. A one-off tweak —
+ * dropping a line, fixing a name — needs no round trip through the note.
  *
- * Same shape as the timeline's PlanShareModal: toggles above, an editable
- * preview below, and what leaves is whatever is in the textarea when Copy
- * is pressed. A one-off tweak — dropping a line, fixing a name — needs no
- * round trip through the plan.
+ * Generic over the detail it drives, because the plan's costs, its stays and
+ * anything after them ask the same question with different words in it. The
+ * caller supplies the fields, the starting state and the builder; this owns
+ * only the shape.
  *
- * Flat toggles rather than that modal's master/child pairs: costs have no
- * per-kind rows to master, so a single row of boxes is the whole control.
- * It borrows the `plan-share-*` styles, which are about the shape of a
- * share sheet rather than about plans.
+ * Flat toggles, unlike the timeline's PlanShareModal and its master/child
+ * pairs — nothing here has per-kind rows for a master to govern. That modal
+ * keeps its own class; this one borrows its `plan-share-*` styles, which are
+ * about the shape of a share sheet rather than about plans.
  *
  * Extends FormModal, so once a box is ticked or the text touched, a stray
  * backdrop click shakes the modal instead of discarding the edit.
  */
-export class ExpenseShareModal extends FormModal {
-	private detail: ExpenseShareDetail;
+// The mapped constraint, rather than Record<string, boolean>: an interface
+// without an index signature isn't assignable to that, and every detail
+// type here is a plain interface.
+export class ShareTextModal<
+	D extends { [K in keyof D]: boolean },
+> extends FormModal {
 	private preview!: HTMLTextAreaElement;
 
 	constructor(
 		app: App,
-		private shareScope: ExpenseShareScope,
-		private build: (detail: ExpenseShareDetail) => string,
-		private onCopy: (text: string) => Promise<void>
+		private fields: ShareField<D>[],
+		private detail: D,
+		private build: (detail: D) => string,
+		private onCopy: (text: string) => Promise<void>,
+		private options: {
+			/**
+			 * Half-height preview, for content that runs to a few lines. A
+			 * full box would be mostly empty, and on a phone it pushes Copy
+			 * off the screen.
+			 */
+			short?: boolean;
+		} = {}
 	) {
 		super(app);
-		// Per scope: a whole section is read as a chase-up, a single expense
-		// as an explanation of one bill. See shareDefaultsFor.
-		this.detail = shareDefaultsFor(shareScope);
 	}
 
 	onOpen() {
@@ -48,9 +60,9 @@ export class ExpenseShareModal extends FormModal {
 		const options = contentEl.createDiv({
 			cls: "plan-share-group-options",
 		});
-		// Only the toggles that do anything here — a single expense has no
-		// credits to list, and a single person's own name is the "people".
-		for (const field of shareFieldsFor(this.shareScope)) {
+		// Only what the caller offers — a toggle with nothing to act on
+		// looks broken when pressing it changes nothing.
+		for (const field of this.fields) {
 			const row = options.createEl("label", {
 				cls: "plan-share-option",
 			});
@@ -60,18 +72,14 @@ export class ExpenseShareModal extends FormModal {
 			input.checked = this.detail[field.id];
 			row.createSpan({ text: field.label });
 			input.addEventListener("change", () => {
-				this.detail[field.id] = input.checked;
+				this.detail[field.id] = input.checked as D[keyof D & string];
 				this.refresh();
 			});
 		}
 
 		this.preview = contentEl.createEl("textarea", {
-			// One expense is a handful of lines — a full-height box would be
-			// mostly empty, and the buttons pushed off a phone screen.
 			cls: `plan-share-preview${
-				this.shareScope.kind === "expense"
-					? " plan-share-preview-short"
-					: ""
+				this.options.short ? " plan-share-preview-short" : ""
 			}`,
 			attr: { spellcheck: "false" },
 		});
