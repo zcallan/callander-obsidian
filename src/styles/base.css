@@ -3828,15 +3828,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	}
 }
 
-/* On a phone the grid takes the page's own side padding back, which is
-   about 7px a column — the difference between three glyphs and three plus
-   a count. A device class rather than a container query: widening the
-   element a container query measures is how those oscillate, and this one
-   never crosses the 620px threshold either way. */
-.is-phone .cal-grid,
-.is-phone .cal-weekdays {
-	margin-inline: -24px;
-}
 
 /* Birthdays known to the month but not the day: named under the grid,
    because they belong to the month and to no square in it. */

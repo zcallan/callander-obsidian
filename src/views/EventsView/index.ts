@@ -569,7 +569,8 @@ export class EventsView extends ItemView {
 		// glyph and none for a word, so it's the most a cell can carry.
 		if (events.length > 0) {
 			const dots = cell.createDiv({ cls: "cal-dots" });
-			// Measured: a phone column is ~46px, a glyph 11 and a "+N" 12.
+			// Measured against a padded phone column of ~46px: a glyph is
+			// 11px and a "+N" is 12.
 			// Three glyphs fit; three and a count do not. So a quiet day
 			// shows all three and a busy one trades the third for the count,
 			// which is the only arrangement that always fits and always
