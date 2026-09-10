@@ -58,7 +58,7 @@ export function AccommodationSection({
 				/>
 			))}
 
-			<div className="contact-section-footer plan-timeline-footer plan-stay-footer">
+			<div className="contact-section-footer plan-timeline-footer plan-list-footer">
 				<button
 					className="callander-button"
 					onClick={() => onOpen(null, null)}

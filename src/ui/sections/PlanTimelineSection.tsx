@@ -11,14 +11,14 @@ import { TimelineEntryRow } from "@/ui/components/TimelineEntryRow";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
 
 /**
- * The section's actions. Sits at the top, and repeats at the foot of an
- * itinerary long enough that the top one has scrolled away.
+ * The section's actions. Sits at the foot, and repeats at the top of an
+ * itinerary long enough that the bottom one is a scroll away.
  *
  * Copy as text is here rather than in the section header, where it used to
  * be: the header now folds, and a control that disappears with the section
  * it belongs to is easier to find than one competing with the chevron for
- * the same corner. Only the top row offers it — one copy of the whole
- * timeline is one button, however long the list.
+ * the same corner. Only the foot row offers it — one copy of the whole
+ * timeline is one button, and it belongs after the thing it copies.
  */
 function AddRow({
 	extraCls = "",
@@ -170,15 +170,18 @@ export function PlanTimelineSection({
 
 			{!empty && (
 				<>
-					{/* Always at the top now, because Copy as text lives in
-					    it and has to be reachable whatever the length. The
-					    repeat at the foot is what's conditional. */}
-					<AddRow
-						extraCls="plan-timeline-footer-top"
-						onAddItem={() => onAddItem()}
-						onAddTravel={() => onAddTravel()}
-						onCopy={onCopy}
-					/>
+					{/* Repeated at the top only when the itinerary is long
+					    enough that the foot is a scroll away. Adds only —
+					    Copy as text lives at the bottom, with the list it
+					    copies behind it. */}
+					{timelineRowCount(days, loose.length) >
+						LONG_TIMELINE_ROWS && (
+						<AddRow
+							extraCls="plan-timeline-footer-top"
+							onAddItem={() => onAddItem()}
+							onAddTravel={() => onAddTravel()}
+						/>
+					)}
 
 					<div className="contact-timeline plan-timeline">
 						{loose.length > 0 && (
@@ -220,16 +223,13 @@ export function PlanTimelineSection({
 				</>
 			)}
 
-			{/* Repeated at the foot only when the itinerary is long enough
-			    that the top row has scrolled out of reach. An empty timeline
-			    has no top row, so it falls back to this one. */}
-			{(empty ||
-				timelineRowCount(days, loose.length) > LONG_TIMELINE_ROWS) && (
-				<AddRow
-					onAddItem={() => onAddItem()}
-					onAddTravel={() => onAddTravel()}
-				/>
-			)}
+			{/* Always, and the one that carries Copy as text — an empty
+			    timeline still offers the adds, it just has nothing to copy. */}
+			<AddRow
+				onAddItem={() => onAddItem()}
+				onAddTravel={() => onAddTravel()}
+				onCopy={empty ? undefined : onCopy}
+			/>
 		</div>
 	);
 }

@@ -119,7 +119,7 @@ export function QuickIdeasSection({
 				</Fragment>
 			))}
 
-			<div className="contact-section-footer plan-timeline-footer">
+			<div className="contact-section-footer plan-timeline-footer plan-list-footer">
 				<button className="callander-button" onClick={onAdd}>
 					<Icon name="plus" />
 					<span>Add idea</span>

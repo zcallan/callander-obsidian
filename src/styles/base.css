@@ -4627,10 +4627,10 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin-top: 0;
 }
 
-/* The stay rows carry no bottom padding of their own, so the buttons sat
-   flush against the last one. The timeline's rows end with their own
-   spacing; this list doesn't. */
-.plan-stay-footer {
+/* Lists whose rows carry no bottom padding of their own — stays, ideas —
+   leave their buttons flush against the last row. The timeline's rows end
+   with their own spacing, so it needs none of this. */
+.plan-list-footer {
 	margin-top: 14px;
 }
 
