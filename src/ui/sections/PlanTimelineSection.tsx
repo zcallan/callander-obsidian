@@ -10,15 +10,26 @@ import { Icon } from "@/ui/components/Icon";
 import { TimelineEntryRow } from "@/ui/components/TimelineEntryRow";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
 
-/** The two quick-adds, repeated at the top of a long itinerary. */
+/**
+ * The section's actions. Sits at the top, and repeats at the foot of an
+ * itinerary long enough that the top one has scrolled away.
+ *
+ * Copy as text is here rather than in the section header, where it used to
+ * be: the header now folds, and a control that disappears with the section
+ * it belongs to is easier to find than one competing with the chevron for
+ * the same corner. Only the top row offers it — one copy of the whole
+ * timeline is one button, however long the list.
+ */
 function AddRow({
 	extraCls = "",
 	onAddItem,
 	onAddTravel,
+	onCopy,
 }: {
 	extraCls?: string;
 	onAddItem: () => void;
 	onAddTravel: () => void;
+	onCopy?: () => void;
 }) {
 	return (
 		<div
@@ -35,6 +46,15 @@ function AddRow({
 				<Icon name="plus" />
 				<span>Add travel</span>
 			</button>
+			{onCopy && (
+				<button
+					className="callander-button plan-timeline-copy"
+					onClick={onCopy}
+				>
+					<Icon name="copy" />
+					<span>Copy as text</span>
+				</button>
+			)}
 		</div>
 	);
 }
@@ -106,6 +126,7 @@ export function PlanTimelineSection({
 	onDelete,
 	onAddItem,
 	onAddTravel,
+	onCopy,
 }: {
 	store: ViewStore;
 	entries: () => PlanTimelineEntry[];
@@ -118,6 +139,8 @@ export function PlanTimelineSection({
 	onDelete: (entry: PlanTimelineEntry) => void;
 	onAddItem: (day?: string) => void;
 	onAddTravel: (day?: string) => void;
+	/** Opens the share sheet for the whole itinerary. */
+	onCopy: () => void;
 }) {
 	useViewRevision(store);
 	const dated = entries();
@@ -147,14 +170,15 @@ export function PlanTimelineSection({
 
 			{!empty && (
 				<>
-					{timelineRowCount(days, loose.length) >
-						LONG_TIMELINE_ROWS && (
-						<AddRow
-							extraCls="plan-timeline-footer-top"
-							onAddItem={() => onAddItem()}
-							onAddTravel={() => onAddTravel()}
-						/>
-					)}
+					{/* Always at the top now, because Copy as text lives in
+					    it and has to be reachable whatever the length. The
+					    repeat at the foot is what's conditional. */}
+					<AddRow
+						extraCls="plan-timeline-footer-top"
+						onAddItem={() => onAddItem()}
+						onAddTravel={() => onAddTravel()}
+						onCopy={onCopy}
+					/>
 
 					<div className="contact-timeline plan-timeline">
 						{loose.length > 0 && (
@@ -196,10 +220,16 @@ export function PlanTimelineSection({
 				</>
 			)}
 
-			<AddRow
-				onAddItem={() => onAddItem()}
-				onAddTravel={() => onAddTravel()}
-			/>
+			{/* Repeated at the foot only when the itinerary is long enough
+			    that the top row has scrolled out of reach. An empty timeline
+			    has no top row, so it falls back to this one. */}
+			{(empty ||
+				timelineRowCount(days, loose.length) > LONG_TIMELINE_ROWS) && (
+				<AddRow
+					onAddItem={() => onAddItem()}
+					onAddTravel={() => onAddTravel()}
+				/>
+			)}
 		</div>
 	);
 }

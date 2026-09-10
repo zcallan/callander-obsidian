@@ -818,7 +818,6 @@ export class ContactPageView extends ItemView {
 				)
 			);
 			const timelineWrap = planSection("calendar-clock", "Timeline", "timeline");
-			this.appendTimelineCopyButton(timelineWrap);
 			timelineWrap.appendChild(
 				this.island(
 					"plan-timeline",
@@ -843,6 +842,7 @@ export class ContactPageView extends ItemView {
 						onAddTravel={(day) =>
 							this.openPlanTravelModal(null, null, day)
 						}
+						onCopy={() => this.openPlanShare()}
 					/>
 				)
 			);
@@ -2944,32 +2944,16 @@ export class ContactPageView extends ItemView {
 		return Array.isArray(saved) ? saved.map((v) => toText(v)) : [];
 	}
 
-	private appendTimelineCopyButton(container: HTMLElement) {
-		// `container` is the foldable body now, so reach back up to the
-		// section for its header. `closest` also matches the section itself,
-		// which keeps this working if Timeline ever stops folding.
-		const header = container
-			.closest(".contact-stack-section")
-			?.querySelector(".contact-stack-header");
-		if (!header) return;
-		const copyButton = header.createEl("button", {
-			cls: "callander-button plan-timeline-copy",
-		});
-		// Ahead of the chevron, which owns the right edge of the header.
-		const chevron = header.querySelector(".plan-accordion-chevron");
-		if (chevron) header.insertBefore(copyButton, chevron);
-		setIcon(copyButton, "copy");
-		copyButton.createSpan({ text: "Copy as text" });
-		copyButton.addEventListener("click", () => {
-			new PlanShareModal(
-				this.app,
-				(detail) => this.buildPlanShareText(detail),
-				async (text) => {
-					await navigator.clipboard.writeText(text);
-					new Notice("📋 Copied — ready to paste as text");
-				}
-			).open();
-		});
+	/** The whole itinerary as text, from the timeline's own button row. */
+	private openPlanShare() {
+		new PlanShareModal(
+			this.app,
+			(detail) => this.buildPlanShareText(detail),
+			async (text) => {
+				await navigator.clipboard.writeText(text);
+				new Notice("📋 Copied — ready to paste as text");
+			}
+		).open();
 	}
 
 	private confirmDeleteTimelineEntry(entry: PlanTimelineEntry) {

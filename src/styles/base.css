@@ -4594,12 +4594,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* ── Timeline section: Copy button in the header, quick-add footer ── */
-.contact-stack-header .plan-timeline-copy {
-	margin-left: auto;
-	margin-top: 0;
-	padding: 3px 9px;
-	font-size: 0.8em;
-}
 .contact-stack-header .plan-timeline-cal {
 	margin-top: 0;
 	padding: 3px 9px;
@@ -4664,17 +4658,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 /* The stack header's bottom padding is normally 0, because the section's
    content provides the space beneath it. Folded away there is no content,
-   so the heading would sit hard against the next section's rule. */
+   so the heading needs its own — and it has to match the top, which is 22px
+   rather than the 14px the shorthand up at .contact-stack-header sets: a
+   second rule further down the file overrides it at equal specificity.
+   Hard-coding 14 here left every folded header visibly top-heavy. */
 .contact-stack-section.plan-accordion:not(.is-open) .contact-stack-header {
-	padding-bottom: 14px;
-}
-
-/* Timeline's "Copy as text" already claims the free space with its own
-   `margin-left: auto`. Two auto margins would split it between them and
-   leave the button adrift mid-header, so once it's there the chevron just
-   sits beside it. */
-.contact-stack-header .plan-timeline-copy + .plan-accordion-chevron {
-	margin-left: 8px;
+	padding-bottom: 22px;
 }
 
 /* General accordion: the page header already provides the divider above, so
