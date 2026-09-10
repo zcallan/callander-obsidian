@@ -273,6 +273,12 @@ export interface PlanSimpleItem {
 	checkOut?: string;
 	/** Street address — openable in Google Maps. */
 	address?: string;
+	/**
+	 * Plan-local groupings — accommodation only, and the same shape a quick
+	 * idea's are. A trip up a coast has stays in several towns, and "which
+	 * one was in Boston" is the question the list is read with.
+	 */
+	categories?: string[];
 	/** Booking status — stays and travel legs; absent means nothing to chase. */
 	booked?: BookingState;
 	/** Check-in/out times, door codes — anything worth having on hand. */

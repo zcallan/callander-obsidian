@@ -3395,6 +3395,7 @@ export class ContactPageView extends ItemView {
 						checkIn: item.checkIn,
 						checkOut: item.checkOut,
 						address: item.address,
+						categories: item.categories,
 						booked: item.booked,
 						notes: item.notes,
 						cost: item.cost,
@@ -3408,6 +3409,7 @@ export class ContactPageView extends ItemView {
 				if (index === null) current.push(value);
 				else current[index] = value;
 				this.contactData.accommodation = current;
+				this.rememberStayCategories(value.categories);
 				await this.saveContactData();
 				this.render();
 			},
@@ -3429,8 +3431,50 @@ export class ContactPageView extends ItemView {
 						this.render();
 				  },
 			this.planScheduleOptions(),
-			true
+			true,
+			PlanOperations.stayCategoriesOf(this.contactData),
+			(category) => this.deleteStayCategory(category)
 		).open();
+	}
+
+	/**
+	 * The one real delete for a stay category — saving only ever adds.
+	 * stayCategoriesOf unions the persisted list with whatever stays still
+	 * reference, so clearing it from the vocabulary alone would let any stay
+	 * still carrying it put it straight back.
+	 */
+	private rememberStayCategories(categories: string[] | undefined) {
+		if (!categories || categories.length === 0) return;
+		const known = PlanOperations.stayCategoriesOf(this.contactData);
+		for (const cat of categories) {
+			if (!known.some((k) => k.toLowerCase() === cat.toLowerCase())) {
+				known.push(cat);
+			}
+		}
+		this.contactData.accommodationCategories = known;
+	}
+
+	private async deleteStayCategory(category: string) {
+		const matches = (c: string) =>
+			c.toLowerCase() === category.toLowerCase();
+		const list = PlanOperations.simpleListOf(
+			this.contactData,
+			"accommodation"
+		);
+		for (const stay of list) {
+			if (!stay.categories) continue;
+			stay.categories = stay.categories.filter((c) => !matches(c));
+			if (stay.categories.length === 0) delete stay.categories;
+		}
+		this.contactData.accommodationCategories =
+			PlanOperations.stayCategoriesOf({
+				...this.contactData,
+				accommodation: list,
+				accommodationCategories: [],
+			});
+		if (list.length > 0) this.contactData.accommodation = list;
+		await this.saveContactData();
+		this.render();
 	}
 
 	private async writeBring(list: PlanBringItem[]) {

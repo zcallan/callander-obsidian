@@ -1,5 +1,6 @@
 import { App, setIcon } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import { renderCategoryChips } from "@/components/categoryChips";
 import { PLAN_IDEA_CATEGORIES, PlanIdeaCategory } from "@/constants";
 import {
 	appendDurationField,
@@ -9,7 +10,6 @@ import {
 } from "@/modals/scheduleFields";
 import { formatShortWeekdayDate } from "@/utils/flexdate";
 import { ConfirmModal } from "@/modals/ConfirmModal";
-import { AddCategoryModal } from "@/modals/AddCategoryModal";
 import type { PlanQuickIdea } from "@/types";
 
 /**
@@ -257,136 +257,14 @@ export class PlanQuickIdeaModal extends FormModal {
 	 * time rather than quietly vanishing.
 	 */
 	private renderCategories(form: HTMLElement) {
-		const field = form.createDiv({
-			cls: "callander-modal-field quick-idea-cat-field",
+		renderCategoryChips(form, {
+			app: this.app,
+			label: "Categories",
+			selected: this.categories,
+			known: this.knownCategories,
+			onDeleteCategory: this.onDeleteCategory,
+			deleteScope: "idea",
 		});
-		field.createEl("label", { text: "Categories" });
-
-		// Known categories plus whatever's already picked on this idea (an
-		// edit can carry a category the plan has since stopped listing).
-		const options = [...this.knownCategories];
-		for (const cat of this.categories) {
-			if (!options.some((c) => c.toLowerCase() === cat.toLowerCase())) {
-				options.push(cat);
-			}
-		}
-
-		const chipsEl = field.createDiv({ cls: "quick-idea-cat-chips" });
-
-		const isPicked = (cat: string) =>
-			this.categories.some((c) => c.toLowerCase() === cat.toLowerCase());
-
-		// Holding a chip for LONG_PRESS_MS deletes the category from the whole
-		// plan rather than toggling it — the only way to get rid of one, since
-		// rememberQuickIdeaCategories only ever adds. Pointer events cover
-		// mouse and touch alike; the timer is cleared on any early release so
-		// a normal tap still just toggles.
-		const LONG_PRESS_MS = 2000;
-		const confirmDeleteCategory = (cat: string) => {
-			if (!this.onDeleteCategory) return;
-			new ConfirmModal(
-				this.app,
-				"Remove category",
-				`Remove "${cat}"? This takes it off every idea on this plan, not just this one.`,
-				"Remove",
-				async () => {
-					await this.onDeleteCategory!(cat);
-					const at = options.findIndex(
-						(c) => c.toLowerCase() === cat.toLowerCase()
-					);
-					if (at >= 0) options.splice(at, 1);
-					const picked = this.categories.findIndex(
-						(c) => c.toLowerCase() === cat.toLowerCase()
-					);
-					if (picked >= 0) this.categories.splice(picked, 1);
-					renderChips();
-				}
-			).open();
-		};
-
-		const renderChips = () => {
-			chipsEl.empty();
-			for (const cat of options) {
-				const chip = chipsEl.createEl("button", {
-					cls: "someday-filter-pill",
-					text: cat,
-					attr: { type: "button" },
-				});
-				chip.toggleClass("is-active", isPicked(cat));
-
-				let holdTimer: number | null = null;
-				let longPressed = false;
-				const clearHold = () => {
-					if (holdTimer === null) return;
-					window.clearTimeout(holdTimer);
-					holdTimer = null;
-				};
-				chip.addEventListener("pointerdown", (e) => {
-					if (e.button !== 0 || !this.onDeleteCategory) return;
-					longPressed = false;
-					holdTimer = window.setTimeout(() => {
-						longPressed = true;
-						confirmDeleteCategory(cat);
-					}, LONG_PRESS_MS);
-				});
-				chip.addEventListener("pointerup", clearHold);
-				chip.addEventListener("pointerleave", clearHold);
-				chip.addEventListener("pointercancel", clearHold);
-				// Long-press already opened the confirm dialog — the click
-				// that follows a touch/mouse release shouldn't also toggle.
-				chip.addEventListener("click", () => {
-					if (longPressed) {
-						longPressed = false;
-						return;
-					}
-					toggle(cat);
-				});
-				chip.addEventListener("contextmenu", (e) => e.preventDefault());
-			}
-
-			// Trails the real categories, and deliberately looks like one:
-			// adding is the same kind of act as picking, and a chip keeps it
-			// on the same line rather than spending a form row on it.
-			const addChip = chipsEl.createEl("button", {
-				cls: "someday-filter-pill quick-idea-cat-add",
-				text: "+ Add",
-				attr: { type: "button" },
-			});
-			addChip.addEventListener("click", () => {
-				new AddCategoryModal(
-					this.app,
-					(name) => add(name),
-					// Both the plan's own list and anything picked here, so a
-					// name already on screen can't be added a second time.
-					options
-				).open();
-			});
-		};
-
-		const toggle = (cat: string) => {
-			const at = this.categories.findIndex(
-				(c) => c.toLowerCase() === cat.toLowerCase()
-			);
-			if (at >= 0) this.categories.splice(at, 1);
-			else this.categories.push(cat);
-			renderChips();
-		};
-
-		const add = (raw: string) => {
-			const name = raw.trim();
-			if (!name) return;
-			// Case-insensitive: "boston" and "Boston" are one category, and
-			// whichever spelling the plan already has wins.
-			const existing = options.find(
-				(c) => c.toLowerCase() === name.toLowerCase()
-			);
-			const value = existing ?? name;
-			if (!existing) options.push(value);
-			if (!isPicked(value)) this.categories.push(value);
-			renderChips();
-		};
-
-		renderChips();
 	}
 
 	/**

@@ -127,6 +127,36 @@ export class PlanOperations {
 	}
 
 	/**
+	 * The same vocabulary, for a plan's stays.
+	 *
+	 * Its own list rather than the ideas': deleting "Boston" because no idea
+	 * is filed under it any more shouldn't take it off the hotel you booked
+	 * there. The union with what stays currently reference works the same
+	 * way, and for the same reason — see quickIdeaCategoriesOf.
+	 */
+	static stayCategoriesOf(metadata: unknown): string[] {
+		const seen: string[] = [];
+		const add = (cat: string) => {
+			if (!seen.some((c) => c.toLowerCase() === cat.toLowerCase())) {
+				seen.push(cat);
+			}
+		};
+		for (const raw of asArray(
+			fieldOf(metadata, "accommodationCategories")
+		)) {
+			const cat = toText(raw).trim();
+			if (cat) add(cat);
+		}
+		for (const stay of PlanOperations.simpleListOf(
+			metadata,
+			"accommodation"
+		)) {
+			for (const cat of stay.categories ?? []) add(cat);
+		}
+		return seen;
+	}
+
+	/**
 	 * Quick ideas arranged for display: a group per category, then "Other"
 	 * for whatever carries none.
 	 *
@@ -271,6 +301,11 @@ export class PlanOperations {
 					}),
 					...(strFieldOf(i, "address") && {
 						address: strFieldOf(i, "address"),
+					}),
+					...(asArray(fieldOf(i, "categories")).length > 0 && {
+						categories: asArray(fieldOf(i, "categories"))
+							.map((c) => toText(c).trim())
+							.filter(Boolean),
 					}),
 					...(booked && {
 						booked: booked as PlanSimpleItem["booked"],

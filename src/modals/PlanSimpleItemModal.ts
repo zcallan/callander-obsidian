@@ -1,5 +1,6 @@
 import { App, setIcon } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import { renderCategoryChips } from "@/components/categoryChips";
 import type { AccommodationType, BookingState, TravelType } from "@/constants";
 import { ACCOMMODATION_TYPES, BOOKING_STATES } from "@/constants";
 import { ConfirmModal } from "@/modals/ConfirmModal";
@@ -27,6 +28,8 @@ export interface PlanSimpleItemValue {
 	checkIn?: string;
 	checkOut?: string;
 	address?: string;
+	/** Accommodation only — the same shape a quick idea's are. */
+	categories?: string[];
 	booked?: BookingState;
 	notes?: string;
 	cost?: number;
@@ -57,6 +60,8 @@ export class PlanSimpleItemModal extends FormModal {
 	private booked?: BookingState;
 	private nights: number;
 
+	private categories: string[] = [];
+
 	constructor(
 		app: App,
 		private title: string,
@@ -71,9 +76,14 @@ export class PlanSimpleItemModal extends FormModal {
 		private schedule = false,
 		private onDelete?: () => Promise<void>,
 		private scheduleOptions: ScheduleFieldOptions = {},
-		private stay = false
+		private stay = false,
+		/** Category names known to this plan, offered for reuse. */
+		private knownCategories: string[] = [],
+		/** Removes a category from the plan and every stay carrying it. */
+		private onDeleteCategory?: (category: string) => Promise<void>
 	) {
 		super(app);
+		this.categories = [...(initial?.categories ?? [])];
 		// New legs default to the first type (Car); editing keeps what's set.
 		// Stays start untyped — the 🛏️ fallback covers "just somewhere".
 		this.type = initial ? initial.type : this.types?.[0]?.id;
@@ -149,6 +159,21 @@ export class PlanSimpleItemModal extends FormModal {
 		// Both kinds lead with what it's called — the one thing you always
 		// know first, whether that's a hotel name or "Harry's car up".
 		const textInput = renderTextField();
+
+		// Directly under the name, the way a quick idea's are: where you're
+		// staying and roughly where in the world it is are one thought.
+		if (this.stay) {
+			renderCategoryChips(contentEl, {
+				app: this.app,
+				label: "Category",
+				labelStyle: "section",
+				help: 'Group accommodation by city, state, or country — e.g. "Boston", "Maine", "Ireland"',
+				selected: this.categories,
+				known: this.knownCategories,
+				onDeleteCategory: this.onDeleteCategory,
+				deleteScope: "stay",
+			});
+		}
 
 		// Transport-type picker (travel only). Optional — tap again to clear.
 		if (this.types) {
@@ -497,6 +522,10 @@ export class PlanSimpleItemModal extends FormModal {
 				...(stayHours?.from && { checkIn: stayHours.from }),
 				...(stayHours?.to && { checkOut: stayHours.to }),
 				...(address && { address }),
+				...(this.stay &&
+					this.categories.length > 0 && {
+						categories: [...this.categories],
+					}),
 				...(this.booked && { booked: this.booked }),
 				...(notes && { notes }),
 				...(cost !== undefined && { cost }),
