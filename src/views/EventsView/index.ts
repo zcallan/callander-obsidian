@@ -38,6 +38,7 @@ import {
 	weekGrid,
 	weekLabel,
 } from "@/utils/calendarGrid";
+import { splitLeadingEmoji } from "@/utils/emoji";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
 
@@ -581,15 +582,34 @@ export class EventsView extends ItemView {
 		});
 	}
 
+	/**
+	 * One event in a calendar square, over two lines.
+	 *
+	 * The name gets a line to itself, the way the B'day Calendar gives a
+	 * person theirs: on one line the icon and the time ate the front of it
+	 * and every chip in a busy week truncated to the same few characters.
+	 *
+	 * An emoji the name already leads with stands in for the type icon —
+	 * somebody who typed one chose it for this event, where the type emoji
+	 * is the same on every hangout. It moves to the meta line so the name
+	 * reads as words and the icon stays in one place down the column.
+	 */
 	private appendCalChip(cell: HTMLElement, event: EventInfo) {
-		const chip = cell.createDiv({ cls: "cal-chip" });
+		const chip = cell.createDiv({ cls: "cal-chip is-stacked" });
 		chip.style.setProperty("--cal-chip", eventColour(event.type));
+
+		const own = splitLeadingEmoji(event.name);
 		const type = EVENT_TYPES.find((t) => t.id === event.type);
-		if (type) chip.createSpan({ text: type.emoji });
-		if (event.time) {
-			chip.createSpan({ cls: "cal-chip-time", text: shortTime(event.time) });
-		}
-		chip.createSpan({ cls: "cal-chip-name", text: event.name });
+		chip.createDiv({
+			cls: "cal-chip-name",
+			text: own ? own.rest : event.name,
+		});
+
+		const meta = [own?.emoji ?? type?.emoji, event.time && shortTime(event.time)]
+			.filter(Boolean)
+			.join(" ");
+		if (meta) chip.createDiv({ cls: "cal-chip-meta", text: meta });
+
 		chip.addEventListener("click", (e) => {
 			e.stopPropagation();
 			this.openViewModal(event);
