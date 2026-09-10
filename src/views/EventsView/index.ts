@@ -45,7 +45,8 @@ export const VIEW_TYPE_EVENTS = "callander-events";
 /** Chips a month cell shows before it says "+N more". */
 const CAL_CHIPS = 3;
 /** Dots a narrow cell shows; past four they stop being countable anyway. */
-const CAL_DOTS = 4;
+/** Glyphs a narrow cell can hold — see the measurement in appendCalCell. */
+const CAL_DOTS = 3;
 /**
  * Pane width, in px, below which a month cell can't hold a readable chip.
  * Must match the container query in base.css — the stylesheet decides what
@@ -562,11 +563,34 @@ export class EventsView extends ItemView {
 				text: `+${events.length - CAL_CHIPS} more`,
 			});
 		}
+		// What a narrow pane shows in place of the chips. An emoji says what
+		// kind of thing is on that day where a coloured dot only says
+		// "something is" — at roughly 46px a column there's room for a
+		// glyph and none for a word, so it's the most a cell can carry.
 		if (events.length > 0) {
 			const dots = cell.createDiv({ cls: "cal-dots" });
-			for (const event of events.slice(0, CAL_DOTS)) {
+			// Measured: a phone column is ~46px, a glyph 11 and a "+N" 12.
+			// Three glyphs fit; three and a count do not. So a quiet day
+			// shows all three and a busy one trades the third for the count,
+			// which is the only arrangement that always fits and always
+			// tells the truth about how much is there.
+			const room = events.length <= CAL_DOTS ? CAL_DOTS : CAL_DOTS - 1;
+			for (const event of events.slice(0, room)) {
+				const glyph = this.eventGlyph(event);
+				if (glyph) {
+					dots.createSpan({ cls: "cal-glyph", text: glyph });
+					continue;
+				}
+				// An untyped event with no emoji of its own still has to
+				// register — the dot is what it falls back to.
 				const dot = dots.createSpan({ cls: "cal-dot" });
 				dot.style.backgroundColor = eventColour(event.type);
+			}
+			if (events.length > room) {
+				dots.createSpan({
+					cls: "cal-glyph-more",
+					text: `+${events.length - room}`,
+				});
 			}
 		}
 
@@ -594,18 +618,29 @@ export class EventsView extends ItemView {
 	 * is the same on every hangout. It moves to the meta line so the name
 	 * reads as words and the icon stays in one place down the column.
 	 */
+	/**
+	 * The one character that stands for an event: its own leading emoji if
+	 * it has one, else its type's. Shared by the chip and the narrow grid so
+	 * the same event reads the same at both widths.
+	 */
+	private eventGlyph(event: EventInfo): string | undefined {
+		return (
+			splitLeadingEmoji(event.name)?.emoji ??
+			EVENT_TYPES.find((t) => t.id === event.type)?.emoji
+		);
+	}
+
 	private appendCalChip(cell: HTMLElement, event: EventInfo) {
 		const chip = cell.createDiv({ cls: "cal-chip is-stacked" });
 		chip.style.setProperty("--cal-chip", eventColour(event.type));
 
 		const own = splitLeadingEmoji(event.name);
-		const type = EVENT_TYPES.find((t) => t.id === event.type);
 		chip.createDiv({
 			cls: "cal-chip-name",
 			text: own ? own.rest : event.name,
 		});
 
-		const meta = [own?.emoji ?? type?.emoji, event.time && shortTime(event.time)]
+		const meta = [this.eventGlyph(event), event.time && shortTime(event.time)]
 			.filter(Boolean)
 			.join(" ");
 		if (meta) chip.createDiv({ cls: "cal-chip-meta", text: meta });

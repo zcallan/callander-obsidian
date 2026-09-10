@@ -3673,7 +3673,9 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .cal-dots {
 	display: flex;
-	gap: 3px;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
 	flex-wrap: wrap;
 }
 
@@ -3681,6 +3683,21 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	width: 6px;
 	height: 6px;
 	border-radius: 50%;
+}
+
+/* What a narrow cell carries instead of a chip. Sized so four fit across a
+   column of roughly 46px — the width seven columns leaves on a phone —
+   without wrapping to a second row and pushing the grid taller. */
+.cal-glyph {
+	font-size: 11px;
+	line-height: 1;
+}
+
+.cal-glyph-more {
+	font-size: 9px;
+	line-height: 1;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
 }
 
 .cal-agenda-head {
@@ -3756,6 +3773,16 @@ body.is-mobile.callander-kb-open .modal-content > * {
 		border-top: 1px solid var(--background-modifier-border);
 		padding-top: 10px;
 	}
+}
+
+/* On a phone the grid takes the page's own side padding back, which is
+   about 7px a column — the difference between three glyphs and three plus
+   a count. A device class rather than a container query: widening the
+   element a container query measures is how those oscillate, and this one
+   never crosses the 620px threshold either way. */
+.is-phone .cal-grid,
+.is-phone .cal-weekdays {
+	margin-inline: -24px;
 }
 
 /* Birthdays known to the month but not the day: named under the grid,
