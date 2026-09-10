@@ -3758,8 +3758,8 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	.cal-week .cal-cell {
 		min-height: 0;
 		align-items: stretch;
-		gap: 8px;
-		padding: 14px 2px 20px;
+		gap: 11px;
+		padding: 18px 6px 24px;
 	}
 
 	.cal-week .cal-chip,
@@ -3772,11 +3772,11 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	   the size it would have had all along — this is the one narrow view
 	   that can afford to be read rather than scanned. */
 	.cal-week .cal-chip {
-		font-size: 16px;
-		line-height: 1.4;
-		padding: 13px 14px;
-		gap: 6px;
-		border-radius: 6px;
+		font-size: 17px;
+		line-height: 1.45;
+		padding: 16px 16px;
+		gap: 7px;
+		border-radius: 7px;
 		border-left-width: 5px;
 	}
 
@@ -3796,7 +3796,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	}
 
 	.cal-week .cal-chip .cal-chip-meta {
-		font-size: 0.85em;
+		font-size: 0.88em;
 		/* A touch of air under the name, which is now the taller of the
 		   two by enough that they'd otherwise read as one block. */
 		margin-top: 2px;
@@ -3805,17 +3805,17 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	/* The day heading grows with them, or it reads as a caption on the
 	   chips rather than the thing they belong to. */
 	.cal-week .cal-cell-head {
-		font-size: 15px;
-		gap: 7px;
-		padding-bottom: 4px;
+		font-size: 16px;
+		gap: 8px;
+		padding-bottom: 6px;
 	}
 
 	.cal-week .cal-daynum {
-		font-size: 18px;
+		font-size: 20px;
 	}
 
 	.cal-week .cal-dow {
-		font-size: 12px;
+		font-size: 13px;
 	}
 
 	.cal-week .cal-dots {
