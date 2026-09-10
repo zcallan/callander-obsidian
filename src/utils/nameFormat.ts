@@ -65,7 +65,7 @@ export function shortenMemberNames(
  * to whoever receives the message (same reasoning as `yourName` below).
  */
 export function shortNameOverrides(
-	contacts: Array<{ displayName: string; shortName: string }>
+	contacts: ReadonlyArray<{ displayName: string; shortName: string }>
 ): Map<string, string> {
 	const map = new Map<string, string>();
 	for (const c of contacts) {
@@ -73,6 +73,39 @@ export function shortNameOverrides(
 		if (override) map.set(c.displayName.trim().toLowerCase(), override);
 	}
 	return map;
+}
+
+/**
+ * A roster for a row that has one line to spend on it.
+ *
+ * One person reads in full: there's room, and a bare first name where the
+ * whole name fits tells you less. Two or more shorten, because at that
+ * point the list is what you're reading rather than any one name in it.
+ * Past three the tail becomes a count — "+2 more" costs four characters
+ * where two more names cost twenty, and the row is a glance, not a guest
+ * list.
+ *
+ * Shortening runs through shortenMemberNames, so a contact's own short name
+ * wins and two people sharing a first name still disambiguate.
+ */
+export function summarisePeople(
+	people: readonly { displayName: string; shortName: string }[],
+	/** Names shown before the rest become a count. */
+	shown = 2
+): string {
+	if (people.length === 0) return "";
+	if (people.length === 1) return people[0].displayName;
+
+	const short = shortenMemberNames(
+		people.map((p) => p.displayName),
+		shortNameOverrides(people)
+	);
+	// Only worth a count when it saves something: "+1 more" is longer than
+	// most names it would stand in for.
+	if (short.length <= shown + 1) return short.join(", ");
+	return `${short.slice(0, shown).join(", ")}, +${
+		short.length - shown
+	} more`;
 }
 
 /**

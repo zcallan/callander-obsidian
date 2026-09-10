@@ -8,7 +8,8 @@ import { EventViewModal } from "@/modals/EventViewModal";
 import { usePlugin } from "@/ui/PluginContext";
 import { useVaultVersion } from "@/ui/useVaultData";
 import { UpcomingRow } from "@/ui/components/UpcomingRow";
-import { resolvePeopleNames } from "@/utils/people";
+import { resolvePeopleInfo } from "@/utils/people";
+import { summarisePeople } from "@/utils/nameFormat";
 
 /** Beyond this the list stops being a glance and starts being the Events page. */
 const MAX_ROWS = 10;
@@ -44,10 +45,14 @@ export function UpcomingSection() {
 	}, [version, plugin]);
 
 	// Same resolution the plan pages use — wikilinks to display names, with
-	// a dead link falling back to its own text.
+	// a dead link falling back to its own text. Summarised rather than
+	// joined: a dashboard row has one line for the roster, and a party of
+	// six would otherwise push the name of the event off it.
 	const peopleNames = (e: EventInfo) =>
 		e.people.length > 0
-			? resolvePeopleNames(plugin.app, e.file.path, e.people).join(", ")
+			? summarisePeople(
+					resolvePeopleInfo(plugin.app, e.file.path, e.people)
+			  )
 			: "";
 
 	const openEvent = (event: EventInfo) => {
