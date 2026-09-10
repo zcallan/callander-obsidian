@@ -4612,6 +4612,22 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin-top: 0;
 }
 
+/* Copy as text acts on the whole timeline rather than adding anything to
+   it, so it sits apart from the two adds instead of reading as a third one.
+   An auto margin rather than `justify-content: space-between`, which would
+   also push the two adds away from each other. */
+.plan-timeline-footer .plan-timeline-copy {
+	margin-left: auto;
+}
+
+/* Dropped again on a phone, where the row is narrow enough to wrap. An
+   auto margin there takes every pixel of slack and flings this button to
+   the far edge, adrift from the two adds it wraps with — measured at 657px
+   into a 739px row, against 212px with the margin gone. */
+.is-phone .plan-timeline-footer .plan-timeline-copy {
+	margin-left: 0;
+}
+
 .is-phone .plan-timeline-footer {
 	flex-direction: row;
 	align-items: stretch;
