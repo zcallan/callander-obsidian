@@ -9,6 +9,7 @@ import {
 } from "@/utils/planFormat";
 import type { PlanQuickIdea } from "@/types";
 import { Icon } from "@/ui/components/Icon";
+import { GeneratedBadge } from "@/ui/components/GeneratedBadge";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
 
 /** One parked idea: type emoji, text, then the days it could happen on. */
@@ -47,6 +48,7 @@ function QuickIdeaRow({
 						{`  ·  ${metaBits.join("  ·  ")}`}
 					</span>
 				)}
+				<GeneratedBadge generated={idea.generated} />
 			</div>
 			{people && <div className="plan-travel-people">{people}</div>}
 		</div>

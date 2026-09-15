@@ -15,6 +15,7 @@ import {
 } from "@/constants";
 import type { SomedayInfo, SomedaySubIdea } from "@/types";
 import { asArray, fieldOf, toText } from "@/utils/fm";
+import { GENERATED_KEY, isGenerated } from "@/utils/generated";
 import { todayISO } from "@/utils/flexdate";
 import { metadataSettled } from "@/utils/metadataSettled";
 
@@ -194,6 +195,7 @@ export class SomedayOperations {
 			company: company === "solo" || company === "group" ? company : "",
 			types: SomedayOperations.typesOf(fm),
 			people: SomedayOperations.peopleOf(fm),
+			generated: isGenerated(fieldOf(fm, GENERATED_KEY)),
 		};
 	}
 

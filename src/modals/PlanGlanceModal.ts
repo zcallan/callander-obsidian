@@ -7,7 +7,7 @@ import { resolvePeopleInfo } from "@/utils/people";
 import { upcomingWhen } from "@/utils/upcomingWhen";
 
 /**
- * A plan at a glance, from the dashboard's Upcoming list.
+ * A plan at a glance, from the dashboard's Upcoming list or the Events page.
  *
  * The dashboard is a page you read, not one you work from, and a plan is a
  * whole page of its own — so tapping one there opens this rather than
@@ -22,7 +22,7 @@ export class PlanGlanceModal extends Modal {
 		app: App,
 		private plan: PlanInfo,
 		private onOpenPlan: () => void,
-		/** Takes the plan off the Upcoming list, or puts it back. */
+		/** Takes the plan off whichever list opened this, or puts it back. */
 		private onSetHidden?: (hidden: boolean) => Promise<void>
 	) {
 		super(app);

@@ -1,0 +1,49 @@
+/*
+ * The badge on anything Claude added. Shared by the React component and the
+ * imperative builder, so every list shows the same thing. Restyle here;
+ * change or blank the words in utils/generated.ts.
+ */
+
+.badge {
+	display: inline-block;
+	margin-left: 6px;
+	padding: 0 6px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-hover);
+	/* Brighter than the border around it — muted read as too faint to
+	   notice next to the idea it's labelling. */
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.6;
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+/* The interactive form — a badge plus its own × — needs the label and the
+   button to sit on one line rather than the block's own line-height. */
+.removable {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding-right: 4px;
+}
+
+.remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	padding: 0;
+	border: none;
+	background: none;
+	color: var(--text-muted);
+	font-size: 12px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.remove:hover {
+	color: var(--text-error);
+}

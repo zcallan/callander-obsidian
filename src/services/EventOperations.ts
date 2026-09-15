@@ -4,6 +4,7 @@ import type { EventInfo } from "@/types";
 import type { EventType } from "@/constants";
 import { EVENT_TYPES } from "@/constants";
 import { asArray, fieldOf, toText } from "@/utils/fm";
+import { GENERATED_KEY, isGenerated } from "@/utils/generated";
 import { parseFlexDate, flexSortKey, todayISO } from "@/utils/flexdate";
 import { metadataSettled } from "@/utils/metadataSettled";
 import { nameWithoutLeadingEmoji } from "@/utils/emoji";
@@ -157,6 +158,7 @@ export class EventOperations {
 			source: str("source"),
 			created: str("created"),
 			updated: str("updated"),
+			generated: isGenerated(fieldOf(fm, GENERATED_KEY)),
 		};
 	}
 
@@ -182,7 +184,9 @@ export class EventOperations {
 	}
 
 	/** An event's people links resolved to vault paths (dead links drop). */
-	peoplePaths(event: EventInfo): string[] {
+	// Structural beyond EventInfo, so a plan's members resolve the same way
+	// when the Events page lists one.
+	peoplePaths(event: { people: string[]; file: { path: string } }): string[] {
 		return event.people
 			.map((raw) => {
 				const linktext = raw

@@ -19,7 +19,6 @@ import type {
 import { DEFAULT_DASHBOARD_ORDER, IDEA_CATEGORIES } from "@/constants";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
-import { splitLeadingEmoji } from "@/components/EventTimeline";
 import {
 	CaptureTargetModal,
 	ContactSuggestModal,
@@ -39,11 +38,8 @@ import { sortSomedays } from "@/utils/somedaySort";
 import { somedayRowParts } from "@/utils/somedayRow";
 import { buildSomedayRow } from "@/components/SomedayRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
-import {
-	conversationalLabel,
-	relativeFromDays,
-	upcomingWhen,
-} from "@/utils/upcomingWhen";
+import { planHiddenFrom, planRowFields } from "@/utils/planRow";
+import { conversationalLabel } from "@/utils/upcomingWhen";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -601,103 +597,32 @@ export class DashboardView extends ItemView {
 		}
 
 		const now = new Date();
-		const today = new Date(now);
-		today.setHours(0, 0, 0, 0);
 		for (const plan of plans) {
-			// A leading emoji in the plan name stands in as the row icon
-			const lead = splitLeadingEmoji(plan.name);
-			const { date, relative, tone } = upcomingWhen(plan.date, now);
-
-			const startFlex = parseFlexDate(plan.date);
-			const endFlex = parseFlexDate(plan.endDate);
-
-			// Multi-day plans read as a range: "Saturday 16 Aug - 17 Aug"
-			let when = date;
-			let endDay: Date | null = null;
-			if (endFlex && endFlex.month !== null && endFlex.day !== null) {
-				const endYear =
-					endFlex.year ?? startFlex?.year ?? now.getFullYear();
-				endDay = new Date(endYear, endFlex.month - 1, endFlex.day);
-				if (when) {
-					// Self-built short month — see the note in upcomingWhen.
-					when += ` - ${endFlex.day} ${monthName(
-						endFlex.month
-					).slice(0, 3)}`;
-				}
-			}
-
-			// A plan that's underway reads as "today" for its whole span: the
-			// start date's "3 days ago" would suggest it had passed. And once
-			// it's fully over, the end date is the relevant "ago" — a 4-day
-			// trip that finished yesterday should say "1 day ago", not "4".
-			let relativeText = relative;
-			let relativeTone = tone;
-			if (
-				endDay &&
-				startFlex &&
-				startFlex.year !== null &&
-				startFlex.month !== null &&
-				startFlex.day !== null
-			) {
-				const startDay = new Date(
-					startFlex.year,
-					startFlex.month - 1,
-					startFlex.day
-				);
-				if (today >= startDay && today <= endDay) {
-					relativeText = "today";
-					relativeTone = "soon";
-				} else if (today > endDay) {
-					// relativeFromDays takes "target minus today" (negative
-					// = past), same convention as upcomingWhen's own target
-					// date — endDay is already in the past here, so this
-					// comes out negative and reads "N days ago".
-					const daysUntilEnd = Math.round(
-						(endDay.getTime() - today.getTime()) / 86400000
-					);
-					({ relative: relativeText, tone: relativeTone } =
-						relativeFromDays(daysUntilEnd));
-				}
-			}
-
-			// Location sits beside the name
-			const details: string[] = [];
-			if (plan.location) details.push(plan.location);
-
+			const hidden = planHiddenFrom(plan);
 			buildUpcomingRow(section, {
-				icon: lead ? lead.emoji : "🗺️",
-				date: when || "No date yet",
-				name: lead ? lead.rest : plan.name,
-				suffix: details.join(" • "),
-				relative: relativeText,
-				tone: relativeTone,
+				...planRowFields(plan, now),
 				onClick: () => void this.openContact(plan.file),
 				// The only way back from "Hide from this list" in the plan's
-				// glance — that row is gone from Upcoming, so the offer to
-				// undo it has to live where the plan still shows.
-				...(plan.hiddenFromUpcoming && {
+				// glance — that row is gone from Upcoming or the Events page,
+				// so the offer to undo it has to live where the plan still
+				// shows.
+				...(hidden && {
 					action: {
 						icon: "eye",
-						label: "Show in Upcoming",
-						ariaLabel: `Show ${plan.name} in Upcoming`,
+						label: hidden.label,
+						ariaLabel: `Show ${plan.name} in ${hidden.where}`,
 						onClick: (e: MouseEvent) => {
 							e.stopPropagation();
-							void this.showPlanInUpcoming(plan.file);
+							void this.plugin.planOperations.setHiddenFrom(
+								plan.file,
+								hidden.lists,
+								false
+							);
 						},
 					},
 				}),
 			});
 		}
-	}
-
-	/** Puts a hidden plan back on the Upcoming list. */
-	private async showPlanInUpcoming(file: TFile) {
-		await this.app.fileManager.processFrontMatter(
-			file,
-			(fm: Record<string, unknown>) => {
-				delete fm.hiddenFromUpcoming;
-			}
-		);
 	}
 
 	private renderSomedays(container: HTMLElement) {

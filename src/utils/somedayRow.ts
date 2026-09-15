@@ -27,6 +27,7 @@ export interface RowableSomeday {
 	fromDate: string;
 	untilDate: string;
 	types: string[];
+	generated?: boolean;
 }
 
 export interface SomedayRowParts {
@@ -36,6 +37,8 @@ export interface SomedayRowParts {
 	deadlines: string[];
 	/** The right-hand timing summary; "" when nothing constrains it. */
 	when: string;
+	/** Added by Claude — only present when it was. */
+	generated?: true;
 }
 
 export function somedayRowParts(
@@ -72,5 +75,5 @@ export function somedayRowParts(
 			? [days, formatFlexDate(flex)].filter(Boolean).join(" · ")
 			: days;
 
-	return { title, deadlines, when };
+	return { title, deadlines, when, ...(s.generated && { generated: true }) };
 }

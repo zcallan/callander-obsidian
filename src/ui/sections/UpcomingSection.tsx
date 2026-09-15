@@ -122,19 +122,12 @@ export function UpcomingSection() {
 						plugin.app,
 						plan,
 						() => void plugin.openContactPage(plan.file),
-						async (hidden) => {
-							await plugin.app.fileManager.processFrontMatter(
+						(hidden) =>
+							plugin.planOperations.setHiddenFrom(
 								plan.file,
-								(fm: Record<string, unknown>) => {
-									// Deleted rather than set false: the
-									// absence is the default, and a note full
-									// of false flags is harder to read by hand
-									// than one that only records departures.
-									if (hidden) fm.hiddenFromUpcoming = true;
-									else delete fm.hiddenFromUpcoming;
-								}
-							);
-						}
+								"upcoming",
+								hidden
+							)
 					).open()
 				}
 			/>

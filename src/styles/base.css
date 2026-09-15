@@ -1472,6 +1472,18 @@ If your plugin does not need CSS, delete this file.
 	font-size: 1em;
 }
 
+/* Sits under the text it describes, with enough air above and below that it
+   reads as its own line rather than crowding the input above or the
+   buttons below. */
+.quick-idea-badge {
+	margin-top: 18px;
+	margin-bottom: 10px;
+}
+
+.quick-idea-badge:empty {
+	display: none;
+}
+
 /* Honest dates: met field + belated birthdays */
 .contact-met-controls {
 	display: flex;
@@ -6101,4 +6113,69 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 */
 .side-dock-ribbon-action.callander-ribbon-hidden {
 	display: none;
+}
+
+/* ---- A plan across the days it covers ---------------------------------
+
+   One bar rather than the same chip repeated in every square: a trip is a
+   single thing, and its name printed seven times down a week reads as seven
+   trips. It stacks like an event's chip — name, then the glyph and the days
+   it runs across — so the two read as the same kind of object. The bar is one element per week row, stretched over the columns it
+   covers, so the title has the whole run to be read across instead of
+   truncating inside the first day. Every row it reaches draws its own, which
+   is what brings the title and the accent edge back after a week break.
+
+   The width is the columns it spans: each extra one adds a column's width
+   plus the 11px the chip doesn't occupy — the grid's 1px gap and the cell's
+   5px of padding either side. z-index lifts it over the neighbouring cells:
+   grid items paint in DOM order, so a later cell's background would
+   otherwise paint over the overflow. */
+.cal-chip.is-span {
+	position: relative;
+	z-index: 1;
+	/* Stated rather than inherited: the width below is a border-box figure,
+	   and Obsidian's global box-sizing isn't this rule's to rely on. */
+	box-sizing: border-box;
+	width: calc(
+		var(--span-cols, 1) * 100% + 11px * (var(--span-cols, 1) - 1)
+	);
+}
+
+.cal-chip.is-span-open-end {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+/* A cancelled event stays on a wide grid, faded: the day it was going to
+   fill is the thing worth seeing, and at 11px a line through the name is
+   noise where a fade reads immediately. A narrow cell drops it instead —
+   see the glyphs, which have no room to carry the distinction. */
+.cal-chip.is-cancelled {
+	opacity: 0.5;
+}
+
+/* Where a narrow pane's cancelled event is read: the day's own list, which
+   strikes the name and says "Cancelled" beside it. */
+.cal-agenda .dashboard-row.is-cancelled-row {
+	opacity: 0.6;
+}
+
+/* Holds a lane open under the bar passing overhead, so the chips below it
+   stay on their own lines instead of rising into it. */
+.cal-span-spacer {
+	visibility: hidden;
+	pointer-events: none;
+}
+
+/* A stacked week has no neighbouring column to reach into, so the bar goes
+   back to being a chip the width of its own day. */
+@container (max-width: 620px) {
+	.cal-week .cal-chip.is-span {
+		width: auto;
+		border-radius: 5px;
+	}
+
+	.cal-week .cal-span-spacer {
+		display: none;
+	}
 }

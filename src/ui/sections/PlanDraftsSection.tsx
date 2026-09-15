@@ -1,4 +1,5 @@
 import { Icon } from "@/ui/components/Icon";
+import { GeneratedBadge } from "@/ui/components/GeneratedBadge";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
 
 /**
@@ -10,12 +11,15 @@ import { useViewRevision, type ViewStore } from "@/ui/viewStore";
 export function PlanDraftsSection({
 	store,
 	drafts,
+	isGenerated,
 	onMakeIdea,
 	onDiscard,
 }: {
 	store: ViewStore;
 	/** Draft text in stored order; the index is what edits address. */
 	drafts: () => string[];
+	/** Whether the draft at this index was added by Claude. */
+	isGenerated: (index: number) => boolean;
 	onMakeIdea: (index: number, text: string) => void;
 	onDiscard: (index: number, text: string) => void;
 }) {
@@ -28,7 +32,10 @@ export function PlanDraftsSection({
 			<div className="contact-idea-group-header">✏️ Drafts to sort</div>
 			{rows.map((text, index) => (
 				<div className="contact-draft-row" key={index}>
-					<span className="contact-draft-text">{text}</span>
+					<span className="contact-draft-text">
+						{text}
+						<GeneratedBadge generated={isGenerated(index)} />
+					</span>
 					<button
 						className="callander-button"
 						onClick={() => onMakeIdea(index, text)}

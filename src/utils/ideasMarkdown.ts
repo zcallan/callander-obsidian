@@ -5,6 +5,7 @@ import {
 	upsertSection,
 	type SectionSpec,
 } from "@/utils/markdownSection";
+import { GENERATED_MARKER, isGenerated } from "@/utils/generated";
 
 /**
  * Ideas, stored as markdown in the note body rather than as frontmatter.
@@ -48,6 +49,11 @@ const GROUP_HEADING = /^###\s+(.*)$/;
  * mentions the emoji isn't mistaken for one.
  */
 const RESURFACE = /\s*⏳\s*(\d{4}(?:-\d{2}(?:-\d{2})?)?)\s*$/;
+/**
+ * A trailing "Claude added this" marker: `🤖`. Anchored to end-of-line the
+ * same way, so an idea whose text mentions a robot isn't mistaken for one.
+ */
+const GENERATED = new RegExp(`\\s*${GENERATED_MARKER}\\s*$`, "u");
 
 /**
  * Labels as they read before categories were singularised. A note written
@@ -94,11 +100,24 @@ export function parseIdeaLine(
 	let text = match[2].trim();
 	if (!text) return null;
 
+	// Trailing markers come off in either order — the writer puts 🤖 before
+	// ⏳, but a hand- or Claude-typed line may not.
 	let resurface: string | undefined;
-	const marker = RESURFACE.exec(text);
-	if (marker) {
-		resurface = marker[1];
-		text = text.slice(0, marker.index).trim();
+	let generated = false;
+	for (;;) {
+		const marker = resurface === undefined ? RESURFACE.exec(text) : null;
+		if (marker) {
+			resurface = marker[1];
+			text = text.slice(0, marker.index).trim();
+			continue;
+		}
+		const flag = generated ? null : GENERATED.exec(text);
+		if (flag) {
+			generated = true;
+			text = text.slice(0, flag.index).trim();
+			continue;
+		}
+		break;
 	}
 	if (!text) return null;
 
@@ -107,13 +126,17 @@ export function parseIdeaLine(
 		text,
 		done,
 		...(resurface && { resurface }),
+		...(generated && { generated: true }),
 	};
 }
 
 export function serializeIdeaLine(idea: Idea): string {
 	const box = idea.done ? "[x]" : "[ ]";
+	// 🤖 goes before ⏳ so the resurface date stays at end-of-line, where
+	// an older reader still finds it.
+	const flag = isGenerated(idea.generated) ? ` ${GENERATED_MARKER}` : "";
 	const tail = idea.resurface ? ` ⏳ ${idea.resurface}` : "";
-	return `- ${box} ${idea.text}${tail}`;
+	return `- ${box} ${idea.text}${flag}${tail}`;
 }
 
 export function parseIdeasSection(body: string): Idea[] | null {

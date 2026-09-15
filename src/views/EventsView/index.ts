@@ -12,6 +12,7 @@ import type {
 	ContactWithCountdown,
 	EventInfo,
 	FriendListTab,
+	PlanInfo,
 } from "@/types";
 import { EventModal } from "@/modals/EventModal";
 import { EventViewModal } from "@/modals/EventViewModal";
@@ -20,11 +21,13 @@ import {
 	EVENT_SORTS,
 	EVENT_WHEN_FILTERS,
 	applyEventSort,
+	calendarChipMeta,
 	eventRowFields,
 	eventSortOf,
 	matchesEventWhen,
 	type EventSort,
 	type EventWhen,
+	type SortableEvent,
 } from "@/utils/eventRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
 import { registerVaultRefresh } from "@/utils/vaultRefresh";
@@ -32,14 +35,26 @@ import { groupEventsByPeriod } from "@/utils/eventGroups";
 import { formatShortWeekdayDate, todayISO } from "@/utils/flexdate";
 import type { CalendarDay } from "@/utils/calendarGrid";
 import {
+	assignSpanLanes,
 	eventsByDay,
 	monthGrid,
+	spanRun,
 	monthLabel,
 	weekGrid,
 	weekLabel,
+	type SpanRun,
 } from "@/utils/calendarGrid";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { summarisePeople } from "@/utils/nameFormat";
+import { PlanGlanceModal } from "@/modals/PlanGlanceModal";
+import {
+	PLAN_ICON,
+	planDays,
+	planRowFields,
+	planSpanLabel,
+	planWhenDate,
+	plansForEventsPage,
+} from "@/utils/planRow";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
 
@@ -56,6 +71,64 @@ const CAL_DOTS = 3;
 const CAL_NARROW = 620;
 /** Indexed by Date.getDay(), so Sunday leads whatever the week opens on. */
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * One row on the page — an event, or a plan shown among them.
+ *
+ * Carries the fields applyEventSort reads, so the two sort as one list by
+ * whichever sort is picked rather than as two lists stapled together. A
+ * plan's type is "plan", which no type chip matches: picking a type narrows
+ * to events of that type, and a plan isn't one.
+ */
+type PageItem = SortableEvent & {
+	time: string;
+	location: string;
+	/** Wikilinks — an event's people, a plan's members. */
+	people: string[];
+	description: string;
+	/** What Upcoming / Past judges it by — see planWhenDate. */
+	whenDate: string;
+} & ({ kind: "event"; event: EventInfo } | { kind: "plan"; plan: PlanInfo });
+
+function eventItem(event: EventInfo): PageItem {
+	return {
+		kind: "event",
+		event,
+		file: event.file,
+		name: event.name,
+		date: event.date,
+		type: event.type,
+		status: event.status,
+		created: event.created,
+		updated: event.updated,
+		time: event.time,
+		location: event.location,
+		people: event.people,
+		description: event.description,
+		whenDate: event.date,
+	};
+}
+
+function planItem(plan: PlanInfo): PageItem {
+	return {
+		kind: "plan",
+		plan,
+		file: plan.file,
+		name: plan.name,
+		date: plan.date,
+		type: "plan",
+		status: plan.status,
+		// Plans carry no stamps, so Oldest and Last updated sink them to
+		// the end — the same place an unstamped event goes.
+		created: "",
+		updated: "",
+		time: "",
+		location: plan.location,
+		people: plan.members,
+		description: "",
+		whenDate: planWhenDate(plan),
+	};
+}
 
 /** "8pm", "7:30pm" — compact enough for a chip, where "7:30 PM" wraps. */
 function shortTime(time: string): string {
@@ -76,7 +149,7 @@ function shortTime(time: string): string {
  * worth narrowing by is what kind of thing it was and who was there.
  */
 export class EventsView extends ItemView {
-	private events: EventInfo[] = [];
+	private items: PageItem[] = [];
 	/** Fetched alongside the events, to turn people wikilinks into names. */
 	private contacts: ContactWithCountdown[] = [];
 	private searchQuery = "";
@@ -123,6 +196,12 @@ export class EventsView extends ItemView {
 	 * contain it reads as a bug.
 	 */
 	private calSelected = todayISO();
+	/**
+	 * Which line each plan's bar runs on, and the days it covers — built
+	 * with the grid, read by every cell the bar crosses.
+	 */
+	private calLanes = new Map<string, number>();
+	private calSpanDays = new Map<string, string[]>();
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -155,8 +234,13 @@ export class EventsView extends ItemView {
 		this.registerEvent(
 			this.plugin.events.on("settings-changed", () => void this.refresh())
 		);
+		// The Plans folder too, since plans show here as well — without it a
+		// re-dated plan would sit stale until some event happened to change.
+		const plansFolder = this.plugin.planOperations.getPlansFolderPath();
 		const inScope = (path: string) =>
-			path === folder || path.startsWith(folder + "/");
+			[folder, plansFolder].some(
+				(f) => path === f || path.startsWith(f + "/")
+			);
 		registerVaultRefresh(this, this.plugin, () => void this.refresh(), {
 			scope: inScope,
 		});
@@ -182,9 +266,19 @@ export class EventsView extends ItemView {
 		// Timeline entries are records of a person, kept to their page —
 		// this is your calendar, so they never reach the list or the
 		// filters built from it.
-		this.events = this.plugin.eventOperations
+		const events = this.plugin.eventOperations
 			.getEvents()
-			.filter((e) => e.variant !== "timeline");
+			.filter((e) => e.variant !== "timeline")
+			.map(eventItem);
+		// Plans sit among the events for the same reason they do in the
+		// dashboard's Upcoming: a trip is the biggest thing on the calendar.
+		// Off by setting, or one plan at a time from its glance.
+		const plans = this.plugin.settings.eventsShowPlans
+			? plansForEventsPage(this.plugin.planOperations.getPlans()).map(
+					planItem
+			  )
+			: [];
+		this.items = [...events, ...plans];
 		this.contacts = await this.plugin.contactOperations.getContacts();
 		this.render();
 	}
@@ -192,7 +286,7 @@ export class EventsView extends ItemView {
 	// ---- People ----
 
 	/** An event's people links resolved to vault paths (dead links drop). */
-	private peoplePaths(e: EventInfo): string[] {
+	private peoplePaths(e: PageItem): string[] {
 		return this.plugin.eventOperations.peoplePaths(e);
 	}
 
@@ -211,7 +305,7 @@ export class EventsView extends ItemView {
 	 * somebody has to find them on a busy event too, and a roster that
 	 * ended in "+3 more" would quietly stop matching the three.
 	 */
-	private peopleNames(e: EventInfo): string {
+	private peopleNames(e: PageItem): string {
 		return this.peoplePaths(e)
 			.map((p) => this.displayName(p))
 			.join(", ");
@@ -223,7 +317,7 @@ export class EventsView extends ItemView {
 	 * this, and an event with the whole book club on it would otherwise
 	 * push its own name off the end.
 	 */
-	private peopleSummary(e: EventInfo): string {
+	private peopleSummary(e: PageItem): string {
 		return summarisePeople(
 			this.peoplePaths(e).map((path) => {
 				const match = this.contacts.find((c) => c.file.path === path);
@@ -243,7 +337,7 @@ export class EventsView extends ItemView {
 	 * rather than the friends list, so it never offers a name that would
 	 * return nothing.
 	 */
-	private personRoster(scope: EventInfo[]): { path: string; label: string }[] {
+	private personRoster(scope: PageItem[]): { path: string; label: string }[] {
 		const seen = new Map<string, string>();
 		for (const e of scope) {
 			for (const path of this.peoplePaths(e)) {
@@ -263,7 +357,7 @@ export class EventsView extends ItemView {
 	 * each chip prices itself: "picked, how many rows would you see?"
 	 */
 	private matchesFilters(
-		e: EventInfo,
+		e: PageItem,
 		over: { type?: EventType; personPath?: string } = {}
 	): boolean {
 		const type = over.type ?? this.type;
@@ -276,7 +370,7 @@ export class EventsView extends ItemView {
 		return true;
 	}
 
-	private matchesSearch(e: EventInfo, q: string): boolean {
+	private matchesSearch(e: PageItem, q: string): boolean {
 		if (!q) return true;
 		return (
 			e.name.toLowerCase().includes(q) ||
@@ -300,7 +394,7 @@ export class EventsView extends ItemView {
 		return this.pipeline(over).length;
 	}
 
-	private sorted(): EventInfo[] {
+	private sorted(): PageItem[] {
 		return this.pipeline({});
 	}
 
@@ -314,9 +408,9 @@ export class EventsView extends ItemView {
 	 * vanishing because of a filter you just applied (possibly the chip
 	 * next to it) is disorienting, and would strand you with no way back.
 	 */
-	private inScope(): EventInfo[] {
-		return this.events.filter((e) =>
-			matchesEventWhen(e.date, this.when, new Date())
+	private inScope(): PageItem[] {
+		return this.items.filter((e) =>
+			matchesEventWhen(e.whenDate, this.when, new Date())
 		);
 	}
 
@@ -338,12 +432,12 @@ export class EventsView extends ItemView {
 		 * are its own, and a "when" on top of them would blank out half
 		 * the month being looked at. */
 		anyWhen?: boolean;
-	}): EventInfo[] {
+	}): PageItem[] {
 		const q = this.searchQuery.trim().toLowerCase();
 		const now = new Date();
-		const matches = this.events.filter(
+		const matches = this.items.filter(
 			(e) =>
-				(over.anyWhen || matchesEventWhen(e.date, this.when, now)) &&
+				(over.anyWhen || matchesEventWhen(e.whenDate, this.when, now)) &&
 				this.matchesFilters(e, over) &&
 				this.matchesSearch(e, q)
 		);
@@ -374,14 +468,14 @@ export class EventsView extends ItemView {
 		// What this page is — but only while it's empty. Once there are
 		// events on screen they say what the page is far better than a
 		// sentence does, and it becomes a line to scroll past every visit.
-		if (this.events.length === 0) {
+		if (this.items.length === 0) {
 			container.createDiv({
 				cls: "section-helper-text someday-intro-note",
 				text: "Everything on the calendar — what's coming up, and everything you've already done together.",
 			});
 		}
 
-		if (this.events.length > 0) {
+		if (this.items.length > 0) {
 			this.renderToolbar(container);
 			// Upcoming / Past / All is a time filter, and on the Calendar
 			// the arrows already are one. Leaving it up would let "Upcoming"
@@ -478,11 +572,37 @@ export class EventsView extends ItemView {
 
 		// The calendar navigates time itself, so it reads past the when
 		// filter — but still honours type, person and search.
-		const byDay = eventsByDay(
-			this.pipeline({ anyWhen: true }),
-			(e) => e.date,
-			(e) => e.time
+		const shown = this.pipeline({ anyWhen: true });
+		// A plan lands on every day it spans, not just the one it starts on —
+		// a weekend away is the whole weekend. Plans go in first so that,
+		// among the untimed, a day's plan leads its events: it's the
+		// container for the day, the same tie the dashboard breaks.
+		const placed = [
+			...shown.filter((i) => i.kind === "plan"),
+			...shown.filter((i) => i.kind === "event"),
+		].flatMap((item): { item: PageItem; day: string }[] =>
+			item.kind === "plan"
+				? planDays(item.plan).map((day) => ({ item, day }))
+				: [{ item, day: item.date }]
 		);
+		const byDay = new Map(
+			[
+				...eventsByDay(
+					placed,
+					(p) => p.day,
+					(p) => p.item.time
+				),
+			].map(([day, list]) => [day, list.map((p) => p.item)])
+		);
+
+		// A plan keeps one line across every cell it crosses — see
+		// assignSpanLanes.
+		const spans = shown
+			.filter((i) => i.kind === "plan")
+			.map((i) => ({ key: i.file.path, days: planDays(i.plan) }))
+			.filter((s) => s.days.length > 0);
+		this.calLanes = assignSpanLanes(spans);
+		this.calSpanDays = new Map(spans.map((s) => [s.key, s.days]));
 
 		this.appendCalBar(wrap);
 		const days =
@@ -579,7 +699,7 @@ export class EventsView extends ItemView {
 	private appendCalCell(
 		grid: HTMLElement,
 		day: CalendarDay,
-		events: EventInfo[]
+		events: PageItem[]
 	) {
 		const cls = ["cal-cell"];
 		if (!day.inMonth) cls.push("is-outside");
@@ -596,21 +716,60 @@ export class EventsView extends ItemView {
 			});
 		}
 
+		// Plans lead, each held to its own lane so a bar crossing several
+		// days stays on one line. A lane whose plan doesn't reach this day
+		// gets an empty slot rather than letting the ones below it rise.
+		const plans = events.filter((e) => e.kind === "plan");
+		const rest = events.filter((e) => e.kind !== "plan");
+		const laneOf = (item: PageItem) =>
+			this.calLanes.get(item.file.path) ?? 0;
+		const lanes =
+			plans.length === 0 ? 0 : Math.max(...plans.map(laneOf)) + 1;
+		for (let lane = 0; lane < lanes; lane++) {
+			const held = plans.find((p) => laneOf(p) === lane);
+			const run = held
+				? spanRun(
+						this.calSpanDays.get(held.file.path) ?? [],
+						day.date,
+						this.weekStartsOn()
+				  )
+				: null;
+			// The bar is drawn once per row, by the cell that opens the run,
+			// and spans the columns it covers — so its title reads across the
+			// whole thing rather than truncating inside the first square.
+			// Every other cell of the run holds an empty slot instead.
+			if (held && run?.opens) this.appendCalChip(cell, held, run);
+			else {
+				const slot = cell.createDiv({
+					cls: "cal-chip is-stacked cal-span-spacer",
+				});
+				slot.createDiv({ cls: "cal-chip-name", text: "\u00a0" });
+				slot.createDiv({ cls: "cal-chip-meta", text: "\u00a0" });
+			}
+		}
+
 		// Chips on a wide pane; the dots below are what a narrow one shows.
-		for (const event of events.slice(0, CAL_CHIPS)) {
+		const room = Math.max(0, CAL_CHIPS - lanes);
+		for (const event of rest.slice(0, room)) {
 			this.appendCalChip(cell, event);
 		}
-		if (events.length > CAL_CHIPS) {
+		if (rest.length > room) {
 			cell.createDiv({
 				cls: "cal-more",
-				text: `+${events.length - CAL_CHIPS} more`,
+				text: `+${rest.length - room} more`,
 			});
 		}
 		// What a narrow pane shows in place of the chips. An emoji says what
 		// kind of thing is on that day where a coloured dot only says
 		// "something is" — at roughly 46px a column there's room for a
 		// glyph and none for a word, so it's the most a cell can carry.
-		if (events.length > 0) {
+		//
+		// A cancelled event is left out of it entirely: a glyph can't be
+		// faded into meaning "not happening" at that size, and one of three
+		// slots is too much to spend saying a thing is off. It's still in
+		// the day's list underneath, which is where it can say so.
+		const live = events.filter((e) => e.status !== "cancelled");
+		if (live.length > 0) {
 			const dots = cell.createDiv({ cls: "cal-dots" });
 			// Measured against a padded phone column of ~46px: a glyph is
 			// 11px and a "+N" is 12.
@@ -618,8 +777,8 @@ export class EventsView extends ItemView {
 			// shows all three and a busy one trades the third for the count,
 			// which is the only arrangement that always fits and always
 			// tells the truth about how much is there.
-			const room = events.length <= CAL_DOTS ? CAL_DOTS : CAL_DOTS - 1;
-			for (const event of events.slice(0, room)) {
+			const room = live.length <= CAL_DOTS ? CAL_DOTS : CAL_DOTS - 1;
+			for (const event of live.slice(0, room)) {
 				const glyph = this.eventGlyph(event);
 				if (glyph) {
 					dots.createSpan({ cls: "cal-glyph", text: glyph });
@@ -628,12 +787,12 @@ export class EventsView extends ItemView {
 				// An untyped event with no emoji of its own still has to
 				// register — the dot is what it falls back to.
 				const dot = dots.createSpan({ cls: "cal-dot" });
-				dot.style.backgroundColor = eventColour(event.type);
+				dot.style.backgroundColor = this.itemColour(event);
 			}
-			if (events.length > room) {
+			if (live.length > room) {
 				dots.createSpan({
 					cls: "cal-glyph-more",
-					text: `+${events.length - room}`,
+					text: `+${live.length - room}`,
 				});
 			}
 		}
@@ -672,16 +831,34 @@ export class EventsView extends ItemView {
 	 * it has one, else its type's. Shared by the chip and the narrow grid so
 	 * the same event reads the same at both widths.
 	 */
-	private eventGlyph(event: EventInfo): string | undefined {
+	private eventGlyph(event: PageItem): string | undefined {
 		return (
 			splitLeadingEmoji(event.name)?.emoji ??
-			EVENT_TYPES.find((t) => t.id === event.type)?.emoji
+			(event.kind === "plan"
+				? PLAN_ICON
+				: EVENT_TYPES.find((t) => t.id === event.type)?.emoji)
 		);
 	}
 
-	private appendCalChip(cell: HTMLElement, event: EventInfo) {
-		const chip = cell.createDiv({ cls: "cal-chip is-stacked" });
-		chip.style.setProperty("--cal-chip", eventColour(event.type));
+	private appendCalChip(cell: HTMLElement, event: PageItem, run?: SpanRun) {
+		// A plan covering more than a day draws as a bar across them rather
+		// than as the same chip repeated in each square.
+		const days = this.calSpanDays.get(event.file.path) ?? [];
+		const span = run && run.length + (run.continues ? 1 : 0) > 1;
+
+		const cls = ["cal-chip", "is-stacked"];
+		// Still on the calendar, because a day you'd kept free is worth
+		// seeing — just faded, so it doesn't read as something happening.
+		if (event.status === "cancelled") cls.push("is-cancelled");
+		if (span) {
+			cls.push("is-span");
+			// Squared off where the bar carries on into the next row, so the
+			// week break doesn't read as the end of the trip.
+			if (run.continues) cls.push("is-span-open-end");
+		}
+		const chip = cell.createDiv({ cls: cls.join(" ") });
+		chip.style.setProperty("--cal-chip", this.itemColour(event));
+		if (span) chip.style.setProperty("--span-cols", String(run.length));
 
 		const own = splitLeadingEmoji(event.name);
 		chip.createDiv({
@@ -689,14 +866,33 @@ export class EventsView extends ItemView {
 			text: own ? own.rest : event.name,
 		});
 
-		const meta = [this.eventGlyph(event), event.time && shortTime(event.time)]
-			.filter(Boolean)
-			.join(" ");
+		// Second line: the glyph, and then what places the thing in time —
+		// an event's start time, or the days a plan runs across. A bar broken
+		// over a week boundary carries the whole span on both halves.
+		//
+		// A cancelled event keeps its name and nothing else: what kind of
+		// thing it was and what time it would have started are details of an
+		// evening that isn't happening.
+		const meta =
+			event.status === "cancelled"
+				? ""
+				: calendarChipMeta(
+						this.eventGlyph(event),
+						span
+							? planSpanLabel(days)
+							: event.time
+							? shortTime(event.time)
+							: "",
+						// Whose evening it is, the same summarised roster the
+						// rows show. A plan's line is already spoken for by
+						// the days it runs across.
+						span ? "" : this.peopleSummary(event)
+				  );
 		if (meta) chip.createDiv({ cls: "cal-chip-meta", text: meta });
 
 		chip.addEventListener("click", (e) => {
 			e.stopPropagation();
-			this.openViewModal(event);
+			this.openItem(event);
 		});
 	}
 
@@ -707,7 +903,7 @@ export class EventsView extends ItemView {
 	 * and drops to dots while the detail moves here — the same answer Google
 	 * Calendar, Apple and Fantastical all arrive at.
 	 */
-	private appendDayAgenda(wrap: HTMLElement, byDay: Map<string, EventInfo[]>) {
+	private appendDayAgenda(wrap: HTMLElement, byDay: Map<string, PageItem[]>) {
 		const agenda = wrap.createDiv({ cls: "cal-agenda" });
 		// Nothing picked in this month yet — say so rather than showing a
 		// day from the one before it.
@@ -1010,7 +1206,7 @@ export class EventsView extends ItemView {
 		// it resets the lot.
 		const narrowed =
 			this.searchQuery.trim().length > 0 || this.activeFilterCount() > 0;
-		if (narrowed && this.events.length > 0) {
+		if (narrowed && this.items.length > 0) {
 			const head = listEl.createDiv({ cls: "someday-results-head" });
 			head.createEl("h3", {
 				cls: "someday-results-heading",
@@ -1045,7 +1241,7 @@ export class EventsView extends ItemView {
 		if (this.focusPath) {
 			const target = list.find((e) => e.file.path === this.focusPath);
 			this.focusPath = null;
-			if (target) this.openViewModal(target);
+			if (target) this.openItem(target);
 		}
 	}
 
@@ -1056,7 +1252,7 @@ export class EventsView extends ItemView {
 	 * filters would send you hunting for a filter you never set.
 	 */
 	private emptyMessage(): string {
-		if (this.events.length === 0) {
+		if (this.items.length === 0) {
 			return "No events yet. Add the first thing worth remembering.";
 		}
 		const narrowed =
@@ -1073,13 +1269,14 @@ export class EventsView extends ItemView {
 		return "Nothing matches these filters.";
 	}
 
-	private renderRow(container: HTMLElement, event: EventInfo) {
-		const fields = eventRowFields(
-			event,
-			new Date(),
-			this.peopleSummary(event)
-		);
-		buildUpcomingRow(container, {
+	private renderRow(container: HTMLElement, event: PageItem) {
+		const now = new Date();
+		const people = this.peopleSummary(event);
+		const fields =
+			event.kind === "plan"
+				? planRowFields(event.plan, now, people)
+				: eventRowFields(event.event, now, people);
+		const row = buildUpcomingRow(container, {
 			...fields,
 			// The "past" emphasis earns its keep on the dashboard, where a
 			// gone-by date among upcoming ones means something slipped. Here
@@ -1087,8 +1284,43 @@ export class EventsView extends ItemView {
 			// row and pick out nothing. "soon" still applies — that's the
 			// one thing worth catching your eye on a calendar.
 			tone: fields.tone === "past" ? undefined : fields.tone,
-			onClick: () => this.openViewModal(event),
+			onClick: () => this.openItem(event),
 		});
+		// The day list under a narrow grid is where a cancelled event gets
+		// read, since its cell has no room to say so — see the glyphs.
+		if (event.status === "cancelled") row.addClass("is-cancelled-row");
+	}
+
+	private openItem(item: PageItem) {
+		if (item.kind === "plan") this.openPlanGlance(item.plan);
+		else this.openViewModal(item.event);
+	}
+
+	/**
+	 * A plan opens at a glance rather than navigating away — the modal the
+	 * dashboard's Upcoming uses, with its "Hide from this list" taking the
+	 * plan off this page only. The dashboard's Plans section puts it back.
+	 */
+	private openPlanGlance(plan: PlanInfo) {
+		new PlanGlanceModal(
+			this.app,
+			plan,
+			() => void this.plugin.openContactPage(plan.file),
+			(hidden) =>
+				this.plugin.planOperations.setHiddenFrom(
+					plan.file,
+					"events",
+					hidden
+				)
+		).open();
+	}
+
+	/** A plan has no type to take a colour from, so it borrows the accent —
+	 * it's the one thing on the grid that isn't an event. */
+	private itemColour(item: PageItem): string {
+		return item.kind === "plan"
+			? "var(--interactive-accent)"
+			: eventColour(item.type);
 	}
 
 	private openViewModal(event: EventInfo) {

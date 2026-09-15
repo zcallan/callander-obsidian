@@ -152,6 +152,79 @@ export function eventsByDay<T>(
 	return byDay;
 }
 
+/** A span's run of days within one week row. */
+export interface SpanRun {
+	/** Days of the span this row holds — the columns the bar covers. */
+	length: number;
+	/** More of the span follows on the next row. */
+	continues: boolean;
+	/** This day opens the run: the span's first day, or a week's. */
+	opens: boolean;
+}
+
+/**
+ * How much of a span belongs to the row a given day sits in.
+ *
+ * A bar is drawn once per row rather than once per day, so its title has
+ * the whole run to be read across instead of truncating inside the first
+ * square. The cell that opens the run draws it; the rest of the run's cells
+ * hold an empty slot to keep the lanes below them in place.
+ *
+ * Null when the day isn't in the span at all.
+ */
+export function spanRun(
+	days: readonly string[],
+	day: string,
+	weekStartsOn: 0 | 1 = 1
+): SpanRun | null {
+	const i = days.indexOf(day);
+	if (i < 0) return null;
+	const dow = (d: string) => new Date(d + "T00:00:00").getDay();
+	const lastOfWeek = (weekStartsOn + 6) % 7;
+
+	let length = 1;
+	// The days are contiguous, so the run ends where the week does.
+	while (i + length < days.length && dow(days[i + length - 1]) !== lastOfWeek) {
+		length++;
+	}
+	return {
+		length,
+		continues: i + length < days.length,
+		opens: i === 0 || dow(day) === weekStartsOn,
+	};
+}
+
+/**
+ * A lane per span, so a bar keeps the same line in every cell it crosses.
+ *
+ * Without this a plan takes whatever row is free in each day's cell and
+ * staircases down the week as its neighbours come and go. Lanes run across
+ * the whole grid rather than per week, so a trip doesn't jump lines at a
+ * week boundary either.
+ *
+ * Lowest free lane, taken in date order: the earliest span gets the top
+ * line, and a lane is reusable the moment its last day has passed.
+ */
+export function assignSpanLanes(
+	spans: readonly { key: string; days: readonly string[] }[]
+): Map<string, number> {
+	const taken: Set<string>[] = [];
+	const lanes = new Map<string, number>();
+	const ordered = [...spans].sort(
+		(a, b) =>
+			(a.days[0] ?? "").localeCompare(b.days[0] ?? "") ||
+			a.key.localeCompare(b.key)
+	);
+	for (const span of ordered) {
+		let lane = 0;
+		while (taken[lane] && span.days.some((d) => taken[lane].has(d))) lane++;
+		if (!taken[lane]) taken[lane] = new Set();
+		for (const d of span.days) taken[lane].add(d);
+		lanes.set(span.key, lane);
+	}
+	return lanes;
+}
+
 function dayOf(d: Date, now: Date, inMonth: boolean): CalendarDay {
 	return {
 		date: isoDay(d),

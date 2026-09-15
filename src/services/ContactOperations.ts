@@ -18,6 +18,7 @@ import {
 } from "@/utils/flexdate";
 import { nextBirthdayOccurrence } from "@/utils/friendTimeline";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
+import { generatedField } from "@/utils/generated";
 import {
 	joinFrontmatter,
 	splitFrontmatter,
@@ -191,6 +192,7 @@ export class ContactOperations {
 					text: typeof text === "string" ? text : "",
 					created: typeof created === "string" ? created : "",
 					...(typeof date === "string" && date ? { date } : {}),
+					...generatedField(d),
 				};
 			})
 			.filter((d) => d.text.length > 0);

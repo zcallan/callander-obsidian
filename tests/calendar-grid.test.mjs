@@ -1,6 +1,8 @@
 import { createSuite } from "./harness.mjs";
 import {
+	assignSpanLanes,
 	eventsByDay,
+	spanRun,
 	monthGrid,
 	monthLabel,
 	weekGrid,
@@ -168,6 +170,81 @@ export function run() {
 		monthGrid(new Date(2026, 8, 1), NOW).map((d) => d.date),
 		monthGrid(new Date(2026, 8, 1), NOW, 1).map((d) => d.date)
 	);
+
+	// ---------- a plan drawn across the days it covers ----------
+	{
+		// Friday 11 to Monday 14 September 2026, on a Monday week.
+		const days = ["2026-09-11", "2026-09-12", "2026-09-13", "2026-09-14"];
+		const at = (day, startsOn = 1) => spanRun(days, day, startsOn);
+
+		// The first day opens the bar and it runs to the Sunday — three
+		// columns — with the Monday still to come.
+		eq("the first day opens the run", at("2026-09-11").opens, true);
+		eq("which covers the rest of that week", at("2026-09-11").length, 3);
+		eq("and says there's more to come", at("2026-09-11").continues, true);
+		// A day inside the run draws nothing; its cell holds a spacer.
+		eq("a middle day opens nothing", at("2026-09-12").opens, false);
+		eq("nor does the week's last day", at("2026-09-13").opens, false);
+		// The new week opens a row of its own, which is what earns the
+		// title and the accent edge back.
+		eq("the new week opens a run", at("2026-09-14").opens, true);
+		eq("of the one day that's left", at("2026-09-14").length, 1);
+		eq("and it ends there", at("2026-09-14").continues, false);
+	}
+	{
+		// The same span on a Sunday week: the break moves with the setting.
+		const days = ["2026-09-11", "2026-09-12", "2026-09-13", "2026-09-14"];
+		eq("a Sunday week breaks after Saturday", spanRun(days, "2026-09-11", 0).length, 2);
+		eq("and opens again on the Sunday", spanRun(days, "2026-09-13", 0).opens, true);
+		eq("running the last two days", spanRun(days, "2026-09-13", 0).length, 2);
+	}
+	{
+		// A span held entirely inside one week is one bar, start to end.
+		const days = ["2026-09-08", "2026-09-09", "2026-09-10"];
+		const run = spanRun(days, "2026-09-08");
+		eq("a midweek span is a single run", [run.length, run.continues], [3, false]);
+	}
+	{
+		// A single day is a run of one — the view draws it as a plain chip.
+		const run = spanRun(["2026-09-11"], "2026-09-11");
+		eq("one day is a run of one", [run.length, run.opens, run.continues], [1, true, false]);
+	}
+	eq("a day outside the span has no run", spanRun(["2026-09-11"], "2026-09-20"), null);
+
+	// ---------- lanes ----------
+	{
+		// Overlapping trips can't share a line, or one would paint over the
+		// other on the day they meet.
+		const lanes = assignSpanLanes([
+			{ key: "maine", days: ["2026-09-11", "2026-09-12", "2026-09-13"] },
+			{ key: "boston", days: ["2026-09-12", "2026-09-13"] },
+		]);
+		eq("the earlier span takes the top line", lanes.get("maine"), 0);
+		eq("the overlapping one moves down", lanes.get("boston"), 1);
+	}
+	{
+		// Once a span is over its line is free again — otherwise a year of
+		// trips would march down the cell one line at a time.
+		const lanes = assignSpanLanes([
+			{ key: "first", days: ["2026-09-01", "2026-09-02"] },
+			{ key: "second", days: ["2026-09-03", "2026-09-04"] },
+		]);
+		eq("a finished span frees its line", lanes.get("second"), 0);
+	}
+	{
+		// Order in, order out: the lanes must not depend on which plan the
+		// vault happened to list first, or the bars would swap lines
+		// between renders.
+		const spans = [
+			{ key: "b", days: ["2026-09-05", "2026-09-06"] },
+			{ key: "a", days: ["2026-09-01", "2026-09-06"] },
+		];
+		const forward = assignSpanLanes(spans);
+		const backward = assignSpanLanes([...spans].reverse());
+		eq("lanes don't depend on the input order", [forward.get("a"), forward.get("b")], [backward.get("a"), backward.get("b")]);
+		eq("and the earliest still leads", forward.get("a"), 0);
+	}
+	eq("nothing to place, nothing placed", assignSpanLanes([]).size, 0);
 
 	return result();
 }

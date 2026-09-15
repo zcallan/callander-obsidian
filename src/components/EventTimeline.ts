@@ -3,6 +3,7 @@ import type { ContactPageView } from "@/views/ContactPageView";
 import type { EventInfo, FriendEvent } from "@/types";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { eventColour, EVENT_TYPES } from "@/constants";
+import { appendGeneratedBadge } from "@/components/generatedBadge";
 import {
 	parseFlexDate,
 	formatFlexDate,
@@ -47,6 +48,8 @@ interface RowContent {
 	plan: string;
 	/** The backing event file; null for derived plan rows. */
 	event: EventInfo | null;
+	/** Added by Claude rather than typed by hand. */
+	generated?: boolean;
 }
 
 function fromEvent(e: EventInfo): RowContent {
@@ -59,6 +62,7 @@ function fromEvent(e: EventInfo): RowContent {
 		source: e.source,
 		plan: "",
 		event: e,
+		generated: e.generated,
 	};
 }
 
@@ -252,6 +256,7 @@ export class EventTimeline {
 			cls: "contact-timeline-text",
 			text: lead ? lead.rest : content.name,
 		});
+		appendGeneratedBadge(textEl, content.generated);
 
 		// Where it happened, as a bullet after the text
 		if (content.location) {

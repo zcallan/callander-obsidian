@@ -117,6 +117,14 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				},
 			},
 			{
+				name: "Show plans on the Events page",
+				desc: "List your plans among events on the Events page — in the list and timeline, and across the days they span on the calendar",
+				control: {
+					type: "toggle",
+					key: "eventsShowPlans",
+				},
+			},
+			{
 				name: "Limit page width",
 				desc: "Keep Callander's pages to a reading column rather than letting them fill the pane. Any page can be widened for a moment with the button in its top corner",
 				control: {
@@ -436,6 +444,20 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.upcomingShowPlans)
 					.onChange(async (value) => {
 						this.plugin.settings.upcomingShowPlans = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Show plans on the Events page")
+			.setDesc(
+				"List your plans among events on the Events page — in the list and timeline, and across the days they span on the calendar"
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.eventsShowPlans)
+					.onChange(async (value) => {
+						this.plugin.settings.eventsShowPlans = value;
 						await this.plugin.saveSettings();
 					});
 			});

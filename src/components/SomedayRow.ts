@@ -1,4 +1,5 @@
 import type { SomedayRowParts } from "@/utils/somedayRow";
+import { appendGeneratedBadge } from "@/components/generatedBadge";
 
 /**
  * Fills a someday row: the name (plus any deadline that qualifies it) on
@@ -11,6 +12,7 @@ import type { SomedayRowParts } from "@/utils/somedayRow";
 export function buildSomedayRow(row: HTMLElement, parts: SomedayRowParts) {
 	const main = row.createDiv({ cls: "someday-row-main" });
 	main.createSpan({ cls: "someday-title", text: parts.title });
+	appendGeneratedBadge(main, parts.generated);
 	if (parts.deadlines.length > 0) {
 		main.createSpan({
 			cls: "someday-row-final",

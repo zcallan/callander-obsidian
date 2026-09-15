@@ -99,6 +99,24 @@ export function eventRowFields(
 	};
 }
 
+/**
+ * The second line of a calendar chip: the glyph, then what places the thing
+ * in time — an event's start time, or the days a plan spans — then who it's
+ * with.
+ *
+ * The bullet separates the two facts sharing the line; the glyph leads
+ * without one, because it's an icon rather than a fact. Anything missing
+ * closes up, so a chip never carries a stray separator.
+ */
+export function calendarChipMeta(
+	glyph: string | undefined,
+	when: string,
+	people = ""
+): string {
+	const facts = [when, people].filter(Boolean).join(" \u00b7 ");
+	return [glyph, facts].filter(Boolean).join(" ");
+}
+
 export const EVENT_SORTS = [
 	{ id: "natural", label: "Natural" },
 	{ id: "newest", label: "Newest" },

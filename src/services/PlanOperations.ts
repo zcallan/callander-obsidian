@@ -11,11 +11,13 @@ import type {
 	PlanBringItem,
 	PlanInfo,
 	PlanItem,
+	PlanList,
 	PlanQuickIdea,
 	PlanSimpleItem,
 	PlanTimelineEntry,
 } from "@/types";
 import { asArray, fieldOf, toText } from "@/utils/fm";
+import { generatedField } from "@/utils/generated";
 import { ContactOperations } from "@/services/ContactOperations";
 import { todayISO } from "@/utils/flexdate";
 
@@ -90,6 +92,7 @@ export class PlanOperations {
 					...(strFieldOf(raw, "created") && {
 						created: strFieldOf(raw, "created"),
 					}),
+					...generatedField(raw),
 				};
 			})
 			.filter((i) => i.text);
@@ -481,6 +484,8 @@ export class PlanOperations {
 					members: PlanOperations.membersOf(fm),
 					hiddenFromUpcoming:
 						fieldOf(fm, "hiddenFromUpcoming") === true,
+					hiddenFromEvents:
+						fieldOf(fm, "hiddenFromEvents") === true,
 				};
 			});
 	}
@@ -525,6 +530,29 @@ export class PlanOperations {
 				fm.updated = todayISO();
 			}
 		);
+	}
+
+	/**
+	 * Hide a plan from a list, or put it back.
+	 *
+	 * Takes one list or several so "Show again" can clear both at once from
+	 * a single row action. Only the opt-out is stored: the key is deleted
+	 * rather than written `false`, keeping it out of notes you'll open.
+	 */
+	async setHiddenFrom(
+		file: TFile,
+		lists: PlanList | PlanList[],
+		hidden: boolean
+	): Promise<void> {
+		const keys = (Array.isArray(lists) ? lists : [lists]).map((list) =>
+			list === "upcoming" ? "hiddenFromUpcoming" : "hiddenFromEvents"
+		);
+		await this.writePlan(file, (fm) => {
+			for (const key of keys) {
+				if (hidden) fm[key] = true;
+				else delete fm[key];
+			}
+		});
 	}
 
 	/** Quick-capture path: append an idea without opening the plan */

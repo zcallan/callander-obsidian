@@ -34,7 +34,7 @@ export interface UpcomingRowOpts {
 export function buildUpcomingRow(
 	section: HTMLElement,
 	opts: UpcomingRowOpts
-) {
+): HTMLElement {
 	const row = section.createDiv({
 		cls: "dashboard-row dashboard-row-clickable dashboard-upcoming-row",
 	});
@@ -83,4 +83,5 @@ export function buildUpcomingRow(
 		});
 	}
 	row.addEventListener("click", opts.onClick);
+	return row;
 }

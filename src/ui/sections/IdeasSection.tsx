@@ -2,6 +2,7 @@ import { IDEA_CATEGORIES } from "@/constants";
 import type { Idea } from "@/types";
 import { formatFlexDate, parseFlexDate } from "@/utils/flexdate";
 import { Icon } from "@/ui/components/Icon";
+import { GeneratedBadge } from "@/ui/components/GeneratedBadge";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
 
 /**
@@ -18,6 +19,7 @@ export function IdeasSection({
 	ideas,
 	categoryOf,
 	onToggleDone,
+	onEdit,
 	onResurface,
 	onDelete,
 	onAdd,
@@ -26,6 +28,7 @@ export function IdeasSection({
 	ideas: () => Idea[];
 	categoryOf: (idea: Idea) => string;
 	onToggleDone: (index: number, done: boolean) => void;
+	onEdit: (index: number) => void;
 	onResurface: (index: number) => void;
 	onDelete: (index: number) => void;
 	onAdd: () => void;
@@ -89,7 +92,17 @@ export function IdeasSection({
 												)}`}
 											</span>
 										)}
+										<GeneratedBadge
+											generated={idea.generated}
+										/>
 									</div>
+									<button
+										className="callander-button button-icon"
+										aria-label="Edit idea"
+										onClick={() => onEdit(index)}
+									>
+										<Icon name="pencil" />
+									</button>
 									<button
 										className="callander-button button-icon"
 										aria-label="Resurface this idea later"

@@ -129,6 +129,12 @@ export interface FriendTrackerSettings {
 	 * "what's next". Off for anyone who reads the two as separate lists.
 	 */
 	upcomingShowPlans: boolean;
+	/**
+	 * Show plans among the Events page's events — list, timeline, and
+	 * across every day they span on the calendar. On by default, for the
+	 * same reason as upcomingShowPlans.
+	 */
+	eventsShowPlans: boolean;
 	/** Sort for the Somedays page; the dashboard's list follows it. Like
 	 * friendListSort, incidental UI state rather than a settings-tab option. */
 	somedaySort: SomedaySort;
@@ -206,6 +212,8 @@ export interface Draft {
 	 * Thursday is still a thing about Thursday.
 	 */
 	date?: string;
+	/** Added by Claude rather than typed by hand — see utils/generated */
+	generated?: boolean;
 }
 
 export interface PlanItem {
@@ -256,6 +264,8 @@ export interface PlanQuickIdea {
 	cost?: number;
 	notes?: string;
 	created?: string;
+	/** Added by Claude rather than typed by hand — see utils/generated */
+	generated?: boolean;
 }
 
 /** Flat plan list entries: travel legs, accommodation options */
@@ -385,6 +395,9 @@ export interface Credit {
 	note?: string;
 }
 
+/** The lists that show plans among other things, each hideable per plan. */
+export type PlanList = "upcoming" | "events";
+
 export interface PlanInfo {
 	file: TFile;
 	name: string;
@@ -406,6 +419,12 @@ export interface PlanInfo {
 	 * shows in the Plans section, which is where you turn it back on.
 	 */
 	hiddenFromUpcoming: boolean;
+	/**
+	 * Kept off the Events page. Separate from the Upcoming flag because the
+	 * two pages ask different things of a plan — the dashboard's window is
+	 * "what's next", the Events page is the whole calendar.
+	 */
+	hiddenFromEvents: boolean;
 }
 
 export interface GroupInfo {
@@ -463,6 +482,8 @@ export interface EventInfo {
 	source: string;
 	created: string;
 	updated: string;
+	/** Added by Claude rather than typed by hand — see utils/generated */
+	generated?: boolean;
 }
 
 /**
@@ -504,6 +525,8 @@ export interface Idea {
 	done: boolean;
 	/** Optional flex date — the dashboard resurfaces the idea from then on */
 	resurface?: string;
+	/** Added by Claude rather than typed by hand — see utils/generated */
+	generated?: boolean;
 }
 
 /** A thing a friend is into — a short tag under a fixed category. */
@@ -599,6 +622,8 @@ export interface SomedayInfo {
 	 * shown. Empty when unset, or when company is "solo".
 	 */
 	people: string[];
+	/** Added by Claude rather than typed by hand — see utils/generated */
+	generated?: boolean;
 }
 
 export interface DiaryEntry {
@@ -645,6 +670,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	planSectionsCollapsed: [],
 	weekStartsOn: 1,
 	upcomingShowPlans: true,
+	eventsShowPlans: true,
 	somedaySort: "recommended",
 	eventSort: "natural",
 	ribbonDashboard: true,

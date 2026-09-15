@@ -41,6 +41,7 @@ export const STANDARD_FIELDS = {
 	LIFE_GOALS: "lifeGoals",
 	QUOTES: "quotes",
 	INSIDE_JOKES: "insideJokes",
+	GENERATED: "generated", // provenance flag — see utils/generated
 } as const;
 
 /**
@@ -83,6 +84,9 @@ export const SYSTEM_FIELDS: StandardFieldValue[] = [
 	STANDARD_FIELDS.LIFE_GOALS,
 	STANDARD_FIELDS.QUOTES,
 	STANDARD_FIELDS.INSIDE_JOKES,
+	// Never an About row: the badge on the entry is the only thing that
+	// should say Claude added it.
+	STANDARD_FIELDS.GENERATED,
 ];
 
 // Fixed idea categories — deliberately few, no user-defined tags (Callander brief)

@@ -1,5 +1,6 @@
 import { createSuite } from "./harness.mjs";
 import {
+	calendarChipMeta,
 	eventRowFields,
 	formatEventTime,
 	applyEventSort,
@@ -622,6 +623,24 @@ export function run() {
 			applyEventSort(list, "nameAsc").map((e) => e.name)
 		);
 	}
+
+	// ---------- the second line of a calendar chip ----------
+	// Whose evening it is belongs on the chip: "Laura's Birthday Party" in a
+	// square says what, and the roster says who you'd be seeing.
+	eq(
+		"glyph, time, then who",
+		calendarChipMeta("\u{1f382}", "7:30pm", "Laura"),
+		"\u{1f382} 7:30pm \u00b7 Laura"
+	);
+	// An untimed event still names its people — most events here have no
+	// time at all, so the bullet can't depend on one being there.
+	eq("no time, no stray bullet", calendarChipMeta("\u{1f382}", "", "Laura"), "\u{1f382} Laura");
+	eq("nobody named reads as before", calendarChipMeta("\u{1f382}", "7:30pm", ""), "\u{1f382} 7:30pm");
+	// A plan's line is the days it spans, with nobody on it.
+	eq("a span keeps its dates", calendarChipMeta("\u{1f5fa}\ufe0f", "Fri 11 - Mon 14"), "\u{1f5fa}\ufe0f Fri 11 - Mon 14");
+	// An untyped event with no emoji of its own has no glyph to lead with.
+	eq("no glyph, no leading space", calendarChipMeta(undefined, "8pm", "Sam"), "8pm \u00b7 Sam");
+	eq("nothing at all is nothing", calendarChipMeta(undefined, "", ""), "");
 
 	return result();
 }

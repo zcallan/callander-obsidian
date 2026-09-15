@@ -158,6 +158,7 @@ import {
 	todayISO,
 } from "@/utils/flexdate";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
+import { GENERATED_KEY, isGenerated } from "@/utils/generated";
 import {
 	joinFrontmatter,
 	parseQuotesSection,
@@ -721,6 +722,7 @@ export class ContactPageView extends ItemView {
 					<PlanDraftsSection
 						store={this.store}
 						drafts={() => this.planDraftTexts()}
+					isGenerated={(i) => this.draftIsGenerated(i)}
 						onMakeIdea={(index, text) =>
 							this.promotePlanDraft(index, text)
 						}
@@ -1014,6 +1016,7 @@ export class ContactPageView extends ItemView {
 				<PersonDraftsSection
 					store={this.store}
 					drafts={() => this.planDraftTexts()}
+					isGenerated={(i) => this.draftIsGenerated(i)}
 					onMakeIdea={(index, text) =>
 						this.promoteDraftToIdea(index, text)
 					}
@@ -1093,6 +1096,9 @@ export class ContactPageView extends ItemView {
 					categoryOf={(idea) => this.normalizeCategory(idea)}
 					onToggleDone={(index, done) =>
 						void this.toggleIdeaDone(index, done)
+					}
+					onEdit={(index) =>
+						this.openEditIdeaModal(index, this.ideasList()[index])
 					}
 					onResurface={(index) => this.openResurfaceModal(index)}
 					onDelete={(index) => void this.deleteIdea(index)}
@@ -2646,6 +2652,13 @@ export class ContactPageView extends ItemView {
 		);
 	}
 
+	/** Whether the draft at this index came from Claude. */
+	private draftIsGenerated(index: number): boolean {
+		return isGenerated(
+			fieldOf(asArray(this.contactData.drafts)[index], GENERATED_KEY)
+		);
+	}
+
 	/** Turn a draft into a timeline item, dropping it once the item exists. */
 	private promotePlanDraft(index: number, text: string) {
 		new PlanItemModal(
@@ -3873,6 +3886,35 @@ export class ContactPageView extends ItemView {
 				await this.saveContactData();
 				this.render();
 			}
+		).open();
+	}
+
+	/**
+	 * The same modal, reopened on an existing idea — category, text, and
+	 * whether it still carries the "added by Claude" flag are editable;
+	 * done and resurface ride along untouched.
+	 */
+	private openEditIdeaModal(index: number, idea: Idea) {
+		new QuickIdeaModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name || "",
+			this.normalizeCategory(idea),
+			async (category, text, generated) => {
+				this.lastIdeaCategory = category;
+				const list = this.ideasList();
+				const updated: Idea = { ...list[index], category, text };
+				// Absence over a false flag, same as every other removable
+				// marker in this note — a cleared tag leaves no trace.
+				if (generated) updated.generated = true;
+				else delete updated.generated;
+				list[index] = updated;
+				await this.writeIdeasToBody(list);
+				await this.saveContactData();
+				this.render();
+			},
+			idea.text,
+			async () => this.deleteIdea(index),
+			idea.generated
 		).open();
 	}
 
