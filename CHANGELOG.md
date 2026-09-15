@@ -4,6 +4,43 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
+## 1.9.2 — 2026-09-15
+
+### Plans
+
+- **Longer sections fold away.** Ideas, Timeline, Accommodation, What to bring and Cost breakdown each take a chevron, and what you've folded stays folded across every plan. Who's in, Notes and Links & details are short enough to stay put.
+- **Copy text, for costs, stays and ideas.** The timeline's share sheet now has siblings: the whole Cost breakdown, a single expense, and a single person's ledger; Accommodation; and Ideas. Each offers only the toggles that change something for it, and the copied text has no overview or emoji, so it pastes cleanly into a chat.
+- Costs copy as a chase-up by default: your own share and anything already settled are left out, so what's left is what's still owed. A person's ledger keeps their settled lines, because those explain why their total is smaller than they expected. Credits read as `+$20.00` in with the expenses.
+- Stays copy with the nights they cover ("Friday+Saturday night (2 nights)"), their address and notes, and "Need to book" on any that aren't booked yet.
+- Ideas copy grouped under their categories, each with its dates and time.
+- **Accommodation reads in check-in order**, on screen and in the copy, with undated stays last.
+- **Accommodation takes a Category**, like quick ideas do, for a trip with stays in several towns. The two share one chip picker but keep separate lists of categories.
+- The timeline's Copy text sits at the foot of its section, apart from the two add buttons. The Accommodation and Ideas buttons no longer sit flush against the last row.
+
+### Events
+
+- **Past reads newest first**, under This week, Last week, Earlier this month, then month and year. Undated events still lead.
+- **Calendar chips give the name a line of its own**, so a busy week no longer truncates every chip to the same few characters. An emoji the event's name starts with stands in for its type icon.
+- **On a phone, the month grid shows each event's emoji** instead of a dot: three per day, or two and a "+N" count on a busy day. The week view stacks into readable day sections with larger type, and long names wrap instead of overflowing.
+- Picking a day on a phone no longer scrolls you back to the top, and changing month clears the day you'd picked. A narrow week view no longer pretends its days can be selected.
+- The calendar bar abbreviates long month names on a narrow pane rather than wrapping onto a second row.
+- Rows name up to three people, then "+N more", the same as on the dashboard. Search still matches every name.
+- The page's subtitle only shows while there are no events.
+
+### Dashboard
+
+- **Plans appear in Upcoming**, alongside events and in date order. Tapping one opens an overview of the trip with a link to the full plan. **"Hide from this list"** removes a single plan from Upcoming, and **Show in Upcoming** on its row in Plans brings it back. A setting turns plans in Upcoming off altogether.
+- Rows name up to three people, then "+N more", and plan rows no longer show a doubled bullet.
+- The Expenses empty state is one sentence shorter.
+
+### All friends
+
+- The B'day Calendar reads "Turns 32" rather than a bare number, which could have been read as their current age.
+
+### Settings
+
+- **Weeks can start on Sunday.** Monday is still the default. The setting drives both calendars, the "This week" and "Last week" headings, and the dashboard's two-week window.
+
 ## 1.9.1 — 2026-09-09
 
 ### Plans
