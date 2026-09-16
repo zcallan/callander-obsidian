@@ -858,7 +858,32 @@ export class EventsView extends ItemView {
 		}
 		const chip = cell.createDiv({ cls: cls.join(" ") });
 		chip.style.setProperty("--cal-chip", this.itemColour(event));
-		if (span) chip.style.setProperty("--span-cols", String(run.length));
+		if (span) {
+			chip.style.setProperty("--span-cols", String(run.length));
+			// A plan crossing a week boundary draws a separate bar on the
+			// row below — same plan, two DOM elements with no relationship
+			// CSS :hover can see on its own. Hovering either links both by
+			// toggling a class across every bar that shares this file path.
+			chip.dataset.planPath = event.file.path;
+			const setLinked = (on: boolean) => {
+				const root = cell.closest(".cal");
+				if (!root) return;
+				root
+					.querySelectorAll<HTMLElement>(".cal-chip.is-span")
+					.forEach((el) => {
+						if (el.dataset.planPath === event.file.path) {
+							// classList.toggle rather than Obsidian's own
+							// toggleClass: el came back from a plain
+							// querySelectorAll rather than createDiv/createEl,
+							// so this sticks to the one API guaranteed to work
+							// on it regardless of what patched what.
+							el.classList.toggle("is-plan-hover", on);
+						}
+					});
+			};
+			chip.addEventListener("mouseenter", () => setLinked(true));
+			chip.addEventListener("mouseleave", () => setLinked(false));
+		}
 
 		const own = splitLeadingEmoji(event.name);
 		chip.createDiv({

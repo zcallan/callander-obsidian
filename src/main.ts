@@ -9,9 +9,15 @@ import {
 	normalizePath,
 	stringifyYaml,
 } from "obsidian";
-import { FriendTrackerSettings, DEFAULT_SETTINGS, SomedayInfo } from "./types";
+import {
+	FriendTrackerSettings,
+	DEFAULT_SETTINGS,
+	SomedayInfo,
+	EventInfo,
+} from "./types";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import { classifyExistingEvent } from "@/utils/eventRow";
+import { eventPlanSeed, type EventPlanSeed } from "@/utils/eventToPlan";
 import {
 	IdeaCategory,
 	formatSomedaySeasons,
@@ -974,6 +980,42 @@ export default class FriendTracker extends Plugin {
 		await this.somedayOperations.markConverted(someday.file, plan.path);
 		if (markDone) {
 			await this.somedayOperations.setStatus(someday.file, "done");
+		}
+		await this.openContactPage(plan);
+	}
+
+	/**
+	 * Grow a plan out of an event — its people, place and timing carried
+	 * across, and the event itself as the first thing on the timeline.
+	 *
+	 * No confirmation step, unlike a someday: converting a someday asks
+	 * whether to tick it off, because a someday is a wish that the plan
+	 * fulfils. An event is a fixture on the calendar that a plan is built
+	 * around, so there's nothing to ask and nothing to close off — it's
+	 * left exactly as it was.
+	 */
+	public convertEventToPlan(event: EventInfo, peopleNames: string[] = []) {
+		const seed = eventPlanSeed(event, peopleNames);
+		new PlanModal(
+			this.app,
+			this,
+			(plan) => void this.seedPlanFromEvent(plan, seed),
+			seed.prefill
+		).open();
+	}
+
+	/** Carry the event's substance into the plan it just became. */
+	private async seedPlanFromEvent(plan: TFile, seed: EventPlanSeed) {
+		await this.planOperations.addItem(plan, seed.item);
+		const { location, members } = seed.fields;
+		if (location || members) {
+			await this.app.fileManager.processFrontMatter(
+				plan,
+				(fm: Record<string, unknown>) => {
+					if (location) fm.location = location;
+					if (members) fm.members = members;
+				}
+			);
 		}
 		await this.openContactPage(plan);
 	}

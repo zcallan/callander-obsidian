@@ -21,6 +21,7 @@ export * from "@/utils/people";
 export * from "@/utils/somedaySort";
 export * from "@/utils/somedayRow";
 export * from "@/utils/eventRow";
+export * from "@/utils/eventToPlan";
 export * from "@/utils/upcomingWhen";
 export * from "@/utils/upcomingList";
 export * from "@/utils/planRow";

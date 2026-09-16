@@ -372,8 +372,21 @@ export class EventViewModal extends Modal {
 			});
 		}
 
-		// Not wired up yet — a next step once the layout itself is right.
-		button(progressRow, "map", "Make plan", () => {});
+		// The event stays as it is — a plan grows around it rather than
+		// replacing it, and it lands on that plan's timeline as the thing
+		// already booked. Whatever's in the description box right now goes
+		// with it, same as Copy and Add to calendar above.
+		button(progressRow, "map", "Make plan", async () => {
+			// Awaited, like Done above: the description's debounce may still
+			// be pending, and the event should be written before its plan
+			// starts existing alongside it.
+			await this.flushDescription();
+			this.close();
+			this.plugin.convertEventToPlan(
+				{ ...e, description: this.description },
+				this.peopleNames()
+			);
+		});
 	}
 
 	onClose() {

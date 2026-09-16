@@ -2386,6 +2386,15 @@ If your plugin does not need CSS, delete this file.
 	padding-top: 20px;
 }
 
+/* More air under a subheading here than Ideas gives its own — the chips
+   below sit closer together than an idea list's rows do, so the header
+   needs a bit more room to still read as separate from them. Scoped
+   rather than raised on the shared .contact-idea-group-header, which
+   Ideas also draws its "GIFT" etc. headings from. */
+.contact-interests-section .contact-idea-group-header {
+	margin-bottom: 8px;
+}
+
 /* Interests: short tags as pill chips, grouped by category */
 .contact-interest-chips {
 	display: flex;
@@ -2871,6 +2880,57 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .contact-ideas-section .contact-idea-item + .contact-idea-item {
 	border-top: none;
+}
+
+/* Done ideas, folded away beneath the open ones — the same move the cost
+   breakdown makes for people who've settled up (.expense-settled-group):
+   closed by default, since what's done is the record, not the to-do. */
+/* Applies whether the disclosure is open or closed — margin on the
+   <details> element itself isn't state-dependent, so no [open] variant
+   is needed to cover both. */
+.contact-ideas-done-group {
+	margin-top: 12px;
+	margin-bottom: 10px;
+}
+
+.contact-ideas-done-summary {
+	cursor: pointer;
+	padding: 4px 0;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	list-style: none;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.contact-ideas-done-summary::-webkit-details-marker {
+	display: none;
+}
+
+.contact-ideas-done-chevron {
+	display: inline-flex;
+	align-items: center;
+	flex: 0 0 auto;
+	color: var(--text-muted);
+	transition: transform 0.15s ease;
+	transform: rotate(-90deg);
+}
+
+.contact-ideas-done-chevron .svg-icon {
+	width: 1.1em;
+	height: 1.1em;
+}
+
+.contact-ideas-done-group[open] .contact-ideas-done-chevron {
+	transform: rotate(0deg);
+}
+
+/* Space between the summary line and the completed ideas underneath it,
+   once opened — .contact-idea-group's own top margin is 0, so this is the
+   only thing separating the two. */
+.contact-ideas-done-group > .contact-idea-group:first-of-type {
+	margin-top: 16px;
 }
 
 /* Dashboard section dividers */
@@ -3576,7 +3636,14 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	min-height: 190px;
 }
 
-.cal-cell:hover {
+/* Not while a chip inside is the thing actually under the pointer — a
+   chip's own :hover uses the same colour, so without this the two blended
+   into one hover covering the whole cell rather than just the chip. This
+   also fixes a plan's bar: it's DOM-wise a child of only the cell that
+   opens its run, so hovering anywhere along it — including the stretch
+   drawn over the cells beside that one — was lighting up that first cell
+   rather than the bar itself. */
+.cal-cell:hover:not(:has(.cal-chip:hover)) {
 	background: var(--background-modifier-hover);
 }
 
@@ -3640,8 +3707,20 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	cursor: pointer;
 }
 
-.cal-chip:hover {
+/* .is-plan-hover is the same look, applied by hand: a plan crossing a week
+   boundary draws a second bar on the row below, a separate element :hover
+   alone can't reach — hovering either bar adds this class to both, via
+   appendCalChip's mouseenter/mouseleave pair. */
+.cal-chip:hover,
+.cal-chip.is-plan-hover {
 	background: var(--background-modifier-hover);
+	/* The background shift alone was too subtle: a chip already sits
+	   darker than the cell around it, so the same translucent wash used
+	   everywhere else barely moved it. A ring in the chip's own colour —
+	   the same one on its left edge — reads at a glance regardless of how
+	   the two backgrounds compare, and says which event it is rather than
+	   just "something's hovered". */
+	box-shadow: 0 0 0 1px var(--cal-chip, var(--background-modifier-border));
 }
 
 .cal-chip-time {
@@ -3761,7 +3840,11 @@ body.is-mobile.callander-kb-open .modal-content > * {
 		outline-offset: -2px;
 	}
 
-	.cal-week .cal-cell:hover {
+	/* Same specificity as the wide rule's own :not(:has(...)) qualifier —
+	   chips are hidden here anyway, so it's a no-op condition, but without
+	   it the wide rule's higher specificity would win and bring the hover
+	   back. */
+	.cal-week .cal-cell:hover:not(:has(.cal-chip:hover)) {
 		background: var(--background-primary);
 	}
 
@@ -4301,6 +4384,13 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	width: auto;
 }
 
+/* Same trade for the plan glance's "View full plan": full width pushed
+   "Hide from this list" onto its own row below it. Neither is a submit —
+   the glance has none — so both stay their natural size, side by side. */
+.modal .plan-glance-actions .callander-button.button-primary {
+	width: auto;
+}
+
 /* The ledger's rows are the modal's content, so it needs no extra padding
    of its own beyond what the box carries. */
 .expense-ledger-modal .callander-button {
@@ -4813,12 +4903,39 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 /* The stack header's bottom padding is normally 0, because the section's
    content provides the space beneath it. Folded away there is no content,
-   so the heading needs its own — and it has to match the top, which is 22px
-   rather than the 14px the shorthand up at .contact-stack-header sets: a
-   second rule further down the file overrides it at equal specificity.
-   Hard-coding 14 here left every folded header visibly top-heavy. */
+   so the heading needs its own. A shade under the 22px above it rather than
+   matching exactly: a stack of folded headers reads as a list of rows, and
+   dead-even padding made each one taller than it needed to be. (The top is
+   22px, not the 14px the shorthand up at .contact-stack-header sets — a
+   second rule further down the file overrides it at equal specificity.) */
 .contact-stack-section.plan-accordion:not(.is-open) .contact-stack-header {
+	padding-bottom: 18px;
+}
+
+/* Open, the balance is the other way round: the heading sits 22px below the
+   divider above it while the body stops 12px after its last row, leaving
+   every open section visibly top-heavy. The body's own 12px comes from
+   .contact-ideas-section's shorthand; this matches it to the header's top.
+   Every foldable plan section — ideas, timeline, stays, bring, costs —
+   renders the same .plan-items-section root, so one rule covers them all. */
+.plan-accordion.is-open .plan-accordion-body .plan-items-section {
 	padding-bottom: 22px;
+}
+
+/* The count stands in for the contents while they're folded away. Once the
+   section is open the items are right there to be counted, and a badge
+   saying so is just a number competing with them. */
+.plan-accordion.is-open .plan-accordion-count {
+	display: none;
+}
+
+/* The header is a flex row with its own 7px gap, so the badge's margin
+   stacked on top of it and sat the count 15px off its label — twice the
+   distance the dashboard's own badge keeps, where it's inline in an <h3>
+   with no gap underneath it. Dropping the margin leaves the row's gap to
+   do the spacing. */
+.plan-accordion-count {
+	margin-left: 0;
 }
 
 /* General accordion: the page header already provides the divider above, so

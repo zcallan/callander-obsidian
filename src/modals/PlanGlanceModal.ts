@@ -81,7 +81,13 @@ export class PlanGlanceModal extends Modal {
 
 		contentEl.createDiv({ cls: "someday-view-divider" });
 
-		const actions = contentEl.createDiv({ cls: "someday-view-actions" });
+		// Its own class alongside the shared one: someday-view-actions is
+		// reused by half a dozen other view modals, most with a single
+		// full-width primary button by design, so the natural-width
+		// override below has to land only here.
+		const actions = contentEl.createDiv({
+			cls: "someday-view-actions plan-glance-actions",
+		});
 		const open = actions.createEl("button", {
 			cls: "callander-button button-primary",
 		});

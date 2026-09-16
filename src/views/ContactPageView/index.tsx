@@ -751,7 +751,12 @@ export class ContactPageView extends ItemView {
 			const planSection = (
 				icon: string,
 				label: string,
-				collapseId?: string
+				collapseId?: string,
+				/** How many items are inside — shown while it's folded, so
+				 * a closed section says what's in it without being opened.
+				 * Zero is worth saying too: "nothing here yet" is the
+				 * answer you opened the section to find. */
+				count?: number
 			) => {
 				const wrap = planContent.createDiv({
 					cls: "contact-stack-section",
@@ -765,6 +770,16 @@ export class ContactPageView extends ItemView {
 				);
 				header.createSpan({ text: label });
 				if (!collapseId) return wrap;
+
+				if (count !== undefined) {
+					// The dashboard's own badge, so a count reads the same
+					// wherever it appears. CSS drops it once the section is
+					// open — see .plan-accordion.is-open .plan-accordion-count.
+					header.createSpan({
+						cls: "dashboard-count-badge plan-accordion-count",
+						text: String(count),
+					});
+				}
 
 				wrap.addClass("plan-accordion");
 				header.addClass("plan-accordion-header");
@@ -822,7 +837,12 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			planSection("lightbulb", "Ideas", "ideas").appendChild(
+			planSection(
+				"lightbulb",
+				"Ideas",
+				"ideas",
+				PlanOperations.quickIdeasOf(this.contactData).length
+			).appendChild(
 				this.island(
 					"quick-ideas",
 					<QuickIdeasSection
@@ -837,7 +857,12 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			const timelineWrap = planSection("calendar-clock", "Timeline", "timeline");
+			const timelineWrap = planSection(
+				"calendar-clock",
+				"Timeline",
+				"timeline",
+				PlanOperations.timelineOf(this.contactData).length
+			);
 			timelineWrap.appendChild(
 				this.island(
 					"plan-timeline",
@@ -868,7 +893,13 @@ export class ContactPageView extends ItemView {
 			);
 			// Ported to React — the host is created once and re-attached on
 			// every render, so the section keeps its own subscription.
-			planSection("bed", "Accommodation", "accommodation").appendChild(
+			planSection(
+				"bed",
+				"Accommodation",
+				"accommodation",
+				PlanOperations.simpleListOf(this.contactData, "accommodation")
+					.length
+			).appendChild(
 				this.island(
 					"accommodation",
 					<AccommodationSection
@@ -886,7 +917,12 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			planSection("backpack", "What to bring", "bring").appendChild(
+			planSection(
+				"backpack",
+				"What to bring",
+				"bring",
+				PlanOperations.bringOf(this.contactData).length
+			).appendChild(
 				this.island(
 					"bring",
 					<BringSection
@@ -900,7 +936,14 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			planSection("dollar-sign", "Cost breakdown", "costs").appendChild(
+			planSection(
+				"dollar-sign",
+				"Cost breakdown",
+				"costs",
+				// Both halves of what the section lists.
+				expensesOf(this.contactData).length +
+					creditsOf(this.contactData).length
+			).appendChild(
 				this.island(
 					"plan-expenses",
 					<PlanExpensesSection
