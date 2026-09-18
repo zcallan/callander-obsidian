@@ -84,24 +84,40 @@ export function formatLinkField(value: unknown): string {
 }
 
 /**
+ * A trimmed entry's inner text if it's a wikilink, else null.
+ *
+ * A plain prefix/suffix check rather than a capturing regex that refuses to
+ * cross a `]` — that stricter form treated "[[Riley [Jr]]]" as not a link at
+ * all, which lost the link entirely and printed the raw brackets as the
+ * name. Every other wikilink unwrapped in this codebase already uses this
+ * simpler check.
+ */
+function unwrapLink(trimmed: string): string | null {
+	if (!trimmed.startsWith("[[") || !trimmed.endsWith("]]")) return null;
+	const inner = trimmed.slice(2, -2);
+	return inner || null;
+}
+
+/**
  * The note an entry points at, or null when it's plain text.
  *
  * Handles the alias form too — `[[Note|shown as this]]` targets `Note`, which
  * is what has to be resolved even though the label is what's rendered.
  */
 export function linkTarget(entry: string): string | null {
-	const m = /^\[\[([^\]]+)\]\]$/.exec(entry.trim());
-	if (!m) return null;
-	const target = m[1].split("|")[0].trim();
+	const inner = unwrapLink(entry.trim());
+	if (inner === null) return null;
+	const target = inner.split("|")[0].trim();
 	return target || null;
 }
 
 /** What an entry reads as: a link's alias if it has one, else its target. */
 export function linkLabel(entry: string): string {
-	const m = /^\[\[([^\]]+)\]\]$/.exec(entry.trim());
-	if (!m) return entry.trim();
-	const [target, alias] = m[1].split("|");
-	return (alias ?? target).trim() || entry.trim();
+	const trimmed = entry.trim();
+	const inner = unwrapLink(trimmed);
+	if (inner === null) return trimmed;
+	const [target, alias] = inner.split("|");
+	return (alias ?? target).trim() || trimmed;
 }
 
 /**

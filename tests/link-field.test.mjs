@@ -101,17 +101,52 @@ export function run() {
 		linkTarget("met at [[Alice]]'s"),
 		null
 	);
+	// A capturing regex that refuses to cross a `]` used to treat this as
+	// not a link at all — the whole entry fell through as plain text and
+	// printed its brackets raw, for a relative whose actual note is
+	// "Riley [Jr]".
+	eq(
+		"a bracket inside the name doesn't break the link",
+		linkTarget("[[Riley [Jr]]]"),
+		"Riley [Jr]"
+	);
+	eq(
+		"same, with an alias",
+		linkTarget("[[Riley [Jr]|Riley]]"),
+		"Riley [Jr]"
+	);
+	// A hyphen is just a character here too — not a range inside some
+	// character class, which is the only way it could go wrong.
+	eq("a hyphenated name is untouched", linkTarget("[[Anna-Marie]]"), "Anna-Marie");
 
 	// ---------- linkLabel ----------
 	eq("a link reads as its target", linkLabel("[[Alice]]"), "Alice");
 	eq("an alias link reads as the alias", linkLabel("[[Note|shown]]"), "shown");
 	eq("plain text reads as itself", linkLabel("Bob"), "Bob");
 	eq("plain text is trimmed", linkLabel("  Bob  "), "Bob");
+	eq(
+		"a bracket inside the name still reads as the name",
+		linkLabel("[[Riley [Jr]]]"),
+		"Riley [Jr]"
+	);
+	eq(
+		"and its alias still wins",
+		linkLabel("[[Riley [Jr]|Riley]]"),
+		"Riley"
+	);
+	eq("a hyphenated name reads as itself", linkLabel("[[Anna-Marie]]"), "Anna-Marie");
 
 	// ---------- asWikilink ----------
 	eq("a bare name gains brackets", asWikilink("Alice"), "[[Alice]]");
 	eq("an existing link is left alone", asWikilink("[[Alice]]"), "[[Alice]]");
 	eq("an alias link is left alone", asWikilink("[[N|s]]"), "[[N|s]]");
+	// asWikilink checks linkTarget to decide whether to wrap — a bracketed
+	// name used to fool it into double-wrapping an already-linked entry.
+	eq(
+		"a bracketed link isn't double-wrapped",
+		asWikilink("[[Riley [Jr]]]"),
+		"[[Riley [Jr]]]"
+	);
 	eq("blank stays blank", asWikilink("   "), "");
 
 	// ---------- replaceEntryAt ----------

@@ -255,9 +255,19 @@ export class ContactOperations {
 		];
 	}
 
-	/** `"[[Uni friends]]"` or `"Uni friends"` → `"uni friends"`. */
+	/**
+	 * `"[[Uni friends]]"` or `"Uni friends"` → `"uni friends"`.
+	 *
+	 * Strips only the outer `[[`/`]]`, wherever it ends — not a capture
+	 * group that refuses to cross a `]`. That stricter form used to fall
+	 * through to the raw, still-bracketed value for any name containing one
+	 * (a group called "Sci-Fi [Book Club]"), which then matched nothing
+	 * anywhere else in the app: not the group's own page, not another
+	 * member's copy of the same link. Every other wikilink unwrapped in
+	 * this codebase already uses this simpler form.
+	 */
 	static groupName(value: string): string {
-		const inner = /^\s*\[\[([^\]]+)\]\]\s*$/.exec(value)?.[1] ?? value;
+		const inner = value.trim().replace(/^\[\[|\]\]$/g, "");
 		// An aliased link points at the note on the left; the label is only
 		// for display and would be the wrong thing to match on.
 		return inner.split("|")[0].trim().toLowerCase();

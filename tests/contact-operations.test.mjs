@@ -306,6 +306,55 @@ export async function run() {
 		ContactOperations.groupsOf({ groups: ["", "  ", "[[A]]"] }),
 		["a"]
 	);
+	// A name containing a `]` used to break the unwrap entirely: the old
+	// regex refused to cross one, so the whole raw, still-bracketed value
+	// fell through untouched and matched nothing anywhere else in the app
+	// — a group added on a Plan simply never showed up.
+	eq(
+		"a bracket inside the name doesn't break the unwrap",
+		ContactOperations.groupsOf({ groups: ["[[Sci-Fi [Book Club]]]"] }),
+		["sci-fi [book club]"]
+	);
+	eq(
+		"the same group, written plain, reads the same key",
+		ContactOperations.groupsOf({ groups: ["Sci-Fi [Book Club]"] }),
+		["sci-fi [book club]"]
+	);
+	// Other symbols a group might reasonably be named with.
+	eq(
+		"an ampersand survives",
+		ContactOperations.groupsOf({ groups: ["[[Book & Movie Club]]"] }),
+		["book & movie club"]
+	);
+	eq(
+		"a colon survives",
+		ContactOperations.groupsOf({ groups: ["[[Running: 5k Crew]]"] }),
+		["running: 5k crew"]
+	);
+	// A hyphen is just a character to every step here — nothing in the
+	// unwrap, split or lowercase treats it specially.
+	eq(
+		"a hyphenated group name is untouched",
+		ContactOperations.groupsOf({ groups: ["[[Well-Being Group]]"] }),
+		["well-being group"]
+	);
+	eq(
+		"and reads the same whether linked or plain",
+		ContactOperations.groupsOf({
+			groups: ["[[Well-Being Group]]", "well-being group"],
+		}),
+		["well-being group"]
+	);
+
+	// A bracketed name still splits its alias on the left, same as any
+	// other link — the bracket in the target isn't mistaken for one.
+	eq(
+		"a bracketed target still honours an alias",
+		ContactOperations.groupsOf({
+			groups: ["[[Sci-Fi [Book Club]|the sci-fi group]]"],
+		}),
+		["sci-fi [book club]"]
+	);
 
 	// groupLink writes the pretty form, so the link names the file that
 	// actually exists (Groups/Uni friends.md).
@@ -318,6 +367,15 @@ export async function run() {
 		"an existing link is not double-wrapped",
 		ContactOperations.groupLink("[[Uni friends]]"),
 		"[[Uni friends]]"
+	);
+	// The round trip that was breaking: a bracketed name, linked and read
+	// back, has to land on the same key it started from.
+	eq(
+		"a bracketed name round-trips through groupLink",
+		ContactOperations.groupsOf({
+			groups: [ContactOperations.groupLink("sci-fi [book club]")],
+		}),
+		["sci-fi [book club]"]
 	);
 	eq("blank produces nothing", ContactOperations.groupLink("  "), "");
 	// The page's own spelling wins when it's known. Without it the fallback
