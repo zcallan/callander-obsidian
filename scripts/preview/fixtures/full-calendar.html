@@ -1,0 +1,339 @@
+<!--
+  The full Calendar page with its drawer open: beside the grid on a wide
+  pane (squeezing it right), above it on a phone (pushing it down). The
+  grid itself is the Events calendar fixture's.
+-->
+<div class="fx-sub" style="font:600 11px sans-serif;opacity:.5;margin-bottom:6px">Wide, drawer open</div>
+<div class="fullcal" style="width:900px;max-width:none">
+	<div class="cal">
+		<div class="cal-bar">
+			<div class="cal-bar-title"><button class="callander-button fullcal-menu is-active" aria-label="Hide calendars"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg></button><span class="cal-period">September 2026</span></div>
+			<div class="cal-nav">
+				<button class="callander-button cal-nav-button">‹</button>
+				<button class="callander-button cal-nav-button">Today</button>
+				<button class="callander-button cal-nav-button">›</button>
+				<div class="cal-modes">
+					<button class="callander-button cal-mode is-active">Month</button>
+					<button class="callander-button cal-mode">Week</button>
+				</div>
+			</div>
+		</div>
+		<div class="fullcal-body">
+			<div class="fullcal-drawer">
+				<div class="fullcal-drawer-heading">Calendars</div>
+				<label class="fullcal-drawer-option"><input type="checkbox" checked><span>Events</span></label>
+				<label class="fullcal-drawer-option"><input type="checkbox" checked><span>Plans</span></label>
+				<label class="fullcal-drawer-option"><input type="checkbox" checked><span>Birthdays</span></label>
+			</div>
+			<div class="fullcal-main">
+				<div class="cal-weekdays"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+				<div class="cal-grid">
+			<div class="cal-cell is-outside">
+				<div class="cal-cell-head"><span class="cal-daynum">31</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">1</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">2</span></div>
+				<div class="cal-chip" style="--cal-chip: #5a9cf8"><span>🤝</span><span class="cal-chip-name">Beer darts</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #5a9cf8"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">3</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">4</span></div>
+				<div class="cal-chip" style="--cal-chip: #8f9aa5"><span>📅</span><span class="cal-chip-time">7:30pm</span><span class="cal-chip-name">Book club</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #8f9aa5"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">5</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">6</span></div>
+			</div>
+			<div class="cal-cell is-today">
+				<div class="cal-cell-head"><span class="cal-daynum">7</span></div>
+				<div class="cal-chip" style="--cal-chip: #5a9cf8"><span>🤝</span><span class="cal-chip-name">Coffee with Deepa</span></div>
+				<div class="cal-chip" style="--cal-chip: #6c7a89"><span>⏰</span><span class="cal-chip-name">Renew the library card</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #5a9cf8"></span><span class="cal-dot" style="background-color: #6c7a89"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">8</span></div>
+			</div>
+			<div class="cal-cell is-selected">
+				<div class="cal-cell-head"><span class="cal-daynum">9</span></div>
+				<div class="cal-chip" style="--cal-chip: #7aa64a"><span>🥾</span><span class="cal-chip-time">8am</span><span class="cal-chip-name">Hike at Mount Wilson</span></div>
+				<div class="cal-chip" style="--cal-chip: #6c7a89"><span>⏰</span><span class="cal-chip-time">6pm</span><span class="cal-chip-name">Dentist</span></div>
+				<div class="cal-chip" style="--cal-chip: #5a9cf8"><span>🤝</span><span class="cal-chip-time">8pm</span><span class="cal-chip-name">Chess night</span></div>
+				<div class="cal-more">+1 more</div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #7aa64a"></span><span class="cal-dot" style="background-color: #6c7a89"></span><span class="cal-dot" style="background-color: #5a9cf8"></span><span class="cal-dot" style="background-color: #8f9aa5"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">10</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">11</span></div>
+				<div class="cal-chip is-stacked is-span is-span-open-end" style="--cal-chip: var(--interactive-accent); --span-cols: 3"><div class="cal-chip-name">Weekend in Maine</div><div class="cal-chip-meta">🗺️ Fri 11 - Mon 14</div></div>
+				<div class="cal-chip" style="--cal-chip: #d95757"><span>🎸</span><span class="cal-chip-time">8pm</span><span class="cal-chip-name">Gig at the Corner</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #d95757"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">12</span></div>
+				<div class="cal-chip is-stacked cal-span-spacer"><div class="cal-chip-name">&nbsp;</div><div class="cal-chip-meta">&nbsp;</div></div>
+				<div class="cal-chip" style="--cal-chip: #dcc22e"><span>🏅</span><span class="cal-chip-name">Lauren turns 34</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #dcc22e"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">13</span></div>
+				<div class="cal-chip is-stacked cal-span-spacer"><div class="cal-chip-name">&nbsp;</div><div class="cal-chip-meta">&nbsp;</div></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">14</span></div>
+				<div class="cal-chip is-stacked is-span" style="--cal-chip: var(--interactive-accent); --span-cols: 1"><div class="cal-chip-name">Weekend in Maine</div><div class="cal-chip-meta">🗺️ Fri 11 - Mon 14</div></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">15</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">16</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">17</span></div>
+				<div class="cal-chip" style="--cal-chip: #5a9cf8"><span>🤝</span><span class="cal-chip-time">7pm</span><span class="cal-chip-name">Board games at Fyodor's</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #5a9cf8"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">18</span></div>
+				<div class="cal-chip is-stacked is-cancelled" style="--cal-chip: #5a9cf8"><div class="cal-chip-name">Drinks with Sam</div></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">19</span></div>
+				<div class="cal-chip" style="--cal-chip: #e0559a"><span>🎉</span><span class="cal-chip-time">5pm</span><span class="cal-chip-name">Priya's housewarming</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #e0559a"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">20</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">21</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">22</span></div>
+				<div class="cal-chip" style="--cal-chip: #45b8ac"><span>✈️</span><span class="cal-chip-time">6:15am</span><span class="cal-chip-name">Flight to Sydney</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #45b8ac"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">23</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">24</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">25</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">26</span></div>
+				<div class="cal-chip" style="--cal-chip: #dcc22e"><span>🏅</span><span class="cal-chip-name">Enrique turns 25</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #dcc22e"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">27</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">28</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">29</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">30</span></div>
+				<div class="cal-chip" style="--cal-chip: #45b8ac"><span>🎭</span><span class="cal-chip-time">8pm</span><span class="cal-chip-name">Comedy at The Wilbur</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #45b8ac"></span></div>
+			</div>
+			<div class="cal-cell is-outside">
+				<div class="cal-cell-head"><span class="cal-daynum">1</span></div>
+			</div>
+			<div class="cal-cell is-outside">
+				<div class="cal-cell-head"><span class="cal-daynum">2</span></div>
+			</div>
+			<div class="cal-cell is-outside">
+				<div class="cal-cell-head"><span class="cal-daynum">3</span></div>
+			</div>
+			<div class="cal-cell is-outside">
+				<div class="cal-cell-head"><span class="cal-daynum">4</span></div>
+			</div>
+		</div>
+				<div class="cal-agenda"><div class="section-helper-text">Pick a day to see what's on.</div></div>
+			</div>
+		</div>
+	</div>
+</div>
+<div class="fx-sub" style="font:600 11px sans-serif;opacity:.5;margin:16px 0 6px">Phone, drawer open</div>
+<div class="fullcal" style="width:334px;max-width:none">
+	<div class="cal">
+		<div class="cal-bar">
+			<div class="cal-bar-title"><button class="callander-button fullcal-menu is-active" aria-label="Hide calendars"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg></button><span class="cal-period">Sep 2026</span></div>
+			<div class="cal-nav">
+				<button class="callander-button cal-nav-button">‹</button>
+				<button class="callander-button cal-nav-button">Today</button>
+				<button class="callander-button cal-nav-button">›</button>
+				<div class="cal-modes">
+					<button class="callander-button cal-mode is-active">Month</button>
+					<button class="callander-button cal-mode">Week</button>
+				</div>
+			</div>
+		</div>
+		<div class="fullcal-body">
+			<div class="fullcal-drawer">
+				<div class="fullcal-drawer-heading">Calendars</div>
+				<label class="fullcal-drawer-option"><input type="checkbox" checked><span>Events</span></label>
+				<label class="fullcal-drawer-option"><input type="checkbox" checked><span>Plans</span></label>
+				<label class="fullcal-drawer-option"><input type="checkbox" checked><span>Birthdays</span></label>
+			</div>
+			<div class="fullcal-main">
+				<div class="cal-weekdays"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+				<div class="cal-grid">
+			<div class="cal-cell is-outside">
+				<div class="cal-cell-head"><span class="cal-daynum">31</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">1</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">2</span></div>
+				<div class="cal-chip" style="--cal-chip: #5a9cf8"><span>🤝</span><span class="cal-chip-name">Beer darts</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #5a9cf8"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">3</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">4</span></div>
+				<div class="cal-chip" style="--cal-chip: #8f9aa5"><span>📅</span><span class="cal-chip-time">7:30pm</span><span class="cal-chip-name">Book club</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #8f9aa5"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">5</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">6</span></div>
+			</div>
+			<div class="cal-cell is-today">
+				<div class="cal-cell-head"><span class="cal-daynum">7</span></div>
+				<div class="cal-chip" style="--cal-chip: #5a9cf8"><span>🤝</span><span class="cal-chip-name">Coffee with Deepa</span></div>
+				<div class="cal-chip" style="--cal-chip: #6c7a89"><span>⏰</span><span class="cal-chip-name">Renew the library card</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #5a9cf8"></span><span class="cal-dot" style="background-color: #6c7a89"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">8</span></div>
+			</div>
+			<div class="cal-cell is-selected">
+				<div class="cal-cell-head"><span class="cal-daynum">9</span></div>
+				<div class="cal-chip" style="--cal-chip: #7aa64a"><span>🥾</span><span class="cal-chip-time">8am</span><span class="cal-chip-name">Hike at Mount Wilson</span></div>
+				<div class="cal-chip" style="--cal-chip: #6c7a89"><span>⏰</span><span class="cal-chip-time">6pm</span><span class="cal-chip-name">Dentist</span></div>
+				<div class="cal-chip" style="--cal-chip: #5a9cf8"><span>🤝</span><span class="cal-chip-time">8pm</span><span class="cal-chip-name">Chess night</span></div>
+				<div class="cal-more">+1 more</div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #7aa64a"></span><span class="cal-dot" style="background-color: #6c7a89"></span><span class="cal-dot" style="background-color: #5a9cf8"></span><span class="cal-dot" style="background-color: #8f9aa5"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">10</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">11</span></div>
+				<div class="cal-chip is-stacked is-span is-span-open-end" style="--cal-chip: var(--interactive-accent); --span-cols: 3"><div class="cal-chip-name">Weekend in Maine</div><div class="cal-chip-meta">🗺️ Fri 11 - Mon 14</div></div>
+				<div class="cal-chip" style="--cal-chip: #d95757"><span>🎸</span><span class="cal-chip-time">8pm</span><span class="cal-chip-name">Gig at the Corner</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #d95757"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">12</span></div>
+				<div class="cal-chip is-stacked cal-span-spacer"><div class="cal-chip-name">&nbsp;</div><div class="cal-chip-meta">&nbsp;</div></div>
+				<div class="cal-chip" style="--cal-chip: #dcc22e"><span>🏅</span><span class="cal-chip-name">Lauren turns 34</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #dcc22e"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">13</span></div>
+				<div class="cal-chip is-stacked cal-span-spacer"><div class="cal-chip-name">&nbsp;</div><div class="cal-chip-meta">&nbsp;</div></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">14</span></div>
+				<div class="cal-chip is-stacked is-span" style="--cal-chip: var(--interactive-accent); --span-cols: 1"><div class="cal-chip-name">Weekend in Maine</div><div class="cal-chip-meta">🗺️ Fri 11 - Mon 14</div></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">15</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">16</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">17</span></div>
+				<div class="cal-chip" style="--cal-chip: #5a9cf8"><span>🤝</span><span class="cal-chip-time">7pm</span><span class="cal-chip-name">Board games at Fyodor's</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #5a9cf8"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">18</span></div>
+				<div class="cal-chip is-stacked is-cancelled" style="--cal-chip: #5a9cf8"><div class="cal-chip-name">Drinks with Sam</div></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">19</span></div>
+				<div class="cal-chip" style="--cal-chip: #e0559a"><span>🎉</span><span class="cal-chip-time">5pm</span><span class="cal-chip-name">Priya's housewarming</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #e0559a"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">20</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">21</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">22</span></div>
+				<div class="cal-chip" style="--cal-chip: #45b8ac"><span>✈️</span><span class="cal-chip-time">6:15am</span><span class="cal-chip-name">Flight to Sydney</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #45b8ac"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">23</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">24</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">25</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">26</span></div>
+				<div class="cal-chip" style="--cal-chip: #dcc22e"><span>🏅</span><span class="cal-chip-name">Enrique turns 25</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #dcc22e"></span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">27</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">28</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">29</span></div>
+			</div>
+			<div class="cal-cell">
+				<div class="cal-cell-head"><span class="cal-daynum">30</span></div>
+				<div class="cal-chip" style="--cal-chip: #45b8ac"><span>🎭</span><span class="cal-chip-time">8pm</span><span class="cal-chip-name">Comedy at The Wilbur</span></div>
+				<div class="cal-dots"><span class="cal-dot" style="background-color: #45b8ac"></span></div>
+			</div>
+			<div class="cal-cell is-outside">
+				<div class="cal-cell-head"><span class="cal-daynum">1</span></div>
+			</div>
+			<div class="cal-cell is-outside">
+				<div class="cal-cell-head"><span class="cal-daynum">2</span></div>
+			</div>
+			<div class="cal-cell is-outside">
+				<div class="cal-cell-head"><span class="cal-daynum">3</span></div>
+			</div>
+			<div class="cal-cell is-outside">
+				<div class="cal-cell-head"><span class="cal-daynum">4</span></div>
+			</div>
+		</div>
+				<div class="cal-agenda"><div class="section-helper-text">Pick a day to see what's on.</div></div>
+			</div>
+		</div>
+	</div>
+</div>

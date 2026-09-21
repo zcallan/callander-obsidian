@@ -8,7 +8,6 @@ import { fieldOf } from "@/utils/fm";
 import type FriendTracker from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type {
-	CalendarMode,
 	ContactWithCountdown,
 	EventInfo,
 	FriendListTab,
@@ -16,12 +15,11 @@ import type {
 } from "@/types";
 import { EventModal } from "@/modals/EventModal";
 import { EventViewModal } from "@/modals/EventViewModal";
-import { EVENT_TYPES, eventColour, type EventType } from "@/constants";
+import { EVENT_TYPES, type EventType } from "@/constants";
 import {
 	EVENT_SORTS,
 	EVENT_WHEN_FILTERS,
 	applyEventSort,
-	calendarChipMeta,
 	eventRowFields,
 	eventSortOf,
 	matchesEventWhen,
@@ -32,45 +30,46 @@ import {
 import { buildUpcomingRow } from "@/components/UpcomingRow";
 import { registerVaultRefresh } from "@/utils/vaultRefresh";
 import { groupEventsByPeriod } from "@/utils/eventGroups";
-import { formatShortWeekdayDate, todayISO } from "@/utils/flexdate";
-import type { CalendarDay } from "@/utils/calendarGrid";
+import { todayISO } from "@/utils/flexdate";
 import {
-	assignSpanLanes,
-	eventsByDay,
-	monthGrid,
-	spanRun,
-	monthLabel,
-	weekGrid,
-	weekLabel,
-	type SpanRun,
-} from "@/utils/calendarGrid";
-import { splitLeadingEmoji } from "@/utils/emoji";
+	eventBoardItem,
+	planBoardItem,
+	renderCalendarBoard,
+	type BoardState,
+} from "@/components/calendarBoard";
 import { summarisePeople } from "@/utils/nameFormat";
+import {
+	calendarEventColor,
+	categoryColors,
+	groupColorFor,
+} from "@/utils/categoryColor";
+import { CalendarColorsModal } from "@/modals/CalendarColorsModal";
+import {
+	appendDrawer,
+	appendDrawerToggle,
+	type DrawerSection,
+} from "@/components/calendarDrawer";
+import {
+	categoryShown,
+	setCategoryShown,
+	shownByCategory,
+} from "@/utils/eventCategories";
 import { PlanGlanceModal } from "@/modals/PlanGlanceModal";
 import {
-	PLAN_ICON,
-	planDays,
 	planRowFields,
-	planSpanLabel,
 	planWhenDate,
 	plansForEventsPage,
 } from "@/utils/planRow";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
 
-/** Chips a month cell shows before it says "+N more". */
-const CAL_CHIPS = 3;
-/** Dots a narrow cell shows; past four they stop being countable anyway. */
-/** Glyphs a narrow cell can hold — see the measurement in appendCalCell. */
-const CAL_DOTS = 3;
 /**
- * Pane width, in px, below which a month cell can't hold a readable chip.
- * Must match the container query in base.css — the stylesheet decides what
- * is drawn, this decides what a tap does.
+ * Whether the Calendar tab offers a week view. Off for now: it's month
+ * only, with no Month / Week switch. Everything behind the switch — the
+ * week grid, the remembered eventsCalendarMode — is left in place, so
+ * turning this back on is the whole of bringing it back.
  */
-const CAL_NARROW = 620;
-/** Indexed by Date.getDay(), so Sunday leads whatever the week opens on. */
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEK_VIEW = false;
 
 /**
  * One row on the page — an event, or a plan shown among them.
@@ -130,15 +129,6 @@ function planItem(plan: PlanInfo): PageItem {
 	};
 }
 
-/** "8pm", "7:30pm" — compact enough for a chip, where "7:30 PM" wraps. */
-function shortTime(time: string): string {
-	const [h, m] = time.split(":").map(Number);
-	if (Number.isNaN(h)) return time;
-	const period = h < 12 ? "am" : "pm";
-	const hour = h % 12 || 12;
-	return m ? `${hour}:${String(m).padStart(2, "0")}${period}` : `${hour}${period}`;
-}
-
 /**
  * The full page of Events — everything on the calendar, past and future.
  * Each event is a plain row; clicking one opens its view modal.
@@ -179,29 +169,16 @@ export class EventsView extends ItemView {
 	 * way All friends remembers its own.
 	 */
 	private tab: FriendListTab;
-	/** Month or week on the Calendar tab; remembered like the tab itself. */
-	private calMode: CalendarMode;
 	/**
-	 * Which month or week the calendar is showing. Not remembered: paging
-	 * away and coming back to March would be a puzzle, and "today" is the
-	 * only defensible place to open on.
+	 * The Calendar tab's month or week, which of them is showing, and the
+	 * day picked under a narrow month. The mode is remembered like the tab
+	 * itself; the cursor isn't — paging away and coming back to March would
+	 * be a puzzle, and "today" is the only defensible place to open on.
 	 */
-	private calCursor = new Date();
-	/** The day whose events list under a narrow month grid. */
-	/**
-	 * The day whose events are listed under a narrow month grid.
-	 *
-	 * Empty once you page to another month: the day you picked isn't on
-	 * screen any more, so listing its events under a grid that doesn't
-	 * contain it reads as a bug.
-	 */
-	private calSelected = todayISO();
-	/**
-	 * Which line each plan's bar runs on, and the days it covers — built
-	 * with the grid, read by every cell the bar crosses.
-	 */
-	private calLanes = new Map<string, number>();
-	private calSpanDays = new Map<string, string[]>();
+	private cal: BoardState;
+	/** The Calendar tab's drawer. Open for this view only; every page
+	 * open starts with it shut, as on the Calendar page. */
+	private drawerOpen = false;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -209,7 +186,13 @@ export class EventsView extends ItemView {
 		// Off the parameter, not `this.plugin` — parameter properties are
 		// assigned before field initialisers, but not before this line.
 		this.tab = plugin.settings.eventsTab ?? "timeline";
-		this.calMode = plugin.settings.eventsCalendarMode ?? "month";
+		this.cal = {
+			// Month while the week view is off, whatever was remembered — a
+			// saved "week" would otherwise strand the tab with no switch.
+			mode: WEEK_VIEW ? plugin.settings.eventsCalendarMode ?? "month" : "month",
+			cursor: new Date(),
+			selected: todayISO(),
+		};
 	}
 
 	getViewType(): string {
@@ -260,6 +243,17 @@ export class EventsView extends ItemView {
 			type: VIEW_TYPE_EVENTS,
 			focusPath: this.focusPath ?? undefined,
 		};
+	}
+
+	/**
+	 * The Calendar tab back on this month with today picked — where it opens,
+	 * and what a phone lists under the grid. Only redrawn when that tab is
+	 * showing; the others don't read it.
+	 */
+	public goToToday() {
+		this.cal.cursor = new Date();
+		this.cal.selected = todayISO();
+		if (this.tab === "calendar") this.renderContent();
 	}
 
 	async refresh() {
@@ -419,12 +413,6 @@ export class EventsView extends ItemView {
 		return this.plugin.settings.weekStartsOn === 0 ? 0 : 1;
 	}
 
-	/** The column headings, rotated to match. */
-	private weekdayNames(): string[] {
-		const from = this.weekStartsOn();
-		return WEEKDAYS.slice(from).concat(WEEKDAYS.slice(0, from));
-	}
-
 	private pipeline(over: {
 		type?: EventType;
 		personPath?: string;
@@ -556,416 +544,235 @@ export class EventsView extends ItemView {
 	 * and search like every other tab.
 	 */
 	/**
-	 * The Calendar tab: a month or week grid with events in the cells.
-	 *
-	 * Deliberately not an hour grid, which is what a calendar of this shape
-	 * usually is. Every event in Google Calendar has a start and an end;
-	 * Callander's carry a flex date, often no time at all, and "Anytime" is
-	 * a real value. A week of mostly-empty hour rows would assert a
-	 * precision the notes don't have, so a week here is seven day columns.
+	 * The Calendar tab — the shared board (see calendarBoard), fed with
+	 * what's left after the filters.
 	 */
 	private renderCalendar() {
 		const listEl = this.listEl;
 		if (!listEl) return;
 		listEl.empty();
-		const wrap = listEl.createDiv({ cls: "cal" });
-
 		// The calendar navigates time itself, so it reads past the when
-		// filter — but still honours type, person and search.
-		const shown = this.pipeline({ anyWhen: true });
-		// A plan lands on every day it spans, not just the one it starts on —
-		// a weekend away is the whole weekend. Plans go in first so that,
-		// among the untimed, a day's plan leads its events: it's the
-		// container for the day, the same tie the dashboard breaks.
-		const placed = [
-			...shown.filter((i) => i.kind === "plan"),
-			...shown.filter((i) => i.kind === "event"),
-		].flatMap((item): { item: PageItem; day: string }[] =>
-			item.kind === "plan"
-				? planDays(item.plan).map((day) => ({ item, day }))
-				: [{ item, day: item.date }]
+		// filter — but still honours type, person and search, and then the
+		// drawer's own choices: whether plans show, and which categories.
+		const settings = this.plugin.settings;
+		// The colours picked in either calendar's colour settings — shared,
+		// so a category reads the same here as on the Calendar page.
+		const colors = settings.calendarGroupColors;
+		const palette = categoryColors(
+			this.plugin.eventOperations.getEventCategories()
 		);
-		const byDay = new Map(
-			[
-				...eventsByDay(
-					placed,
-					(p) => p.day,
-					(p) => p.item.time
-				),
-			].map(([day, list]) => [day, list.map((p) => p.item)])
-		);
-
-		// A plan keeps one line across every cell it crosses — see
-		// assignSpanLanes.
-		const spans = shown
-			.filter((i) => i.kind === "plan")
-			.map((i) => ({ key: i.file.path, days: planDays(i.plan) }))
-			.filter((s) => s.days.length > 0);
-		this.calLanes = assignSpanLanes(spans);
-		this.calSpanDays = new Map(spans.map((s) => [s.key, s.days]));
-
-		this.appendCalBar(wrap);
-		const days =
-			this.calMode === "month"
-				? monthGrid(this.calCursor, new Date(), this.weekStartsOn())
-				: weekGrid(this.calCursor, new Date(), this.weekStartsOn());
-
-		if (this.calMode === "month") {
-			const head = wrap.createDiv({ cls: "cal-weekdays" });
-			for (const d of this.weekdayNames()) {
-				head.createSpan({ text: d });
+		const items = this.pipeline({ anyWhen: true })
+			.filter((item) =>
+				item.kind === "plan"
+					? settings.eventsCalShowPlans
+					: shownByCategory(
+							item.event.categories,
+							settings.eventsCalHiddenCategories
+					  )
+			)
+			.map((item) => {
+			const people = this.peopleSummary(item);
+			const open = () => this.openItem(item);
+			const row = (el: HTMLElement) => this.renderRow(el, item, true);
+			if (item.kind === "plan") {
+				const plan = planBoardItem(item.plan, people, open, row);
+				if (settings.eventsCalColorByGroup) {
+					plan.colour = groupColorFor("plan", colors);
+				}
+				return plan;
 			}
-		}
-
-		const grid = wrap.createDiv({
-			cls: this.calMode === "month" ? "cal-grid" : "cal-week",
-		});
-		for (const day of days) {
-			this.appendCalCell(grid, day, byDay.get(day.date) ?? []);
-		}
-
-		// Always built, never conditionally: the container query decides
-		// whether it shows, and rebuilding on resize is not something a
-		// stylesheet can ask a view to do.
-		if (this.calMode === "month") this.appendDayAgenda(wrap, byDay);
-	}
-
-	/** Period label on the left, navigation and the month/week pair right. */
-	private appendCalBar(wrap: HTMLElement) {
-		const bar = wrap.createDiv({ cls: "cal-bar" });
-		bar.createSpan({
-			cls: "cal-period",
-			// Abbreviated on a phone, where the bar has four buttons beside
-			// it and a nine-letter month pushed them onto a second row.
-			text:
-				this.calMode === "month"
-					? monthLabel(this.calCursor, this.isNarrow())
-					: weekLabel(
-							this.calCursor,
-							this.weekStartsOn(),
-							this.isNarrow()
-					  ),
-		});
-
-		const nav = bar.createDiv({ cls: "cal-nav" });
-		const step = (by: number) => {
-			const next = new Date(this.calCursor);
-			if (this.calMode === "month") next.setMonth(next.getMonth() + by);
-			else next.setDate(next.getDate() + by * 7);
-			this.calCursor = next;
-			// The day you'd picked is in the month you just left.
-			this.calSelected = "";
-			this.renderContent();
-		};
-		const button = (
-			label: string,
-			aria: string,
-			onClick: () => void
-		): HTMLElement => {
-			const b = nav.createEl("button", {
-				cls: "callander-button cal-nav-button",
-				text: label,
-				attr: { type: "button", "aria-label": aria },
+			const event = eventBoardItem(item.event, people, open, row);
+			event.colour = calendarEventColor(item.event, {
+				byGroup: settings.eventsCalColorByGroup,
+				byCategory: settings.eventsCalUseCategoryColors,
+				byType: settings.eventsCalColorByType,
+				custom: colors,
+				palette,
 			});
-			b.addEventListener("click", onClick);
-			return b;
-		};
-		button("‹", "Previous", () => step(-1));
-		button("Today", "Today", () => {
-			this.calCursor = new Date();
-			this.calSelected = todayISO();
-			this.renderContent();
+			return event;
 		});
-		button("›", "Next", () => step(1));
-
-		const modes = nav.createDiv({ cls: "cal-modes" });
-		for (const mode of ["month", "week"] as CalendarMode[]) {
-			const active = this.calMode === mode;
-			const b = modes.createEl("button", {
-				cls: `callander-button cal-mode${active ? " is-active" : ""}`,
-				text: mode === "month" ? "Month" : "Week",
-				attr: { type: "button", "aria-pressed": String(active) },
-			});
-			b.addEventListener("click", () => {
-				if (this.calMode === mode) return;
-				this.calMode = mode;
-				this.renderContent();
+		renderCalendarBoard(listEl, {
+			state: this.cal,
+			items,
+			weekStartsOn: this.weekStartsOn(),
+			rerender: () => this.renderContent(),
+			onModeChange: (mode) => {
 				this.plugin.settings.eventsCalendarMode = mode;
 				void this.plugin.saveSettings();
-			});
-		}
-	}
-
-	private appendCalCell(
-		grid: HTMLElement,
-		day: CalendarDay,
-		events: PageItem[]
-	) {
-		const cls = ["cal-cell"];
-		if (!day.inMonth) cls.push("is-outside");
-		if (day.isToday) cls.push("is-today");
-		if (day.date === this.calSelected) cls.push("is-selected");
-		const cell = grid.createDiv({ cls: cls.join(" ") });
-
-		const head = cell.createDiv({ cls: "cal-cell-head" });
-		head.createSpan({ cls: "cal-daynum", text: String(day.day) });
-		if (this.calMode === "week") {
-			head.createSpan({
-				cls: "cal-dow",
-				text: WEEKDAYS[new Date(day.date + "T00:00:00").getDay()],
-			});
-		}
-
-		// Plans lead, each held to its own lane so a bar crossing several
-		// days stays on one line. A lane whose plan doesn't reach this day
-		// gets an empty slot rather than letting the ones below it rise.
-		const plans = events.filter((e) => e.kind === "plan");
-		const rest = events.filter((e) => e.kind !== "plan");
-		const laneOf = (item: PageItem) =>
-			this.calLanes.get(item.file.path) ?? 0;
-		const lanes =
-			plans.length === 0 ? 0 : Math.max(...plans.map(laneOf)) + 1;
-		for (let lane = 0; lane < lanes; lane++) {
-			const held = plans.find((p) => laneOf(p) === lane);
-			const run = held
-				? spanRun(
-						this.calSpanDays.get(held.file.path) ?? [],
-						day.date,
-						this.weekStartsOn()
-				  )
-				: null;
-			// The bar is drawn once per row, by the cell that opens the run,
-			// and spans the columns it covers — so its title reads across the
-			// whole thing rather than truncating inside the first square.
-			// Every other cell of the run holds an empty slot instead.
-			if (held && run?.opens) this.appendCalChip(cell, held, run);
-			else {
-				const slot = cell.createDiv({
-					cls: "cal-chip is-stacked cal-span-spacer",
-				});
-				slot.createDiv({ cls: "cal-chip-name", text: "\u00a0" });
-				slot.createDiv({ cls: "cal-chip-meta", text: "\u00a0" });
-			}
-		}
-
-		// Chips on a wide pane; the dots below are what a narrow one shows.
-		const room = Math.max(0, CAL_CHIPS - lanes);
-		for (const event of rest.slice(0, room)) {
-			this.appendCalChip(cell, event);
-		}
-		if (rest.length > room) {
-			cell.createDiv({
-				cls: "cal-more",
-				text: `+${rest.length - room} more`,
-			});
-		}
-		// What a narrow pane shows in place of the chips. An emoji says what
-		// kind of thing is on that day where a coloured dot only says
-		// "something is" — at roughly 46px a column there's room for a
-		// glyph and none for a word, so it's the most a cell can carry.
-		//
-		// A cancelled event is left out of it entirely: a glyph can't be
-		// faded into meaning "not happening" at that size, and one of three
-		// slots is too much to spend saying a thing is off. It's still in
-		// the day's list underneath, which is where it can say so.
-		const live = events.filter((e) => e.status !== "cancelled");
-		if (live.length > 0) {
-			const dots = cell.createDiv({ cls: "cal-dots" });
-			// Measured against a padded phone column of ~46px: a glyph is
-			// 11px and a "+N" is 12.
-			// Three glyphs fit; three and a count do not. So a quiet day
-			// shows all three and a busy one trades the third for the count,
-			// which is the only arrangement that always fits and always
-			// tells the truth about how much is there.
-			const room = live.length <= CAL_DOTS ? CAL_DOTS : CAL_DOTS - 1;
-			for (const event of live.slice(0, room)) {
-				const glyph = this.eventGlyph(event);
-				if (glyph) {
-					dots.createSpan({ cls: "cal-glyph", text: glyph });
-					continue;
-				}
-				// An untyped event with no emoji of its own still has to
-				// register — the dot is what it falls back to.
-				const dot = dots.createSpan({ cls: "cal-dot" });
-				dot.style.backgroundColor = this.itemColour(event);
-			}
-			if (live.length > room) {
-				dots.createSpan({
-					cls: "cal-glyph-more",
-					text: `+${live.length - room}`,
-				});
-			}
-		}
-
-		// Empty space in a cell adds an event on that day. The chips stop
-		// their own clicks, so this only fires where nothing was hit.
-		cell.addEventListener("click", () => {
-			// A narrow week is already every day stacked with its events
-			// under it — there is no agenda to point at, so picking a day
-			// would redraw the same screen and highlight one row of it for
-			// no reason.
-			if (this.isNarrow() && this.calMode === "week") return;
-			this.calSelected = day.date;
-			// On a narrow pane a tap picks the day rather than opening a
-			// modal — the day's events are what you're reaching for, and
-			// they're right underneath.
-			if (this.isNarrow()) this.renderContent();
-			else this.openEditor({ date: day.date });
+			},
+			onAdd: (date) => this.openEditor({ date }),
+			showModes: WEEK_VIEW,
+			wrapNames: settings.eventsCalWrapNames,
+			hideDateTime: settings.eventsCalHideDateTime,
+			narrowNames: settings.eventsCalNarrowNames,
+			colorBackgrounds: settings.eventsCalColorBackgrounds,
+			fadePastEvents: settings.eventsCalFadePastEvents,
+			lead: (title) =>
+				appendDrawerToggle(title, this.drawerOpen, () => {
+					this.drawerOpen = !this.drawerOpen;
+					this.renderContent();
+				}),
+			// The Calendar page's layout: the drawer beside the grid, under
+			// the bar, so the ☰ that opened it stays put.
+			body: (wrap) => {
+				const body = wrap.createDiv({ cls: "fullcal-body" });
+				if (this.drawerOpen) appendDrawer(body, this.drawerSections());
+				return body.createDiv({ cls: "fullcal-main" });
+			},
 		});
 	}
 
 	/**
-	 * One event in a calendar square, over two lines.
-	 *
-	 * The name gets a line to itself, the way the B'day Calendar gives a
-	 * person theirs: on one line the icon and the time ate the front of it
-	 * and every chip in a busy week truncated to the same few characters.
-	 *
-	 * An emoji the name already leads with stands in for the type icon —
-	 * somebody who typed one chose it for this event, where the type emoji
-	 * is the same on every hangout. It moves to the meta line so the name
-	 * reads as words and the icon stays in one place down the column.
+	 * The Calendar tab's drawer — the Calendar page's, less its Calendars
+	 * section (this page is events, and plans have their own tick here):
+	 * the categories to show, and how the month grid draws. Its choices are
+	 * this tab's own, remembered apart from the Calendar page's.
 	 */
-	/**
-	 * The one character that stands for an event: its own leading emoji if
-	 * it has one, else its type's. Shared by the chip and the narrow grid so
-	 * the same event reads the same at both widths.
-	 */
-	private eventGlyph(event: PageItem): string | undefined {
-		return (
-			splitLeadingEmoji(event.name)?.emoji ??
-			(event.kind === "plan"
-				? PLAN_ICON
-				: EVENT_TYPES.find((t) => t.id === event.type)?.emoji)
-		);
-	}
-
-	private appendCalChip(cell: HTMLElement, event: PageItem, run?: SpanRun) {
-		// A plan covering more than a day draws as a bar across them rather
-		// than as the same chip repeated in each square.
-		const days = this.calSpanDays.get(event.file.path) ?? [];
-		const span = run && run.length + (run.continues ? 1 : 0) > 1;
-
-		const cls = ["cal-chip", "is-stacked"];
-		// Still on the calendar, because a day you'd kept free is worth
-		// seeing — just faded, so it doesn't read as something happening.
-		if (event.status === "cancelled") cls.push("is-cancelled");
-		if (span) {
-			cls.push("is-span");
-			// Squared off where the bar carries on into the next row, so the
-			// week break doesn't read as the end of the trip.
-			if (run.continues) cls.push("is-span-open-end");
-		}
-		const chip = cell.createDiv({ cls: cls.join(" ") });
-		chip.style.setProperty("--cal-chip", this.itemColour(event));
-		if (span) {
-			chip.style.setProperty("--span-cols", String(run.length));
-			// A plan crossing a week boundary draws a separate bar on the
-			// row below — same plan, two DOM elements with no relationship
-			// CSS :hover can see on its own. Hovering either links both by
-			// toggling a class across every bar that shares this file path.
-			chip.dataset.planPath = event.file.path;
-			const setLinked = (on: boolean) => {
-				const root = cell.closest(".cal");
-				if (!root) return;
-				root
-					.querySelectorAll<HTMLElement>(".cal-chip.is-span")
-					.forEach((el) => {
-						if (el.dataset.planPath === event.file.path) {
-							// classList.toggle rather than Obsidian's own
-							// toggleClass: el came back from a plain
-							// querySelectorAll rather than createDiv/createEl,
-							// so this sticks to the one API guaranteed to work
-							// on it regardless of what patched what.
-							el.classList.toggle("is-plan-hover", on);
-						}
-					});
-			};
-			chip.addEventListener("mouseenter", () => setLinked(true));
-			chip.addEventListener("mouseleave", () => setLinked(false));
-		}
-
-		const own = splitLeadingEmoji(event.name);
-		chip.createDiv({
-			cls: "cal-chip-name",
-			text: own ? own.rest : event.name,
-		});
-
-		// Second line: the glyph, and then what places the thing in time —
-		// an event's start time, or the days a plan runs across. A bar broken
-		// over a week boundary carries the whole span on both halves.
-		//
-		// A cancelled event keeps its name and nothing else: what kind of
-		// thing it was and what time it would have started are details of an
-		// evening that isn't happening.
-		const meta =
-			event.status === "cancelled"
-				? ""
-				: calendarChipMeta(
-						this.eventGlyph(event),
-						span
-							? planSpanLabel(days)
-							: event.time
-							? shortTime(event.time)
-							: "",
-						// Whose evening it is, the same summarised roster the
-						// rows show. A plan's line is already spoken for by
-						// the days it runs across.
-						span ? "" : this.peopleSummary(event)
-				  );
-		if (meta) chip.createDiv({ cls: "cal-chip-meta", text: meta });
-
-		chip.addEventListener("click", (e) => {
-			e.stopPropagation();
-			this.openItem(event);
-		});
-	}
-
-	/**
-	 * The selected day's events, listed under a narrow month grid.
-	 *
-	 * Seven columns of chips don't fit a phone, so the grid keeps its shape
-	 * and drops to dots while the detail moves here — the same answer Google
-	 * Calendar, Apple and Fantastical all arrive at.
-	 */
-	private appendDayAgenda(wrap: HTMLElement, byDay: Map<string, PageItem[]>) {
-		const agenda = wrap.createDiv({ cls: "cal-agenda" });
-		// Nothing picked in this month yet — say so rather than showing a
-		// day from the one before it.
-		if (!this.calSelected) {
-			agenda.createDiv({
-				cls: "section-helper-text",
-				text: "Pick a day to see what's on.",
+	private drawerSections(): DrawerSection[] {
+		const settings = this.plugin.settings;
+		const apply = () => {
+			this.renderContent();
+			void this.plugin.saveSettings();
+		};
+		const display: DrawerSection["options"] = [
+			{
+				label: "Wrap event names",
+				checked: settings.eventsCalWrapNames,
+				onChange: (checked) => {
+					settings.eventsCalWrapNames = checked;
+					apply();
+				},
+			},
+			{
+				label: "Show second line",
+				checked: !settings.eventsCalHideDateTime,
+				onChange: (checked) => {
+					settings.eventsCalHideDateTime = !checked;
+					apply();
+				},
+			},
+			// Asked as "emojis", checked by default, but stored as the
+			// names-instead-of-emoji flag it always was: saved choices
+			// carry over.
+			{
+				label: "Emojis on mobile",
+				checked: !settings.eventsCalNarrowNames,
+				onChange: (checked) => {
+					settings.eventsCalNarrowNames = !checked;
+					apply();
+				},
+			},
+			{
+				label: "Fade past events",
+				checked: settings.eventsCalFadePastEvents,
+				onChange: (checked) => {
+					settings.eventsCalFadePastEvents = checked;
+					apply();
+				},
+			},
+		];
+		// Only while plans are on this page at all — with the setting off
+		// there are none here to show or hide.
+		if (settings.eventsShowPlans) {
+			display.push({
+				label: "Show plans",
+				checked: settings.eventsCalShowPlans,
+				onChange: (checked) => {
+					settings.eventsCalShowPlans = checked;
+					apply();
+				},
 			});
-			return;
 		}
-		const day = new Date(this.calSelected + "T00:00:00");
-		const head = agenda.createDiv({ cls: "cal-agenda-head" });
-		head.createSpan({ text: formatShortWeekdayDate(day) });
-		const add = head.createEl("button", {
-			cls: "callander-button cal-agenda-add",
-			text: "+ Add",
-			attr: { type: "button" },
-		});
-		add.addEventListener("click", () =>
-			this.openEditor({ date: this.calSelected })
-		);
-
-		const events = byDay.get(this.calSelected) ?? [];
-		if (events.length === 0) {
-			agenda.createDiv({
-				cls: "section-helper-text",
-				text: "Nothing on this day",
-			});
-			return;
-		}
-		for (const event of events) this.renderRow(agenda, event);
-	}
-
-	/** Whether the pane is too narrow for chips — matches the CSS breakpoint. */
-	private isNarrow(): boolean {
-		const el = this.containerEl.children[1] as HTMLElement;
-		return el.clientWidth > 0 && el.clientWidth <= CAL_NARROW;
+		const colors: DrawerSection["options"] = [
+			{
+				label: "Color backgrounds",
+				checked: settings.eventsCalColorBackgrounds,
+				onChange: (checked) => {
+					settings.eventsCalColorBackgrounds = checked;
+					apply();
+				},
+			},
+			{
+				label: "Color by category",
+				checked: settings.eventsCalUseCategoryColors,
+				onChange: (checked) => {
+					settings.eventsCalUseCategoryColors = checked;
+					apply();
+				},
+				action: {
+					label: "Choose category colors",
+					onClick: () =>
+						new CalendarColorsModal(
+							this.app,
+							this.plugin,
+							"categories",
+							this.plugin.eventOperations.getEventCategories()
+						).open(),
+				},
+			},
+			{
+				label: "Color by type",
+				checked: settings.eventsCalColorByType,
+				onChange: (checked) => {
+					settings.eventsCalColorByType = checked;
+					apply();
+				},
+				action: {
+					label: "Choose type colors",
+					onClick: () =>
+						new CalendarColorsModal(
+							this.app,
+							this.plugin,
+							"types",
+							[],
+							false
+						).open(),
+				},
+			},
+			{
+				label: "Color by group",
+				checked: settings.eventsCalColorByGroup,
+				onChange: (checked) => {
+					settings.eventsCalColorByGroup = checked;
+					apply();
+				},
+				action: {
+					label: "Choose group colors",
+					onClick: () =>
+						new CalendarColorsModal(
+							this.app,
+							this.plugin,
+							"kinds",
+							[],
+							false
+						).open(),
+				},
+			},
+		];
+		return [
+			{
+				heading: "Category",
+				options: this.plugin.eventOperations
+					.getEventCategories()
+					.map((category) => ({
+						label: category,
+						checked: categoryShown(
+							settings.eventsCalHiddenCategories,
+							category
+						),
+						onChange: (checked) => {
+							settings.eventsCalHiddenCategories = setCategoryShown(
+								settings.eventsCalHiddenCategories,
+								category,
+								checked
+							);
+							apply();
+						},
+					})),
+			},
+			{ heading: "Display", options: display },
+			{ heading: "Colors", options: colors },
+		];
 	}
 
 	private renderFilterRow(container: HTMLElement) {
@@ -1294,13 +1101,23 @@ export class EventsView extends ItemView {
 		return "Nothing matches these filters.";
 	}
 
-	private renderRow(container: HTMLElement, event: PageItem) {
+	private renderRow(
+		container: HTMLElement,
+		event: PageItem,
+		/** In the calendar's day list, under a heading that already names
+		 * the day — an event's date there would only repeat it. A plan
+		 * keeps its own: it may have started days before the one picked. */
+		inDayList = false
+	) {
 		const now = new Date();
 		const people = this.peopleSummary(event);
 		const fields =
 			event.kind === "plan"
 				? planRowFields(event.plan, now, people)
-				: eventRowFields(event.event, now, people);
+				: {
+						...eventRowFields(event.event, now, people),
+						...(inDayList ? { date: "" } : {}),
+				  };
 		const row = buildUpcomingRow(container, {
 			...fields,
 			// The "past" emphasis earns its keep on the dashboard, where a
@@ -1338,14 +1155,6 @@ export class EventsView extends ItemView {
 					hidden
 				)
 		).open();
-	}
-
-	/** A plan has no type to take a colour from, so it borrows the accent —
-	 * it's the one thing on the grid that isn't an event. */
-	private itemColour(item: PageItem): string {
-		return item.kind === "plan"
-			? "var(--interactive-accent)"
-			: eventColour(item.type);
 	}
 
 	private openViewModal(event: EventInfo) {

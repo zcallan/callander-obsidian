@@ -1,11 +1,10 @@
-import { Notice, TFile, TFolder, normalizePath, parseYaml } from "obsidian";
+import { Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type FriendTracker from "@/main";
 import type {
 	ContactWithCountdown,
 	Draft,
 	Expense,
 	GroupInfo,
-	Quote,
 	Idea,
 } from "@/types";
 import { expensesOf } from "@/utils/expenseMath";
@@ -27,24 +26,6 @@ import {
 	parseIdeasSection,
 	upsertIdeasSection,
 } from "@/utils/ideasMarkdown";
-import {
-	parseQuotesSection,
-	upsertQuotesSection,
-} from "@/utils/quotesMarkdown";
-
-/** Quotes still sitting in a note's frontmatter, pre-migration. */
-function quotesFromFrontmatter(metadata: unknown): Quote[] {
-	return asArray(fieldOf(metadata, "quotes"))
-		.map((q): Quote => {
-			if (typeof q === "string") return { text: q };
-			const context = fieldOf(q, "context");
-			return {
-				text: toText(fieldOf(q, "text")),
-				...(context ? { context: toText(context) } : {}),
-			};
-		})
-		.filter((q) => q.text.length > 0);
-}
 
 /** Where the inbox lived before it became the dashboard file's properties. */
 const LEGACY_INBOX_BASENAME = "Idea Inbox";
@@ -215,6 +196,19 @@ export class ContactOperations {
 				const drafts = ContactOperations.draftsOf(fm);
 				if (index >= 0 && index < drafts.length) {
 					drafts.splice(index, 1);
+				}
+				if (drafts.length > 0) fm.drafts = drafts;
+				else delete fm.drafts;
+			}
+		);
+	}
+
+	/** Edit a draft's text in place, leaving its date and created stamp. */
+	async updateDraft(file: TFile, index: number, text: string): Promise<void> {
+		await this.writeFrontMatter(file, (fm) => {
+				const drafts = ContactOperations.draftsOf(fm);
+				if (index >= 0 && index < drafts.length) {
+					drafts[index] = { ...drafts[index], text };
 				}
 				if (drafts.length > 0) fm.drafts = drafts;
 				else delete fm.drafts;
@@ -667,104 +661,6 @@ export class ContactOperations {
 				fm.birthdayWished = occurrence;
 			}
 		);
-	}
-
-	// ---- Merge duplicates ----
-
-	/** Merge `duplicate` into `keep`: fill gaps, concat lists, append body, trash duplicate */
-	async mergeFriends(keep: TFile, duplicate: TFile): Promise<void> {
-		const display = this.groupDisplayNames();
-		const dupMeta = await this.readFrontmatter(duplicate);
-		const dupContent = await this.app.vault.read(duplicate);
-		const dupBodyRaw = splitFrontmatter(dupContent).body;
-
-		// Body-stored lists have to be merged as data, not appended as text
-		// — pasting the duplicate's body wholesale would leave the kept
-		// friend with two `## Ideas` headings.
-		const dupIdeas =
-			parseIdeasSection(dupBodyRaw) ??
-			ContactOperations.ideasOf(dupMeta);
-		const dupQuotes =
-			parseQuotesSection(dupBodyRaw) ?? quotesFromFrontmatter(dupMeta);
-		// Whatever's left once the sections we own are lifted out — the
-		// user's own prose, which still gets appended.
-		const dupBody = upsertQuotesSection(
-			upsertIdeasSection(dupBodyRaw, []),
-			[]
-		).trim();
-
-		await this.writeFrontMatter(keep, (fm) => {
-				// Fill scalar gaps only — the kept friend always wins conflicts
-				for (const [key, value] of Object.entries(dupMeta)) {
-					if (
-						value != null &&
-						value !== "" &&
-						!Array.isArray(value) &&
-						(fm[key] == null || fm[key] === "") &&
-						key !== "name"
-					) {
-						fm[key] = value;
-					}
-				}
-				delete fm.ideas;
-				delete fm.giftIdeas;
-				delete fm.quotes;
-				delete fm.interactions;
-				const groups = [
-					...ContactOperations.groupsOf(fm),
-					...ContactOperations.groupsOf(dupMeta),
-				];
-				if (groups.length > 0) {
-					fm.groups = [...new Set(groups)].map((g) =>
-						ContactOperations.groupLink(g, display.get(g))
-					);
-				}
-				if (dupMeta.notes) {
-					fm.notes = fm.notes
-						? `${toText(fm.notes)}\n\n${toText(dupMeta.notes)}`
-						: dupMeta.notes;
-				}
-			}
-		);
-
-		// Read the kept friend's own lists before the frontmatter keys were
-		// dropped above, so nothing is lost in the handover.
-		const keepIdeas =
-			parseIdeasSection(splitFrontmatter(await this.app.vault.read(keep)).body) ??
-			ContactOperations.ideasOf(await this.readFrontmatter(keep));
-		const keepQuotes =
-			parseQuotesSection(splitFrontmatter(await this.app.vault.read(keep)).body) ??
-			[];
-
-		await this.app.vault.process(keep, (content) => {
-			const { frontmatter, body } = splitFrontmatter(content);
-			let next = upsertIdeasSection(body, [...keepIdeas, ...dupIdeas]);
-			next = upsertQuotesSection(next, [...keepQuotes, ...dupQuotes]);
-			if (dupBody) {
-				next = `${next.replace(/\s*$/, "")}\n\n${dupBody}\n`;
-			}
-			return joinFrontmatter(frontmatter, next);
-		});
-
-		// Events link to people rather than living inside them — repoint
-		// the duplicate's links at the kept friend before it goes.
-		await this.plugin.eventOperations.retargetPerson(duplicate, keep);
-
-		await this.app.fileManager.trashFile(duplicate);
-	}
-
-	private async readFrontmatter(
-		file: TFile
-	): Promise<Record<string, unknown>> {
-		try {
-			const content = await this.app.vault.read(file);
-			const match = content.match(/^---\n([\s\S]*?)\n---/);
-			if (!match) return {};
-			const parsed: unknown = parseYaml(match[1]);
-			return isRecord(parsed) ? parsed : {};
-		} catch {
-			return {};
-		}
 	}
 
 	/**

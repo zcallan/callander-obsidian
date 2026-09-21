@@ -1,4 +1,5 @@
 import { TFile, TFolder, normalizePath } from "obsidian";
+import { normalizeHex } from "@/utils/contrastColor";
 import type FriendTracker from "@/main";
 import type { EventInfo } from "@/types";
 import type { EventType } from "@/constants";
@@ -12,8 +13,8 @@ import {
 	upsertSection,
 	splitFrontmatter,
 	joinFrontmatter,
-	type SectionSpec,
 } from "@/utils/markdownSection";
+import { EVENTS_SECTION, ownsEventLine } from "@/utils/eventsSection";
 
 /** The editable fields of an event — used for both create and update. */
 export interface EventFields {
@@ -43,6 +44,12 @@ export interface EventFields {
 	 * that names people without being a record about them.
 	 */
 	showOnTimelines?: boolean;
+	/**
+	 * Free-form labels — "Celtics", "Sports" — for finding a batch of
+	 * events together. Left untouched when absent, so a write that doesn't
+	 * know about categories can't wipe the ones already there.
+	 */
+	categories?: string[];
 }
 
 /**
@@ -91,19 +98,6 @@ export function eventTypeOf(value: string): EventType | "" {
 		: "";
 }
 
-/**
- * The person page's generated Events section: a chronological list of
- * wikilinks to the event files that mention this person. Present only
- * while they have events — upsertSection removes an emptied section.
- */
-const EVENTS_SECTION: SectionSpec = {
-	heading: "## Events",
-	matches: /^##\s+Events\s*$/i,
-	// The section owns no subheadings, so any heading safely closes it.
-	closes: /^#{1,6}\s/,
-};
-const ownsEventLine = (line: string) =>
-	/^-\s+\[\[[^\]]+\]\]\s*$/.test(line.trim());
 
 /**
  * Events: one markdown note per event in an Events/ folder. The single
@@ -159,7 +153,30 @@ export class EventOperations {
 			created: str("created"),
 			updated: str("updated"),
 			generated: isGenerated(fieldOf(fm, GENERATED_KEY)),
+			categories: asArray(fieldOf(fm, "categories"))
+				.map((c) => toText(c).trim())
+				.filter(Boolean),
+			// Only a real hex is taken: this goes straight into a style.
+			color: normalizeHex(str("color")) ?? "",
 		};
+	}
+
+	/**
+	 * Every category used on any event, once each and alphabetical — what a
+	 * category picker offers for reuse. Case-insensitive, first spelling
+	 * wins, the way the picker matches a new name against these.
+	 */
+	getEventCategories(): string[] {
+		const seen = new Map<string, string>();
+		for (const e of this.getEvents()) {
+			for (const c of e.categories) {
+				const key = c.toLowerCase();
+				if (!seen.has(key)) seen.set(key, c);
+			}
+		}
+		return [...seen.values()].sort((a, b) =>
+			a.localeCompare(b, undefined, { sensitivity: "base" })
+		);
 	}
 
 	/** All events, straight from the metadata cache — zero file I/O. */
@@ -332,6 +349,14 @@ export class EventOperations {
 				} else {
 					delete fm.showOnTimelines;
 				}
+				// Only when given — see EventFields.categories.
+				if (fields.categories !== undefined) {
+					if (fields.categories.length > 0) {
+						fm.categories = fields.categories;
+					} else {
+						delete fm.categories;
+					}
+				}
 				delete fm.hideFromDashboard;
 				fm.updated = todayISO();
 			}
@@ -389,6 +414,20 @@ export class EventOperations {
 			file,
 			(fm: Record<string, unknown>) => {
 				fm.status = status;
+				fm.updated = todayISO();
+			}
+		);
+	}
+
+	/** The event's own calendar colour, "#rrggbb" — or "" to clear it and
+	 * go back to its type's (or "Color by group"'s). */
+	async setColor(file: TFile, color: string): Promise<void> {
+		const hex = color ? normalizeHex(color) : null;
+		await this.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				if (hex) fm.color = hex;
+				else delete fm.color;
 				fm.updated = todayISO();
 			}
 		);
@@ -487,42 +526,6 @@ export class EventOperations {
 					fm.source = newPath;
 				}
 			);
-		}
-	}
-
-	/**
-	 * Point every event linking to `from` at `to` instead — merging two
-	 * duplicate friends into one. Links already carrying `to` dedupe.
-	 */
-	async retargetPerson(from: TFile, to: TFile): Promise<void> {
-		const touched: string[] = [];
-		for (const e of this.getEvents()) {
-			if (!this.peoplePaths(e).includes(from.path)) continue;
-			await this.app.fileManager.processFrontMatter(
-				e.file,
-				(fm: Record<string, unknown>) => {
-					const links = asArray(fm.people).map(String);
-					const next = links.map((raw) => {
-						const linktext = raw
-							.replace(/^\[\[|\]\]$/g, "")
-							.split("|")[0]
-							.trim();
-						const dest =
-							this.app.metadataCache.getFirstLinkpathDest(
-								linktext,
-								e.file.path
-							);
-						return dest?.path === from.path
-							? `[[${to.basename}]]`
-							: raw;
-					});
-					fm.people = [...new Set(next)];
-				}
-			);
-			touched.push(e.file.path);
-		}
-		if (touched.length > 0) {
-			await this.refreshPersonSections([from.path, to.path]);
 		}
 	}
 

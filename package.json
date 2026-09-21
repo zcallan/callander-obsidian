@@ -34,6 +34,7 @@
 		"yaml": "^2.9.0"
 	},
 	"dependencies": {
-		"preact": "^10.29.8"
+		"preact": "^10.29.8",
+		"vanilla-colorful": "^0.7.2"
 	}
 }

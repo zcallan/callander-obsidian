@@ -68,9 +68,11 @@ export class ExpenseModal extends FormModal {
 		private onSubmit: (cost: Expense) => Promise<void>,
 		private onDelete?: () => Promise<void>,
 		private defaultParticipant?: string,
-		/** Pre-filled tax/tip % when those boxes are first ticked. */
-		private taxDefault = 6.25,
-		private tipDefault = 20,
+		/** Pre-filled tax/tip % when those boxes are first ticked; null when
+		 * the setting has that add-on switched off, which hides its row
+		 * unless the expense already carries one. */
+		private taxDefault: number | null = 6.25,
+		private tipDefault: number | null = 20,
 		/** Set to show a People field and take participants from it. */
 		private peopleSource?: ExpensePeopleSource,
 		/** Starting values for a new expense — see ExpensePrefill. */
@@ -746,22 +748,29 @@ export class ExpenseModal extends FormModal {
 					});
 				};
 
-				addOn(
-					"Add sales tax?",
-					() => this.tax,
-					(v) => {
-						this.tax = v;
-					},
-					this.taxDefault
-				);
-				addOn(
-					"Add tip?",
-					() => this.tip,
-					(v) => {
-						this.tip = v;
-					},
-					this.tipDefault
-				);
+				// Switched off in settings, an add-on's row isn't offered — but
+				// one this expense already has stays, so it can be seen and
+				// taken off rather than silently kept in the maths.
+				if (this.taxDefault !== null || this.tax !== null) {
+					addOn(
+						"Add sales tax?",
+						() => this.tax,
+						(v) => {
+							this.tax = v;
+						},
+						this.taxDefault ?? 0
+					);
+				}
+				if (this.tipDefault !== null || this.tip !== null) {
+					addOn(
+						"Add tip?",
+						() => this.tip,
+						(v) => {
+							this.tip = v;
+						},
+						this.tipDefault ?? 0
+					);
+				}
 			}
 
 			if (isPercent) {

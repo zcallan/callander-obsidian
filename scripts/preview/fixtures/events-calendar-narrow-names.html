@@ -1,0 +1,46 @@
+<!--
+  The Calendar page at phone width, with "Show names on mobile" on.
+
+  Seven columns into 375px leaves roughly 46px a cell — room for a glyph and
+  none for a word — so a narrow cell shows each event's emoji instead of the
+  chip, and the selected day's events list underneath.
+
+  Worth checking: three glyphs, or two and a "+N", must fit on one row
+  without pushing the grid taller. Those are the two arrangements the view
+  produces — measured against a ~46px column, three plus a count does not
+  fit, so a busy day trades its third glyph for the count.
+-->
+<div class="cal is-narrow-names" style="max-width:334px">
+	<!-- The bar is the tight one: a nine-letter month beside four buttons.
+	     It abbreviates on a narrow pane, and the label ellipses rather than
+	     letting the buttons wrap to a second row. -->
+	<div class="cal-bar">
+		<span class="cal-period">Sep 2026</span>
+		<div class="cal-nav">
+			<button class="callander-button cal-nav-button">‹</button>
+			<button class="callander-button cal-nav-button">Today</button>
+			<button class="callander-button cal-nav-button">›</button>
+			<div class="cal-modes">
+				<button class="callander-button cal-mode is-active">Month</button>
+				<button class="callander-button cal-mode">Week</button>
+			</div>
+		</div>
+	</div>
+	<div class="cal-weekdays"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+	<div class="cal-grid">
+		<div class="cal-cell is-outside"><div class="cal-cell-head"><span class="cal-daynum">31</span></div></div>
+		<div class="cal-cell"><div class="cal-cell-head"><span class="cal-daynum">1</span></div></div>
+		<div class="cal-cell"><div class="cal-cell-head"><span class="cal-daynum">2</span></div>
+			<div class="cal-dots"><span class="cal-glyph">🎸</span></div><div class="cal-names is-name-wrap"><div class="cal-name" style="--cal-chip:#5a9cf8"><div class="cal-name-text">Dinner at Neptune Oyster</div><div class="cal-name-meta">🤝 7:30pm</div></div><div class="cal-name" style="--cal-chip:#dcc22e"><div class="cal-name-text">Movie night</div><div class="cal-name-meta">🍿 Sally, Haruki</div></div></div></div>
+		<div class="cal-cell is-today"><div class="cal-cell-head"><span class="cal-daynum">3</span></div>
+			<div class="cal-dots"><span class="cal-glyph">🍿</span><span class="cal-glyph">🥾</span><span class="cal-glyph">🎸</span></div><div class="cal-names is-name-wrap"><div class="cal-name" style="--cal-chip:#5a9cf8"><div class="cal-name-text">Dinner at Neptune Oyster</div><div class="cal-name-meta">🤝 7:30pm</div></div><div class="cal-name" style="--cal-chip:#dcc22e"><div class="cal-name-text">Movie night</div><div class="cal-name-meta">🍿 Sally, Haruki</div></div></div></div>
+		<div class="cal-cell"><div class="cal-cell-head"><span class="cal-daynum">4</span></div>
+			<div class="cal-dots"><span class="cal-glyph">🎉</span><span class="cal-glyph">🏀</span><span class="cal-glyph-more">+3</span></div><div class="cal-names is-name-wrap"><div class="cal-name" style="--cal-chip:#5a9cf8"><div class="cal-name-text">Dinner at Neptune Oyster</div><div class="cal-name-meta">🤝 7:30pm</div></div><div class="cal-name" style="--cal-chip:#dcc22e"><div class="cal-name-text">Movie night</div><div class="cal-name-meta">🍿 Sally, Haruki</div></div></div></div>
+		<div class="cal-cell is-selected"><div class="cal-cell-head"><span class="cal-daynum">5</span></div>
+			<div class="cal-dots"><span class="cal-dot" style="background:#8f9aa5"></span></div><div class="cal-names is-name-wrap"><div class="cal-name" style="--cal-chip:#5a9cf8"><div class="cal-name-text">Dinner at Neptune Oyster</div><div class="cal-name-meta">🤝 7:30pm</div></div><div class="cal-name" style="--cal-chip:#dcc22e"><div class="cal-name-text">Movie night</div><div class="cal-name-meta">🍿 Sally, Haruki</div></div></div></div>
+		<div class="cal-cell"><div class="cal-cell-head"><span class="cal-daynum">6</span></div></div>
+	</div>
+	<div class="cal-agenda">
+		<div class="cal-agenda-head">Saturday 5 September</div>
+	</div>
+</div>

@@ -198,45 +198,6 @@ export async function run() {
 		);
 	}
 
-	// ---------- merging two friends ----------
-	{
-		const t = await createTestVault();
-		const keep = await t.addPerson(
-			"Ada Fenwick",
-			{ birthday: "1994-07-26" },
-			'## Quotes\n\n- "Keep quote"\n\n## Ideas\n\n### 🎁 Gifts\n\n- [ ] Keep idea\n'
-		);
-		const dupe = await t.addPerson(
-			"Ada F",
-			{ hometown: "Carver" },
-			'## Quotes\n\n- "Dupe quote"\n\n## Ideas\n\n### 📍 Places\n\n- [ ] Dupe idea\n\n## Notes Of Mine\n\nUser prose.\n'
-		);
-
-		await t.contacts.mergeFriends(keep, dupe);
-		const body = t.bodyOf(keep);
-
-		eq("exactly one Ideas heading survives", (body.match(/## Ideas/g) || []).length, 1);
-		eq("exactly one Quotes heading survives", (body.match(/## Quotes/g) || []).length, 1);
-		eq(
-			"both friends' ideas are merged",
-			(await t.contacts.readIdeas(keep)).map((i) => i.text).sort(),
-			["Dupe idea", "Keep idea"]
-		);
-		ok("both quotes survive", body.includes("Keep quote") && body.includes("Dupe quote"));
-		ok("the duplicate's own prose is appended", body.includes("User prose."));
-		eq(
-			"scalar gaps are filled from the duplicate",
-			t.frontmatterOf(keep).hometown,
-			"Carver"
-		);
-		eq(
-			"the kept friend wins conflicts",
-			t.frontmatterOf(keep).birthday,
-			"1994-07-26"
-		);
-		ok("the duplicate file is trashed", !t.app.vault.getAbstractFileByPath(dupe.path));
-	}
-
 	// ---------- getContacts reads through to ideas in the body ----------
 	{
 		const t = await createTestVault();

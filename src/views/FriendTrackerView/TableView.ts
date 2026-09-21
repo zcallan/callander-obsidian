@@ -1,4 +1,4 @@
-import { setIcon } from "obsidian";
+import { Platform, setIcon } from "obsidian";
 import type { FriendTrackerView } from "./index";
 import type {
 	ContactWithCountdown,
@@ -18,6 +18,7 @@ import {
 	dayKeyOf,
 	indexBirthdays,
 	nextBirthdayOccurrence,
+	turnsLabel,
 } from "@/utils/friendTimeline";
 import { monthGrid, monthLabel } from "@/utils/calendarGrid";
 import { GlanceModal } from "@/modals/GlanceModal";
@@ -579,10 +580,14 @@ export class TableView {
 			cls: "cal-chip-meta",
 			// "Turns 32", not a bare 32 — the number alone next to a name
 			// could as easily be their age today as the one they're
-			// reaching, and on a birthday those differ.
+			// reaching, and on a birthday those differ. A phone's square has
+			// no room for the word, so there it's the number beside the cake.
 			text:
 				born != null
-					? `🎂 Turns ${Number(isoDate.slice(0, 4)) - born}`
+					? `🎂 ${turnsLabel(
+							Number(isoDate.slice(0, 4)) - born,
+							Platform.isMobile
+					  )}`
 					: "🎂",
 		});
 		chip.addEventListener("click", (e) => {

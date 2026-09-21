@@ -150,11 +150,15 @@ Events are anything with a date on it, past or future — a dinner, a gig, someo
 
 The events page shows the lot, and you can flip between what's coming up, what's already happened, or everything together. Each entry shows what kind of thing it was, when, and who was there.
 
-It shows them three ways. **Timeline** groups by how soon rather than by date — This week, Next week, Later this month, then by month — which is how you actually think about what's ahead. **List** is the flat, sortable version. **Calendar** is a month or week grid with events in the squares; clicking an empty day starts a new event already dated. Looking backwards, month headings carry their year, so August 2025 and August 2026 can't be mistaken for each other.
+It shows them three ways. **Timeline** groups by how soon rather than by date — This week, Next week, Later this month, then by month — which is how you actually think about what's ahead. **List** is the flat, sortable version. **Calendar** is a month grid with events in the squares; clicking an empty day starts a new event already dated. The ☰ beside the month opens a drawer to show or hide event categories and plans, and to choose how the squares draw — names wrapped or cut short, a second line or not, and names instead of emoji on a phone. Looking backwards, month headings carry their year, so August 2025 and August 2026 can't be mistaken for each other.
 
 Something you cancelled stays on the list, crossed out and labelled, rather than being deleted. An evening that didn't happen is still part of the story.
 
 When you log one, you pick what sort of event it was from a row of options, and the date can be as vague as you like — a full date, just a month, or only a year, because something you remember as "sometime in 2019" shouldn't need a made-up day attached to it. You add whoever was there, and choose whether it shows up on their pages or stays private to your calendar.
+
+Events can carry **categories** — free-form labels like a team's name or "Sports" — picked from the ones already in use or added on the spot, under Additional details.
+
+For a whole batch at once, **Bulk event import** lives in the dashboard's Secret actions section, folded away at the bottom. Paste rows of CSV in the format it gives you to copy — a season of games is an easy thing to ask an AI to fill in — and it checks every line as you type, pointing at anything it can't read. Before anything is written, a confirmation shows how many events there are, flags names that repeat or already exist and people it can't find, and lets you put categories on every one of them. There's no bulk undo, so it asks you to be sure.
 
 <p align="center">
 	<img alt="The events page grouped by how soon each event is" src="examples/screenshots/events-1.png" />
@@ -362,7 +366,9 @@ Most of what Callander does is meant to work without being configured. The setti
 
 **Friends** turns the birthday trivia on and off one piece at a time — star sign, birthstone, birth flower, Chinese zodiac — for when you want the date without the astrology.
 
-**Cost breakdown** sets the sales tax and tip that come pre-filled on a by-receipt split, so the rates where you live are typed once rather than every time.
+**Cost breakdown** sets the sales tax and tip that come pre-filled on a by-receipt split, so the rates where you live are typed once rather than every time. Either can be switched off entirely, for somewhere bills already include tax or nobody tips, and the by-receipt split stops offering it.
+
+**Experimental** holds what works but leans on parts of Obsidian that aren't public, and it's all off to begin with. **Native editor for notes** swaps the Notes box on person, group and plan pages for Obsidian's own editor, with live preview, your hotkeys and other plugins' editor features, just as in any note. Obsidian doesn't offer a supported way to embed its editor, so this uses non-public APIs that can change without notice, and a newer version of Obsidian could break it. If it can't start, you get the standard Notes instead, and your notes themselves are never at risk: either way they're the `## Notes` section of the note.
 
 <p align="center">
 	<img alt="The top of Callander's settings" src="examples/screenshots/settings-1.png" />

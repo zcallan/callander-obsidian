@@ -11,6 +11,11 @@ import { registerVaultRefresh } from "@/utils/vaultRefresh";
 import type FriendTracker from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import { resolveDashboardOrder } from "@/utils/dashboardOrder";
+import {
+	GETTING_STARTED_STEPS,
+	gettingStartedProgress,
+	type GettingStartedStep,
+} from "@/utils/gettingStarted";
 import type {
 	ContactWithCountdown,
 	Draft,
@@ -25,7 +30,8 @@ import {
 	QuickIdeaModal,
 } from "@/modals/QuickIdeaModal";
 import { GroupModal } from "@/modals/GroupModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { EventModal } from "@/modals/EventModal";
+import { EventImportModal } from "@/modals/EventImportModal";
 import {
 	parseFlexDate,
 	flexSortKey,
@@ -156,7 +162,7 @@ export class DashboardView extends ItemView {
 		const container = this.containerEl.children[1] as HTMLElement;
 		const scrollTop = container.scrollTop;
 		container.empty();
-		container.addClass("dashboard-container");
+		container.addClass("dashboard-container", "dashboard-home-container");
 
 		// Header + quick actions
 		const header = container.createDiv({ cls: "dashboard-header" });
@@ -181,9 +187,6 @@ export class DashboardView extends ItemView {
 			this.plugin.openQuickIdeaCapture()
 		);
 		action("pencil-line", "Quick note", () => this.plugin.openQuickNote());
-		action("table", "All friends", () =>
-			this.plugin.activateFriendTracker()
-		);
 
 		// Search
 		const searchWrap = container.createDiv({
@@ -220,6 +223,8 @@ export class DashboardView extends ItemView {
 			upcoming: (el) => {
 				el.appendChild(this.island("upcoming", <UpcomingSection />));
 			},
+			gettingStarted: (el) => this.renderGettingStarted(el),
+			calendar: (el) => this.renderCalendarLink(el),
 			// Anniversaries — events from this same day in past years.
 			onThisDay: (el) => this.renderOnThisDay(el),
 			plans: (el) => this.renderPlans(el),
@@ -233,6 +238,7 @@ export class DashboardView extends ItemView {
 			groups: (el) => this.renderGroups(el),
 			resurfacing: (el) => this.renderResurfacing(el),
 			inbox: (el) => this.renderInbox(el),
+			secretActions: (el) => this.renderSecretActions(el),
 		};
 		for (const id of resolveDashboardOrder(
 			this.plugin.settings.dashboardOrder,
@@ -249,6 +255,223 @@ export class DashboardView extends ItemView {
 		});
 
 		container.scrollTop = scrollTop;
+	}
+
+	/**
+	 * A first thing to try on each page, ticked off by itself as the vault
+	 * shows it done — see gettingStartedProgress. Gone entirely once hidden,
+	 * rather than folded: the setting brings it back.
+	 */
+	private async renderGettingStarted(container: HTMLElement) {
+		const settings = this.plugin.settings;
+		if (!settings.showGettingStarted) return;
+		const plugin = this.plugin;
+
+		const inboxDrafts = await plugin.contactOperations.getInboxDrafts();
+		const { done, newlyDone } = gettingStartedProgress(
+			{
+				friend: this.contacts.length > 0,
+				name: settings.yourName.trim() !== "",
+				group: plugin.contactOperations.getGroupInfos(this.contacts).length > 0,
+				quickNote:
+					inboxDrafts.length > 0 ||
+					this.contacts.some((c) => c.drafts.length > 0),
+				// A timeline entry is a record kept on someone's page, not an
+				// event — the Events page leaves them out too.
+				event: plugin.eventOperations
+					.getEvents()
+					.some((e) => e.variant !== "timeline"),
+				plan: plugin.planOperations.getPlans().length > 0,
+				someday: plugin.somedayOperations.getSomedays().length > 0,
+				diary: plugin.diaryOperations.getEntriesMeta().length > 0,
+				// Nothing in the vault says the page was ever opened, so the
+				// page ticks this one itself — see CalendarView.onOpen.
+				calendar: false,
+			},
+			settings.gettingStartedDone
+		);
+		if (newlyDone.length > 0) {
+			settings.gettingStartedDone = [
+				...settings.gettingStartedDone,
+				...newlyDone,
+			];
+			void plugin.saveSettings();
+		}
+
+		const wrap = container.createDiv({
+			cls: "dashboard-section plan-accordion dashboard-getting-started",
+		});
+		const header = wrap.createDiv({
+			cls: "dashboard-section-header plan-accordion-header",
+		});
+		const heading = header.createEl("h3", { text: "👋 Getting started" });
+		heading.createSpan({
+			cls: "dashboard-count-badge",
+			text: `${done.length}/${GETTING_STARTED_STEPS.length}`,
+		});
+		setIcon(
+			header.createSpan({ cls: "plan-accordion-chevron" }),
+			"chevron-down"
+		);
+		const body = wrap.createDiv({ cls: "plan-accordion-body" });
+		const applyOpen = () =>
+			wrap.toggleClass("is-open", !settings.gettingStartedCollapsed);
+		applyOpen();
+		header.addEventListener("click", () => {
+			settings.gettingStartedCollapsed = !settings.gettingStartedCollapsed;
+			applyOpen();
+			void plugin.saveSettings();
+		});
+
+		const hide = () => {
+			settings.showGettingStarted = false;
+			void plugin.saveSettings();
+		};
+		const actions: Record<GettingStartedStep, () => void> = {
+			friend: () => plugin.openAddContactModal(),
+			name: () => plugin.openPluginSettings(),
+			group: () =>
+				new GroupModal(this.app, plugin, null, async () => {
+					await this.refresh();
+				}).open(),
+			quickNote: () => void plugin.openQuickNote(),
+			event: () => plugin.openEventModal(),
+			plan: () =>
+				new PlanModal(this.app, plugin, (file) =>
+					void plugin.openContactPage(file)
+				).open(),
+			someday: () => plugin.openSomedayModal(),
+			diary: () => void plugin.openNewDiaryEntry(),
+			calendar: () => void plugin.activateCalendar({ here: true }),
+		};
+
+		const list = body.createDiv({ cls: "getting-started-list" });
+		const step = (
+			title: string,
+			blurb: string,
+			action: string,
+			onClick: () => void,
+			isDone: boolean
+		) => {
+			const row = list.createDiv({
+				cls: `getting-started-step${isDone ? " is-done" : ""}`,
+			});
+			const mark = row.createSpan({ cls: "getting-started-mark" });
+			if (isDone) setIcon(mark, "check");
+			const text = row.createDiv({ cls: "getting-started-text" });
+			text.createDiv({ cls: "getting-started-title", text: title });
+			text.createDiv({ cls: "getting-started-blurb", text: blurb });
+			const button = row.createEl("button", {
+				cls: "callander-button getting-started-action",
+				text: action,
+				attr: { type: "button" },
+			});
+			button.addEventListener("click", onClick);
+		};
+		for (const s of GETTING_STARTED_STEPS) {
+			step(s.title, s.blurb, s.action, actions[s.id], done.includes(s.id));
+		}
+		// The last step is the way out, so it's never ticked — doing it is
+		// what makes the list go away.
+		step(
+			"Complete onboarding",
+			"Hides this checklist. The plugin settings can bring it back.",
+			"Finish",
+			hide,
+			false
+		);
+
+		const footer = body.createDiv({ cls: "getting-started-footer" });
+		const hideButton = footer.createEl("button", {
+			cls: "getting-started-hide",
+			text: "Hide this section",
+			attr: { type: "button" },
+		});
+		hideButton.addEventListener("click", hide);
+	}
+
+	/**
+	 * Tools you reach for rarely — folded at the bottom of the page, laid
+	 * out like Getting started's steps without the ticks, since there's
+	 * nothing here to finish.
+	 */
+	private renderSecretActions(container: HTMLElement) {
+		const settings = this.plugin.settings;
+		const wrap = container.createDiv({
+			cls: "dashboard-section plan-accordion dashboard-secret-actions",
+		});
+		const header = wrap.createDiv({
+			cls: "dashboard-section-header plan-accordion-header",
+		});
+		header.createEl("h3", { text: "🤫 Secret actions" });
+		setIcon(
+			header.createSpan({ cls: "plan-accordion-chevron" }),
+			"chevron-down"
+		);
+		const body = wrap.createDiv({ cls: "plan-accordion-body" });
+		const applyOpen = () =>
+			wrap.toggleClass("is-open", !settings.secretActionsCollapsed);
+		applyOpen();
+		header.addEventListener("click", () => {
+			settings.secretActionsCollapsed = !settings.secretActionsCollapsed;
+			applyOpen();
+			void this.plugin.saveSettings();
+		});
+
+		const list = body.createDiv({ cls: "getting-started-list" });
+		const action = (
+			title: string,
+			blurb: string,
+			label: string,
+			onClick: () => void
+		) => {
+			const row = list.createDiv({ cls: "getting-started-step" });
+			const text = row.createDiv({ cls: "getting-started-text" });
+			text.createDiv({ cls: "getting-started-title", text: title });
+			text.createDiv({ cls: "getting-started-blurb", text: blurb });
+			const button = row.createEl("button", {
+				cls: "callander-button getting-started-action",
+				text: label,
+				attr: { type: "button" },
+			});
+			button.addEventListener("click", onClick);
+		};
+		action(
+			"Bulk event import",
+			"Add a whole batch of events at once — a season of games, a term of classes — from CSV.",
+			"Import events",
+			() => new EventImportModal(this.app, this.plugin).open()
+		);
+	}
+
+	/**
+	 * The way to the full Calendar page, dressed as a closed accordion so it
+	 * sits in the column like the sections around it. It never opens here:
+	 * a month of events, plans and birthdays wants the whole pane, so the
+	 * click goes there instead. The chevron points the way a closed one
+	 * does, which is also the way the click goes.
+	 */
+	private renderCalendarLink(container: HTMLElement) {
+		const wrap = container.createDiv({
+			cls: "dashboard-section plan-accordion dashboard-calendar-link",
+		});
+		const header = wrap.createDiv({
+			cls: "dashboard-section-header plan-accordion-header",
+			attr: { role: "link", tabindex: "0" },
+		});
+		header.createEl("h3", { text: "📅 Calendar" });
+		setIcon(
+			header.createSpan({ cls: "plan-accordion-chevron" }),
+			"chevron-down"
+		);
+		const open = () => void this.plugin.activateCalendar({ here: true });
+		header.addEventListener("click", open);
+		header.addEventListener("keydown", (e) => {
+			if (e.key === "Enter" || e.key === " ") {
+				e.preventDefault();
+				open();
+			}
+		});
 	}
 
 	/** Ideas whose resurface date has come round. */
@@ -288,11 +511,12 @@ export class DashboardView extends ItemView {
 				)
 				.sort((a, b) => a.displayName.localeCompare(b.displayName));
 		} else {
-			// Browsing shows the 10 most recently interacted-with friends:
-			// any idea/event/draft/edit touches their file's mtime
+			// Browsing shows the 9 most recently interacted-with friends —
+			// any idea/event/draft/edit touches their file's mtime — with the
+			// tenth place going to the way to everyone else.
 			matches = [...this.contacts]
 				.sort((a, b) => b.file.stat.mtime - a.file.stat.mtime)
-				.slice(0, 10);
+				.slice(0, 9);
 		}
 
 		for (const contact of matches) {
@@ -316,6 +540,18 @@ export class DashboardView extends ItemView {
 				text: q ? "No friends match." : "No friends yet.",
 			});
 		}
+
+		// Last in the row, and outlined rather than filled, so it reads as
+		// the way to the rest rather than as one more friend. Kept while
+		// searching too: when nobody matches, the full list is the obvious
+		// next place to look.
+		const all = listEl.createEl("button", {
+			cls: "dashboard-friend-chip dashboard-friend-chip-all",
+			text: "All friends",
+		});
+		all.addEventListener("click", () =>
+			void this.plugin.activateFriendTracker({ here: true })
+		);
 	}
 
 	private async renderDrafts(container: HTMLElement) {
@@ -387,60 +623,113 @@ export class DashboardView extends ItemView {
 		});
 
 		for (const item of all) {
-			const row = section.createDiv({ cls: "dashboard-row" });
-			const label = row.createSpan({
-				cls: item.contact ? "dashboard-row-clickable-label" : undefined,
-				text: item.draft.text,
-			});
-			label.createSpan({
+			this.renderDraftRow(section, item, ops);
+		}
+	}
+
+	/**
+	 * One draft: its text (editable in place), when it was captured, and a
+	 * row of what to do with it. "View person" only shows for a draft
+	 * already sitting on someone's page — an inbox draft has nobody to view
+	 * yet, that's what "Make idea" and "Add event" are for.
+	 */
+	private renderDraftRow(
+		section: HTMLElement,
+		item: {
+			draft: Draft;
+			index: number;
+			contact: ContactWithCountdown | null;
+			holder: TFile;
+		},
+		ops: typeof this.plugin.contactOperations
+	) {
+		const row = section.createDiv({ cls: "dashboard-row dashboard-draft-row" });
+		const main = row.createDiv({ cls: "dashboard-draft-main" });
+
+		const textEl = main.createDiv({ cls: "dashboard-draft-text" });
+		textEl.createSpan({ text: item.draft.text });
+		const age = this.draftAge(item.draft.created);
+		if (item.contact || age) {
+			textEl.createSpan({
 				cls: "dashboard-row-date",
-				text: ` · ${
-					item.contact?.displayName ?? "unfiled"
-				}${this.draftAge(item.draft.created)}`,
-			});
-			if (item.contact) {
-				const file = item.contact.file;
-				label.addEventListener("click", () =>
-					void this.openContact(file)
-				);
-			}
-
-			const ideaButton = row.createEl("button", {
-				cls: "callander-button dashboard-row-action",
-				text: "Make idea",
-			});
-			ideaButton.addEventListener("click", () =>
-				this.categorizeDraft(
-					item.holder,
-					item.index,
-					item.draft,
-					item.contact
-				)
-			);
-
-			const deleteButton = row.createEl("button", {
-				cls: "callander-button button-icon button-danger dashboard-row-action dashboard-draft-delete",
-				attr: { "aria-label": "Discard draft" },
-			});
-			setIcon(deleteButton, "trash");
-			deleteButton.addEventListener("click", () => {
-				const preview =
-					item.draft.text.length > 80
-						? item.draft.text.slice(0, 80) + "…"
-						: item.draft.text;
-				new ConfirmModal(
-					this.app,
-					"Discard draft",
-					`Discard "${preview}"?`,
-					"Discard",
-					async () => {
-						await ops.removeDraft(item.holder, item.index);
-						await this.plugin.refreshOpenContactPages(item.holder);
-						await this.refresh();
-					}
-				).open();
+				text: ` · ${[item.contact?.displayName, age.replace(/^ · /, "")]
+					.filter(Boolean)
+					.join(" · ")}`,
 			});
 		}
+
+		const actions = main.createDiv({ cls: "dashboard-draft-actions" });
+		if (item.contact) {
+			const file = item.contact.file;
+			const viewButton = actions.createEl("button", {
+				cls: "callander-button dashboard-row-action",
+				text: "View person",
+			});
+			viewButton.addEventListener("click", () => void this.openContact(file));
+		}
+		const ideaButton = actions.createEl("button", {
+			cls: "callander-button dashboard-row-action",
+			text: "Make idea",
+		});
+		ideaButton.addEventListener("click", () =>
+			this.categorizeDraft(item.holder, item.index, item.draft, item.contact)
+		);
+		const eventButton = actions.createEl("button", {
+			cls: "callander-button dashboard-row-action",
+			text: "Add event",
+		});
+		eventButton.addEventListener("click", () =>
+			this.draftToEvent(item.holder, item.index, item.draft, item.contact)
+		);
+
+		const iconActions = row.createDiv({ cls: "dashboard-draft-icons" });
+		const editButton = iconActions.createEl("button", {
+			cls: "callander-button button-icon dashboard-row-action",
+			attr: { "aria-label": "Edit draft" },
+		});
+		setIcon(editButton, "pencil");
+		editButton.addEventListener("click", () => {
+			// Swapped for a textarea in place, rather than a modal — this is
+			// a stray thought, and fixing a typo shouldn't need a dialog.
+			const input = document.createElement("textarea");
+			input.className = "dashboard-draft-edit-input";
+			input.value = item.draft.text;
+			textEl.replaceWith(input);
+			input.focus();
+			input.setSelectionRange(input.value.length, input.value.length);
+			const commit = async () => {
+				const text = input.value.trim();
+				if (text && text !== item.draft.text) {
+					await ops.updateDraft(item.holder, item.index, text);
+					await this.plugin.refreshOpenContactPages(item.holder);
+				}
+				await this.refresh();
+			};
+			input.addEventListener("blur", () => void commit());
+			input.addEventListener("keydown", (e) => {
+				if (e.key === "Enter" && !e.shiftKey) {
+					e.preventDefault();
+					input.blur();
+				} else if (e.key === "Escape") {
+					e.preventDefault();
+					input.value = item.draft.text;
+					input.blur();
+				}
+			});
+		});
+
+		const doneButton = iconActions.createEl("button", {
+			cls: "callander-button button-icon dashboard-row-action",
+			attr: { "aria-label": "Done with this draft" },
+		});
+		setIcon(doneButton, "checkmark");
+		doneButton.addEventListener("click", () => {
+			void (async () => {
+				await ops.removeDraft(item.holder, item.index);
+				await this.plugin.refreshOpenContactPages(item.holder);
+				await this.refresh();
+			})();
+		});
 	}
 
 	private draftAge(created: string): string {
@@ -506,6 +795,31 @@ export class DashboardView extends ItemView {
 				).open();
 			}).open();
 		}
+	}
+
+	/** Turn a draft into an event, seeded with its text as the name and its
+	 * contact (if any) as a locked attendee. Nothing is written until Save,
+	 * so the draft is only removed once the event actually is. */
+	private draftToEvent(
+		holder: TFile,
+		index: number,
+		draft: Draft,
+		contact: ContactWithCountdown | null
+	) {
+		const ops = this.plugin.contactOperations;
+		const people = contact ? [`[[${contact.file.basename}]]`] : [];
+		new EventModal(
+			this.app,
+			this.plugin,
+			null,
+			async () => {
+				await ops.removeDraft(holder, index);
+				await this.plugin.refreshOpenContactPages(holder);
+				await this.refresh();
+			},
+			{ name: draft.text, people },
+			people
+		).open();
 	}
 
 	/** Future events, sorted; soonest (and undated) first. */
@@ -655,7 +969,7 @@ export class DashboardView extends ItemView {
 		});
 		newButton.addEventListener("click", () => {
 			new SomedayModal(this.app, this.plugin, null, async (file) => {
-				await this.plugin.activateSomedays(file.path);
+				await this.plugin.activateSomedays(file.path, { here: true });
 			}).open();
 		});
 		const allButton = buttons.createEl("button", {
@@ -663,7 +977,7 @@ export class DashboardView extends ItemView {
 			text: "See all",
 		});
 		allButton.addEventListener("click", () =>
-			void this.plugin.activateSomedays()
+			void this.plugin.activateSomedays(undefined, { here: true })
 		);
 
 		if (somedays.length === 0) {
@@ -695,7 +1009,7 @@ export class DashboardView extends ItemView {
 				text: `+${somedays.length - shown} more on the Somedays page`,
 			});
 			more.addEventListener("click", () =>
-				void this.plugin.activateSomedays()
+				void this.plugin.activateSomedays(undefined, { here: true })
 			);
 		}
 	}
@@ -723,7 +1037,7 @@ export class DashboardView extends ItemView {
 			text: "Open diary",
 		});
 		openButton.addEventListener("click", () =>
-			void this.plugin.activateDiaryView()
+			void this.plugin.activateDiaryView({ here: true })
 		);
 
 		const entries = this.plugin.diaryOperations

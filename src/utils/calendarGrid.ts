@@ -225,6 +225,15 @@ export function assignSpanLanes(
 	return lanes;
 }
 
+/** "8pm", "7:30pm" — compact enough for a chip, where "7:30 PM" wraps. */
+export function shortTime(time: string): string {
+	const [h, m] = time.split(":").map(Number);
+	if (Number.isNaN(h)) return time;
+	const period = h < 12 ? "am" : "pm";
+	const hour = h % 12 || 12;
+	return m ? `${hour}:${String(m).padStart(2, "0")}${period}` : `${hour}${period}`;
+}
+
 function dayOf(d: Date, now: Date, inMonth: boolean): CalendarDay {
 	return {
 		date: isoDay(d),

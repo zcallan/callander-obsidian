@@ -59,7 +59,14 @@ export function relativeFromDays(days: number): {
  * range there's more than one candidate weekday, and a date behind you
  * needs the calendar to say which one it was.
  */
-export function conversationalLabel(target: Date, days: number): string | null {
+export function conversationalLabel(
+	target: Date,
+	days: number,
+	/** Drop the "This"/"Next" — just "Thursday". The dashboard's Upcoming
+	 * events use this; nothing else does, so "This Thursday" still reads
+	 * as "This Thursday" everywhere it always has. */
+	bare = false
+): string | null {
 	if (days < 0 || days >= 14) return null;
 	// Self-built short month — Intl's en-AU "short" doesn't actually
 	// abbreviate (renders "August" in full). See upcomingWhen's other note.
@@ -70,6 +77,7 @@ export function conversationalLabel(target: Date, days: number): string | null {
 	if (days === 0) return `Today • ${short}`;
 	if (days === 1) return `Tomorrow • ${short}`;
 	const weekday = formatDate(target, { weekday: "long" });
+	if (bare) return `${weekday} • ${short}`;
 	return days < 7 ? `This ${weekday} • ${short}` : `Next ${weekday} • ${short}`;
 }
 
@@ -125,7 +133,7 @@ export function upcomingWhen(
 	dateStr: string,
 	now: Date,
 	/** Say near dates by weekday — see conversationalLabel. */
-	options: { conversational?: boolean } = {}
+	options: { conversational?: boolean; bareWeekday?: boolean } = {}
 ): { date: string; relative: string; tone?: RowTone } {
 	const p = parseFlexDate(dateStr);
 	if (!p) return { date: "", relative: "" };
@@ -140,7 +148,7 @@ export function upcomingWhen(
 		// Close by, the weekday says it better than the calendar does — and
 		// carries its own year, so the suffix below never comes up.
 		const near = options.conversational
-			? conversationalLabel(target, days)
+			? conversationalLabel(target, days, options.bareWeekday)
 			: null;
 		if (near) return { date: near, ...relativeFromDays(days) };
 		// Intl's en-AU "short" month doesn't actually abbreviate (renders

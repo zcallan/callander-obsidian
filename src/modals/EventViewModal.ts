@@ -9,6 +9,8 @@ import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
 import { EVENT_TYPES } from "@/constants";
 import { buildEventShareText, buildGoogleCalendarUrl } from "@/utils/eventShare";
 import { normalizeUrl } from "@/utils/url";
+import { closeColorPopover, openColorPopover } from "@/components/colorPicker";
+import { categoryColor, categoryColors } from "@/utils/categoryColor";
 
 /**
  * A read view of an event with Edit / Done / Hide / Delete — mirrors
@@ -30,6 +32,91 @@ export class EventViewModal extends Modal {
 		super(app);
 		this.description = event.description;
 	}
+	/**
+	 * The event's categories, as pills — each with a dot in the colour the
+	 * Calendar page gives that category, hand-picked or from the palette,
+	 * so the two read as the same thing.
+	 */
+	private appendCategories(parent: HTMLElement) {
+		const palette = categoryColors(
+			this.plugin.eventOperations.getEventCategories()
+		);
+		const picked = this.plugin.settings.calendarGroupColors?.categories ?? {};
+		const row = parent.createDiv({ cls: "event-view-categories" });
+		for (const name of this.event.categories) {
+			const key = name.toLowerCase();
+			const pill = row.createSpan({ cls: "event-view-category" });
+			const dot = pill.createSpan({ cls: "event-view-category-dot" });
+			dot.style.background =
+				picked[key] || palette.get(key) || categoryColor(name);
+			pill.createSpan({ text: name });
+		}
+	}
+
+	/** Saves a beat after the last change — dragging across the picker
+	 * fires a colour per pixel, and each write redraws the calendar. */
+	private colorTimer: number | null = null;
+	private pendingColor: string | null = null;
+
+	/**
+	 * The event's own calendar colour: a circle showing what it's drawn in
+	 * on the Calendar page, which opens a picker to change it for this one
+	 * event. Saved to its frontmatter as `color`; Reset takes that away,
+	 * and it goes back to following its type (or "Color by group").
+	 */
+	private appendColorButton(row: HTMLElement) {
+		const e = this.event;
+		const fallback = this.plugin.calendarColorFor({ ...e, color: "" });
+		let custom = e.color;
+		const btn = row.createEl("button", {
+			cls: "callander-button button-icon event-color-button",
+			attr: { type: "button", "aria-label": "Color on the calendar" },
+		});
+		const dot = btn.createSpan({ cls: "event-color-dot" });
+		const paint = () => {
+			dot.style.background = custom || fallback;
+		};
+		paint();
+
+		let popover: { close: () => void } | null = null;
+		const change = (value: string) => {
+			custom = value;
+			paint();
+			this.queueColor(value);
+		};
+		btn.addEventListener("click", () => {
+			if (popover) {
+				popover.close();
+				return;
+			}
+			popover = openColorPopover(btn, {
+				value: custom,
+				fallback,
+				withHex: true,
+				onChange: change,
+				onReset: () => change(""),
+				onClose: () => {
+					popover = null;
+				},
+			});
+		});
+	}
+
+	private queueColor(value: string) {
+		this.pendingColor = value;
+		if (this.colorTimer !== null) window.clearTimeout(this.colorTimer);
+		this.colorTimer = window.setTimeout(() => void this.flushColor(), 250);
+	}
+
+	private async flushColor() {
+		if (this.colorTimer !== null) window.clearTimeout(this.colorTimer);
+		this.colorTimer = null;
+		const value = this.pendingColor;
+		if (value === null) return;
+		this.pendingColor = null;
+		await this.plugin.eventOperations.setColor(this.event.file, value);
+	}
+
 
 	private formatTime(t: string): string {
 		const [h, m] = t.split(":").map(Number);
@@ -139,6 +226,7 @@ export class EventViewModal extends Modal {
 				text: `👥 ${this.peopleNames().join(", ")}`,
 			});
 		}
+		if (e.categories.length > 0) this.appendCategories(contentEl);
 		if (e.variant === "timeline") {
 			contentEl.createDiv({
 				cls: "someday-view-cost",
@@ -239,6 +327,8 @@ export class EventViewModal extends Modal {
 				this.close();
 			}
 		);
+
+		this.appendColorButton(editRow);
 
 		button(editRow, "copy", "Copy", async () => {
 			// this.description rather than e.description: whatever's on
@@ -390,6 +480,8 @@ export class EventViewModal extends Modal {
 	}
 
 	onClose() {
+		closeColorPopover();
+		void this.flushColor();
 		void this.flushDescription();
 		this.contentEl.empty();
 	}

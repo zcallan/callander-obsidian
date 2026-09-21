@@ -302,3 +302,43 @@ function push<K, T>(map: Map<K, T[]>, key: K, value: T) {
 function pad(n: number): string {
 	return String(n).padStart(2, "0");
 }
+
+/**
+ * Whose birthday falls on each of `days` (local YYYY-MM-DDs), for a calendar
+ * that shows real dates rather than one year's worth of MM-DDs.
+ *
+ * Each birthday lands where nextBirthdayOccurrence would put it in that
+ * year, so the calendar and the countdowns never disagree — including 29
+ * February, which rolls into 1 March in a year without one. Only
+ * day-precise birthdays have a square to sit in; a month-only one has none.
+ *
+ * A grid can span a new year (late December into January), so every year
+ * the days touch is tried, not just the first.
+ */
+export function birthdaysOnDays<T extends DatedPerson>(
+	people: readonly T[],
+	days: readonly string[]
+): Map<string, T[]> {
+	const wanted = new Set(days);
+	const years = [...new Set(days.map((d) => Number(d.slice(0, 4))))];
+	const byDay = new Map<string, T[]>();
+	for (const person of people) {
+		const parsed = parseFlexDate(person.birthday);
+		if (!parsed || parsed.month === null || parsed.day === null) continue;
+		for (const year of years) {
+			const date = isoDay(new Date(year, parsed.month - 1, parsed.day));
+			if (wanted.has(date)) push(byDay, date, person);
+		}
+	}
+	return byDay;
+}
+
+/**
+ * The age a birthday brings, as a calendar says it: "Turns 31" where
+ * there's room, or just "31" inside a phone's calendar square, where a
+ * handful of characters is all there is and the cake beside it already
+ * says whose birthday it is.
+ */
+export function turnsLabel(age: number, compact = false): string {
+	return compact ? String(age) : `Turns ${age}`;
+}

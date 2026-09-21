@@ -16,6 +16,7 @@ import type {
 	TravelType,
 } from "./constants";
 import type { EventSort } from "./utils/eventRow";
+import type { GroupColors } from "./utils/categoryColor";
 import type {
 	EventStatus,
 	EventVariant,
@@ -40,6 +41,11 @@ export interface FriendTrackerSettings {
 	receiptTaxPercent: number;
 	/** Default tip %, offered on a "by receipt" expense split */
 	receiptTipPercent: number;
+	/** Offer "Add sales tax?" / "Add tip?" on a by-receipt split at all.
+	 * Off for somewhere that has neither on a bill; an expense that already
+	 * carries one keeps showing it. */
+	receiptTaxEnabled: boolean;
+	receiptTipEnabled: boolean;
 	showBirthdayReminders: boolean;
 	birthdayReminderDays: number;
 	showMetColumn: boolean;
@@ -68,6 +74,10 @@ export interface FriendTrackerSettings {
 	eventsTab: FriendListTab;
 	/** Month or week on the Events calendar. See eventsTab. */
 	eventsCalendarMode: CalendarMode;
+	/** Month or week on the full Calendar page. Remembered like
+	 * eventsCalendarMode, separately: the two pages are opened for
+	 * different things. */
+	calendarMode: CalendarMode;
 	/**
 	 * Cap every page to a reading column, or let them all run full width.
 	 * All or nothing on purpose — a per-page preference would be four more
@@ -113,6 +123,72 @@ export interface FriendTrackerSettings {
 	 */
 	planSectionsCollapsed: string[];
 	/**
+	 * Which of the Calendar page's calendars are unticked in its drawer, by
+	 * id. Hidden ones are listed rather than shown ones, so a calendar added
+	 * later — a Sports calendar, say — starts out ticked. Incidental UI
+	 * state, so it isn't surfaced in the settings tab.
+	 */
+	calendarHidden: string[];
+	/** Calendar page display setting: hide a chip's start time on the month
+	 * grid. Never touches a plan's span days, which are its whole identity,
+	 * not a "time". */
+	calendarHideDateTime: boolean;
+	/** Calendar page display setting: wrap a chip's name on the month grid
+	 * instead of truncating it. */
+	calendarWrapNames: boolean;
+	/** Calendar page display setting: on a phone-width month grid, list
+	 * event names (small) in each cell instead of emoji glyphs. */
+	calendarNarrowNames: boolean;
+	/** Categories unticked in the Calendar page's drawer — see
+	 * utils/eventCategories for why the hidden ones are what's stored. */
+	calendarHiddenCategories: string[];
+	/** Colour events, plans and birthdays by kind — and each event category
+	 * its own colour — instead of by event type. Calendar page only. */
+	calendarColorByGroup: boolean;
+	/** Colour events by their category (palette or hand-picked) on the
+	 * Calendar page — separate from "Color by group". */
+	calendarCustomCategoryColors: boolean;
+	/** Colour events by their type (custom or the type's own fixed colour)
+	 * on the Calendar page — the tier between category and group. */
+	calendarColorByType: boolean;
+	/** Fade anything before today to 70% opacity, on the Calendar page. */
+	calendarFadePastEvents: boolean;
+	/** Fill an event/plan/birthday chip with its colour, rather than just
+	 * a left border. Calendar page only. */
+	calendarColorBackgrounds: boolean;
+	/** Colours picked by hand for "Color by group" — see GroupColors. */
+	calendarGroupColors: GroupColors;
+	/**
+	 * The Events page Calendar tab's own drawer, the Calendar page's
+	 * settings under separate names so each page keeps its own choices:
+	 * wrap names, hide the second line, names on a phone, whether plans
+	 * show, and the categories unticked.
+	 */
+	eventsCalWrapNames: boolean;
+	eventsCalHideDateTime: boolean;
+	eventsCalNarrowNames: boolean;
+	eventsCalShowPlans: boolean;
+	eventsCalHiddenCategories: string[];
+	/** The Events page Calendar tab's colour switches — the Calendar page's
+	 * three, under its own names. The colours themselves (calendarGroupColors)
+	 * are shared, so a category is the same colour on both. */
+	eventsCalColorByGroup: boolean;
+	eventsCalUseCategoryColors: boolean;
+	eventsCalColorByType: boolean;
+	eventsCalFadePastEvents: boolean;
+	eventsCalColorBackgrounds: boolean;
+	/** Whether the dashboard shows its Getting started checklist at all.
+	 * Its "Hide this section" and "Finish" buttons turn this off. */
+	showGettingStarted: boolean;
+	/** Whether that checklist is folded. Incidental UI state, like
+	 * birthdaysCollapsed. */
+	gettingStartedCollapsed: boolean;
+	/** Steps it has ever seen done — sticky, see gettingStartedProgress. */
+	gettingStartedDone: string[];
+	/** Whether the dashboard's Secret actions section is folded. Folded to
+	 * begin with — it's tools you reach for rarely, not something to read. */
+	secretActionsCollapsed: boolean;
+	/**
 	 * Which day a calendar week opens on — 1 Monday, 0 Sunday.
 	 *
 	 * Monday by default: the plugin formats dates as en-AU throughout, and a
@@ -129,6 +205,16 @@ export interface FriendTrackerSettings {
 	 * "what's next". Off for anyone who reads the two as separate lists.
 	 */
 	upcomingShowPlans: boolean;
+	/** Whether the dashboard's Upcoming lists events at all — the other
+	 * half of its Calendars choice, beside upcomingShowPlans. */
+	upcomingShowEvents: boolean;
+	/** Event categories unticked for the dashboard's Upcoming — see
+	 * utils/eventCategories for why the hidden ones are stored. */
+	upcomingHiddenCategories: string[];
+	/** Event types unticked for the dashboard's Upcoming, by id. Hidden
+	 * rather than shown, like the categories, so a type added later
+	 * starts out showing. An untyped event always shows. */
+	upcomingHiddenTypes: string[];
 	/**
 	 * Show plans among the Events page's events — list, timeline, and
 	 * across every day they span on the calendar. On by default, for the
@@ -147,6 +233,12 @@ export interface FriendTrackerSettings {
 	ribbonSomedays: boolean;
 	ribbonEvents: boolean;
 	ribbonReminder: boolean;
+	/**
+	 * Experimental: edit Notes in Obsidian's own editor, mounted through
+	 * non-public internals (see embeddedMarkdownEditor). Off by default, and
+	 * falls back to the standard Notes if the internals have moved.
+	 */
+	nativeNotesEditor: boolean;
 }
 
 export type FriendListSort =
@@ -484,6 +576,12 @@ export interface EventInfo {
 	updated: string;
 	/** Added by Claude rather than typed by hand — see utils/generated */
 	generated?: boolean;
+	/** Free-form labels for finding a batch of events together — e.g. a
+	 * season of games imported at once. */
+	categories: string[];
+	/** A colour picked for this one event on the calendars, "#rrggbb", or
+	 * "" to follow its type (or "Color by group"). */
+	color: string;
 }
 
 /**
@@ -646,6 +744,8 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	dashboardSomedayCount: 10,
 	receiptTaxPercent: 6.25,
 	receiptTipPercent: 20,
+	receiptTaxEnabled: true,
+	receiptTipEnabled: true,
 	showBirthdayReminders: true,
 	birthdayReminderDays: 7,
 	showMetColumn: false,
@@ -662,14 +762,43 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	friendListTab: "list",
 	eventsTab: "timeline",
 	eventsCalendarMode: "month",
+	calendarMode: "month",
 	pageWidthContainer: true,
 	dashboardOrder: [],
 	draftsCollapsed: false,
 	birthdaysCollapsed: false,
 	aboutExpanded: false,
 	planSectionsCollapsed: [],
+	calendarHidden: [],
+	calendarHideDateTime: false,
+	calendarWrapNames: true,
+	calendarNarrowNames: false,
+	calendarHiddenCategories: [],
+	calendarColorByGroup: true,
+	calendarCustomCategoryColors: true,
+	calendarColorByType: true,
+	calendarFadePastEvents: false,
+	calendarColorBackgrounds: false,
+	calendarGroupColors: { plan: "", birthday: "", event: "", categories: {}, types: {} },
+	eventsCalWrapNames: true,
+	eventsCalHideDateTime: false,
+	eventsCalNarrowNames: false,
+	eventsCalShowPlans: true,
+	eventsCalHiddenCategories: [],
+	eventsCalColorByGroup: true,
+	eventsCalUseCategoryColors: true,
+	eventsCalColorByType: true,
+	eventsCalFadePastEvents: false,
+	eventsCalColorBackgrounds: false,
+	showGettingStarted: true,
+	gettingStartedCollapsed: false,
+	gettingStartedDone: [],
+	secretActionsCollapsed: true,
 	weekStartsOn: 1,
 	upcomingShowPlans: true,
+	upcomingShowEvents: true,
+	upcomingHiddenCategories: [],
+	upcomingHiddenTypes: [],
 	eventsShowPlans: true,
 	somedaySort: "recommended",
 	eventSort: "natural",
@@ -679,4 +808,5 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	ribbonSomedays: false,
 	ribbonEvents: false,
 	ribbonReminder: false,
+	nativeNotesEditor: false,
 };

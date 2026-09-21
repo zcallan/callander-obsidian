@@ -9,6 +9,7 @@ import {
 	appendDurationField,
 } from "@/modals/scheduleFields";
 import { normalizeUrl } from "@/utils/url";
+import { renderCategoryChips } from "@/components/categoryChips";
 import type FriendTracker from "@/main";
 import type { EventInfo } from "@/types";
 import type { EventFields } from "@/services/EventOperations";
@@ -258,10 +259,14 @@ export class EventModal extends FormModal {
 		});
 		// An edit that already has any of these opens showing them —
 		// otherwise saved detail would be hidden behind a closed lid.
+		const categories = [
+			...(this.existing?.categories ?? this.prefill?.categories ?? []),
+		];
 		const hasDetails = !!(
 			this.existing?.description ||
 			this.existing?.location ||
-			this.existing?.link
+			this.existing?.link ||
+			categories.length > 0
 		);
 		detailsWrap.toggleClass("is-open", hasDetails);
 
@@ -312,6 +317,17 @@ export class EventModal extends FormModal {
 		});
 		descInput.value =
 			this.existing?.description ?? this.prefill?.description ?? "";
+
+		// ---- Categories ----
+		// The plan ideas' picker, offering every category already on an
+		// event — a season imported under "Celtics" is one tap to join.
+		renderCategoryChips(detailsBody, {
+			app: this.app,
+			label: "Categories (optional)",
+			selected: categories,
+			known: this.plugin.eventOperations.getEventCategories(),
+			deleteScope: "event",
+		});
 
 		// ---- Buttons ----
 		const buttons = contentEl.createDiv({
@@ -378,6 +394,7 @@ export class EventModal extends FormModal {
 				location: locInput.value.trim() || undefined,
 				link: linkInput.value.trim() || undefined,
 				description: descInput.value.trim() || undefined,
+				categories,
 				// Flags the form doesn't edit carry over unchanged.
 				source: this.existing?.source || this.prefill?.source,
 				// Only the calendar-side form asks this. From a person's page

@@ -1,6 +1,7 @@
 import type { Idea } from "@/types";
 import { IDEA_CATEGORIES, type IdeaCategory } from "@/constants";
 import {
+	NOTES_HEADING,
 	readSection,
 	upsertSection,
 	type SectionSpec,
@@ -33,11 +34,12 @@ import { GENERATED_MARKER, isGenerated } from "@/utils/generated";
  * UI looks.
  */
 
-const SPEC: SectionSpec = {
+export const IDEAS_SECTION: SectionSpec = {
 	heading: "## Ideas",
 	matches: /^##\s+Ideas\s*$/i,
 	// `###` group headings belong to this section, so only `#`/`##` close it.
 	closes: /^#{1,2}\s/,
+	above: NOTES_HEADING,
 };
 
 /** `- [ ] text` / `- [x] text`, with `*` tolerated as the bullet marker. */
@@ -140,7 +142,7 @@ export function serializeIdeaLine(idea: Idea): string {
 }
 
 export function parseIdeasSection(body: string): Idea[] | null {
-	const lines = readSection(body, SPEC);
+	const lines = readSection(body, IDEAS_SECTION);
 	if (lines === null) return null;
 	const ideas: Idea[] = [];
 	// Anything before the first group heading — or under one we don't
@@ -182,5 +184,5 @@ function normalizeCategory(category: unknown): IdeaCategory {
 }
 
 export function upsertIdeasSection(body: string, ideas: Idea[]): string {
-	return upsertSection(body, SPEC, renderIdeaLines(ideas), isIdeaLine);
+	return upsertSection(body, IDEAS_SECTION, renderIdeaLines(ideas), isIdeaLine);
 }

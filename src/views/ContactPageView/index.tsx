@@ -6,6 +6,7 @@ import {
 	setIcon,
 	parseYaml,
 	MarkdownRenderer,
+	Component,
 	type ViewStateResult,
 } from "obsidian";
 import { createRoot } from "react-dom/client";
@@ -27,6 +28,11 @@ import { InterestsSection } from "@/ui/sections/InterestsSection";
 import { IdeasSection } from "@/ui/sections/IdeasSection";
 import { PersonDraftsSection } from "@/ui/sections/PersonDraftsSection";
 import { NotesSection } from "@/ui/sections/NotesSection";
+import {
+	NativeNotesSection,
+	NotesChooser,
+} from "@/ui/sections/NativeNotesSection";
+import { mountEmbeddedEditor } from "@/components/embeddedMarkdownEditor";
 import { GroupMembersSection } from "@/ui/sections/GroupMembersSection";
 import { DeleteSection } from "@/ui/sections/DeleteSection";
 import {
@@ -169,6 +175,12 @@ import {
 	parseIdeasSection,
 	upsertIdeasSection,
 } from "@/utils/ideasMarkdown";
+import {
+	adoptNotes,
+	normalizeNotes,
+	parseNotesSection,
+	upsertNotesSection,
+} from "@/utils/notesMarkdown";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -336,6 +348,17 @@ export class ContactPageView extends ItemView {
 	private bodyQuotes: Quote[] | null = null;
 	/** Ideas as read from the note body; null until this note is migrated. */
 	private bodyIdeas: Idea[] | null = null;
+	/** Notes as read from the body's `## Notes` section; null until this
+	 * note has one. See notesMarkdown. */
+	private bodyNotes: string | null = null;
+	/**
+	 * Notes typed in the native editor and not yet written. It writes as you
+	 * go rather than on leaving, so the edit waits here for a pause in the
+	 * typing. It remembers its file: the page can move on to another note
+	 * before the timer fires, and the text belongs to the one it was typed in.
+	 */
+	private notesDraft: { file: TFile; text: string; timer: number } | null =
+		null;
 	/** Legacy `giftIdeas` on a note whose ideas already moved to the body —
 	 * appended there by migrateIdeasToBody rather than lost. */
 	private pendingLegacyIdeas: Idea[] = [];
@@ -376,6 +399,64 @@ export class ContactPageView extends ItemView {
 			);
 		});
 		this.bodyIdeas = ideas;
+	}
+
+	/** Rewrite just the notes, leaving the generated sections — and the
+	 * frontmatter — exactly as they were. */
+	private async writeNotesToBody(
+		notes: string,
+		file: TFile | null = this._file
+	): Promise<void> {
+		if (!file) return;
+		this.writingUntil = Date.now() + 1000;
+		await this.app.vault.process(file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			return joinFrontmatter(frontmatter, upsertNotesSection(body, notes));
+		});
+		// Only if the page is still showing that note. Notes save on blur,
+		// and following a link out of the page blurs them — so the view can
+		// be on the next note by the time this write lands, and adopting
+		// these notes there would show one person's notes on another.
+		if (this._file === file) this.bodyNotes = normalizeNotes(notes);
+	}
+
+	/**
+	 * Give the note its `## Notes` section: the frontmatter `notes` value it
+	 * used to keep, and any prose already written in the body, gathered
+	 * under the heading at the end (adoptNotes). Body first, key cleared only
+	 * on success — the same order the ideas move uses — and adoptNotes spots
+	 * a value already carried over, so a crash between the two writes can't
+	 * duplicate it on the next load.
+	 *
+	 * The frontmatter value leads, which is where it sat on screen: the
+	 * Notes box came before the markdown.
+	 *
+	 * `body` is what setFile read; it only decides whether there's anything
+	 * to do. The write itself works from the file as it is by then, since
+	 * the ideas and quotes moves may have just rewritten it.
+	 */
+	private async migrateNotesToBody(body: string): Promise<void> {
+		const file = this._file;
+		if (!file) return;
+		const older =
+			this.contactData.notes === undefined
+				? ""
+				: toText(this.contactData.notes);
+		if (adoptNotes(body, older) !== body) {
+			this.writingUntil = Date.now() + 1000;
+			let notes: string | null = null;
+			await this.app.vault.process(file, (content) => {
+				const split = splitFrontmatter(content);
+				const next = adoptNotes(split.body, older);
+				notes = parseNotesSection(next);
+				return joinFrontmatter(split.frontmatter, next);
+			});
+			if (this._file !== file) return;
+			this.bodyNotes = notes;
+		}
+		if (this.contactData.notes === undefined) return;
+		delete this.contactData.notes;
+		await this.saveContactData(false);
 	}
 
 	/**
@@ -457,6 +538,11 @@ export class ContactPageView extends ItemView {
 		// Once for the life of the view, not per render — it only has to
 		// know whether there's room beside the column.
 		this.register(observePageRoom(this));
+		// The islands read settings live, but only redraw on a store bump —
+		// so the Notes editor setting takes effect without a reopen.
+		this.registerEvent(
+			this.plugin.events.on("settings-changed", () => this.store.bump())
+		);
 		// Reload when this record changes on disk (e.g. an iCloud sync from
 		// another device), so an edit here can never overwrite fresher data
 		// with a stale in-memory copy.
@@ -514,7 +600,9 @@ export class ContactPageView extends ItemView {
 		return (
 			!!active &&
 			this.containerEl.contains(active) &&
-			["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName)
+			(["INPUT", "TEXTAREA", "SELECT"].includes(active.tagName) ||
+				// The native Notes editor, typing mid-sentence.
+				active.isContentEditable)
 		);
 	}
 
@@ -560,6 +648,9 @@ export class ContactPageView extends ItemView {
 	}
 
 	async setFile(file: TFile) {
+		// Before the page moves on, so a held edit is written — and stamped
+		// — against the note it was typed in.
+		await this.flushNotesDraft();
 		this._file = file;
 		const currentFilePath = file.path;
 		try {
@@ -574,15 +665,18 @@ export class ContactPageView extends ItemView {
 			const body = splitFrontmatter(content).body;
 			this.bodyQuotes = parseQuotesSection(body);
 			this.bodyIdeas = parseIdeasSection(body);
+			this.bodyNotes = parseNotesSection(body);
 			this.migrateLegacyGiftIdeas();
 			this.migratePlanStructure();
 			await this.migrateQuotesToBody();
 			await this.migrateIdeasToBody();
+			await this.migrateNotesToBody(body);
 		} catch (error) {
 			console.error(`Error reading contact file ${file.path}:`, error);
 			this.contactData = {};
 			this.bodyQuotes = null;
 			this.bodyIdeas = null;
+			this.bodyNotes = null;
 		}
 		// Only render if still the same file
 		if (this._file?.path === currentFilePath) {
@@ -624,6 +718,7 @@ export class ContactPageView extends ItemView {
 		// Its dismiss handlers live on the document, so they would
 		// outlive this view if the popover were simply left open.
 		this.closeFieldHelp();
+		await this.flushNotesDraft();
 		this.unmountIslands();
 	}
 
@@ -973,20 +1068,11 @@ export class ContactPageView extends ItemView {
 					/>
 				)
 			);
-			planSection("pencil", "Notes").appendChild(
-			this.island(
-				"notes",
-				<NotesSection
-					store={this.store}
-					value={() => toText(this.contactData.notes)}
-					placeholder={() => this.notesPlaceholder()}
-					onSave={(text) => void this.saveNotes(text)}
-				/>
-			)
-		);
-			void this.renderExtrasSection(
-				planSection("document", "Links & details")
-			);
+			// A plan's body holds nothing generated, so its Notes *are* its
+			// markdown — the "Links & details" render that used to follow
+			// would show the same text a second time. Its "Edit markdown"
+			// lives on in Notes.
+			planSection("pencil", "Notes").appendChild(this.notesIsland());
 			return;
 		}
 
@@ -1230,17 +1316,7 @@ export class ContactPageView extends ItemView {
 				)
 			);
 		}
-		section("pencil", "Notes").appendChild(
-			this.island(
-				"notes",
-				<NotesSection
-					store={this.store}
-					value={() => toText(this.contactData.notes)}
-					placeholder={() => this.notesPlaceholder()}
-					onSave={(text) => void this.saveNotes(text)}
-				/>
-			)
-		);
+		section("pencil", "Notes").appendChild(this.notesIsland());
 		// Raw markdown is reference material, not something you scan on every
 		// visit — collapsed by default, with the Edit button left outside so
 		// it stays one click away.
@@ -2205,12 +2281,147 @@ export class ContactPageView extends ItemView {
 		return "Add notes about anything here that you want to remember...";
 	}
 
-	private async saveNotes(text: string) {
-		if (!this._file) return;
-		this.contactData.notes = text;
+	private async saveNotes(text: string, file: TFile | null = this._file) {
+		if (!file) return;
+		if (file === this._file && normalizeNotes(text) === (this.bodyNotes ?? "")) {
+			return;
+		}
+		await this.writeNotesToBody(text, file);
+		// Moved on to another note while that write was in flight (see
+		// writeNotesToBody): stamping now would mark the wrong one updated.
+		if (this._file !== file) return;
+		// The body write leaves frontmatter alone, so the last-updated stamp
+		// has to be set on its own. That save also bumps the store, which is
+		// what redraws the preview — no render() needed.
 		await this.saveContactData();
-		// No render(): the textarea is the thing that changed, and rebuilding
-		// the page under a field someone just left is work nobody can see.
+	}
+
+	/**
+	 * Notes rendered the way Obsidian renders a note, into a box of their
+	 * own that the returned function takes away again.
+	 *
+	 * A fresh box and component per render, rather than rendering into the
+	 * same element: rendering is async, so a slow one finishing after a
+	 * newer one started would otherwise add its output beside it. Here a
+	 * late finisher writes into a box that's already gone. The component is
+	 * what other plugins' post-processors hang their own work from, so it
+	 * has to be unloaded with the render or it outlives it.
+	 */
+	private renderNotesMarkdown(text: string, el: HTMLElement): () => void {
+		const child = new Component();
+		child.load();
+		const box = el.createDiv({ cls: "markdown-rendered contact-notes-rendered" });
+		void MarkdownRenderer.render(
+			this.app,
+			text,
+			box,
+			this._file?.path ?? "",
+			child
+		);
+		const onClick = (event: MouseEvent) => this.followRenderedLink(event, box);
+		box.addEventListener("click", onClick);
+		return () => {
+			box.removeEventListener("click", onClick);
+			box.remove();
+			child.unload();
+		};
+	}
+
+	/**
+	 * Clicks on links inside rendered markdown. Obsidian only follows them
+	 * in its own views, so here they're routed by hand: an anchor scrolls
+	 * within the render, an internal link opens (in a new tab with the
+	 * modifier held), and anything web goes to the browser as usual.
+	 */
+	private followRenderedLink(event: MouseEvent, container: HTMLElement) {
+		const anchor = (event.target as HTMLElement | null)?.closest("a");
+		if (!anchor || !container.contains(anchor)) return;
+		const href = anchor.getAttribute("href");
+		if (href?.startsWith("#")) {
+			event.preventDefault();
+			// A heading id isn't always a valid selector ("#My heading").
+			try {
+				container.querySelector(href)?.scrollIntoView();
+			} catch {
+				// Nothing to scroll to.
+			}
+		} else if (href && !/^[a-z][a-z0-9+.-]*:/i.test(href)) {
+			event.preventDefault();
+			void this.app.workspace.openLinkText(
+				href,
+				this._file?.path ?? "",
+				event.ctrlKey || event.metaKey
+			);
+		}
+	}
+
+	/** Hold a native-editor edit for a pause in the typing. See notesDraft. */
+	private queueNotesSave(text: string) {
+		const file = this._file;
+		if (!file) return;
+		const pending = this.notesDraft;
+		if (pending && pending.file !== file) void this.flushNotesDraft();
+		else if (pending) window.clearTimeout(pending.timer);
+		this.notesDraft = {
+			file,
+			text,
+			timer: window.setTimeout(() => void this.flushNotesDraft(), 800),
+		};
+	}
+
+	/** Write the held native-editor edit now, to the note it was typed in. */
+	private async flushNotesDraft(): Promise<void> {
+		const draft = this.notesDraft;
+		if (!draft) return;
+		window.clearTimeout(draft.timer);
+		this.notesDraft = null;
+		await this.saveNotes(draft.text, draft.file);
+	}
+
+	/**
+	 * The Notes section. The same island on every kind of page — in
+	 * Obsidian's own editor when the experimental setting is on, with the
+	 * standard section standing by in case that editor can't start.
+	 */
+	private notesIsland(): HTMLElement {
+		const openEditor = () =>
+			this.plugin.openPathAsMarkdown(this._file?.path ?? "");
+		const plain = (
+			<NotesSection
+				store={this.store}
+				value={() => this.bodyNotes ?? ""}
+				placeholder={() => this.notesPlaceholder()}
+				onSave={(text) => this.saveNotes(text)}
+				renderMarkdown={(text, el) => this.renderNotesMarkdown(text, el)}
+				onOpenEditor={openEditor}
+			/>
+		);
+		return this.island(
+			"notes",
+			<NotesChooser
+				store={this.store}
+				native={() => this.plugin.settings.nativeNotesEditor}
+				plainSection={plain}
+				nativeSection={
+					<NativeNotesSection
+						store={this.store}
+						value={() => this.bodyNotes ?? ""}
+						placeholder={() => this.notesPlaceholder()}
+						mount={(host, initial, events) =>
+							mountEmbeddedEditor(this.app, host, {
+								value: initial,
+								file: () => this._file,
+								...events,
+							})
+						}
+						onChange={(text) => this.queueNotesSave(text)}
+						onFlush={() => this.flushNotesDraft()}
+						onOpenEditor={openEditor}
+						fallback={plain}
+					/>
+				}
+			/>
+		);
 	}
 
 
@@ -3198,8 +3409,8 @@ export class ContactPageView extends ItemView {
 			(cost) => this.appendExpense(cost),
 			undefined,
 			this.plugin.settings.yourName,
-			this.plugin.settings.receiptTaxPercent,
-			this.plugin.settings.receiptTipPercent,
+			(this.plugin.settings.receiptTaxEnabled ? this.plugin.settings.receiptTaxPercent : null),
+			(this.plugin.settings.receiptTipEnabled ? this.plugin.settings.receiptTipPercent : null),
 			undefined,
 			{
 				label: entry.text,
@@ -3597,8 +3808,8 @@ export class ContactPageView extends ItemView {
 			},
 			() => this.deleteCost(index),
 			this.plugin.settings.yourName,
-			this.plugin.settings.receiptTaxPercent,
-			this.plugin.settings.receiptTipPercent
+			(this.plugin.settings.receiptTaxEnabled ? this.plugin.settings.receiptTaxPercent : null),
+			(this.plugin.settings.receiptTipEnabled ? this.plugin.settings.receiptTipPercent : null)
 		).open();
 	}
 
@@ -3731,8 +3942,8 @@ export class ContactPageView extends ItemView {
 			(cost) => this.appendExpense(cost),
 			undefined,
 			this.plugin.settings.yourName,
-			this.plugin.settings.receiptTaxPercent,
-			this.plugin.settings.receiptTipPercent
+			(this.plugin.settings.receiptTaxEnabled ? this.plugin.settings.receiptTaxPercent : null),
+			(this.plugin.settings.receiptTipEnabled ? this.plugin.settings.receiptTipPercent : null)
 		).open();
 	}
 
@@ -4299,29 +4510,9 @@ export class ContactPageView extends ItemView {
 					this
 				);
 
-				// Add click handlers for internal links
-				contentDiv.addEventListener("click", (event) => {
-					const target = event.target as HTMLElement;
-					if (target.tagName === "A") {
-						const anchor = target as HTMLAnchorElement;
-						const href = anchor.getAttribute("href");
-
-						if (href?.startsWith("#")) {
-							// Handle internal anchor links
-							event.preventDefault();
-							const targetEl = contentDiv.querySelector(href);
-							targetEl?.scrollIntoView();
-						} else if (!href?.startsWith("http")) {
-							// Handle internal Obsidian links
-							event.preventDefault();
-							void this.app.workspace.openLinkText(
-								href || "",
-								this._file?.path || "",
-								event.ctrlKey || event.metaKey
-							);
-						}
-					}
-				});
+				contentDiv.addEventListener("click", (event) =>
+					this.followRenderedLink(event, contentDiv)
+				);
 			}
 		} catch (error) {
 			console.error(

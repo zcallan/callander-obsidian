@@ -5,6 +5,8 @@ import {
 	indexBirthdays,
 	calendarBirthdayKey,
 	nextBirthdayOccurrence,
+	birthdaysOnDays,
+	turnsLabel,
 } from "./.build/callander.mjs";
 
 /** 6 September 2026, local — mid-month on purpose, so the window wraps. */
@@ -335,6 +337,40 @@ export function run() {
 
 	// The grid hands over local YYYY-MM-DD; the index is keyed without a year.
 	eq("a cell date becomes a day key", dayKeyOf("2027-09-21"), "09-21");
+
+	// ---------- birthdays on a calendar's days ----------
+	{
+		const people = [
+			{ name: "Ada", birthday: "1994-09-18" },
+			{ name: "Bo", birthday: "09-18" },
+			{ name: "Cy", birthday: "2000-02-29" },
+			{ name: "Di", birthday: "1990-01-02" },
+			{ name: "Ed", birthday: "1990-09" },
+			{ name: "Fi", birthday: "" },
+		];
+		const names = (map, day) => (map.get(day) ?? []).map((p) => p.name).join(",");
+		const sept = birthdaysOnDays(people, ["2026-09-17", "2026-09-18", "2026-09-19"]);
+		eq("a birthday lands on its day, with or without a year", names(sept, "2026-09-18"), "Ada,Bo");
+		eq("…and nowhere else", names(sept, "2026-09-17"), "");
+		eq("a month-only or missing birthday has no square", [...sept.values()].flat().length, 2);
+		const leap = birthdaysOnDays(people, ["2028-02-28", "2028-02-29", "2028-03-01"]);
+		eq("29 February, in a leap year", names(leap, "2028-02-29"), "Cy");
+		const plain = birthdaysOnDays(people, ["2027-02-28", "2027-03-01"]);
+		eq("29 February rolls into 1 March otherwise", names(plain, "2027-03-01"), "Cy");
+		const turn = birthdaysOnDays(people, ["2026-12-31", "2027-01-01", "2027-01-02"]);
+		eq("a grid across the new year finds the next year's too", names(turn, "2027-01-02"), "Di");
+		eq("no days, no birthdays", birthdaysOnDays(people, []).size, 0);
+		const edges = birthdaysOnDays(people, ["2026-08-31", "2026-09-01", "2026-09-30"]);
+		eq(
+			"a month-only birthday isn't guessed onto a day at either end of its month",
+			[...edges.values()].flat().length,
+			0
+		);
+	}
+
+	// ---------- the age a birthday brings ----------
+	eq("where there's room, it says turns", turnsLabel(31), "Turns 31");
+	eq("in a phone's square, just the number", turnsLabel(31, true), "31");
 
 	return result();
 }

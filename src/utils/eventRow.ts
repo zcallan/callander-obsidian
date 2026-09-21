@@ -61,7 +61,7 @@ export function eventRowFields(
 	now: Date,
 	peopleNames = "",
 	/** Say near dates by weekday — see conversationalLabel. */
-	options: { conversational?: boolean } = {}
+	options: { conversational?: boolean; bareWeekday?: boolean } = {}
 ): EventRowFields {
 	// The event's own name may lead with an emoji; otherwise its type
 	// supplies one, and a bare calendar is the last resort.

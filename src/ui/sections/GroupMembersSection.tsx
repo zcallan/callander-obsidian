@@ -38,44 +38,50 @@ export function GroupMembersSection({
 				{`Members (${members.length})`}
 			</div>
 
-			<div className="group-member-list">
+			{/* Pills, as a plan's members are. When they met, which the old
+			    rows spelled out, rides along as the pill's tooltip. */}
+			<div className="contact-group-chips plan-member-chips group-member-chips">
 				{members.map((m) => {
 					const met = parseFlexDate(m.met);
 					return (
-						<div className="group-member-row" key={m.file.path}>
-							<div
-								className="group-member-info"
+						<span
+							key={m.file.path}
+							className="contact-group-chip readonly plan-member-chip"
+							title={
+								met && met.year !== null
+									? `Met ${formatFlexDate(met)}`
+									: undefined
+							}
+						>
+							<span
+								className="plan-chip-name"
 								onClick={() => onOpen(m.file.path)}
 							>
-								<div className="group-member-name">
-									{m.displayName}
-								</div>
-								{met && met.year !== null && (
-									<div className="group-member-met">
-										{`Met ${formatFlexDate(met)}`}
-									</div>
-								)}
-							</div>
-							<button
-								className="callander-button button-icon button-danger"
+								{m.displayName}
+							</span>
+							<span
+								className="contact-member-remove"
 								aria-label="Remove from group"
 								onClick={() => onRemove(m)}
 							>
-								<Icon name="x" />
-							</button>
-						</div>
+								✕
+							</span>
+						</span>
 					);
 				})}
 			</div>
 
-			<button
-				className="callander-button button-outlined"
-				onClick={() =>
-					onAdd(contacts.filter((c) => !c.groups.includes(name)))
-				}
-			>
-				Add member
-			</button>
+			<div className="plan-member-add-row">
+				<button
+					className="callander-button button-outlined"
+					onClick={() =>
+						onAdd(contacts.filter((c) => !c.groups.includes(name)))
+					}
+				>
+					<Icon name="plus" />
+					<span>Add member</span>
+				</button>
+			</div>
 		</>
 	);
 }

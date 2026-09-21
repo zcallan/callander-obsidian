@@ -4,6 +4,45 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
+## 1.10.0 — 2026-09-21
+
+### Calendar
+
+- **A full Calendar page.** Events, plans and birthdays together in one month or week view, with a drawer for Display and filter options and its own colour settings.
+- **Colour, layered.** Color by category, Color by type and Color by group are each their own toggle, checked by default and applied in that order — the first one that matches an event wins, and anything left over falls back to the purple accent. Every layer opens a modal with a real colour picker (a saturation square and hue strip, not the browser's native input) and a hex field, with a reset back to the default.
+- **Color backgrounds** fills the whole event, plan or birthday with its colour instead of just a left border, and picks black or white text automatically so it stays readable.
+- **Fade past events** dims anything from yesterday back to 65% opacity, as its own Display setting.
+- Event categories: a free-form label set on an event under Additional details, each with its own colour, filterable from the drawer and shown as a pill on the event's view.
+- Bulk event import, with an AI-prompt generator to produce the input, duplicate detection, and category assignment on the way in.
+- The week view lays out as rows rather than columns, closer to the mobile layout: events get a sensible max width and wrap onto new lines rather than stretching full width.
+- Hovering an event or a multi-day plan's bar highlights every row it spans, with a ring in the event's own colour on top of the usual background lift.
+- Month/Week and Today shorten to M/W and T on mobile; the week view's day headers spell out the full day name on desktop, and stay sticky at the top of the grid while scrolling on mobile.
+- "Emojis on mobile" replaces "Show names on mobile" (default on) — mobile chips lead with the type's emoji instead of a name.
+- The Events page's own calendar gets the same drawer, category filters and colour settings as the Calendar page; its Week toggle is hidden (the view itself is still there) now that the Calendar page covers it.
+- Plans now show on the Events page's list, timeline and calendar, each visible independently of whether it shows on the dashboard's Upcoming; a plan spanning several days draws as a single bar across the days it covers.
+- An event's view modal can grow a plan around it: Make plan seeds a new plan's name, date, people and place from the event, landing it as the first item on the plan's timeline.
+
+### Dashboard
+
+- **A Getting started section** walks through the plugin's core features with a checklist, replacing the single seeded "Example Friend."
+- **Upcoming gets its own settings modal**, laid out like Getting started: which calendars to include (Events, Plans), and filters for event type and category.
+- Drafts drops the "unfiled" label and gains View person, Make idea and Add event actions per row, with Edit and Done icons in place of a plain delete.
+- Upcoming rows drop their "This"/"Next" date prefix, and the section gains a "View all upcoming events" link and a little more breathing room at the page's edges.
+
+### Notes
+
+- Notes move out of frontmatter into a `## Notes` section in the note body, with a small formatting toolbar (bold, italic, highlight, link) and an "Edit markdown" handoff to a real editor.
+- An experimental setting switches that editor to Obsidian's own native one for a closer-to-native feel.
+
+### Ideas
+
+- A person's ideas can now be edited in place, not just toggled or deleted — the same capture modal reopens prefilled, with Delete moved beside Save.
+- An idea Claude generated carries a small removable tag until it's edited or dismissed.
+
+### Fixes
+
+- A group or person's name containing a bracket (`Sci-Fi [Book Club]`) or similar punctuation no longer breaks its wikilink — it silently failed to resolve, so adding that group to a plan could make it not show up at all. The same fix covers Parents, Siblings, Children, Friends and Related links.
+
 ## 1.9.2 — 2026-09-15
 
 ### Plans

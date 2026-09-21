@@ -219,6 +219,8 @@ export type InterestCategory = (typeof INTEREST_CATEGORIES)[number]["id"];
  */
 export const DASHBOARD_SECTIONS = [
 	{ id: "drafts", label: "✏️ Drafts" },
+	{ id: "gettingStarted", label: "👋 Getting started" },
+	{ id: "calendar", label: "📅 Calendar" },
 	{ id: "birthdays", label: "🎂 Upcoming birthdays" },
 	{ id: "missedBirthdays", label: "🕯️ Missed birthdays" },
 	{ id: "upcoming", label: "📌 Upcoming" },
@@ -230,6 +232,7 @@ export const DASHBOARD_SECTIONS = [
 	{ id: "groups", label: "👥 Groups" },
 	{ id: "resurfacing", label: "⏰ Resurfacing now" },
 	{ id: "inbox", label: "📥 Idea inbox" },
+	{ id: "secretActions", label: "🤫 Secret actions" },
 ] as const;
 
 export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number]["id"];
@@ -252,7 +255,7 @@ export const EVENT_TYPES = [
 	{ id: "milestone", label: "Milestone", emoji: "🏅", color: "#dcc22e" },
 	{ id: "life", label: "Life event", emoji: "🌱", color: "#5cb870" },
 	{ id: "given", label: "Given", emoji: "🎁", color: "#e69735" },
-	{ id: "task", label: "Task", emoji: "⏰", color: "#6c7a89" },
+	{ id: "task", label: "Task", emoji: "⏰", color: "#e5342b" },
 	{ id: "other", label: "Other", emoji: "✨", color: "#9a7ef0" },
 ] as const;
 

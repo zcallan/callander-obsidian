@@ -17,24 +17,53 @@ export interface SectionSpec {
 	 * closed by `#`/`##`, or their own groups would truncate them.
 	 */
 	closes: RegExp;
+	/**
+	 * A heading the section always sits above. It's only looked for before
+	 * that heading, and added just before it when missing. The generated
+	 * sections all sit above `## Notes`, which runs to the end of the file:
+	 * anything after it is the person's own writing, even a line that
+	 * happens to read `## Ideas`.
+	 */
+	above?: RegExp;
 }
 
-interface Span {
+/** The Notes heading — see notesMarkdown. Here so every section can sit
+ * above it without importing Notes. */
+export const NOTES_HEADING = /^##\s+Notes\s*$/i;
+
+export interface Span {
 	start: number;
 	end: number;
 }
 
-function findSpan(lines: string[], spec: SectionSpec): Span | null {
-	const start = lines.findIndex((l) => spec.matches.test(l.trim()));
+/**
+ * Where a section sits: its heading line, and the line that ends it (or the
+ * end of the note). Exported so anything else reading around these
+ * sections — Notes, which is everything *outside* them — agrees with the
+ * writers on exactly where each one starts and stops.
+ */
+export function findSpan(lines: string[], spec: SectionSpec): Span | null {
+	const limit = limitOf(lines, spec);
+	const start = lines
+		.slice(0, limit)
+		.findIndex((l) => spec.matches.test(l.trim()));
 	if (start === -1) return null;
-	let end = lines.length;
-	for (let i = start + 1; i < lines.length; i++) {
+	let end = limit;
+	for (let i = start + 1; i < limit; i++) {
 		if (spec.closes.test(lines[i])) {
 			end = i;
 			break;
 		}
 	}
 	return { start, end };
+}
+
+/** Where the section's territory ends: its `above` heading, or the end. */
+function limitOf(lines: string[], spec: SectionSpec): number {
+	const above = spec.above;
+	if (!above) return lines.length;
+	const at = lines.findIndex((l) => above.test(l.trim()));
+	return at === -1 ? lines.length : at;
 }
 
 /**
@@ -93,6 +122,21 @@ function upsertCore(
 
 	if (!span) {
 		if (content.length === 0) return body;
+		const limit = limitOf(lines, spec);
+		if (limit < lines.length) {
+			const before = lines.slice(0, limit);
+			while (before.length > 0 && before[before.length - 1].trim() === "") {
+				before.pop();
+			}
+			return [
+				...(before.length ? [...before, ""] : []),
+				spec.heading,
+				"",
+				...content,
+				"",
+				...lines.slice(limit),
+			].join("\n");
+		}
 		const trimmed = body.replace(/\s+$/, "");
 		const prefix = trimmed ? `${trimmed}\n\n` : "";
 		return `${prefix}${spec.heading}\n\n${content.join("\n")}\n`;

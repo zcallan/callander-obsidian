@@ -78,8 +78,8 @@ export function ExpensesSection() {
 			(updated) => saveAt(index, updated),
 			() => deleteAt(index),
 			yourName,
-			plugin.settings.receiptTaxPercent,
-			plugin.settings.receiptTipPercent,
+			(plugin.settings.receiptTaxEnabled ? plugin.settings.receiptTaxPercent : null),
+			(plugin.settings.receiptTipEnabled ? plugin.settings.receiptTipPercent : null),
 			{ contacts, sourcePath }
 		).open();
 	};
@@ -113,8 +113,8 @@ export function ExpensesSection() {
 			(expense) => ops.writeExpenses((list) => list.push(expense)),
 			undefined,
 			yourName,
-			plugin.settings.receiptTaxPercent,
-			plugin.settings.receiptTipPercent,
+			(plugin.settings.receiptTaxEnabled ? plugin.settings.receiptTaxPercent : null),
+			(plugin.settings.receiptTipEnabled ? plugin.settings.receiptTipPercent : null),
 			{ contacts, sourcePath }
 		).open();
 	};

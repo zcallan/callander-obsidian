@@ -2,7 +2,7 @@
 kind: someday
 name: The night market in Chinatown
 status: open
-created: 2026-09-09
+created: 2026-09-18
 types:
   - food
   - explore
@@ -13,5 +13,5 @@ days:
 times:
   - night
 company: either
-updated: 2026-09-09
+updated: 2026-09-18
 ---

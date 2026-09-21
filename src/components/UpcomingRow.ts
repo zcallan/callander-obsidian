@@ -42,11 +42,13 @@ export function buildUpcomingRow(
 	// Rows without a date (missed birthdays) are single-line — skip the
 	// when line entirely rather than leaving an empty gap above the name
 	if (opts.icon || opts.date || opts.time) {
+		// Joined rather than templated, so a row without a date — a
+		// calendar's day list, where the heading already says the day —
+		// doesn't open its line on a stray separator.
+		const when = [opts.date, opts.time].filter(Boolean).join(" · ");
 		mainCol.createDiv({
 			cls: "dashboard-upcoming-when",
-			text: `${opts.icon ? opts.icon + " " : ""}${opts.date}${
-				opts.time ? " · " + opts.time : ""
-			}`,
+			text: [opts.icon, when].filter(Boolean).join(" "),
 		});
 	}
 	const nameEl = mainCol.createDiv({ cls: "dashboard-upcoming-name" });

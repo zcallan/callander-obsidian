@@ -61,46 +61,38 @@ export async function run({ cdp }) {
 	for (const { path, exists } of seeded.folders) {
 		ok(`folder created: ${path}`, exists);
 	}
-	eq("example friend file created", seeded.exampleExists, true);
-
-	// Everything below reads that file. If seeding didn't happen there's
-	// nothing meaningful left to assert, and continuing would throw an
-	// opaque null error rather than reporting the real problem.
-	if (!seeded.exampleExists) return result();
-
-	// The actual regression guard: present on the first render, with no
-	// reopen and no manual refresh.
+	// Retired in favour of the Getting started checklist — a fresh vault
+	// gets folders and nothing else, no placeholder friend to delete.
+	eq("no example friend is seeded", seeded.exampleExists, false);
 	eq(
-		"example friend is visible on the first dashboard render",
+		"nothing rendered on the first dashboard render",
 		seeded.contactsOnFirstRender,
-		["Example Friend"]
+		[]
 	);
 
-	// Seeded dates should make the friend immediately useful.
-	const fm = await cdp.evaluate(() => {
-		const file = window.app.vault.getAbstractFileByPath(
-			"Friends/People/Example Friend.md"
-		);
-		return window.app.metadataCache.getFileCache(file)?.frontmatter ?? {};
-	});
-	eq("name is set", fm.name, "Example Friend");
-	ok("birthday is set", typeof fm.birthday === "string");
-	ok("met is set", typeof fm.met === "string");
-
-	const daysAway = Math.round(
-		(new Date(`${fm.birthday}T00:00:00`) - new Date(`${fm.met}T00:00:00`)) /
-			86400000
-	);
-	eq("birthday is 21 days after met (today)", daysAway, 21);
-
-	// Re-running must not duplicate anything.
+	// Re-running must still be a no-op on an empty vault.
 	const again = await cdp.evaluate(async () => {
 		await window.app.plugins.plugins.callander.seedStarterVault();
 		return window.app.vault
 			.getMarkdownFiles()
 			.filter((f) => f.path.startsWith("Friends/People/")).length;
 	});
-	eq("seeding twice does not duplicate the example friend", again, 1);
+	eq("seeding twice creates no people files", again, 0);
+
+	// ---------- Getting started renders in its place ----------
+	const gettingStarted = await cdp.evaluate(async () => {
+		await window.app.plugins.plugins.callander.activateDashboard();
+		await new Promise((r) => setTimeout(r, 50));
+		const heading = [...document.querySelectorAll("h3")].find((h) =>
+			/getting started/i.test(h.textContent ?? "")
+		);
+		return {
+			headingPresent: !!heading,
+			stepCount: document.querySelectorAll(".getting-started-step").length,
+		};
+	});
+	ok("Getting started heading is shown", gettingStarted.headingPresent);
+	ok("...with its checklist steps", gettingStarted.stepCount > 0);
 
 	// ---------- the React island actually mounts ----------
 	// The Expenses section is rendered by React inside the dashboard. A

@@ -35,10 +35,11 @@ export async function run({ cdp }) {
 		monthFull: target.toLocaleDateString("en-AU", { month: "long" }),
 	};
 	expected.monthShort = expected.monthFull.slice(0, 3);
-	// Ten days out lands in the dashboard's second week, where a date reads
-	// as "Next Thursday" rather than "Thursday 13 Aug". Inside a week it
-	// would be the bare weekday, and from a fortnight the calendar date.
-	expected.nearLabel = `Next ${expected.weekday}`;
+	// Ten days out lands in the dashboard's second week. The section itself
+	// is already grouped under "This week" / "Next week" headings, so the
+	// row's own date reads as the bare weekday ("Thursday") rather than
+	// "Next Thursday" — the prefix would just repeat the group it's under.
+	expected.nearLabel = expected.weekday;
 	const TIME = "19:30";
 	const NAME = "Houndmouth at the Sinclair";
 	const LOCATION = "Cambridge, MA";

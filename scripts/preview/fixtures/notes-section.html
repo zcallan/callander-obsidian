@@ -1,0 +1,73 @@
+<!--
+  A page's Notes, in the three states NotesSection draws.
+
+  What to look at: the rendered notes should read like the note does in
+  Obsidian — bold, a highlight, a list, a link — with no stray space above
+  the first paragraph or below the last. The empty state should look like a
+  place to write, not a button. In the editor, the toolbar sits snug above
+  the textarea, and every footer keeps its buttons on one row.
+-->
+<div class="contact-content contact-content-stacked">
+	<div class="contact-stack-section">
+		<div class="contact-stack-header">
+			<span class="contact-stack-header-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+			<span>Notes — rendered</span>
+		</div>
+		<div class="callander-react-root">
+			<div class="contact-notes-section">
+				<div class="contact-notes-preview">
+					<div class="markdown-rendered contact-notes-rendered">
+						<p>Met at <strong>uni orientation</strong>, 2014. Still the first to text on a birthday.</p>
+						<p>Allergic to <mark>shellfish</mark> — ask before booking anywhere coastal.</p>
+						<h3>Background</h3>
+						<ul><li>Grew up in Perth</li><li>Two sisters, both in Melbourne</li></ul>
+						<p>See also <a class="internal-link" href="Weekend in Maine">Weekend in Maine</a>.</p>
+					</div>
+				</div>
+				<div class="contact-section-footer contact-notes-footer">
+					<button type="button" class="callander-button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Edit</span></button>
+					<button type="button" class="callander-button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>Edit markdown</span></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="contact-stack-section">
+		<div class="contact-stack-header">
+			<span class="contact-stack-header-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+			<span>Notes — empty</span>
+		</div>
+		<div class="callander-react-root">
+			<div class="contact-notes-section">
+				<button type="button" class="contact-notes-empty">Add notes about anything here that you want to remember...</button>
+				<div class="contact-section-footer contact-notes-footer">
+					<button type="button" class="callander-button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>Edit markdown</span></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="contact-stack-section">
+		<div class="contact-stack-header">
+			<span class="contact-stack-header-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+			<span>Notes — editing</span>
+		</div>
+		<div class="callander-react-root">
+			<div class="contact-notes-section is-editing">
+				<div class="contact-notes-toolbar" role="toolbar" aria-label="Formatting">
+					<button type="button" class="contact-notes-tool contact-notes-tool-bold" title="Bold (⌘B)">B</button>
+					<button type="button" class="contact-notes-tool contact-notes-tool-italic" title="Italic (⌘I)">I</button>
+					<button type="button" class="contact-notes-tool contact-notes-tool-highlight" title="Highlight (⇧⌘H)"><span class="contact-notes-tool-swatch">H</span></button>
+					<button type="button" class="contact-notes-tool contact-notes-tool-link" title="Link (⌘K)"><svg class="svg-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+				</div>
+				<textarea class="contact-notes-input" style="--scroll-height: 120px">Met at **uni orientation**, 2014. Still the first to text on a birthday.
+
+Allergic to ==shellfish== — ask before booking anywhere coastal.</textarea>
+				<div class="contact-section-footer contact-notes-footer">
+					<button type="button" class="callander-button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg><span>Done</span></button>
+					<button type="button" class="callander-button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>Edit markdown</span></button>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

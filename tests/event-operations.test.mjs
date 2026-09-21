@@ -770,5 +770,53 @@ export async function run() {
 		);
 	}
 
+	// ---------- categories ----------
+	{
+		const t = await createTestVault();
+		const file = await t.events.createEvent({
+			name: "Celtics vs Knicks",
+			date: "2026-10-22",
+			categories: ["Celtics", "Sports"],
+		});
+		eq("categories are stored as a list", t.frontmatterOf(file).categories, ["Celtics", "Sports"]);
+		eq(
+			"…and read back",
+			t.events.getEvents().find((e) => e.file === file)?.categories,
+			["Celtics", "Sports"]
+		);
+		await t.events.updateEvent(file, { name: "Celtics vs Knicks", date: "2026-10-23" });
+		eq(
+			"an edit that doesn't mention them leaves them alone",
+			t.frontmatterOf(file).categories,
+			["Celtics", "Sports"]
+		);
+		await t.events.updateEvent(file, { name: "Celtics vs Knicks", date: "2026-10-23", categories: [] });
+		eq("an edit that empties them removes the key", "categories" in t.frontmatterOf(file), false);
+		await t.events.createEvent({ name: "Heat vs Celtics", date: "2026-10-30", categories: ["sports", "Away games"] });
+		await t.events.createEvent({ name: "Lakers vs Celtics", date: "2026-11-02", categories: ["Celtics", "SPORTS"] });
+		eq(
+			"every category in use, once each, first spelling kept",
+			t.events.getEventCategories(),
+			["Away games", "Celtics", "sports"]
+		);
+	}
+
+	// ---------- an event's own colour ----------
+	{
+		const t = await createTestVault();
+		const file = await t.events.createEvent({ name: "Gig", date: "2026-10-02" });
+		const colorOf = () => t.events.getEvents().find((e) => e.file === file)?.color;
+		eq("an event has no colour of its own to start with", colorOf(), "");
+		await t.events.setColor(file, "#AA3344");
+		eq("a colour is stored lowercased", t.frontmatterOf(file).color, "#aa3344");
+		eq("…and read back", colorOf(), "#aa3344");
+		await t.events.updateEvent(file, { name: "Gig", date: "2026-10-03" });
+		eq("an edit leaves it alone", colorOf(), "#aa3344");
+		await t.events.setColor(file, "");
+		eq("clearing it removes the key", "color" in t.frontmatterOf(file), false);
+		await t.events.setColor(file, "not a colour");
+		eq("something that isn't a hex isn't stored", "color" in t.frontmatterOf(file), false);
+	}
+
 	return result();
 }

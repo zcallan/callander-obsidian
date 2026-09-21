@@ -1,8 +1,8 @@
 ---
 name: John Williams
 shortName: John W.
-birthday: 1960-12-28
-met: 2010-04-06
+birthday: 1960-01-06
+met: 2010-04-15
 relationship: friend
 groups:
   - writers' room
@@ -15,6 +15,6 @@ funFacts:
   - Taught at the same university for thirty years and edited its literary journal
   - Won a National Book Award and had to share it — the judges couldn't choose
   - His quietest novel found a huge audience in Europe half a century after it came out
-created: 2026-09-09
-updated: 2026-09-09
+created: 2026-09-18
+updated: 2026-09-18
 ---

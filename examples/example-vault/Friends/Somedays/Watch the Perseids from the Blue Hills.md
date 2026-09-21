@@ -2,7 +2,7 @@
 kind: someday
 name: Watch the Perseids from the Blue Hills
 status: open
-created: 2026-09-09
+created: 2026-09-18
 types:
   - nature
 seasons:
@@ -10,5 +10,5 @@ seasons:
 times:
   - night
 company: either
-updated: 2026-09-09
+updated: 2026-09-18
 ---

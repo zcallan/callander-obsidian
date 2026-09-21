@@ -757,16 +757,16 @@ If your plugin does not need CSS, delete this file.
 }
 
 .contact-notes-input:hover {
-	border-color: var(--text-muted);
+	border-color: var(--background-modifier-border-hover);
 }
 
 .contact-notes-input:focus {
-	border-color: var(--interactive-accent);
+	border-color: var(--background-modifier-border-focus);
 	outline: none;
 }
 
 .contact-notes-input::placeholder {
-	color: var(--text-faint);
+	color: var(--input-placeholder-color, var(--text-faint));
 	font-style: italic;
 }
 
@@ -774,6 +774,203 @@ If your plugin does not need CSS, delete this file.
    specificity while the JS reads scrollHeight */
 .contact-notes-input.measuring {
 	height: 0;
+}
+
+/* ── Notes, rendered ──
+
+   Notes are the note's own markdown now, so they read as it renders rather
+   than as raw asterisks in a textarea. Selectable, for copying a line out. */
+.contact-notes-preview {
+	margin-top: 12px;
+	-webkit-user-select: text;
+	user-select: text;
+	cursor: text;
+}
+
+/* Obsidian's reading view spaces a note's first and last blocks against
+   the page; inside a section that spacing just pushes the text away from
+   its own heading and buttons. */
+.contact-notes-rendered > :first-child {
+	margin-top: 0;
+}
+
+.contact-notes-rendered > :last-child {
+	margin-bottom: 0;
+}
+
+/* Nothing written yet: the same box the textarea draws, so it reads as a
+   place to write rather than as a button. Flex, and started at the top: a
+   button centres its content vertically, which put the invitation in the
+   middle of the box rather than where the textarea's first line will be.
+   Scoped to the section to outrank Obsidian's `button:not(.clickable-icon)`,
+   which would otherwise paint the text (and fill) as an ordinary button's. */
+.contact-notes-section .contact-notes-empty {
+	display: flex;
+	align-items: flex-start;
+	justify-content: flex-start;
+	width: 100%;
+	min-height: 72px;
+	margin-top: 12px;
+	padding: 12px;
+	background: var(--background-modifier-form-field);
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: 4px;
+	box-shadow: none;
+	color: var(--input-placeholder-color, var(--text-faint));
+	font-family: inherit;
+	font-size: 0.9em;
+	font-style: italic;
+	line-height: 1.6;
+	text-align: left;
+	white-space: normal;
+	cursor: text;
+}
+
+.contact-notes-section .contact-notes-empty:hover {
+	border-color: var(--background-modifier-border-hover);
+	background: var(--background-modifier-form-field);
+}
+
+.contact-notes-section .contact-notes-empty:focus-visible {
+	border-color: var(--background-modifier-border-focus);
+	box-shadow: none;
+	outline: none;
+}
+
+/* ── Notes, native editor (experimental) ──
+   Obsidian's own editor, mounted through non-public internals — see
+   embeddedMarkdownEditor. Its stylesheet assumes a whole note in a pane:
+   file margins, a readable-width column, room to scroll past the end.
+   Inside a section each of those just pushes the text around, so they're
+   taken back here. Framed like the plain Notes' textarea, so it still
+   reads as somewhere to type. */
+
+.contact-notes-native-body {
+	position: relative;
+	margin-top: 12px;
+}
+
+.contact-notes-native-editor {
+	min-height: 100px;
+	background: var(--background-modifier-form-field);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	cursor: text;
+}
+
+.contact-notes-native-editor:hover {
+	border-color: var(--background-modifier-border-hover);
+}
+
+/* After hover, so a focused box keeps its focus colour under the pointer. */
+.contact-notes-native-editor:focus-within {
+	border-color: var(--background-modifier-border-focus);
+}
+
+.contact-notes-native-editor .markdown-source-view,
+.contact-notes-native-editor .cm-editor {
+	height: auto;
+	min-height: 98px;
+	background: transparent;
+}
+
+.contact-notes-native-editor .cm-scroller {
+	padding: 12px;
+	overflow: visible;
+}
+
+.contact-notes-native-editor .cm-sizer {
+	max-width: none;
+	margin: 0;
+	padding-bottom: 0 !important;
+	min-height: 0;
+}
+
+.contact-notes-native-editor .inline-title,
+.contact-notes-native-editor .metadata-container,
+.contact-notes-native-editor .embedded-backlinks {
+	display: none;
+}
+
+.contact-notes-native-placeholder {
+	position: absolute;
+	top: 13px;
+	left: 13px;
+	right: 13px;
+	color: var(--text-faint);
+	pointer-events: none;
+}
+
+/* ── Notes, editing ── */
+
+.contact-notes-toolbar {
+	display: flex;
+	gap: 4px;
+	margin-top: 12px;
+}
+
+.contact-notes-tool {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 30px;
+	height: 28px;
+	padding: 0 6px;
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.contact-notes-tool:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* The letters stand in for icons, so each is drawn as what it does. */
+.contact-notes-tool-bold {
+	font-weight: 700;
+}
+
+.contact-notes-tool-italic {
+	font-family: var(--font-text, serif);
+	font-style: italic;
+}
+
+.contact-notes-tool-swatch {
+	padding: 1px 4px;
+	border-radius: 2px;
+	/* Obsidian's own highlight colour, so the button matches what it makes;
+	   the fallback is Obsidian's default for a theme that doesn't set it. */
+	background: var(--text-highlight-bg, rgba(255, 208, 0, 0.4));
+	color: var(--text-normal);
+}
+
+.contact-notes-tool .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+/* The toolbar sits between the section heading and the text now, so the
+   textarea only needs a little room under it. */
+.contact-notes-section.is-editing .contact-notes-input {
+	margin-top: 6px;
+}
+
+/* Edit / Done beside Edit markdown, on one row. */
+.contact-notes-section .contact-notes-footer {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 20px;
+}
+
+.contact-notes-footer .callander-button {
+	margin-top: 0;
 }
 
 .callander-name-cell {
@@ -1594,6 +1791,15 @@ If your plugin does not need CSS, delete this file.
 	overflow-y: auto;
 }
 
+/* Extra breathing room below the last section — without it the page ends
+   right where the last row does, which reads as cut off rather than
+   finished. Scoped to the actual dashboard: Events, Somedays and the
+   Calendar page share .dashboard-container for its layout but end their
+   own way (a filter row, an agenda) that doesn't want the same padding. */
+.dashboard-home-container {
+	padding-bottom: 48px;
+}
+
 .dashboard-header {
 	display: flex;
 	align-items: center;
@@ -1648,6 +1854,23 @@ If your plugin does not need CSS, delete this file.
 
 .dashboard-friend-chip:hover {
 	border-color: var(--interactive-accent);
+}
+
+/* "All friends": the same pill, outlined — a border a step lighter than
+   the friends', without their fill or shadow — so it sits in the row as one of them
+   while still reading as the way to the rest. Scoped to the
+   list to outrank Obsidian's button fill and shadow. */
+.dashboard-friend-list .dashboard-friend-chip-all {
+	background: transparent;
+	box-shadow: none;
+	border-color: var(--background-modifier-border-hover);
+	color: var(--text-normal);
+}
+
+.dashboard-friend-list .dashboard-friend-chip-all:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
 }
 
 .dashboard-chip-badge {
@@ -2010,51 +2233,6 @@ If your plugin does not need CSS, delete this file.
 	border-top: none;
 }
 
-/* Group member rows */
-.group-member-list {
-	margin: 4px 0 12px;
-}
-
-.group-member-row {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	padding: 9px 0;
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.group-member-row:last-child {
-	border-bottom: none;
-}
-
-.group-member-info {
-	flex: 1;
-	cursor: pointer;
-}
-
-.group-member-info:hover .group-member-name {
-	color: var(--text-accent);
-}
-
-.group-member-name {
-	font-weight: 600;
-}
-
-.group-member-met {
-	color: var(--text-muted);
-	font-size: 0.85em;
-}
-
-.group-member-row .button-icon {
-	opacity: 0;
-	transition: opacity 0.2s ease;
-}
-
-.group-member-row:hover .button-icon {
-	opacity: 1;
-}
-
 .contact-last-updated {
 	font-size: 0.8em;
 	opacity: 0.75;
@@ -2102,7 +2280,6 @@ If your plugin does not need CSS, delete this file.
 
 /* Touch devices have no hover — reveal the hover-gated action buttons */
 .is-mobile .contact-idea-item .button-icon,
-.is-mobile .group-member-row .button-icon,
 .is-mobile .contact-gift-item .button-icon {
 	opacity: 1;
 }
@@ -2115,8 +2292,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 /* A little more breathing room between rows on phones */
-.is-phone .contact-idea-item,
-.is-phone .group-member-row {
+.is-phone .contact-idea-item {
 	padding-top: 10px;
 	padding-bottom: 10px;
 }
@@ -2154,8 +2330,59 @@ If your plugin does not need CSS, delete this file.
 	line-height: 1.4;
 }
 
-.dashboard-draft-delete {
+/* Drafts: text and a row of what-to-do buttons stack in one column; the
+   Edit/Done icons sit off to the side, so the row reads as one thought with
+   a toolbar rather than a thing with two competing action rows. */
+.dashboard-draft-row {
+	align-items: flex-start;
+}
+
+.dashboard-draft-main {
+	flex: 1;
+	min-width: 0;
+}
+
+.dashboard-draft-text {
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.dashboard-draft-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 6px;
+}
+
+.dashboard-draft-actions .dashboard-row-action {
+	padding: 2px 9px;
+	font-size: 0.82em;
+}
+
+.dashboard-draft-icons {
+	display: flex;
+	gap: 2px;
 	flex-shrink: 0;
+	align-self: flex-start;
+}
+
+.dashboard-draft-edit-input {
+	width: 100%;
+	min-height: 44px;
+	box-sizing: border-box;
+	padding: 6px 8px;
+	background: var(--background-modifier-form-field);
+	border: 1px solid var(--background-modifier-border-focus);
+	border-radius: 4px;
+	color: var(--text-normal);
+	font-family: inherit;
+	font-size: 1em;
+	line-height: 1.4;
+	resize: vertical;
+}
+
+.is-phone .dashboard-draft-actions {
+	width: 100%;
 }
 
 .is-phone .contact-draft-row {
@@ -3023,11 +3250,17 @@ body.is-mobile.callander-kb-open .modal-content > * {
    20/20. Only when closed: with rows below, the heading spaces itself
    against them instead. */
 .dashboard-drafts-accordion:not(.is-open) .plan-accordion-header,
-.dashboard-birthdays-accordion:not(.is-open) .plan-accordion-header {
+.dashboard-birthdays-accordion:not(.is-open) .plan-accordion-header,
+.dashboard-getting-started:not(.is-open) .plan-accordion-header,
+.dashboard-secret-actions:not(.is-open) .plan-accordion-header,
+.dashboard-calendar-link .plan-accordion-header {
 	padding-top: 5px;
 }
 .dashboard-drafts-accordion:not(.is-open) .plan-accordion-header h3,
-.dashboard-birthdays-accordion:not(.is-open) .plan-accordion-header h3 {
+.dashboard-birthdays-accordion:not(.is-open) .plan-accordion-header h3,
+.dashboard-getting-started:not(.is-open) .plan-accordion-header h3,
+.dashboard-secret-actions:not(.is-open) .plan-accordion-header h3,
+.dashboard-calendar-link .plan-accordion-header h3 {
 	margin-bottom: 2px;
 }
 
@@ -3565,6 +3798,15 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	font-variant-numeric: tabular-nums;
 }
 
+/* The period label, and anything a page puts ahead of it (the full
+   Calendar's menu button). */
+.cal-bar-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
 .cal-nav {
 	display: flex;
 	align-items: center;
@@ -3613,6 +3855,24 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	padding-bottom: 2px;
 }
 
+/* On a narrow pane, the month grid can run taller than the screen — the
+   dots-and-agenda layout trades chips for a scrollable list underneath.
+   Pinning the weekday row to the top of the scroll area (the page's own
+   .dashboard-container) keeps "which column is which day" in view the
+   whole way down, rather than only at the top of the page. An opaque
+   background is needed since cells now scroll in behind it; a positive
+   z-index keeps it above them. */
+@container (max-width: 620px) {
+	.cal-weekdays {
+		position: sticky;
+		top: 0;
+		z-index: 2;
+		background: var(--background-primary);
+		padding-top: 4px;
+		margin-top: -4px;
+	}
+}
+
 .cal-grid,
 .cal-week {
 	background: var(--background-modifier-border);
@@ -3658,7 +3918,14 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* Today is washed rather than outlined: an outline on a grid cell reads as
    a selection, and the selected day has its own mark. */
 .cal-cell.is-today {
-	background: var(--background-modifier-hover);
+	/* An opaque tint of the page rather than the translucent hover wash:
+	   that one let the grid's border colour show through the cell, which
+	   made today read brighter than intended. */
+	background: color-mix(
+		in srgb,
+		var(--background-primary) 84%,
+		var(--text-normal)
+	);
 }
 
 .cal-cell-head {
@@ -3747,6 +4014,40 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .cal-chip.is-stacked .cal-chip-name {
 	font-weight: 600;
 	white-space: nowrap;
+}
+
+/* Week view: a chip has the width of its own day column, with room to read
+   the whole name — wrap it instead of clipping. Month keeps truncating,
+   where a chip is a seventh of the row and there's nowhere to grow. */
+.cal-week .cal-chip.is-stacked .cal-chip-name {
+	white-space: normal;
+	overflow: visible;
+	overflow-wrap: anywhere;
+}
+
+/* Week view's extra lines — location, then who's coming — each truncated
+   rather than wrapped: the name is the thing worth the room to read in
+   full, these are secondary and a whole chip of wrapped addresses would
+   crowd the column. */
+.cal-chip-location,
+.cal-chip-people {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* The month display setting to wrap names instead of truncating them —
+   same override as week view's, just opt-in rather than automatic. */
+.cal-chip.is-stacked.is-name-wrap .cal-chip-name {
+	white-space: normal;
+	overflow: visible;
+	overflow-wrap: anywhere;
+}
+
+.fullcal-drawer-heading-display {
+	margin-top: 6px;
 }
 
 .cal-chip-meta {
@@ -3941,6 +4242,11 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	.cal-bar {
 		flex-wrap: nowrap;
 		gap: 8px;
+	}
+
+	.cal-bar-title {
+		flex: 1 1 auto;
+		overflow: hidden;
 	}
 
 	.cal-period {
@@ -6282,6 +6588,9 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 .cal-span-spacer {
 	visibility: hidden;
 	pointer-events: none;
+	/* Sized to the bar overhead by an explicit height, which is a
+	   border-box figure like the bar's own offsetHeight. */
+	box-sizing: border-box;
 }
 
 /* A stacked week has no neighbouring column to reach into, so the bar goes
@@ -6295,4 +6604,805 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 	.cal-week .cal-span-spacer {
 		display: none;
 	}
+}
+
+/* ---- Calendar (the full page) -------------------------------------------
+   The Events calendar's board with a drawer beside the grid. The drawer
+   sits below the bar rather than beside the whole board, so the bar — and
+   the ☰ that opened it — stays where it was. Beside the grid on a wide pane,
+   squeezing it right; above it on a narrow one, pushing it down, since a
+   phone has no width to give a column up to. */
+
+.fullcal-menu {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	margin: 0;
+	padding: 4px 6px;
+}
+
+.fullcal-menu.is-active {
+	background: var(--background-modifier-hover);
+}
+
+.fullcal-body {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+}
+
+/* The grid, weekday headings and day list, spaced as .cal spaces them when
+   there's no drawer to sit beside. */
+.fullcal-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.fullcal-drawer {
+	flex: 0 0 200px;
+	box-sizing: border-box;
+	padding: 12px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.fullcal-drawer-heading {
+	color: var(--text-muted);
+	font-size: 0.75em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.fullcal-drawer-option {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+
+.fullcal-drawer-option input {
+	margin: 0;
+}
+
+@container (max-width: 620px) {
+	.fullcal-body {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.fullcal-drawer {
+		flex: none;
+		width: 100%;
+	}
+}
+
+/* ---- Dashboard: Getting started -----------------------------------------
+   A step per row: a tick that fills in by itself, the step and a line on why
+   it's worth doing, and a button that does it. */
+
+.getting-started-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-top: 4px;
+}
+
+.getting-started-step {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 7px 8px;
+	border-radius: 6px;
+}
+
+.getting-started-mark {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	box-sizing: border-box;
+	border: 1.5px solid var(--text-faint);
+	border-radius: 50%;
+}
+
+.getting-started-step.is-done .getting-started-mark {
+	background: var(--color-green, #5cb870);
+	border-color: var(--color-green, #5cb870);
+	color: #fff;
+}
+
+.getting-started-mark .svg-icon {
+	width: 12px;
+	height: 12px;
+	stroke-width: 3;
+}
+
+.getting-started-text {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.getting-started-title {
+	font-size: 0.95em;
+	font-weight: 500;
+}
+
+.getting-started-step.is-done .getting-started-title {
+	color: var(--text-muted);
+}
+
+.getting-started-blurb {
+	margin-top: 1px;
+	color: var(--text-muted);
+	font-size: 0.8em;
+	line-height: 1.35;
+}
+
+.getting-started-action {
+	flex: 0 0 auto;
+	margin: 0;
+	padding: 3px 10px;
+	font-size: 0.85em;
+}
+
+.getting-started-footer {
+	margin-top: 8px;
+}
+
+/* A plain purple text button — scoped to the section to outrank Obsidian's
+   button fill and shadow. */
+.dashboard-getting-started .getting-started-hide {
+	background: transparent;
+	box-shadow: none;
+	border: none;
+	padding: 4px 8px;
+	color: var(--text-accent);
+	font-size: 0.9em;
+	cursor: pointer;
+}
+
+.dashboard-getting-started .getting-started-hide:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-accent-hover, var(--text-accent));
+}
+
+/* "Show names on mobile": a narrow month cell lists names, tiny, in place of
+   the glyphs. Hidden everywhere else — wide cells have their chips. */
+.cal-names {
+	display: none;
+}
+
+.cal-name {
+	font-size: 9px;
+	line-height: 1.25;
+	min-width: 0;
+	padding-left: 3px;
+	border-left: 2px solid var(--cal-chip, var(--background-modifier-border));
+}
+
+.cal-name-text,
+.cal-name-meta {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: clip;
+}
+
+.cal-name-text {
+	font-weight: 600;
+}
+
+.cal-name-meta {
+	font-size: 8px;
+	color: var(--text-muted);
+}
+
+/* "Wrap event names" on a phone: the name runs onto as many lines as it
+   needs; the second line still clips, as it does on the chips. */
+.cal-names.is-name-wrap .cal-name-text {
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+/* A plan in a phone cell's name list: a bar across the days it covers in
+   this week row, the wide grid's .cal-chip.is-span at phone size. Each extra
+   column adds a column's width plus the 5px the list doesn't occupy — the
+   grid's 1px gap and a narrow cell's 2px of padding either side. Its name
+   follows the wrap setting like any other; the spacers in the cells it
+   crosses are sized to it once laid out (syncSpanHeights), so a wrapped
+   bar never hangs over the names below it. */
+.cal-name.is-plan {
+	position: relative;
+	z-index: 1;
+	box-sizing: border-box;
+	background: var(--background-secondary);
+	border-radius: 2px;
+	cursor: pointer;
+}
+
+.cal-name.is-span {
+	width: calc(var(--span-cols, 1) * 100% + 5px * (var(--span-cols, 1) - 1));
+}
+
+.cal-name.is-span-open-end {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+.cal-name.is-plan:hover,
+.cal-name.is-plan-hover {
+	background: var(--background-modifier-hover);
+	box-shadow: 0 0 0 1px var(--cal-chip, var(--background-modifier-border));
+}
+
+.cal-name-spacer {
+	visibility: hidden;
+	pointer-events: none;
+	box-sizing: border-box;
+}
+
+.cal-name-more {
+	font-size: 9px;
+	line-height: 1.25;
+	color: var(--text-muted);
+}
+
+@container (max-width: 620px) {
+	.cal.is-narrow-names .cal-dots {
+		display: none;
+	}
+
+	.cal.is-narrow-names .cal-names {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		width: 100%;
+		min-width: 0;
+	}
+
+	.cal.is-narrow-names .cal-grid .cal-cell {
+		align-items: stretch;
+	}
+
+	.cal.is-narrow-names .cal-cell-head {
+		justify-content: center;
+	}
+}
+
+/* ---- Bulk event import --------------------------------------------------- */
+
+.event-import-tip {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	padding: 10px 12px;
+	margin-bottom: 14px;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	font-size: 0.9em;
+	line-height: 1.45;
+}
+
+.event-import-tip-icon {
+	flex: 0 0 auto;
+}
+
+.event-import-tip-body {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.event-import-modal .event-import-prompt {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 8px;
+	padding: 3px 10px;
+	font-size: 0.9em;
+}
+
+.event-import-prompt .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+/* The format to copy: the whole box is the button, so it's reached for
+   rather than hunted for. Scoped to the modal to outrank Obsidian's button
+   fill and fixed height. */
+.event-import-modal .event-import-copy {
+	display: block;
+	width: 100%;
+	height: auto;
+	margin-top: 8px;
+	padding: 10px 12px;
+	text-align: left;
+	white-space: normal;
+	background: var(--background-primary-alt, var(--background-secondary));
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: 6px;
+	box-shadow: none;
+	cursor: copy;
+}
+
+.event-import-modal .event-import-copy:hover {
+	border-color: var(--background-modifier-border-hover);
+}
+
+.event-import-modal .event-import-copy.is-copied {
+	border-style: solid;
+	border-color: var(--color-green, #5cb870);
+}
+
+.event-import-copy pre {
+	margin: 0;
+	font-family: var(--font-monospace);
+	font-size: 0.8em;
+	white-space: pre;
+	overflow-x: auto;
+	user-select: text;
+}
+
+.event-import-copy-hint {
+	margin-top: 6px;
+	color: var(--text-muted);
+	font-size: 0.8em;
+}
+
+.event-import-modal .event-import-copy.is-copied .event-import-copy-hint {
+	color: var(--color-green, #5cb870);
+}
+
+.event-import-input {
+	width: 100%;
+	min-height: 140px;
+	box-sizing: border-box;
+	padding: 8px 10px;
+	font-family: var(--font-monospace);
+	font-size: 0.8em;
+	white-space: pre;
+	resize: vertical;
+}
+
+.event-import-errors,
+.event-import-warnings,
+.event-import-caution {
+	margin: 10px 0;
+	padding: 10px 12px;
+	border-radius: 6px;
+	font-size: 0.9em;
+	line-height: 1.45;
+}
+
+.event-import-errors {
+	background: rgba(var(--color-red-rgb, 229, 83, 75), 0.1);
+	border: 1px solid rgba(var(--color-red-rgb, 229, 83, 75), 0.4);
+}
+
+.event-import-warnings,
+.event-import-caution {
+	background: rgba(var(--color-orange-rgb, 230, 151, 53), 0.1);
+	border: 1px solid rgba(var(--color-orange-rgb, 230, 151, 53), 0.4);
+}
+
+.event-import-errors-title {
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.event-import-errors ul,
+.event-import-warnings ul {
+	margin: 0;
+	padding-left: 18px;
+}
+
+.event-import-summary {
+	margin-bottom: 8px;
+	font-size: 1.05em;
+}
+
+.event-import-preview {
+	margin-top: 10px;
+}
+
+.event-import-preview .dashboard-count-badge {
+	margin-left: 6px;
+}
+
+.event-import-list {
+	max-height: 280px;
+	overflow-y: auto;
+	margin-top: 6px;
+}
+
+.event-import-row {
+	padding: 6px 2px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.event-import-row:last-child {
+	border-bottom: none;
+}
+
+.event-import-name {
+	font-weight: 600;
+}
+
+.event-import-meta {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+/* ---- A week of rows (the Calendar page's Week view) ----------------------
+   A row per day rather than seven columns — the phone's stacked week, at
+   any width. The day's heading takes a line of its own, and its events sit
+   side by side under it as cards of one fixed width, wrapping onto another
+   line when they run out of room. Fixed rather than stretched, so a lone
+   event doesn't swell across the page and a busy day lines up in columns.
+
+   240px, measured: across the example vault's calendar events, 216px of
+   content holds every name on one line at 13px (median 156, 90th
+   percentile 179), and every venue (max 161) and roster (max 148) at the
+   smaller size untruncated — plus 20px of padding and the 4px colour edge.
+   Longer names wrap; venues and rosters truncate. It shrinks with the
+   pane, and a phone gets one full-width card per line. */
+.cal.is-week-rows .cal-week {
+	grid-template-columns: 1fr;
+}
+
+.cal.is-week-rows .cal-week .cal-cell {
+	min-height: 0;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: stretch;
+	align-content: flex-start;
+	gap: 8px;
+	padding: 10px 10px 12px;
+}
+
+.cal.is-week-rows .cal-week .cal-cell-head {
+	flex: 0 0 100%;
+}
+
+.cal.is-week-rows .cal-week .cal-chip {
+	display: flex;
+	box-sizing: border-box;
+	flex: 0 1 var(--cal-row-card, 240px);
+	max-width: var(--cal-row-card, 240px);
+	min-width: 0;
+	font-size: 13px;
+	line-height: 1.4;
+	padding: 8px 10px;
+	gap: 3px;
+	border-radius: 5px;
+	border-left-width: 4px;
+}
+
+/* A plan is a card like the rest here — no bar, no lanes to hold open. */
+.cal.is-week-rows .cal-week .cal-chip.is-span {
+	width: auto;
+}
+
+.cal.is-week-rows .cal-week .cal-span-spacer,
+.cal.is-week-rows .cal-week .cal-more,
+.cal.is-week-rows .cal-week .cal-dots {
+	display: none;
+}
+
+.cal-empty-day {
+	color: var(--text-faint);
+	font-size: 0.9em;
+}
+
+/* ---- "Color backgrounds" ---- fills a chip with its own colour instead of
+   just the left edge. Text picks a fixed light or dark shade rather than
+   the theme's --text-normal/--text-muted, which have no guaranteed
+   contrast against a colour that could be anything — see contrastColor,
+   which decides is-bg-light per chip from what the colour actually
+   rendered as. */
+.cal.is-bg-colored .cal-chip {
+	background: var(--cal-chip, var(--background-secondary));
+	/* The border was the colour; now the whole chip is, so the border
+	   itself is just dead space on the left — zeroed rather than only
+	   hidden, so its width goes back to the name instead of sitting there
+	   unused. */
+	border-left-width: 0;
+	color: #fff;
+}
+
+/* Beats the week-rows card's own border-left-width (4px, more specific
+   than the rule above since it's scoped to that layout) so the same
+   space is reclaimed there too. */
+.cal.is-week-rows.is-bg-colored .cal-week .cal-chip {
+	border-left-width: 0;
+}
+
+.cal.is-bg-colored .cal-chip-meta,
+.cal.is-bg-colored .cal-chip-location,
+.cal.is-bg-colored .cal-chip-people {
+	color: rgba(255, 255, 255, 0.85);
+}
+
+.cal.is-bg-colored .cal-chip.is-bg-light {
+	color: #111;
+}
+
+.cal.is-bg-colored .cal-chip.is-bg-light .cal-chip-meta,
+.cal.is-bg-colored .cal-chip.is-bg-light .cal-chip-location,
+.cal.is-bg-colored .cal-chip.is-bg-light .cal-chip-people {
+	color: rgba(0, 0, 0, 0.65);
+}
+
+/* The hover ring already uses --cal-chip on its own edge; against a filled
+   chip of the same colour it would vanish, so it switches to the page
+   background's own colour instead — still a visible outline either way. */
+.cal.is-bg-colored .cal-chip:hover,
+.cal.is-bg-colored .cal-chip.is-plan-hover {
+	background: var(--cal-chip, var(--background-secondary));
+	box-shadow: 0 0 0 1px var(--background-primary);
+	/* The fill itself is the thing that shows on the calendar; darkening it
+	   the way the plain hover wash does would fight the colour rather than
+	   just marking the hover. A fade says "hovered" without changing what
+	   colour it reads as. */
+	opacity: 0.75;
+}
+
+/* The same, for a phone's squares with "Show names on mobile" on: each
+   name, and each plan's bar, fills with its colour instead of carrying it
+   as a thin edge — the border is zeroed rather than just hidden, for the
+   same reason as the chips'. Spacers take the same padding so a lane
+   keeps its height; they stay invisible. */
+.cal.is-bg-colored .cal-name {
+	border-left-width: 0;
+	border-radius: 2px;
+	padding: 1px 3px;
+}
+
+.cal.is-bg-colored .cal-name:not(.cal-name-spacer) {
+	background: var(--cal-chip, var(--background-secondary));
+	color: #fff;
+}
+
+.cal.is-bg-colored .cal-name .cal-name-meta {
+	color: rgba(255, 255, 255, 0.85);
+}
+
+.cal.is-bg-colored .cal-name.is-bg-light {
+	color: #111;
+}
+
+.cal.is-bg-colored .cal-name.is-bg-light .cal-name-meta {
+	color: rgba(0, 0, 0, 0.65);
+}
+
+.cal.is-bg-colored .cal-name.is-plan:hover,
+.cal.is-bg-colored .cal-name.is-plan-hover {
+	background: var(--cal-chip, var(--background-secondary));
+	box-shadow: 0 0 0 1px var(--background-primary);
+	opacity: 0.75;
+}
+
+/* A spacer is invisible either way, but it still carries a left border in
+   the ordinary rules — nothing to override, just kept out of the chip
+   background rule's specificity by not needing one. Cancelled events fade
+   as they already do; the fill just fades with them. */
+
+
+@container (max-width: 620px) {
+	/* A phone: one card per line, the full width, as the stacked week was. */
+	.cal.is-week-rows .cal-week .cal-chip {
+		flex-basis: 100%;
+		max-width: none;
+	}
+}
+
+/* ---- The calendar drawer's settings button, and the colours modal ------ */
+
+/* Pushed to the end of its row, after the label. */
+.fullcal-drawer-action {
+	margin-left: auto;
+	padding: 2px;
+	color: var(--text-muted);
+}
+
+.fullcal-drawer-action .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.calendar-colors-section {
+	margin-top: 16px;
+}
+
+.callander-color-row {
+	padding: 6px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.callander-color-row:last-child {
+	border-bottom: none;
+}
+
+.callander-color-row-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.callander-color-row-label {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.callander-color-row-controls {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+}
+
+/* Scoped to the modal to outrank Obsidian's button fill, height and shadow:
+   this button is nothing but its colour. */
+.calendar-colors-modal .callander-color-swatch {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	margin: 0;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: none;
+	cursor: pointer;
+}
+
+.calendar-colors-modal .callander-color-row.is-open .callander-color-swatch {
+	outline: 2px solid var(--background-modifier-border-focus);
+	outline-offset: 1px;
+}
+
+.callander-color-hex {
+	width: 88px;
+	font-family: var(--font-monospace);
+	font-size: 0.85em;
+}
+
+.callander-color-reset.is-default {
+	opacity: 0.2;
+}
+
+/* The floating picker. At the menu layer so it sits over a modal, fixed
+   so it stays put while a modal behind it scrolls. */
+.callander-color-popover {
+	position: fixed;
+	z-index: var(--layer-menu, 65);
+	width: 232px;
+	box-sizing: border-box;
+	padding: 10px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-s, 0 4px 16px rgba(0, 0, 0, 0.3));
+}
+
+/* vanilla-colorful sizes itself from its own box. Tall enough that the
+   saturation square is comfortable to aim in — a short one makes a drag
+   likely to wander out of it, which is how a colour used to end up black. */
+.callander-color-popover callander-hex-picker {
+	display: flex;
+	width: 100%;
+	height: 200px;
+}
+
+.callander-color-popover-foot {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+}
+
+.callander-color-popover-foot .callander-color-hex {
+	flex: 1 1 auto;
+	min-width: 0;
+	width: auto;
+}
+
+.callander-color-popover .callander-color-popover-reset {
+	margin: 0;
+	flex: 0 0 auto;
+}
+
+/* The event modal's colour button: a circle of the event's colour, in a
+   button the size of the icon buttons beside it. */
+.event-color-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.event-color-dot {
+	display: block;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+/* An event's categories in its view modal: pills, each with a dot in the
+   colour the Calendar page gives that category. */
+.event-view-categories {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 6px;
+}
+
+.event-view-category {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 999px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.event-view-category-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex: 0 0 auto;
+}
+
+/* The Upcoming section's settings button: a square icon button at the end
+   of its row. Obsidian sizes every button to --input-height, which is what
+   the text buttons beside it are, so this matches that rather than the
+   fixed 28px an icon button has elsewhere — and is as wide as it is tall. */
+.dashboard-section-buttons .dashboard-section-settings {
+	height: var(--input-height, 30px);
+	width: var(--input-height, 30px);
+	flex: 0 0 auto;
+	padding: 0;
+}
+
+.upcoming-settings-heading {
+	margin-top: 14px;
+}
+
+.upcoming-settings-row {
+	cursor: pointer;
+}
+
+.upcoming-settings-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.upcoming-settings-row input[type="checkbox"] {
+	flex: 0 0 auto;
+	margin: 0;
+}
+
+/* "Fade past events": everything before today at 70% opacity, on either
+   calendar's chips or (a phone's) name list. A cancelled item keeps its own
+   stronger fade instead — the two don't stack, one opacity wins either way,
+   and cancelled already says the more important thing. */
+.cal.is-fade-past .cal-chip.is-past-event:not(.is-cancelled),
+.cal.is-fade-past .cal-name.is-past-event {
+	opacity: 0.65;
+}
+
+.calendar-colors-where {
+	margin-top: 6px;
 }

@@ -3,8 +3,8 @@ name: George Orwell
 shortName: Eric
 nicknames:
   - Eric
-birthday: 1958-09-11
-met: 2022-05-13
+birthday: 1958-09-20
+met: 2022-05-22
 relationship: friend
 groups:
   - book club
@@ -24,7 +24,7 @@ ideas:
   - category: activity
     text: Walk the allotments with him next time I'm over
     done: false
-    resurface: 2026-09-30
+    resurface: 2026-10-09
   - category: book
     text: Lend him the Zamyatin I keep going on about
     done: true
@@ -53,8 +53,8 @@ quotes:
     context: Over the third pot of tea
 drafts:
   - text: He mentioned wanting to show me the allotment on the next visit
-    created: 2026-09-06
+    created: 2026-09-15
 notes: Writes in the mornings, gardens in the afternoons, so evenings are the safe time to call.
-created: 2026-09-09
-updated: 2026-09-09
+created: 2026-09-18
+updated: 2026-09-18
 ---

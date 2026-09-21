@@ -1,5 +1,6 @@
 import type { Quote } from "@/types";
 import {
+	NOTES_HEADING,
 	readSection,
 	upsertSection,
 	type SectionSpec,
@@ -25,11 +26,12 @@ import {
  * characters that make a naive `Key: value` grammar fall over.
  */
 
-const SPEC: SectionSpec = {
+export const QUOTES_SECTION: SectionSpec = {
 	heading: "## Quotes",
 	matches: /^##\s+Quotes\s*$/i,
 	// Quotes own no subheadings, so any heading safely closes the section.
 	closes: /^#{1,6}\s/,
+	above: NOTES_HEADING,
 };
 
 /** `- "text"`, straight or curly. A hand-typed quote (or one pasted from a
@@ -122,7 +124,7 @@ export function serializeQuoteLine(quote: Quote): string {
 }
 
 export function parseQuotesSection(body: string): Quote[] | null {
-	const lines = readSection(body, SPEC);
+	const lines = readSection(body, QUOTES_SECTION);
 	if (lines === null) return null;
 	const quotes: Quote[] = [];
 	for (const line of lines) {
@@ -132,12 +134,17 @@ export function parseQuotesSection(body: string): Quote[] | null {
 	return quotes;
 }
 
+/** Whether a line is one of this section's own quote bullets. */
+export function isQuoteLine(line: string): boolean {
+	return parseQuoteLine(line) !== null;
+}
+
 export function upsertQuotesSection(body: string, quotes: Quote[]): string {
 	return upsertSection(
 		body,
-		SPEC,
+		QUOTES_SECTION,
 		quotes.map(serializeQuoteLine),
-		(line) => parseQuoteLine(line) !== null
+		isQuoteLine
 	);
 }
 

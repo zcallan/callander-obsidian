@@ -19,6 +19,9 @@ import { useVaultVersion } from "@/ui/useVaultData";
 import { UpcomingRow } from "@/ui/components/UpcomingRow";
 import { resolvePeopleInfo } from "@/utils/people";
 import { summarisePeople } from "@/utils/nameFormat";
+import { shownByCategory } from "@/utils/eventCategories";
+import { UpcomingSettingsModal } from "@/modals/UpcomingSettingsModal";
+import { Icon } from "@/ui/components/Icon";
 
 /** Beyond this the list stops being a glance and starts being the Events page. */
 const MAX_ROWS = 10;
@@ -40,7 +43,24 @@ export function UpcomingSection() {
 
 	const { shown, hiddenCount, total } = useMemo(() => {
 		const now = new Date();
-		const events = upcomingItems(plugin.eventOperations.getEvents(), now);
+		// Its own Calendars and Event category choices — see
+		// UpcomingSettingsModal.
+		const settings = plugin.settings;
+		const events = settings.upcomingShowEvents
+			? upcomingItems(
+					plugin.eventOperations
+						.getEvents()
+						.filter(
+							(e) =>
+								!settings.upcomingHiddenTypes.includes(e.type) &&
+								shownByCategory(
+									e.categories,
+									settings.upcomingHiddenCategories
+								)
+						),
+					now
+			  )
+			: [];
 		// A trip is the biggest thing in this window, so it belongs among
 		// what's next rather than only in the Plans section further down —
 		// but that's a reading preference, so it's a setting.
@@ -83,6 +103,10 @@ export function UpcomingSection() {
 				// The dashboard is a "what's next" view — anything inside a
 				// fortnight reads better by weekday.
 				conversational: true,
+				// And a section already grouped into "This week" / "Next
+				// week" doesn't need "This"/"Next" on every row inside those
+				// groups too — "Thursday" on its own says enough.
+				bareWeekday: true,
 			})}
 			onClick={() => openEvent(event)}
 		/>
@@ -157,9 +181,18 @@ export function UpcomingSection() {
 					</button>
 					<button
 						className="callander-button"
-						onClick={() => void plugin.activateEvents()}
+						onClick={() => void plugin.activateEvents(undefined, { here: true })}
 					>
 						See all
+					</button>
+					<button
+						className="callander-button button-icon dashboard-section-settings"
+						aria-label="Upcoming settings"
+						onClick={() =>
+							new UpcomingSettingsModal(plugin.app, plugin).open()
+						}
+					>
+						<Icon name="settings-2" />
 					</button>
 				</div>
 			</div>
@@ -205,9 +238,9 @@ export function UpcomingSection() {
 			{hiddenCount > 0 && (
 				<div
 					className="section-helper-text dashboard-row-clickable"
-					onClick={() => void plugin.activateEvents()}
+					onClick={() => void plugin.activateEvents(undefined, { here: true })}
 				>
-					+{hiddenCount} more on the Events page
+					View all upcoming events
 				</div>
 			)}
 		</div>

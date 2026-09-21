@@ -64,6 +64,17 @@ const TRIVIA_TOGGLES: Array<{
 	{ key: "showChineseZodiac", name: "Show Chinese zodiac" },
 ];
 
+// Shared by both settings paths, so they can't drift between them.
+const SALES_TAX_DESC =
+	'Offer "Add sales tax?" on a by-receipt expense split. Turn off if bills where you live already include it';
+const TIP_DESC =
+	'Offer "Add tip?" on a by-receipt expense split. Turn off if tipping isn\'t done where you live';
+
+const NATIVE_NOTES_DESC =
+	"Write Notes on Person, Group and Plan pages in Obsidian's own editor — live preview, your hotkeys and other plugins' editor features — instead of the standard Notes box.";
+const NATIVE_NOTES_WARNING =
+	"Warning: this uses non-public Obsidian APIs, which are likely to change without notice, so it could break in a newer version of Obsidian. If it does, the standard Notes are shown instead — turn this off if anything looks wrong.";
+
 export class FriendTrackerSettingTab extends PluginSettingTab {
 	constructor(app: App, private plugin: FriendTracker) {
 		super(app, plugin);
@@ -106,14 +117,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					type: "dropdown",
 					key: "weekStartsOn",
 					options: { "1": "Monday", "0": "Sunday" },
-				},
-			},
-			{
-				name: "Show plans in Upcoming",
-				desc: "List your plans alongside events in the dashboard's Upcoming section",
-				control: {
-					type: "toggle",
-					key: "upcomingShowPlans",
 				},
 			},
 			{
@@ -231,6 +234,11 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				heading: "Dashboard",
 				items: [
 					{
+						name: "Show getting started",
+						desc: "A checklist on the dashboard of a first thing to try on each page, ticked off as you go",
+						control: { type: "toggle", key: "showGettingStarted" },
+					},
+					{
 						name: "Belated birthday window",
 						desc: 'For this many days after a birthday, show "birthday was X days ago" so you can still send a belated message',
 						control: {
@@ -265,6 +273,11 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				heading: "Cost breakdown",
 				items: [
 					{
+						name: "Sales tax",
+						desc: SALES_TAX_DESC,
+						control: { type: "toggle", key: "receiptTaxEnabled" },
+					},
+					{
 						name: "Default sales tax",
 						desc: 'Pre-filled when you tick "Add sales tax?" on a by-receipt expense split (%)',
 						control: {
@@ -273,6 +286,12 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 							min: 0,
 							max: 100,
 						},
+						visible: () => this.plugin.settings.receiptTaxEnabled,
+					},
+					{
+						name: "Tip",
+						desc: TIP_DESC,
+						control: { type: "toggle", key: "receiptTipEnabled" },
 					},
 					{
 						name: "Default tip",
@@ -283,6 +302,18 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 							min: 0,
 							max: 100,
 						},
+						visible: () => this.plugin.settings.receiptTipEnabled,
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Experimental",
+				items: [
+					{
+						name: "Native editor for notes",
+						desc: `${NATIVE_NOTES_DESC} ${NATIVE_NOTES_WARNING}`,
+						control: { type: "toggle", key: "nativeNotesEditor" },
 					},
 				],
 			},
@@ -316,6 +347,13 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			value = String(value).replace(/[\\/]/g, "-").trim();
 		}
 		Object.assign(this.plugin.settings, { [key]: value });
+		// The default percentage beside each add-on only shows while it's on,
+		// and a row's visibility is only re-read on a fresh render. update()
+		// is 1.13 API, reached for loosely so the plugin still lints clean at
+		// its older floor — this path only ever runs on 1.13+.
+		if (key === "receiptTaxEnabled" || key === "receiptTipEnabled") {
+			(this as unknown as { update?: () => void }).update?.();
+		}
 		// A ribbon icon is a standing DOM element, not something that just
 		// gets picked up on the next render — flip it live.
 		if (RIBBON_ACTIONS.some((action) => action.key === key)) {
@@ -435,20 +473,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Show plans in Upcoming")
-			.setDesc(
-				"List your plans alongside events in the dashboard's Upcoming section"
-			)
-			.addToggle((toggle) => {
-				toggle
-					.setValue(this.plugin.settings.upcomingShowPlans)
-					.onChange(async (value) => {
-						this.plugin.settings.upcomingShowPlans = value;
-						await this.plugin.saveSettings();
-					});
-			});
-
-		new Setting(containerEl)
 			.setName("Show plans on the Events page")
 			.setDesc(
 				"List your plans among events on the Events page — in the list and timeline, and across the days they span on the calendar"
@@ -544,6 +568,20 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		new Setting(containerEl).setName("Dashboard").setHeading();
 
 		new Setting(containerEl)
+			.setName("Show getting started")
+			.setDesc(
+				"A checklist on the dashboard of a first thing to try on each page, ticked off as you go"
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.showGettingStarted)
+					.onChange(async (value) => {
+						this.plugin.settings.showGettingStarted = value;
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
 			.setName("Belated birthday window")
 			.setDesc(
 				'For this many days after a birthday, show "birthday was X days ago" so you can still send a belated message'
@@ -630,16 +668,55 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					);
 				});
 		};
-		percentSetting(
-			"Default sales tax",
-			'Pre-filled when you tick "Add sales tax?" on a by-receipt expense split (%)',
-			"receiptTaxPercent"
-		);
-		percentSetting(
-			"Default tip",
-			'Pre-filled when you tick "Add tip?" on a by-receipt expense split (%)',
-			"receiptTipPercent"
-		);
+		// Each add-on switches on or off, and its default percentage shows
+		// only while it's on — redrawn on the toggle so it appears or goes.
+		const addOnToggle = (
+			name: string,
+			desc: string,
+			key: "receiptTaxEnabled" | "receiptTipEnabled"
+		) => {
+			new Setting(containerEl)
+				.setName(name)
+				.setDesc(desc)
+				.addToggle((toggle) => {
+					toggle
+						.setValue(this.plugin.settings[key])
+						.onChange(async (value) => {
+							this.plugin.settings[key] = value;
+							await this.plugin.saveSettings();
+							this.renderFallback();
+						});
+				});
+		};
+		addOnToggle("Sales tax", SALES_TAX_DESC, "receiptTaxEnabled");
+		if (this.plugin.settings.receiptTaxEnabled) {
+			percentSetting(
+				"Default sales tax",
+				'Pre-filled when you tick "Add sales tax?" on a by-receipt expense split (%)',
+				"receiptTaxPercent"
+			);
+		}
+		addOnToggle("Tip", TIP_DESC, "receiptTipEnabled");
+		if (this.plugin.settings.receiptTipEnabled) {
+			percentSetting(
+				"Default tip",
+				'Pre-filled when you tick "Add tip?" on a by-receipt expense split (%)',
+				"receiptTipPercent"
+			);
+		}
 
+		new Setting(containerEl).setName("Experimental").setHeading();
+
+		new Setting(containerEl)
+			.setName("Native editor for notes")
+			.setDesc(`${NATIVE_NOTES_DESC} ${NATIVE_NOTES_WARNING}`)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.nativeNotesEditor)
+					.onChange(async (value) => {
+						this.plugin.settings.nativeNotesEditor = value;
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 }

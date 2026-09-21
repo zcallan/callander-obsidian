@@ -7,7 +7,6 @@ import {
 	WorkspaceLeaf,
 	ViewState,
 	normalizePath,
-	stringifyYaml,
 } from "obsidian";
 import {
 	FriendTrackerSettings,
@@ -18,6 +17,8 @@ import {
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import { classifyExistingEvent } from "@/utils/eventRow";
 import { eventPlanSeed, type EventPlanSeed } from "@/utils/eventToPlan";
+import { adoptNotes, joinNotes } from "@/utils/notesMarkdown";
+import { joinFrontmatter, splitFrontmatter } from "@/utils/markdownSection";
 import {
 	IdeaCategory,
 	formatSomedaySeasons,
@@ -27,6 +28,7 @@ import {
 	RIBBON_ACTIONS,
 	type RibbonActionKey,
 } from "@/constants";
+import { calendarEventColor, categoryColors } from "@/utils/categoryColor";
 import {
 	CaptureTargetModal,
 	CaptureTarget,
@@ -138,18 +140,23 @@ import { DiaryView, VIEW_TYPE_DIARY } from "@/views/DiaryView";
 import { DashboardView, VIEW_TYPE_DASHBOARD } from "@/views/DashboardView";
 import { SomedaysView, VIEW_TYPE_SOMEDAYS } from "@/views/SomedaysView";
 import { EventsView, VIEW_TYPE_EVENTS } from "@/views/EventsView";
+import { CalendarView, VIEW_TYPE_CALENDAR } from "@/views/CalendarView";
 import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { GlanceModal } from "@/modals/GlanceModal";
 import { GroupEventModal } from "@/modals/GroupEventModal";
 import { IdeaSearchModal } from "@/modals/IdeaSearchModal";
-import { MergeFriendsModal } from "@/modals/MergeFriendsModal";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { PlanModal } from "@/modals/PlanModal";
 import { EventModal } from "@/modals/EventModal";
-import { daysFromToday, parseFlexDate, todayISO } from "@/utils/flexdate";
-import { metadataSettled } from "@/utils/metadataSettled";
+import { parseFlexDate, todayISO } from "@/utils/flexdate";
+
+/** How to open a Callander page — see FriendTracker.openHere. */
+export interface NavOptions {
+	/** In the active tab, with back/forward history, as a link would. */
+	here?: boolean;
+}
 
 export default class FriendTracker extends Plugin {
 	settings: FriendTrackerSettings;
@@ -223,6 +230,10 @@ export default class FriendTracker extends Plugin {
 				VIEW_TYPE_EVENTS,
 				(leaf) => new EventsView(leaf, this)
 			);
+			this.registerView(
+				VIEW_TYPE_CALENDAR,
+				(leaf) => new CalendarView(leaf, this)
+			);
 
 			// Ribbon: the dashboard is the front door. Each icon is
 			// individually toggleable from settings (Quick actions).
@@ -275,6 +286,11 @@ export default class FriendTracker extends Plugin {
 				callback: () => this.openEventModal(),
 			});
 			this.addCommand({
+				id: "open-calendar",
+				name: "Open calendar",
+				callback: () => this.activateCalendar(),
+			});
+			this.addCommand({
 				id: "quick-note",
 				name: "Quick note (draft)",
 				callback: () => this.openQuickNote(),
@@ -322,11 +338,6 @@ export default class FriendTracker extends Plugin {
 				id: "year-recap",
 				name: "Generate year in friendships",
 				callback: () => this.generateYearRecap(),
-			});
-			this.addCommand({
-				id: "merge-friends",
-				name: "Merge duplicate friends",
-				callback: () => this.openMergeFriends(),
 			});
 
 			// Clicking a friend anywhere (file explorer, quick switcher,
@@ -714,14 +725,38 @@ export default class FriendTracker extends Plugin {
 		await workspace.revealLeaf(leaf);
 	}
 
-	public async activateDashboard() {
+	/**
+	 * Open a Callander page in the active tab, the way following a link
+	 * does — so Obsidian's back and forward step between it and the page you
+	 * came from. For links inside Callander's own pages; the ribbon and the
+	 * commands still reveal an open tab or start a new one, rather than
+	 * replacing whatever note you had open.
+	 *
+	 * Tab history is recorded by Obsidian itself when a tab moves from one
+	 * kind of page to another, provided the pages opt into navigation — and
+	 * every Callander page does.
+	 */
+	private async openHere(type: string, state?: Record<string, unknown>) {
+		const leaf = this.app.workspace.getLeaf(false);
+		await leaf.setViewState({ type, active: true, state });
+		await this.app.workspace.revealLeaf(leaf);
+	}
+
+	public async activateDashboard(opts: NavOptions = {}) {
+		if (opts.here) return this.openHere(VIEW_TYPE_DASHBOARD);
 		await this.activateLeafOfType(
 			VIEW_TYPE_DASHBOARD,
 			(v) => v instanceof DashboardView
 		);
 	}
 
-	public async activateSomedays(focusPath?: string) {
+	public async activateSomedays(focusPath?: string, opts: NavOptions = {}) {
+		if (opts.here) {
+			return this.openHere(
+				VIEW_TYPE_SOMEDAYS,
+				focusPath ? { focusPath } : undefined
+			);
+		}
 		await this.activateLeafOfType(
 			VIEW_TYPE_SOMEDAYS,
 			(v) => v instanceof SomedaysView
@@ -739,11 +774,25 @@ export default class FriendTracker extends Plugin {
 		}
 	}
 
-	public async activateEvents(focusPath?: string) {
+	public async activateEvents(focusPath?: string, opts: NavOptions = {}) {
+		// A fresh page, so its calendar opens on today of its own accord.
+		if (opts.here) {
+			return this.openHere(
+				VIEW_TYPE_EVENTS,
+				focusPath ? { focusPath } : undefined
+			);
+		}
 		await this.activateLeafOfType(
 			VIEW_TYPE_EVENTS,
 			(v) => v instanceof EventsView
 		);
+		// The Calendar tab opens on today, for the reason activateCalendar
+		// gives: a page that's already open is revealed, not rebuilt.
+		for (const leaf of this.app.workspace.getLeavesOfType(
+			VIEW_TYPE_EVENTS
+		)) {
+			if (leaf.view instanceof EventsView) leaf.view.goToToday();
+		}
 		if (focusPath) {
 			for (const leaf of this.app.workspace.getLeavesOfType(
 				VIEW_TYPE_EVENTS
@@ -757,14 +806,45 @@ export default class FriendTracker extends Plugin {
 		}
 	}
 
-	public async activateDiaryView() {
+	/** The colour an event shows in on the Calendar page — see
+	 * calendarEventColor. */
+	public calendarColorFor(event: EventInfo): string {
+		return calendarEventColor(event, {
+			byGroup: this.settings.calendarColorByGroup,
+			byCategory: this.settings.calendarCustomCategoryColors,
+			byType: this.settings.calendarColorByType,
+			custom: this.settings.calendarGroupColors,
+			palette: categoryColors(this.eventOperations.getEventCategories()),
+		});
+	}
+
+	/** The full Calendar page — events, plans and birthdays together. */
+	public async activateCalendar(opts: NavOptions = {}) {
+		if (opts.here) return this.openHere(VIEW_TYPE_CALENDAR);
+		await this.activateLeafOfType(
+			VIEW_TYPE_CALENDAR,
+			(v) => v instanceof CalendarView
+		);
+		// An already-open page is revealed rather than rebuilt, and would
+		// come back on whatever day it was left on — days ago, on a phone
+		// that keeps its tabs alive. Opening the calendar means today.
+		for (const leaf of this.app.workspace.getLeavesOfType(
+			VIEW_TYPE_CALENDAR
+		)) {
+			if (leaf.view instanceof CalendarView) leaf.view.goToToday();
+		}
+	}
+
+	public async activateDiaryView(opts: NavOptions = {}) {
+		if (opts.here) return this.openHere(VIEW_TYPE_DIARY);
 		await this.activateLeafOfType(
 			VIEW_TYPE_DIARY,
 			(v) => v instanceof DiaryView
 		);
 	}
 
-	public async activateFriendTracker() {
+	public async activateFriendTracker(opts: NavOptions = {}) {
+		if (opts.here) return this.openHere(VIEW_TYPE_FRIEND_TRACKER);
 		const workspace = this.app.workspace;
 		for (const leaf of workspace.getLeavesOfType(
 			VIEW_TYPE_FRIEND_TRACKER
@@ -786,6 +866,29 @@ export default class FriendTracker extends Plugin {
 	}
 
 	// ---- Quick actions ----
+
+	/**
+	 * This plugin's page in Obsidian's settings. There's no public API for
+	 * opening the settings window, so this uses the internal one every
+	 * plugin reaches for — checked first, and a notice pointing the way if
+	 * it's ever gone.
+	 */
+	public openPluginSettings() {
+		const setting = (
+			this.app as unknown as {
+				setting?: { open?: () => void; openTabById?: (id: string) => void };
+			}
+		).setting;
+		if (
+			typeof setting?.open !== "function" ||
+			typeof setting.openTabById !== "function"
+		) {
+			new Notice("Open Settings → Community plugins → Callander.");
+			return;
+		}
+		setting.open();
+		setting.openTabById(this.manifest.id);
+	}
 
 	public openAddContactModal() {
 		new AddContactModal(this.app, this).open();
@@ -948,6 +1051,10 @@ export default class FriendTracker extends Plugin {
 		// aren't fuzzy, though — they're already wikilinks, the exact shape
 		// a plan's own members list uses, so they become real members
 		// instead of just a mention in the notes.
+		//
+		// The facts are a bullet list now that notes render as markdown: as
+		// bare lines they'd run together into one paragraph for anyone with
+		// strict line breaks on. The someday's own notes stay prose, below.
 		const seed: string[] = [];
 		const typeLabels = someday.types
 			.map((t) => somedayType(t)?.label)
@@ -966,15 +1073,26 @@ export default class FriendTracker extends Plugin {
 			seed.push(`Must happen by: ${someday.untilDate}`);
 		}
 		if (someday.cost !== null) seed.push(`Rough budget: ~$${someday.cost}`);
-		if (someday.notes) seed.push(someday.notes);
-		if (seed.length > 0 || someday.people.length > 0) {
+		const brief = joinNotes(
+			seed.map((line) => `- ${line}`).join("\n"),
+			someday.notes
+		);
+		if (someday.people.length > 0) {
 			await this.app.fileManager.processFrontMatter(
 				plan,
 				(fm: Record<string, unknown>) => {
-					if (seed.length > 0) fm.notes = seed.join("\n");
-					if (someday.people.length > 0) fm.members = someday.people;
+					fm.members = someday.people;
 				}
 			);
+		}
+		// Into the body's `## Notes`, where a page's notes live — not a
+		// frontmatter `notes` key the plan page would only move there on
+		// first open. Ahead of anything a template already put in the body.
+		if (brief) {
+			await this.app.vault.process(plan, (content) => {
+				const { frontmatter, body } = splitFrontmatter(content);
+				return joinFrontmatter(frontmatter, adoptNotes(body, brief));
+			});
 		}
 		// Link the someday to the plan it became — a breadcrumb on both ends.
 		await this.somedayOperations.markConverted(someday.file, plan.path);
@@ -1163,43 +1281,6 @@ export default class FriendTracker extends Plugin {
 		}).open();
 	}
 
-	private async openMergeFriends() {
-		const contacts = await this.contactOperations.getContacts();
-		if (contacts.length < 2) {
-			new Notice("Need at least two friends to merge.");
-			return;
-		}
-		new ContactSuggestModal(
-			this.app,
-			contacts,
-			(keep) => {
-				new ContactSuggestModal(
-					this.app,
-					contacts.filter((c) => c.file.path !== keep.file.path),
-					(duplicate) => {
-						new MergeFriendsModal(
-							this.app,
-							keep,
-							duplicate,
-							async () => {
-								await this.contactOperations.mergeFriends(
-									keep.file,
-									duplicate.file
-								);
-								new Notice(
-									`Merged into ${keep.displayName}`
-								);
-								await this.refreshOpenContactPages(keep.file);
-							}
-						).open();
-					},
-					"Which duplicate should merge into them?"
-				).open();
-			},
-			"Which friend do you want to KEEP?"
-		).open();
-	}
-
 	public async openContactPage(file: TFile) {
 		// Navigate in the active main-area tab, exactly like clicking a
 		// link — so "back" returns to wherever you actually came from
@@ -1224,9 +1305,14 @@ export default class FriendTracker extends Plugin {
 
 	/**
 	 * A missing base folder is the signal a fresh install hasn't touched
-	 * the vault yet — create the folder structure and one example friend
-	 * so the dashboard isn't a blank page the first time it opens.
-	 * No-op once the base folder exists.
+	 * the vault yet — create the folder structure so the dashboard isn't
+	 * pointed at nothing the first time it opens. No-op once the base
+	 * folder exists.
+	 *
+	 * Used to also drop in one example friend, retired once the dashboard's
+	 * Getting started checklist gave a fresh vault something better than a
+	 * placeholder to look at — a real first friend, added by hand, beats a
+	 * fake one waiting to be deleted.
 	 */
 	public async seedStarterVault() {
 		const base = normalizePath(this.settings.baseFolder);
@@ -1245,32 +1331,6 @@ export default class FriendTracker extends Plugin {
 		await ensureFolder(this.planOperations.getPlansFolderPath());
 		await ensureFolder(this.somedayOperations.getSomedaysFolderPath());
 		await ensureFolder(this.eventOperations.getEventsFolderPath());
-
-		const examplePath = normalizePath(
-			`${this.contactOperations.getPeopleFolderPath()}/Example Friend.md`
-		);
-		if (!this.app.vault.getAbstractFileByPath(examplePath)) {
-			const today = todayISO();
-			const yaml = stringifyYaml({
-				name: "Example Friend",
-				birthday: daysFromToday(21),
-				met: today,
-				created: today,
-				updated: today,
-			});
-			// getContacts() reads frontmatter from the metadata cache, not
-			// the file — deliberately, since a cache read costs nothing
-			// while a cold file read can mean a network fetch on a
-			// cloud-synced vault. That cache is populated by a separate,
-			// async indexing pass, so it isn't guaranteed to have caught up
-			// with a file created a moment ago. DashboardView.onOpen() calls
-			// refresh() right after this returns — without waiting here,
-			// that first render could miss the friend it just seeded, only
-			// showing it after the dashboard is closed and reopened.
-			const settled = metadataSettled(this.app, examplePath);
-			await this.app.vault.create(examplePath, `---\n${yaml}\n---\n`);
-			await settled;
-		}
 	}
 
 	// ---- Birthday calendar export ----
@@ -1794,6 +1854,24 @@ export default class FriendTracker extends Plugin {
 			data.friendListSort = "youngest";
 		}
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+		// calendarGroupColors is a nested object, so the shallow merge above
+		// keeps a saved one exactly as it was written — a vault saved before
+		// "Color by type" added its `types` key would otherwise carry
+		// forward without one, and every read of it (typeColorFor) would
+		// throw on a plain object access, taking the whole calendar down
+		// with it.
+		this.settings.calendarGroupColors = {
+			...DEFAULT_SETTINGS.calendarGroupColors,
+			...this.settings.calendarGroupColors,
+			categories: {
+				...DEFAULT_SETTINGS.calendarGroupColors.categories,
+				...this.settings.calendarGroupColors?.categories,
+			},
+			types: {
+				...DEFAULT_SETTINGS.calendarGroupColors.types,
+				...this.settings.calendarGroupColors?.types,
+			},
+		};
 	}
 
 	/**
