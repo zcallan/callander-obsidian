@@ -210,6 +210,7 @@ export function renderCalendarBoard(host: HTMLElement, opts: BoardOptions) {
 	});
 	syncSpanHeights(grid);
 	watchSpanHeights(host, grid);
+	trackChipHover(grid);
 
 	// Always built, never conditionally: the container query decides
 	// whether it shows, and rebuilding on resize is not something a
@@ -636,6 +637,40 @@ function syncSpanHeights(grid: HTMLElement) {
 		if (height) slot.style.height = `${height}px`;
 		else slot.style.removeProperty("height");
 	});
+}
+
+/**
+ * Mark the cell a hovered chip belongs to, so the cell's own hover can
+ * stand down — see the stylesheet's `.cal-cell:hover:not(.is-chip-hover)`.
+ *
+ * Delegated to the grid rather than listened for per chip, and a class
+ * rather than the `:has(.cal-chip:hover)` this replaces: one pair of
+ * listeners for a board of any size, and no selector that re-tests every
+ * cell as the pointer moves.
+ *
+ * A plan's bar is a child of only the cell its run opens, so hovering
+ * anywhere along it marks that cell — which is the one :hover reaches
+ * through the bar, and so the only one to stand down.
+ */
+function trackChipHover(grid: HTMLElement) {
+	let marked: HTMLElement | null = null;
+	const mark = (cell: HTMLElement | null) => {
+		if (cell === marked) return;
+		// classList, not Obsidian's toggleClass: these come back from
+		// closest() rather than createDiv, so this sticks to the one API
+		// that works on them whatever patched what — as linkSpanHover does.
+		marked?.classList.remove("is-chip-hover");
+		cell?.classList.add("is-chip-hover");
+		marked = cell;
+	};
+	grid.addEventListener("mouseover", (e) => {
+		const chip = (e.target as HTMLElement | null)?.closest<HTMLElement>(
+			".cal-chip"
+		);
+		mark(chip?.closest<HTMLElement>(".cal-cell") ?? null);
+	});
+	// Doesn't bubble, so this is the pointer leaving the board itself.
+	grid.addEventListener("mouseleave", () => mark(null));
 }
 
 /** The observer re-syncing each host's grid, replaced on every redraw. */

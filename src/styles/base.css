@@ -882,7 +882,7 @@ If your plugin does not need CSS, delete this file.
 .contact-notes-native-editor .cm-sizer {
 	max-width: none;
 	margin: 0;
-	padding-bottom: 0 !important;
+	padding-bottom: 0;
 	min-height: 0;
 }
 
@@ -3902,8 +3902,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
    also fixes a plan's bar: it's DOM-wise a child of only the cell that
    opens its run, so hovering anywhere along it — including the stretch
    drawn over the cells beside that one — was lighting up that first cell
-   rather than the bar itself. */
-.cal-cell:hover:not(:has(.cal-chip:hover)) {
+   rather than the bar itself.
+
+   The marking is done in script, by trackChipHover — `:has(.cal-chip:hover)`
+   says the same thing in one line, but makes every cell on the board a
+   candidate for invalidation on each pointer move. */
+.cal-cell:hover:not(.is-chip-hover) {
 	background: var(--background-modifier-hover);
 }
 
@@ -4141,11 +4145,11 @@ body.is-mobile.callander-kb-open .modal-content > * {
 		outline-offset: -2px;
 	}
 
-	/* Same specificity as the wide rule's own :not(:has(...)) qualifier —
-	   chips are hidden here anyway, so it's a no-op condition, but without
-	   it the wide rule's higher specificity would win and bring the hover
+	/* Same specificity as the wide rule's own :not(...) qualifier — chips
+	   are hidden here anyway, so it's a no-op condition, but without it
+	   the wide rule's higher specificity would win and bring the hover
 	   back. */
-	.cal-week .cal-cell:hover:not(:has(.cal-chip:hover)) {
+	.cal-week .cal-cell:hover:not(.is-chip-hover) {
 		background: var(--background-primary);
 	}
 
@@ -7299,7 +7303,7 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 /* vanilla-colorful sizes itself from its own box. Tall enough that the
    saturation square is comfortable to aim in — a short one makes a drag
    likely to wander out of it, which is how a colour used to end up black. */
-.callander-color-popover callander-hex-picker {
+.callander-color-popover .callander-color-picker {
 	display: flex;
 	width: 100%;
 	height: 200px;

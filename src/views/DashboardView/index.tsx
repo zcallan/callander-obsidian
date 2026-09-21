@@ -691,8 +691,9 @@ export class DashboardView extends ItemView {
 		editButton.addEventListener("click", () => {
 			// Swapped for a textarea in place, rather than a modal — this is
 			// a stray thought, and fixing a typo shouldn't need a dialog.
-			const input = document.createElement("textarea");
-			input.className = "dashboard-draft-edit-input";
+			const input = createEl("textarea", {
+				cls: "dashboard-draft-edit-input",
+			});
 			input.value = item.draft.text;
 			textEl.replaceWith(input);
 			input.focus();

@@ -155,7 +155,11 @@ export function openColorPopover(
 	definePicker();
 	const doc = anchor.ownerDocument;
 	const pop = doc.body.createDiv({ cls: "callander-color-popover" });
-	const picker = pop.createEl(TAG as "div") as unknown as Picker;
+	// Styled by this class, not by its tag: a custom element's own name
+	// is a type selector no linter or editor can be expected to know.
+	const picker = pop.createEl(TAG as "div", {
+		cls: "callander-color-picker",
+	}) as unknown as Picker;
 	picker.color = opts.value || resolveHex(opts.fallback, anchor);
 
 	let hex: HTMLInputElement | null = null;
