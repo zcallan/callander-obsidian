@@ -1,7 +1,7 @@
 ---
 name: 🎸 Long weekend with the writers' room
-date: 2026-09-17
-endDate: 2026-09-20
+date: 2026-09-25
+endDate: 2026-09-28
 location: Cambridge & Somerville
 status: planning
 members:
@@ -15,7 +15,7 @@ items:
     priority: must
     time: 20:00
     location: The Sinclair, Cambridge
-    date: 2026-09-17
+    date: 2026-09-25
   - text: Long lunch at Giulia
     category: restaurant
     priority: must
@@ -23,23 +23,23 @@ items:
     location: Giulia, Cambridge
     cost: 38
     people: everyone
-    date: 2026-09-18
+    date: 2026-09-26
   - text: Chess tournament, informal
     category: activity
     priority: maybe
     time: 16:00
-    date: 2026-09-19
+    date: 2026-09-27
   - text: Brunch before everyone scatters
     category: restaurant
     priority: must
     time: 10:30
     location: Somerville
-    date: 2026-09-20
+    date: 2026-09-28
 bring:
   - text: A book nobody's read yet
     done: true
   - text: Chess set
     done: false
-created: 2026-09-18
-updated: 2026-09-18
+created: 2026-09-26
+updated: 2026-09-26
 ---

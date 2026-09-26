@@ -104,6 +104,20 @@ export function categoryColors(
 	return colors;
 }
 
+/**
+ * A category's colour before any hand-picked override — its place in the
+ * palette, or generated once the palette runs out. Used to seed a colour
+ * picker's default/reset target, distinct from whatever's actually saved
+ * for it right now.
+ */
+export function defaultCategoryColor(
+	name: string,
+	categories: readonly string[]
+): string {
+	const key = name.trim().toLowerCase();
+	return categoryColors(categories).get(key) ?? categoryColor(name);
+}
+
 /** Colours chosen by hand in the calendar's colour settings. "" means
  * "use the default"; categories and types are keyed by their lowercased
  * name (a type's id is already lowercase). */
@@ -113,6 +127,30 @@ export interface GroupColors {
 	event: string;
 	categories: Record<string, string>;
 	types: Record<string, string>;
+}
+
+/**
+ * The settings' `calendarGroupColors`, filled in and written back.
+ *
+ * Shared by every place that reads or edits these colours — the settings
+ * drawer's own modal and an event category's edit modal both call this
+ * first, so a vault saved before one of these keys existed gets the same
+ * normalised shape either way, and a change either makes lands on the same
+ * object the other reads.
+ */
+export function ensureGroupColors(settings: {
+	calendarGroupColors?: Partial<GroupColors>;
+}): GroupColors {
+	const saved: Partial<GroupColors> = settings.calendarGroupColors ?? {};
+	const colors: GroupColors = {
+		plan: saved.plan ?? "",
+		birthday: saved.birthday ?? "",
+		event: saved.event ?? "",
+		categories: { ...(saved.categories ?? {}) },
+		types: { ...(saved.types ?? {}) },
+	};
+	settings.calendarGroupColors = colors;
+	return colors;
 }
 
 /** The colour "Color by group" gives a kind of thing: a hand-picked one

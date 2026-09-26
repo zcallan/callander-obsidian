@@ -1,20 +1,13 @@
 ---
 name: Haruki Murakami
-birthday: 1949-10-02
-met: 2024-02-21
+birthday: 1949-10-10
+met: 2024-02-29
 relationship: friend
 groups:
   - book club
   - hiking
 hometown: Kyoto
 location: Tokyo
-ideas:
-  - category: gift
-    text: A clean Blue Note pressing from Cheapo Records
-    done: false
-  - category: place
-    text: That tiny ramen place off Mass Ave he hasn't tried
-    done: false
 interests:
   - category: music
     text: Jazz, on vinyl, loudly
@@ -27,6 +20,15 @@ funFacts:
   - Has run a marathon almost every year for decades, and wrote a book about why
   - Translates American novels into Japanese for fun — Fitzgerald and Carver among them
   - Owns a record collection large enough to have its own filing system
-created: 2026-09-18
-updated: 2026-09-18
+created: 2026-09-26
+updated: 2026-09-26
 ---
+## Ideas
+
+### 🎁 Gift
+
+- [ ] A clean Blue Note pressing from Cheapo Records
+
+### 📍 Place
+
+- [ ] That tiny ramen place off Mass Ave he hasn't tried

@@ -16,6 +16,12 @@ import {
 } from "@/constants";
 import { resolveDashboardOrder } from "@/utils/dashboardOrder";
 import type { Hemisphere } from "@/constants";
+import {
+	ZONES,
+	allZones,
+	commonZones,
+	deviceZoneOption,
+} from "@/utils/timezone";
 
 // The declarative settings API arrived in 1.13; below that Obsidian renders
 // display() instead.
@@ -74,6 +80,34 @@ const NATIVE_NOTES_DESC =
 	"Write Notes on Person, Group and Plan pages in Obsidian's own editor — live preview, your hotkeys and other plugins' editor features — instead of the standard Notes box.";
 const NATIVE_NOTES_WARNING =
 	"Warning: this uses non-public Obsidian APIs, which are likely to change without notice, so it could break in a newer version of Obsidian. If it does, the standard Notes are shown instead — turn this off if anything looks wrong.";
+
+/**
+ * Every zone this setting offers: the short list by name, then all of them
+ * by offset. No separator between the two — a declarative dropdown's
+ * options are a plain map, with nowhere to hang a disabled row — so the
+ * labels do the grouping, which is why the curated ones name themselves
+ * and the rest lead with their offset.
+ */
+function timezoneOptions(): Record<string, string> {
+	const own = deviceZoneOption();
+	return {
+		"": "Device timezone",
+		...Object.fromEntries(commonZones().map((z) => [z.id, z.label])),
+		// Pinning your own zone is a different thing from following it —
+		// it stays put when you travel — so it's offered either way.
+		...(own ? { [own.id]: own.label } : {}),
+		...Object.fromEntries(
+			allZones()
+				// The curated ones are already above under a better name.
+				.filter((z) => !ZONES.some((c) => c.id === z.id))
+				.map((z) => [z.id, z.label])
+		),
+	};
+}
+
+/** Said the same way in both settings paths below. */
+const TIMEZONE_SETTING_DESC =
+	"Note: this is not recommended for most users. Use this setting to lock the plugin to a specific timezone. This may be useful if you are a) actually using timezones in your events, and b) you're in a different timezone for a short time and want to force the timezone back to your usual timezone.";
 
 export class FriendTrackerSettingTab extends PluginSettingTab {
 	constructor(app: App, private plugin: FriendTracker) {
@@ -163,6 +197,21 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			},
 			{
 				type: "group",
+				heading: "Timezone",
+				items: [
+					{
+						name: "Plugin timezone",
+						desc: TIMEZONE_SETTING_DESC,
+						control: {
+							type: "dropdown",
+							key: "displayTimezone",
+							options: timezoneOptions(),
+						},
+					},
+				],
+			},
+			{
+				type: "group",
 				heading: "Quick actions",
 				items: RIBBON_ACTIONS.map(({ key, name }) => ({
 					name,
@@ -184,7 +233,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					},
 					{
 						name: "Dashboard file name",
-						desc: "Note in the base folder that opens the Callander dashboard — quick ideas and drafts are stored in its properties",
+						desc: "Note in the base folder that opens the Callander dashboard — quick ideas are stored in its properties, and drafts as a checklist in its body",
 						control: {
 							type: "text",
 							key: "dashboardFileName",
@@ -254,6 +303,16 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 						control: {
 							type: "number",
 							key: "dashboardSomedayCount",
+							min: 1,
+							max: 50,
+						},
+					},
+					{
+						name: "Friend suggestions shown",
+						desc: 'How many recently-touched friends the dashboard suggests under the search bar, before the "All friends" button',
+						control: {
+							type: "number",
+							key: "dashboardFriendSuggestionCount",
 							min: 1,
 							max: 50,
 						},
@@ -502,6 +561,23 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				});
 			});
 
+		new Setting(containerEl).setName("Timezone").setHeading();
+
+		new Setting(containerEl)
+			.setName("Plugin timezone")
+			.setDesc(TIMEZONE_SETTING_DESC)
+			.addDropdown((dropdown) => {
+				for (const [id, label] of Object.entries(timezoneOptions())) {
+					dropdown.addOption(id, label);
+				}
+				dropdown
+					.setValue(this.plugin.settings.displayTimezone)
+					.onChange((value) => {
+						this.plugin.settings.displayTimezone = value;
+						void this.plugin.saveSettings();
+					});
+			});
+
 		new Setting(containerEl).setName("Quick actions").setHeading();
 
 		for (const { key, name } of RIBBON_ACTIONS) {
@@ -538,7 +614,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Dashboard file name")
 			.setDesc(
-				"Note in the base folder that opens the Callander dashboard — quick ideas and drafts are stored in its properties"
+				"Note in the base folder that opens the Callander dashboard — quick ideas are stored in its properties, and drafts as a checklist in its body"
 			)
 			.addText((text) => {
 				text.setPlaceholder("Dashboard")

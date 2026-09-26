@@ -1,21 +1,14 @@
 ---
 name: Cormac McCarthy
 shortName: Mac
-birthday: 1955-09-10
-met: 2020-12-18
+birthday: 1955-09-18
+met: 2020-12-26
 relationship: friend
 groups:
   - writers' room
   - hiking
 hometown: Providence, Rhode Island
 location: Santa Fe, New Mexico
-ideas:
-  - category: gift
-    text: Typewriter ribbon — the exact one, he'll know if it's wrong
-    done: false
-  - category: conversation
-    text: Ask what the physicists are arguing about this month
-    done: false
 interests:
   - category: hobbies
     text: Reading physics papers for pleasure
@@ -29,6 +22,15 @@ funFacts:
 insideJokes:
   - text: The eleven-dollar typewriter
     context: Still the best deal anyone at the table has made
-created: 2026-09-18
-updated: 2026-09-18
+created: 2026-09-26
+updated: 2026-09-26
 ---
+## Ideas
+
+### 🎁 Gift
+
+- [ ] Typewriter ribbon — the exact one, he'll know if it's wrong
+
+### 💬 Conversation
+
+- [ ] Ask what the physicists are arguing about this month

@@ -16,11 +16,8 @@ import {
 	gettingStartedProgress,
 	type GettingStartedStep,
 } from "@/utils/gettingStarted";
-import type {
-	ContactWithCountdown,
-	Draft,
-	Idea,
-} from "@/types";
+import type { ContactWithCountdown, Idea } from "@/types";
+import type { LedgerDraft } from "@/utils/draftsMarkdown";
 import { DEFAULT_DASHBOARD_ORDER, IDEA_CATEGORIES } from "@/constants";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { SomedayViewModal } from "@/modals/SomedayViewModal";
@@ -38,6 +35,7 @@ import {
 	monthName,
 } from "@/utils/flexdate";
 import { PlanModal } from "@/modals/PlanModal";
+import { DraftEditModal } from "@/modals/DraftEditModal";
 import { formatDate } from "@/utils/dateFormat";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
 import { sortSomedays } from "@/utils/somedaySort";
@@ -96,6 +94,12 @@ export class DashboardView extends ItemView {
 		// No-ops once the base folder exists — only a fresh install ever
 		// actually creates anything here.
 		await this.plugin.seedStarterVault();
+		// The dashboard note itself, which otherwise only appeared once
+		// something needed somewhere to live (an idea, a draft, an ad-hoc
+		// expense). A fresh vault would show nothing in the file explorer
+		// to click, so it's made up front — it's also the one file that
+		// opens this page from there.
+		await this.plugin.contactOperations.ensureDashboardFile();
 
 		// Settings are read at render time, so a change to one has to be
 		// heard rather than waited on — otherwise it only lands on reopen.
@@ -107,6 +111,10 @@ export class DashboardView extends ItemView {
 	}
 
 	async refresh() {
+		// Cheap when there's nothing to do, and what carries a friend's
+		// note that synced in still holding its drafts in frontmatter over
+		// to the checklist — before this reads them from there.
+		await this.plugin.contactOperations.migrateDraftsToDashboard();
 		this.contacts = await this.plugin.contactOperations.getContacts();
 		await this.render();
 	}
@@ -267,15 +275,14 @@ export class DashboardView extends ItemView {
 		if (!settings.showGettingStarted) return;
 		const plugin = this.plugin;
 
-		const inboxDrafts = await plugin.contactOperations.getInboxDrafts();
+		const drafts = await plugin.contactOperations.readDrafts();
 		const { done, newlyDone } = gettingStartedProgress(
 			{
 				friend: this.contacts.length > 0,
 				name: settings.yourName.trim() !== "",
 				group: plugin.contactOperations.getGroupInfos(this.contacts).length > 0,
-				quickNote:
-					inboxDrafts.length > 0 ||
-					this.contacts.some((c) => c.drafts.length > 0),
+				// Ticked ones count: it asks whether you've ever captured one.
+				quickNote: drafts.length > 0,
 				// A timeline entry is a record kept on someone's page, not an
 				// event — the Events page leaves them out too.
 				event: plugin.eventOperations
@@ -438,7 +445,7 @@ export class DashboardView extends ItemView {
 		};
 		action(
 			"Bulk event import",
-			"Add a whole batch of events at once — a season of games, a term of classes — from CSV.",
+			"Add a whole batch of events at once with CSV — e.g. a season of games, a term of classes, repeating events...",
 			"Import events",
 			() => new EventImportModal(this.app, this.plugin).open()
 		);
@@ -511,12 +518,12 @@ export class DashboardView extends ItemView {
 				)
 				.sort((a, b) => a.displayName.localeCompare(b.displayName));
 		} else {
-			// Browsing shows the 9 most recently interacted-with friends —
-			// any idea/event/draft/edit touches their file's mtime — with the
-			// tenth place going to the way to everyone else.
+			// Browsing shows the most recently interacted-with friends — any
+			// idea/event/draft/edit touches their file's mtime — with the
+			// next place after them going to the way to everyone else.
 			matches = [...this.contacts]
 				.sort((a, b) => b.file.stat.mtime - a.file.stat.mtime)
-				.slice(0, 9);
+				.slice(0, this.plugin.settings.dashboardFriendSuggestionCount);
 		}
 
 		for (const contact of matches) {
@@ -541,6 +548,10 @@ export class DashboardView extends ItemView {
 			});
 		}
 
+		// Nothing to go to yet on a vault with nobody in it — the Getting
+		// started checklist is what points at adding the first friend.
+		if (this.contacts.length === 0) return;
+
 		// Last in the row, and outlined rather than filled, so it reads as
 		// the way to the rest rather than as one more friend. Kept while
 		// searching too: when nobody matches, the full list is the obvious
@@ -556,36 +567,28 @@ export class DashboardView extends ItemView {
 
 	private async renderDrafts(container: HTMLElement) {
 		const ops = this.plugin.contactOperations;
-		const inboxFile = this.app.vault.getAbstractFileByPath(
-			ops.getDashboardFilePath()
-		);
-		const inboxDrafts = await ops.getInboxDrafts();
-
-		const all: Array<{
-			draft: Draft;
-			index: number;
-			contact: ContactWithCountdown | null;
-			holder: TFile;
-		}> = [
-			...this.contacts.flatMap((c) =>
-				c.drafts.map((draft, index) => ({
+		// The checklist in the dashboard note. Ticked drafts are kept there
+		// as a record and simply aren't listed here — but the index each one
+		// carries is its place in the whole list, which is what the actions
+		// address it by.
+		const all = (await ops.readDrafts())
+			.map((draft, index) => {
+				const about = ops.draftAbout(draft);
+				return {
 					draft,
 					index,
-					contact: c,
-					holder: c.file,
-				}))
-			),
-			...(inboxFile instanceof TFile
-				? inboxDrafts.map((draft, index) => ({
-						draft,
-						index,
-						contact: null,
-						holder: inboxFile,
-				  }))
-				: []),
-		].sort((a, b) =>
-			(b.draft.created || "").localeCompare(a.draft.created || "")
-		);
+					contact: about
+						? this.contacts.find((c) => c.file.path === about.path) ??
+						  null
+						: null,
+				};
+			})
+			.filter((item) => !item.draft.done)
+			// Newest first. Stable, so drafts from the same day keep the
+			// order they were captured in.
+			.sort((a, b) =>
+				(b.draft.created || "").localeCompare(a.draft.created || "")
+			);
 
 		if (all.length === 0) return;
 
@@ -636,10 +639,9 @@ export class DashboardView extends ItemView {
 	private renderDraftRow(
 		section: HTMLElement,
 		item: {
-			draft: Draft;
+			draft: LedgerDraft;
 			index: number;
 			contact: ContactWithCountdown | null;
-			holder: TFile;
 		},
 		ops: typeof this.plugin.contactOperations
 	) {
@@ -672,62 +674,64 @@ export class DashboardView extends ItemView {
 			text: "Make idea",
 		});
 		ideaButton.addEventListener("click", () =>
-			this.categorizeDraft(item.holder, item.index, item.draft, item.contact)
+			this.categorizeDraft(item.draft, item.contact)
 		);
 		const eventButton = actions.createEl("button", {
 			cls: "callander-button dashboard-row-action",
 			text: "Add event",
 		});
 		eventButton.addEventListener("click", () =>
-			this.draftToEvent(item.holder, item.index, item.draft, item.contact)
+			this.draftToEvent(item.draft, item.contact)
 		);
 
-		const iconActions = row.createDiv({ cls: "dashboard-draft-icons" });
-		const editButton = iconActions.createEl("button", {
+		const editButton = actions.createEl("button", {
 			cls: "callander-button button-icon dashboard-row-action",
 			attr: { "aria-label": "Edit draft" },
 		});
 		setIcon(editButton, "pencil");
 		editButton.addEventListener("click", () => {
-			// Swapped for a textarea in place, rather than a modal — this is
-			// a stray thought, and fixing a typo shouldn't need a dialog.
-			const input = createEl("textarea", {
-				cls: "dashboard-draft-edit-input",
-			});
-			input.value = item.draft.text;
-			textEl.replaceWith(input);
-			input.focus();
-			input.setSelectionRange(input.value.length, input.value.length);
-			const commit = async () => {
-				const text = input.value.trim();
-				if (text && text !== item.draft.text) {
-					await ops.updateDraft(item.holder, item.index, text);
-					await this.plugin.refreshOpenContactPages(item.holder);
+			// A modal, not the old in-place textarea: reassigning who a
+			// draft is about needs a second field, and a row has no room
+			// for one.
+			new DraftEditModal(
+				this.app,
+				this.contacts,
+				item.draft.text,
+				item.contact,
+				async (text, contact) => {
+					const wasAbout = item.contact?.file ?? null;
+					const nowAbout = contact?.file ?? null;
+					await ops.updateDraft(
+						item.index,
+						item.draft.text,
+						text,
+						nowAbout
+					);
+					if (wasAbout) await this.plugin.refreshOpenContactPages(wasAbout);
+					if (nowAbout && nowAbout.path !== wasAbout?.path) {
+						await this.plugin.refreshOpenContactPages(nowAbout);
+					}
+					await this.refresh();
 				}
-				await this.refresh();
-			};
-			input.addEventListener("blur", () => void commit());
-			input.addEventListener("keydown", (e) => {
-				if (e.key === "Enter" && !e.shiftKey) {
-					e.preventDefault();
-					input.blur();
-				} else if (e.key === "Escape") {
-					e.preventDefault();
-					input.value = item.draft.text;
-					input.blur();
-				}
-			});
+			).open();
 		});
 
-		const doneButton = iconActions.createEl("button", {
-			cls: "callander-button button-icon dashboard-row-action",
+		// Off to the right, level with the text — the one action that
+		// finishes with a draft, apart from the ones that do something with it.
+		const doneWrap = row.createDiv({ cls: "dashboard-draft-done" });
+		const doneButton = doneWrap.createEl("button", {
+			cls: "callander-button dashboard-row-action",
 			attr: { "aria-label": "Done with this draft" },
 		});
 		setIcon(doneButton, "checkmark");
+		doneButton.createSpan({ text: "Done" });
 		doneButton.addEventListener("click", () => {
 			void (async () => {
-				await ops.removeDraft(item.holder, item.index);
-				await this.plugin.refreshOpenContactPages(item.holder);
+				// Ticked in the note, not deleted from it: that's the record.
+				await ops.completeDraft(item.index, item.draft.text);
+				if (item.contact) {
+					await this.plugin.refreshOpenContactPages(item.contact.file);
+				}
 				await this.refresh();
 			})();
 		});
@@ -747,17 +751,18 @@ export class DashboardView extends ItemView {
 		return ` · ${days}d ago`;
 	}
 
-	/** Turn a draft into a proper categorized idea, then remove the draft */
+	/**
+	 * File a draft as a proper categorized idea. The draft itself stays where
+	 * it is until it's marked Done — filing it is only one of the things you
+	 * might do with a thought, and the record is better for showing that it
+	 * was still open when you did.
+	 */
 	private categorizeDraft(
-		holder: TFile,
-		index: number,
-		draft: Draft,
+		draft: LedgerDraft,
 		contact: ContactWithCountdown | null
 	) {
 		const ops = this.plugin.contactOperations;
 		const finish = async (targetFile: TFile) => {
-			await ops.removeDraft(holder, index);
-			await this.plugin.refreshOpenContactPages(holder);
 			await this.plugin.refreshOpenContactPages(targetFile);
 			new Notice("💡 Filed as idea");
 			await this.refresh();
@@ -798,24 +803,22 @@ export class DashboardView extends ItemView {
 		}
 	}
 
-	/** Turn a draft into an event, seeded with its text as the name and its
-	 * contact (if any) as a locked attendee. Nothing is written until Save,
-	 * so the draft is only removed once the event actually is. */
+	/**
+	 * Turn a draft into an event, seeded with its text as the name and its
+	 * person (if any) as a locked attendee. Like Make idea, this leaves the
+	 * draft to be ticked off by hand — saving the event is not the same
+	 * thing as being done with the thought.
+	 */
 	private draftToEvent(
-		holder: TFile,
-		index: number,
-		draft: Draft,
+		draft: LedgerDraft,
 		contact: ContactWithCountdown | null
 	) {
-		const ops = this.plugin.contactOperations;
 		const people = contact ? [`[[${contact.file.basename}]]`] : [];
 		new EventModal(
 			this.app,
 			this.plugin,
 			null,
 			async () => {
-				await ops.removeDraft(holder, index);
-				await this.plugin.refreshOpenContactPages(holder);
 				await this.refresh();
 			},
 			{ name: draft.text, people },
@@ -893,7 +896,10 @@ export class DashboardView extends ItemView {
 			cls: "dashboard-section-header",
 		});
 		header.createEl("h3", { text: "🗺️ Plans" });
-		const newButton = header.createEl("button", {
+		// Grouped, as on Upcoming, so two buttons sit as one unit at the
+		// right of the header rather than spreading across it.
+		const buttons = header.createDiv({ cls: "dashboard-section-buttons" });
+		const newButton = buttons.createEl("button", {
 			cls: "callander-button",
 			text: "New plan",
 		});
@@ -902,6 +908,13 @@ export class DashboardView extends ItemView {
 				void this.plugin.openContactPage(file)
 			).open();
 		});
+		const allButton = buttons.createEl("button", {
+			cls: "callander-button",
+			text: "See all",
+		});
+		allButton.addEventListener("click", () =>
+			void this.plugin.activatePlans({ here: true })
+		);
 
 		if (plans.length === 0) {
 			section.createDiv({

@@ -143,9 +143,17 @@ export interface ColorPopoverOptions {
  * sideways. Closes on a click anywhere outside it, or Escape (which
  * doesn't then also close a modal behind it).
  *
- * Attached to the document body at the menu layer, so it sits over a
- * modal rather than inside one — and so a modal's own "don't close on a
- * stray click" guard never sees clicks on it.
+ * Mounted inside the anchor's own `.modal` when there is one, rather than
+ * always on `document.body`: Obsidian's `Modal` traps focus to its
+ * container, so a popover living outside it looks fine but silently can't
+ * be typed into — a real `mousedown` outside the container makes the trap
+ * yank focus straight back to whatever was focused inside the modal, one
+ * event before the click even lands. `position: fixed` (see CSS) still
+ * keeps it floating over everything and immune to the modal's own
+ * scrolling, and staying inside `.modal` — not just `.modal-container` —
+ * also keeps it out of FormModal's own backdrop-click guard, which treats
+ * anything in the container but outside `.modal` as a stray click on the
+ * dimmed background.
  */
 export function openColorPopover(
 	anchor: HTMLElement,
@@ -154,7 +162,8 @@ export function openColorPopover(
 	openPopover?.close();
 	definePicker();
 	const doc = anchor.ownerDocument;
-	const pop = doc.body.createDiv({ cls: "callander-color-popover" });
+	const host = anchor.closest<HTMLElement>(".modal") ?? doc.body;
+	const pop = host.createDiv({ cls: "callander-color-popover" });
 	// Styled by this class, not by its tag: a custom element's own name
 	// is a type selector no linter or editor can be expected to know.
 	const picker = pop.createEl(TAG as "div", {
@@ -203,17 +212,41 @@ export function openColorPopover(
 		opts.onChange(value);
 	});
 
-	// Placed once it has a size to place.
-	const r = anchor.getBoundingClientRect();
-	const vw = doc.documentElement.clientWidth;
-	const vh = doc.documentElement.clientHeight;
-	const w = pop.offsetWidth;
-	const h = pop.offsetHeight;
-	const left = Math.min(Math.max(8, r.left), vw - w - 8);
-	let top = r.bottom + 6;
-	if (top + h > vh - 8) top = Math.max(8, r.top - h - 6);
-	pop.style.left = `${left}px`;
-	pop.style.top = `${top}px`;
+	// Placed once it has a size to place — and again whenever the phone
+	// keyboard comes or goes. On iOS the keyboard overlays the page rather
+	// than shrinking it, so the space it covers is taken off the bottom
+	// here: otherwise typing into the hex field puts the whole picker
+	// behind the keyboard. The height comes from the plugin's own keyboard
+	// tracking (main.ts), which sets it on the body as a CSS variable.
+	const place = () => {
+		const r = anchor.getBoundingClientRect();
+		const vw = doc.documentElement.clientWidth;
+		const inset =
+			parseInt(
+				doc.body.style.getPropertyValue("--callander-keyboard-inset")
+			) || 0;
+		const vh = doc.documentElement.clientHeight - inset;
+		const w = pop.offsetWidth;
+		const h = pop.offsetHeight;
+		const left = Math.min(Math.max(8, r.left), vw - w - 8);
+		let top = r.bottom + 6;
+		if (top + h > vh - 8) top = r.top - h - 6;
+		// Kept on screen above the keyboard even if that means covering the
+		// swatch that opened it — the field being typed into matters more.
+		top = Math.max(8, Math.min(top, vh - h - 8));
+		pop.style.left = `${left}px`;
+		pop.style.top = `${top}px`;
+	};
+	place();
+	// The keyboard tracking writes the body's style and class; nothing here
+	// writes to the body, so re-placing can't set this off again.
+	const keyboardWatch = new MutationObserver(place);
+	keyboardWatch.observe(doc.body, {
+		attributes: true,
+		attributeFilter: ["style", "class"],
+	});
+	const view = doc.defaultView;
+	view?.addEventListener("resize", place);
 
 	const onDown = (e: PointerEvent) => {
 		const target = e.target as Node | null;
@@ -234,6 +267,8 @@ export function openColorPopover(
 	const close = () => {
 		doc.removeEventListener("pointerdown", onDown, true);
 		doc.removeEventListener("keydown", onKey, true);
+		keyboardWatch.disconnect();
+		view?.removeEventListener("resize", place);
 		pop.remove();
 		if (openPopover === handle) openPopover = null;
 		opts.onClose?.();

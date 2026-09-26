@@ -141,6 +141,7 @@ import { DashboardView, VIEW_TYPE_DASHBOARD } from "@/views/DashboardView";
 import { SomedaysView, VIEW_TYPE_SOMEDAYS } from "@/views/SomedaysView";
 import { EventsView, VIEW_TYPE_EVENTS } from "@/views/EventsView";
 import { CalendarView, VIEW_TYPE_CALENDAR } from "@/views/CalendarView";
+import { PlansView, VIEW_TYPE_PLANS } from "@/views/PlansView";
 import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { GlanceModal } from "@/modals/GlanceModal";
@@ -234,6 +235,10 @@ export default class FriendTracker extends Plugin {
 				VIEW_TYPE_CALENDAR,
 				(leaf) => new CalendarView(leaf, this)
 			);
+			this.registerView(
+				VIEW_TYPE_PLANS,
+				(leaf) => new PlansView(leaf, this)
+			);
 
 			// Ribbon: the dashboard is the front door. Each icon is
 			// individually toggleable from settings (Quick actions).
@@ -284,6 +289,11 @@ export default class FriendTracker extends Plugin {
 				id: "add-event",
 				name: "New event",
 				callback: () => this.openEventModal(),
+			});
+			this.addCommand({
+				id: "open-plans",
+				name: "Open plans",
+				callback: () => this.activatePlans(),
 			});
 			this.addCommand({
 				id: "open-calendar",
@@ -382,6 +392,18 @@ export default class FriendTracker extends Plugin {
 
 			// The idea inbox's old standalone file becomes the dashboard file
 			await this.contactOperations.migrateLegacyInboxFile();
+
+			// Drafts move out of frontmatter into a checklist in the
+			// dashboard note. After the inbox move above, which decides
+			// which file that is. Re-run when the cache settles, too, so a
+			// friend's note syncing in from a device still writing the old
+			// way is carried over rather than left behind.
+			this.registerEvent(
+				this.app.metadataCache.on("resolved", () => {
+					void this.contactOperations.migrateDraftsToDashboard();
+				})
+			);
+			await this.contactOperations.migrateDraftsToDashboard();
 
 			// The reminders→events merge: move embedded person events and
 			// reminder files into Events/. Detection-based, so re-running on
@@ -611,7 +633,14 @@ export default class FriendTracker extends Plugin {
 								Math.round(window.innerHeight * 0.42)
 							);
 						}
-						if (scroll) {
+						// Not the colour picker's hex field: the picker is
+						// position: fixed and moves itself clear of the
+						// keyboard (see openColorPopover) — scrolling for it
+						// would only shift the modal underneath.
+						if (
+							scroll &&
+							!target!.closest(".callander-color-popover")
+						) {
 							target!.scrollIntoView({
 								block: "center",
 								behavior: "smooth",
@@ -818,6 +847,15 @@ export default class FriendTracker extends Plugin {
 		});
 	}
 
+	/** Every plan, past and future — see PlansView. */
+	public async activatePlans(opts: NavOptions = {}) {
+		if (opts.here) return this.openHere(VIEW_TYPE_PLANS);
+		await this.activateLeafOfType(
+			VIEW_TYPE_PLANS,
+			(v) => v instanceof PlansView
+		);
+	}
+
 	/** The full Calendar page — events, plans and birthdays together. */
 	public async activateCalendar(opts: NavOptions = {}) {
 		if (opts.here) return this.openHere(VIEW_TYPE_CALENDAR);
@@ -946,10 +984,9 @@ export default class FriendTracker extends Plugin {
 	public async openQuickNote() {
 		const contacts = await this.contactOperations.getContacts();
 		new QuickNoteModal(this.app, contacts, async (text, contact) => {
-			const file = contact
-				? contact.file
-				: await this.contactOperations.ensureDashboardFile();
-			await this.contactOperations.addDraft(file, text);
+			// Always the dashboard note's checklist; someone it's about is a
+			// wikilink on the line rather than the file it's kept in.
+			await this.contactOperations.addDraft(text, contact?.file);
 			new Notice(
 				contact
 					? `✏️ Draft saved for ${contact.displayName}`

@@ -52,11 +52,11 @@ export const PEOPLE = [
 			{ category: "book", text: "Lend him the Zamyatin I keep going on about", done: true },
 		],
 		interests: [
-			{ category: "drinks", text: "Tea, strong, no sugar — and he will explain why" },
+			{ category: "drinks", text: "Tea", notes: "Strong, no sugar — and he will explain why" },
 			{ category: "hobbies", text: "Growing roses" },
 			{ category: "hobbies", text: "Keeping goats" },
-			{ category: "foods", text: "A properly made cup of tea counts as a food group" },
-			{ category: "other", text: "Village shops" },
+			{ category: "books", text: "We", detail: "Yevgeny Zamyatin", notes: "Reviewed it years ago and still brings it up" },
+			{ category: "places", text: "The village shop", detail: "Wallington", notes: "Ran it himself for years" },
 		],
 		funFacts: [
 			"Born Eric Arthur Blair — the pen name came later, and it stuck",

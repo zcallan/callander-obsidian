@@ -142,21 +142,31 @@ export async function run({ cdp }) {
 		deleted.raw.includes("name: Test Person")
 	);
 
-	// ---------- drafts round-trip through real processFrontMatter ----------
+	// ---------- drafts: a checklist in the dashboard note ----------
+	// Written through the real vault.process, which the fake vault only
+	// imitates. Ticked rather than removed, so the run leaves a record line
+	// behind — harmless, since a ticked draft isn't listed anywhere.
 	const drafts = await cdp.evaluate(async () => {
 		const ops = window.app.plugins.plugins.callander.contactOperations;
-		const file = window.app.vault.getAbstractFileByPath(
+		const person = window.app.vault.getAbstractFileByPath(
 			"Friends/People/Test Person.md"
 		);
-		await ops.addDraft(file, "Half-formed thought");
-		const withOne = await window.app.vault.read(file);
-		await ops.removeDraft(file, 0);
-		return { withOne, after: await window.app.vault.read(file) };
+		await ops.addDraft("Half-formed thought", person);
+		const dash = window.app.vault.getAbstractFileByPath(
+			ops.getDashboardFilePath()
+		);
+		const withOne = await window.app.vault.read(dash);
+		await ops.completeDraft(
+			(await ops.readDrafts()).findIndex((d) => d.text === "Half-formed thought"),
+			"Half-formed thought"
+		);
+		return { withOne, after: await window.app.vault.read(dash) };
 	});
-	ok("draft written to frontmatter", drafts.withOne.includes("Half-formed thought"));
+	ok("draft written under ## Drafts", /## Drafts[\s\S]*- \[ \] Half-formed thought/.test(drafts.withOne));
+	ok("...linking the person it's about", drafts.withOne.includes("[[Test Person]]"));
 	ok(
-		"removing the last draft deletes the key, not just its contents",
-		!/^drafts:/m.test(drafts.after)
+		"marking it done ticks it and keeps the line",
+		/- \[x\] Half-formed thought[^\n]*✅ \d{4}-\d{2}-\d{2}/.test(drafts.after)
 	);
 
 	// ---------- clean up ----------

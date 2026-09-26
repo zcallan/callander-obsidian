@@ -34,6 +34,31 @@ export interface CategoryChipsOptions {
 	onDeleteCategory?: (category: string) => Promise<void>;
 	/** What a long-press warns it is about to affect. */
 	deleteScope: string;
+	/**
+	 * Offers an "Edit" toggle beside "+ Add". While it's on, tapping a chip
+	 * opens `onEdit` for that category instead of picking it — for event
+	 * categories, which carry a vault-wide name and a colour, and so have
+	 * more to manage than a tap can express. Plan and stay categories don't
+	 * pass this: renaming and colouring aren't questions they ask.
+	 */
+	editing?: {
+		onEdit: (category: string) => void;
+	};
+	/**
+	 * Offered only by event categories, which carry a colour — plan and
+	 * stay categories don't, so they leave this out and get plain chips.
+	 * Draws a dot before each chip's name, and offers the same colour
+	 * picker (with a Reset, back to `defaultFor`) on the "+ Add" form.
+	 */
+	colorPicker?: {
+		palette: readonly string[];
+		/** The colour to paint a chip's dot with right now. */
+		colorFor: (category: string) => string;
+		/** What a brand-new category's swatch starts on, and Reset restores. */
+		defaultFor: (category: string) => string;
+		/** "" clears back to the default, same as everywhere else here. */
+		onSetColor: (category: string, color: string) => void;
+	};
 }
 
 /**
@@ -47,11 +72,25 @@ export interface CategoryChipsOptions {
  * of act as picking, and a chip keeps it on the line rather than spending a
  * form row on it.
  */
+/** What a caller can do to an already-rendered picker, from outside it. */
+export interface CategoryChipsHandle {
+	/**
+	 * Re-derive the chip row from a fresh `known` list, keeping whatever's
+	 * currently `selected` — for after a rename or delete elsewhere has
+	 * changed the vocabulary out from under this picker.
+	 */
+	refresh(known: readonly string[]): void;
+}
+
 export function renderCategoryChips(
 	form: HTMLElement,
 	options: CategoryChipsOptions
-): void {
+): CategoryChipsHandle {
 	const { app, selected, onDeleteCategory } = options;
+	// Persists across re-renders within this picker's own lifetime — a
+	// rename or a colour change redraws the chips, and Edit shouldn't
+	// switch itself off underneath whoever's using it.
+	let editMode = false;
 	const field = form.createDiv({
 		cls: "callander-modal-field quick-idea-cat-field",
 	});
@@ -62,13 +101,18 @@ export function renderCategoryChips(
 	}
 
 	// The plan's own names plus anything already picked here — an edit can
-	// carry a category the plan has since stopped listing.
-	const names = [...options.known];
-	for (const cat of selected) {
-		if (!names.some((c) => c.toLowerCase() === cat.toLowerCase())) {
-			names.push(cat);
+	// carry a category the plan has since stopped listing. `let`, not
+	// `const`: refresh() rebuilds this from a newer `known` list.
+	let names: string[] = [];
+	const rebuildNames = (known: readonly string[]) => {
+		names = [...known];
+		for (const cat of selected) {
+			if (!names.some((c) => c.toLowerCase() === cat.toLowerCase())) {
+				names.push(cat);
+			}
 		}
-	}
+	};
+	rebuildNames(options.known);
 
 	const chipsEl = field.createDiv({ cls: "quick-idea-cat-chips" });
 	if (options.help) {
@@ -103,6 +147,16 @@ export function renderCategoryChips(
 		).open();
 	};
 
+	// Created once, detached from the chip row until the first renderChips
+	// puts it there — chipsEl gets emptied on every redraw, and recreating
+	// this each time would forget whether Edit was on.
+	const editToggle = field.createEl("button", {
+		cls: "quick-idea-cat-edit-toggle",
+		text: "Edit",
+		attr: { type: "button" },
+	});
+	editToggle.toggleClass("is-hidden", !options.editing);
+
 	const toggle = (cat: string) => {
 		const at = selected.findIndex(
 			(c) => c.toLowerCase() === cat.toLowerCase()
@@ -112,7 +166,7 @@ export function renderCategoryChips(
 		renderChips();
 	};
 
-	const add = (raw: string) => {
+	const add = (raw: string, color?: string) => {
 		const name = raw.trim();
 		if (!name) return;
 		// Case-insensitive: "boston" and "Boston" are one category, and
@@ -123,6 +177,7 @@ export function renderCategoryChips(
 		const value = existing ?? name;
 		if (!existing) names.push(value);
 		if (!isPicked(value)) selected.push(value);
+		if (color !== undefined) options.colorPicker?.onSetColor(value, color);
 		renderChips();
 	};
 
@@ -131,9 +186,13 @@ export function renderCategoryChips(
 		for (const cat of names) {
 			const chip = chipsEl.createEl("button", {
 				cls: "someday-filter-pill",
-				text: cat,
 				attr: { type: "button" },
 			});
+			if (options.colorPicker) {
+				const dot = chip.createSpan({ cls: "someday-filter-pill-dot" });
+				dot.style.backgroundColor = options.colorPicker.colorFor(cat);
+			}
+			chip.createSpan({ text: cat });
 			chip.toggleClass("is-active", isPicked(cat));
 
 			// Pointer events cover mouse and touch alike; the timer clears on
@@ -163,6 +222,10 @@ export function renderCategoryChips(
 					longPressed = false;
 					return;
 				}
+				if (editMode && options.editing) {
+					options.editing.onEdit(cat);
+					return;
+				}
 				toggle(cat);
 			});
 			chip.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -174,11 +237,32 @@ export function renderCategoryChips(
 			attr: { type: "button" },
 		});
 		addChip.addEventListener("click", () => {
+			const cp = options.colorPicker;
 			// Both the plan's list and anything picked here, so a name
 			// already on screen can't be added a second time.
-			new AddCategoryModal(app, (name) => add(name), names).open();
+			new AddCategoryModal(
+				app,
+				(name, color) => add(name, color),
+				names,
+				cp ? { palette: cp.palette, defaultColor: cp.defaultFor("") } : undefined
+			).open();
 		});
+
+		// Moved rather than recreated — see where it's first made.
+		chipsEl.appendChild(editToggle);
 	};
 
+	editToggle.addEventListener("click", () => {
+		editMode = !editMode;
+		editToggle.toggleClass("is-active", editMode);
+	});
+
 	renderChips();
+
+	return {
+		refresh(known) {
+			rebuildNames(known);
+			renderChips();
+		},
+	};
 }

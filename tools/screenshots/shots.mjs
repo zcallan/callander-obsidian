@@ -170,7 +170,7 @@ export const SHOTS = [
 
 	{ name: "person-1", setup: openNote("person") },
 	{ name: "person-2", setup: openNote("person"), scroll: 900 },
-	{ name: "person-3", setup: openNote("person"), scroll: "end" },
+	{ name: "person-3", setup: openNote("person"), scrollTo: "Interests" },
 
 	{ name: "plan-1", setup: openNote("plan") },
 	{ name: "plan-2", setup: openNote("plan"), scroll: 550 },

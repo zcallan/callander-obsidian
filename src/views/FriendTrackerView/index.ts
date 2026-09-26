@@ -66,6 +66,10 @@ export class FriendTrackerView extends ItemView {
 
 	public async openDeleteModal(file: TFile) {
 		const modal = new DeleteContactModal(this.app, file, async () => {
+			// Before trashing: a plan's own "Who's in" is a copy of the
+			// wikilink, not a live query, and only resolves against this
+			// file while it still exists.
+			await this.plugin.planOperations.removePersonFromPlans(file);
 			await this.app.fileManager.trashFile(file);
 			await this.refresh();
 		});

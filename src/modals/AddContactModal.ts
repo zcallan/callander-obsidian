@@ -9,6 +9,7 @@ import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { todayISO } from "@/utils/flexdate";
 import { ContactOperations } from "@/services/ContactOperations";
+import { GroupModal } from "@/modals/GroupModal";
 
 export class AddContactModal extends FormModal {
 	constructor(app: App, private plugin: FriendTracker) {
@@ -144,20 +145,38 @@ export class AddContactModal extends FormModal {
 		};
 		infos.forEach((i) => addChip(i.name));
 
-		// Group creation lives on the dashboard — here you only toggle
-		// membership of existing groups
-		if (infos.length === 0) {
-			groupsWrap.createDiv({
-				cls: "section-helper-text",
-				text: "No groups yet — create them from the dashboard.",
-			});
-		}
+		// Trailing "+ Add", the same doorway the event category picker
+		// offers — a name-only GroupModal, so a group doesn't have to
+		// exist ahead of time to add someone to it here.
+		const addGroupChip = chipsRow.createEl("button", {
+			cls: "contact-group-chip contact-group-chip-add",
+			text: "+ Add",
+			attr: { type: "button" },
+		});
+		addGroupChip.addEventListener("click", () => {
+			new GroupModal(this.app, this.plugin, null, async (name) => {
+				if (!name) return;
+				const created = ops.getGroupInfos().find((i) => i.name === name);
+				colorOf.set(name, created?.color ?? "");
+				displayOf.set(
+					name,
+					ops.groupDisplayNames().get(name) ?? ops.prettyGroupName(name)
+				);
+				member.add(name);
+				const chip = addChip(name);
+				chip.toggleClass("selected", true);
+				// Stays last, same as before it gained a neighbour.
+				chipsRow.appendChild(addGroupChip);
+			}).open();
+		});
 
-		// Submit button
-		form.createEl("button", {
+		// Submit button — same wrapper and classes as every other add/edit
+		// modal's primary action, so it floats and sizes the same way.
+		const buttons = form.createDiv({ cls: "callander-modal-buttons" });
+		buttons.createEl("button", {
 			text: "Add friend",
 			attr: { type: "submit" },
-			cls: "callander-button button-primary",
+			cls: "callander-modal-button mod-cta",
 		});
 
 		form.addEventListener("submit", (e) => {

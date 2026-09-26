@@ -3,6 +3,7 @@ import type { EventInfo, PlanInfo } from "@/types";
 import { eventRowFields } from "@/utils/eventRow";
 import {
 	mergeUpcoming,
+	splitOverdue,
 	thisAndNextWeek,
 	upcomingItems,
 	upcomingPlans,
@@ -10,6 +11,7 @@ import {
 } from "@/utils/upcomingList";
 import { PlanGlanceModal } from "@/modals/PlanGlanceModal";
 import { upcomingWhen } from "@/utils/upcomingWhen";
+import { displayZone } from "@/utils/timezone";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { groupEventsByPeriod } from "@/utils/eventGroups";
 import { EventModal } from "@/modals/EventModal";
@@ -21,10 +23,9 @@ import { resolvePeopleInfo } from "@/utils/people";
 import { summarisePeople } from "@/utils/nameFormat";
 import { shownByCategory } from "@/utils/eventCategories";
 import { UpcomingSettingsModal } from "@/modals/UpcomingSettingsModal";
+import { ConfirmModal } from "@/modals/ConfirmModal";
 import { Icon } from "@/ui/components/Icon";
-
-/** Beyond this the list stops being a glance and starts being the Events page. */
-const MAX_ROWS = 10;
+import { TimezoneBanner } from "@/ui/components/TimezoneBanner";
 
 /**
  * What's next — the section this dashboard mostly exists for.
@@ -41,7 +42,7 @@ export function UpcomingSection() {
 	const plugin = usePlugin();
 	const version = useVaultVersion();
 
-	const { shown, hiddenCount, total } = useMemo(() => {
+	const { overdue, groups, shownCount, hiddenCount, total } = useMemo(() => {
 		const now = new Date();
 		// Its own Calendars and Event category choices — see
 		// UpcomingSettingsModal.
@@ -69,10 +70,24 @@ export function UpcomingSection() {
 			: [];
 		const all = mergeUpcoming(events, plans);
 		const near = thisAndNextWeek(all, now, plugin.settings.weekStartsOn);
-		const visible = near.slice(0, MAX_ROWS);
+		// Overdue tasks are never trimmed: they're the point of the
+		// section once they exist, and capping the list at ten would let a
+		// busy fortnight hide the thing you're late for.
+		const { overdue, rest } = splitOverdue(near);
+		const groups = groupEventsByPeriod(
+			rest,
+			(i) => (i.kind === "plan" ? i.plan.date : i.event.date),
+			now,
+			{ weekStartsOn: plugin.settings.weekStartsOn }
+		);
 		return {
-			shown: visible,
-			hiddenCount: all.length - visible.length,
+			overdue,
+			groups,
+			shownCount: rest.length,
+			// Only what's beyond next week — nothing inside the window is
+			// held back. Counting against the whole list is what the "View
+			// all" link at the bottom is for.
+			hiddenCount: all.length - near.length,
 			total: all.length,
 		};
 		// `version` is the dependency on purpose: it's the invalidation
@@ -96,6 +111,34 @@ export function UpcomingSection() {
 		new EventViewModal(plugin.app, plugin, event, () => undefined).open();
 	};
 
+	/**
+	 * Ticking a task off is the only way it leaves this list, so the row
+	 * offers it directly — in the slot the countdown would have used,
+	 * since "in 3 days" is the less useful of the two on something you're
+	 * being asked to do.
+	 *
+	 * Behind a confirmation because the row itself opens the event, and a
+	 * mis-aimed tap next to that shouldn't quietly close something off.
+	 */
+	const doneAction = (event: EventInfo) => ({
+		icon: "check",
+		label: "Done",
+		ariaLabel: `Mark ${event.name} as done`,
+		onClick: (e: MouseEvent) => {
+			e.stopPropagation();
+			new ConfirmModal(
+				plugin.app,
+				"Mark as done?",
+				`"${event.name}" will come off your dashboard.`,
+				"Mark as done",
+				async () => {
+					await plugin.eventOperations.setStatus(event.file, "done");
+				},
+				"normal"
+			).open();
+		},
+	});
+
 	const eventRow = (event: EventInfo) => (
 		<UpcomingRow
 			key={event.file.path}
@@ -107,7 +150,9 @@ export function UpcomingSection() {
 				// week" doesn't need "This"/"Next" on every row inside those
 				// groups too — "Thursday" on its own says enough.
 				bareWeekday: true,
+				viewerZone: displayZone(plugin.settings.displayTimezone),
 			})}
+			{...(event.type === "task" ? { action: doneAction(event) } : {})}
 			onClick={() => openEvent(event)}
 		/>
 	);
@@ -197,6 +242,8 @@ export function UpcomingSection() {
 				</div>
 			</div>
 
+			<TimezoneBanner />
+
 			{total === 0 && (
 				<div className="section-helper-text">
 					Nothing coming up. Add an event — a birthday, a booking,
@@ -204,22 +251,31 @@ export function UpcomingSection() {
 				</div>
 			)}
 
-			{total > 0 && shown.length === 0 && (
+			{total > 0 && shownCount === 0 && overdue.length === 0 && (
 				<div className="section-helper-text">
 					Nothing this week or next.
+				</div>
+			)}
+
+			{/* Above the weeks, because it's already late — and under its
+			    own heading rather than mixed into "This week", where a
+			    task from a fortnight ago would read as though it were
+			    still to come. */}
+			{overdue.length > 0 && (
+				<div className="dashboard-upcoming-timeline">
+					<div className="contact-timeline-year dashboard-overdue-heading">
+						Overdue
+					</div>
+					{overdue.map((entry) => row(entry))}
 				</div>
 			)}
 
 			{/* Grouped, but only ever into "This week", "Next week" and the
 			    undated group — the section reaches no further than that, so
 			    the headings the Events page uses for months never appear. */}
-			{shown.length > 0 && (
+			{shownCount > 0 && (
 				<div className="dashboard-upcoming-timeline">
-					{groupEventsByPeriod(
-						shown,
-						(i) => (i.kind === "plan" ? i.plan.date : i.event.date),
-						new Date()
-					).map((group) => (
+					{groups.map((group) => (
 						// Fragments, not wrapper divs: headings and rows must
 						// stay direct children, or
 						// `.contact-timeline-year:first-child` — which drops

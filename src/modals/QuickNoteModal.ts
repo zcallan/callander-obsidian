@@ -24,10 +24,13 @@ export class QuickNoteModal extends FormModal {
 		contentEl.empty();
 		contentEl.createEl("h2", { text: "Quick note" });
 
-		const textInput = contentEl.createEl("input", {
-			cls: "quick-idea-input",
+		// Two lines, not one: a note jotted in a hurry is usually a whole
+		// sentence, and a single-line box scrolls its own start out of
+		// sight while you're still writing it.
+		const textInput = contentEl.createEl("textarea", {
+			cls: "quick-idea-input quick-note-text",
 			attr: {
-				type: "text",
+				rows: "2",
 				placeholder: "Jot it before it evaporates…",
 			},
 		});
@@ -75,14 +78,20 @@ export class QuickNoteModal extends FormModal {
 		};
 
 		saveButton.addEventListener("click", () => void submit());
-		for (const input of [textInput, friendInput]) {
-			input.addEventListener("keydown", (event) => {
-				if (event.key === "Enter") {
-					event.preventDefault();
-					void submit();
-				}
-			});
-		}
+		// Enter still saves, the way it did when this was one line — it's
+		// Shift+Enter that takes the second one.
+		textInput.addEventListener("keydown", (event) => {
+			if (event.key === "Enter" && !event.shiftKey) {
+				event.preventDefault();
+				void submit();
+			}
+		});
+		friendInput.addEventListener("keydown", (event) => {
+			if (event.key === "Enter") {
+				event.preventDefault();
+				void submit();
+			}
+		});
 		window.setTimeout(() => textInput.focus(), 0);
 	}
 

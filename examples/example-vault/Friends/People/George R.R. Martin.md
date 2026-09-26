@@ -1,18 +1,14 @@
 ---
 name: George R.R. Martin
 shortName: George R.R.
-birthday: 1948-11-20
-met: 2025-04-16
+birthday: 1948-11-28
+met: 2025-04-24
 relationship: friend
 groups:
   - writers' room
   - pen pals
 hometown: Bayonne, New Jersey
 location: Santa Fe, New Mexico
-ideas:
-  - category: gift
-    text: Anything that runs on a floppy disk, apparently
-    done: false
 interests:
   - category: games
     text: Chess
@@ -23,6 +19,11 @@ funFacts:
   - Ran chess tournaments professionally in the 1970s
   - Bought and restored an old Santa Fe cinema, and programmes it himself
   - Lives close enough to Cormac that they turn up to the same things by accident
-created: 2026-09-18
-updated: 2026-09-18
+created: 2026-09-26
+updated: 2026-09-26
 ---
+## Ideas
+
+### 🎁 Gift
+
+- [ ] Anything that runs on a floppy disk, apparently

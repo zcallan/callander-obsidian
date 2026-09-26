@@ -19,12 +19,15 @@ import { createSuite } from "../harness.mjs";
 export async function run({ cdp }) {
 	const { eq, ok, result } = createSuite("add event (real modal)");
 
-	// Ten days out: comfortably inside the default 30-day Upcoming window,
-	// so the row renders inline rather than behind "Show all". Computed
-	// from today rather than hardcoded, or the test would silently stop
-	// checking the dashboard once the date drifted out of the window.
+	// Wednesday of next week. Upcoming shows this calendar week and next
+	// (see thisAndNextWeek), so a fixed offset like "ten days out" falls
+	// past the window on a Friday, Saturday or Sunday and the test fails
+	// only on those days. Next week's Wednesday is always inside it, and
+	// always under the "Next week" heading, whatever today is. Weeks start
+	// on Monday by default, which is what this vault uses.
 	const target = new Date();
-	target.setDate(target.getDate() + 10);
+	const toNextMonday = ((1 - target.getDay() + 7) % 7) || 7;
+	target.setDate(target.getDate() + toNextMonday + 2);
 	const pad = (n) => String(n).padStart(2, "0");
 	const DATE = `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(
 		target.getDate()
@@ -35,7 +38,7 @@ export async function run({ cdp }) {
 		monthFull: target.toLocaleDateString("en-AU", { month: "long" }),
 	};
 	expected.monthShort = expected.monthFull.slice(0, 3);
-	// Ten days out lands in the dashboard's second week. The section itself
+	// Next week's Wednesday is in the dashboard's second week. The section itself
 	// is already grouped under "This week" / "Next week" headings, so the
 	// row's own date reads as the bare weekday ("Thursday") rather than
 	// "Next Thursday" — the prefix would just repeat the group it's under.

@@ -110,92 +110,125 @@ export type IdeaCategory = (typeof IDEA_CATEGORIES)[number]["id"];
 
 // What a friend is into — factual, never evaluative. Helps with gifts,
 // conversations, and plans. Grouped on the friend page like ideas.
-// Each has a second, optional "detail" field whose label/placeholder vary by
-// category (an author for a book, an artist for a song, etc.).
+//
+// Each type labels its own fields in the add form: what the thing is called
+// (a Book, a Song), up to two further fields only where they fit (a book's
+// author, music's artist and genre — omitted where there's nothing natural
+// to ask), and a Notes placeholder written as what *they* like about it or
+// how they have it, never a recommendation to them.
+//
+// `ideaCategory` is where the chip's lightbulb files an idea made from it:
+// a book is a book to read, a place somewhere to go, a team more often a gift.
 export const INTEREST_CATEGORIES = [
 	{
 		id: "hobbies",
+		ideaCategory: "activity",
 		label: "Hobby",
 		emoji: "🎨",
-		detailLabel: "Details (optional)",
-		detailPlaceholder: "Optional details",
+		namePlaceholder: "e.g. Rock climbing",
+		notesPlaceholder: "e.g. Mostly bouldering; wants to try climbing outdoors",
 	},
 	{
 		id: "books",
+		ideaCategory: "book",
 		label: "Book",
 		emoji: "📚",
+		namePlaceholder: "e.g. East of Eden",
 		detailLabel: "Author",
-		detailPlaceholder: "e.g. Brandon Sanderson",
+		detailPlaceholder: "e.g. John Steinbeck",
+		notesPlaceholder: "e.g. Loves the setting and time period, but hates Cathy Ames",
 	},
 	{
 		id: "music",
-		label: "Song",
+		ideaCategory: "music",
+		label: "Music",
 		emoji: "🎵",
+		namePlaceholder: "e.g. Stick Season",
 		detailLabel: "Artist",
-		detailPlaceholder: "e.g. Fleetwood Mac",
-	},
-	{
-		id: "musicgenre",
-		label: "Music Genre",
-		emoji: "🎶",
-		detailLabel: "Details (optional)",
-		detailPlaceholder: "Optional details",
+		detailPlaceholder: "e.g. Noah Kahan",
+		detail2Label: "Genre",
+		detail2Placeholder: "e.g. Indie folk",
+		notesPlaceholder: "e.g. Always turns it up for the chorus",
 	},
 	{
 		id: "movie",
+		ideaCategory: "movie",
 		label: "Movie",
 		emoji: "🎬",
-		detailLabel: "Details (optional)",
-		detailPlaceholder: "Optional details",
+		namePlaceholder: "e.g. The Dark Knight",
+		notesPlaceholder: "e.g. Quotes it constantly, Christian Bale is their favourite Batman",
 	},
 	{
 		id: "tv",
+		ideaCategory: "show",
 		label: "TV Show",
 		emoji: "📺",
-		detailLabel: "Details (optional)",
-		detailPlaceholder: "Optional details",
+		namePlaceholder: "e.g. The Bear",
+		notesPlaceholder: "e.g. Loves the Christmas special episode",
 	},
 	{
 		id: "games",
+		ideaCategory: "gift",
 		label: "Game",
 		emoji: "🎮",
-		detailLabel: "Details (optional)",
-		detailPlaceholder: "Optional details",
+		namePlaceholder: "e.g. Stardew Valley",
+		detailLabel: "Platform",
+		detailPlaceholder: "e.g. Switch",
+		notesPlaceholder: "e.g. Wants to do a multiplayer farm someday",
 	},
 	{
 		id: "sports",
+		ideaCategory: "activity",
 		label: "Sport",
 		emoji: "⚽",
-		detailLabel: "Details (optional)",
-		detailPlaceholder: "Optional details",
+		namePlaceholder: "e.g. Basketball",
+		notesPlaceholder: "e.g. Plays every Tuesday night, team named \"Run n' Dunk\"",
 	},
 	{
 		id: "teams",
+		ideaCategory: "gift",
 		label: "Team",
 		emoji: "🏟️",
-		detailLabel: "Sport/League",
-		detailPlaceholder: "e.g. NBA, Premier League",
+		namePlaceholder: "e.g. Boston Celtics",
+		detailLabel: "Sport/league",
+		detailPlaceholder: "e.g. NBA",
+		notesPlaceholder: "e.g. Season ticket holder, loves Larry Bird",
 	},
 	{
 		id: "foods",
+		ideaCategory: "place",
 		label: "Food",
 		emoji: "🍔",
+		namePlaceholder: "e.g. Spicy miso ramen",
 		detailLabel: "Restaurant",
-		detailPlaceholder: "e.g. where they get it",
+		detailPlaceholder: "e.g. Shinjuku Ramen",
+		notesPlaceholder: "e.g. Extra chilli oil, two eggs",
 	},
 	{
 		id: "drinks",
+		ideaCategory: "gift",
 		label: "Drink",
 		emoji: "🍹",
-		detailLabel: "Bar",
-		detailPlaceholder: "e.g. their local",
+		namePlaceholder: "e.g. Martini",
+		notesPlaceholder: "e.g. Shaken, not stirred",
+	},
+	{
+		id: "places",
+		ideaCategory: "place",
+		label: "Place",
+		emoji: "📍",
+		namePlaceholder: "e.g. The Avenue",
+		detailLabel: "Location",
+		detailPlaceholder: "e.g. Boston",
+		notesPlaceholder: "e.g. Cheap burgers after 10pm",
 	},
 	{
 		id: "other",
+		ideaCategory: "gift",
 		label: "Other",
 		emoji: "✨",
-		detailLabel: "Details (optional)",
-		detailPlaceholder: "Optional details",
+		namePlaceholder: "e.g. Vintage cameras",
+		notesPlaceholder: "e.g. Loves Leica and Fujifilm the best",
 	},
 ] as const;
 
@@ -366,6 +399,31 @@ export const ALL_DAY_TIME = {
 	label: "All day",
 	sort: "00:00",
 } as const;
+
+/**
+ * Times an event can carry that aren't a time of day: one that runs
+ * whenever suits, and one whose hour nobody has settled yet. They live in
+ * the same `time` field as "HH:MM" — the way a plan item stores a rough
+ * time — so anything reading an event's time has to expect a word as well
+ * as digits.
+ *
+ * `label` is what a row or a calendar chip shows, beside a date and a type
+ * and with no room to spare. `long` is for where a time stands more on its
+ * own — an event's own page, and the text it copies as — since "TBD" by
+ * itself doesn't say what is still to be decided.
+ */
+export const EVENT_SPECIAL_TIMES = [
+	{ id: "anytime", label: "Anytime", long: "Anytime" },
+	{ id: "tbd", label: "TBD", long: "Time TBD" },
+] as const;
+
+export type EventSpecialTimeId = (typeof EVENT_SPECIAL_TIMES)[number]["id"];
+
+/** The special an event's stored time names, if it names one at all. */
+export function specialEventTime(time: string | undefined | null) {
+	if (!time) return undefined;
+	return EVENT_SPECIAL_TIMES.find((t) => t.id === time);
+}
 
 /** Look up a stored rough-time id; undefined for exact "HH:MM" or empty. */
 export function roughTime(time: string | undefined | null) {

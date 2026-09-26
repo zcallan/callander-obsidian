@@ -160,6 +160,42 @@ export function run() {
 	eq("evening", formatEventTime("19:00"), "7:00 PM");
 	eq("garbage passes through", formatEventTime("later"), "later");
 
+	// ---------- times that aren't times ----------
+	// "Anytime" and "TBD" ride in the same field as "19:30", so every
+	// formatter has to know them by name rather than fall through to
+	// printing the stored id at the reader.
+	eq("anytime reads as a label", formatEventTime("anytime"), "Anytime");
+	eq("tbd is short by default", formatEventTime("tbd"), "TBD");
+	eq(
+		"...and spelled out where it stands alone",
+		formatEventTime("tbd", { long: true }),
+		"Time TBD"
+	);
+	eq(
+		"anytime is already spelled out",
+		formatEventTime("anytime", { long: true }),
+		"Anytime"
+	);
+
+	// An undated event's date column already says "Anytime". Repeating it
+	// as the time would read as two facts where there's only one.
+	eq("an undated anytime event says it once", parts({ time: "anytime" }).date, "Anytime");
+	eq(
+		"...with nothing repeating it in the time",
+		parts({ time: "anytime" }).time,
+		""
+	);
+	eq(
+		"...but a dated one shows the label",
+		parts({ date: "2026-08-20", time: "anytime" }).time,
+		"Anytime"
+	);
+	eq(
+		"...and an undated event keeps a real clock time",
+		parts({ time: "19:00" }).time,
+		"7:00 PM"
+	);
+
 
 	// ---------- classifying events that predate the variant field ----------
 	// Provenance is already lost for these, so the shape has to answer it.

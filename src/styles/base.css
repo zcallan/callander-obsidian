@@ -1061,6 +1061,61 @@ If your plugin does not need CSS, delete this file.
 	margin-top: 24px;
 	display: flex;
 	justify-content: flex-end;
+	/* Stuck to the bottom of whichever ancestor is actually scrolling —
+	   `.modal` on desktop, `.modal-content` on mobile (see the mobile
+	   keyboard rules below) — so Save/Create/Add is never scrolled out of
+	   reach on a form taller than the window. A modal that already fits
+	   is unaffected: sticky only engages once there's something to stick
+	   past. FormModal tells stuck from resting with a marker right after
+	   the row (see ftStuckObserver). */
+	position: sticky;
+	bottom: 0;
+	z-index: 5;
+	/* Same padding as the modal's own sides, so the sticky bar's edges
+	   line up with the fields above it rather than the fields looking
+	   inset from a bar that reaches further out. */
+	padding: 12px 0;
+	/* The row is a full-width strip over the form while it floats — only
+	   the buttons themselves should catch taps, not the gaps beside them,
+	   or a field showing to the left of Save can't be tapped. */
+	pointer-events: none;
+}
+
+.callander-modal-buttons > * {
+	pointer-events: auto;
+}
+
+/* The primary action, a bit wider than Obsidian's default button so it
+   reads as the one to press — and is an easier target while it floats. */
+.callander-modal-buttons > .mod-cta {
+	padding-inline: 24px;
+}
+
+/* Where the button row would rest — FormModal watches whether this is on
+   screen. A pixel tall to be observable, pulled back up so it adds no
+   space to the form. */
+.callander-modal-buttons-marker {
+	height: 1px;
+	margin-top: -1px;
+	pointer-events: none;
+}
+
+/* Only the primary action floats. Delete, Cancel and the like stay out of
+   sight while the row is stuck over the form, and show in their own place
+   once it's scrolled to rest at the bottom. `visibility` rather than
+   `display` so nothing moves — and a hidden button can't be tapped. */
+body:not(.callander-kb-open)
+	.callander-modal-buttons.is-stuck
+	> :not(.mod-cta) {
+	visibility: hidden;
+}
+
+/* With the keyboard up, the mobile rules below pad .modal-content by the
+   keyboard's height, and sticky positions inside that padding — so a
+   floating Save would hang a keyboard's height above the real bottom.
+   Just let it sit in its place while typing. */
+body.callander-kb-open .callander-modal-buttons {
+	position: static;
 }
 
 /* Destructive modal action — reads as danger even on mobile (no hover) */
@@ -1669,6 +1724,15 @@ If your plugin does not need CSS, delete this file.
 	font-size: 1em;
 }
 
+/* The quick note's box is a textarea, so it carries the two lines its
+   `rows` asks for rather than an input's fixed single one. */
+.quick-note-text {
+	box-sizing: border-box;
+	font-family: inherit;
+	line-height: 1.4;
+	resize: vertical;
+}
+
 /* Sits under the text it describes, with enough air above and below that it
    reads as its own line rather than crowding the input above or the
    buttons below. */
@@ -2099,6 +2163,19 @@ If your plugin does not need CSS, delete this file.
 	cursor: default;
 }
 
+/* "+ Add", trailing the real groups — dashed and accent-coloured like the
+ * category picker's own, so it reads as the one chip here that opens
+ * something rather than toggling. */
+.contact-group-chip.contact-group-chip-add {
+	border-style: dashed;
+	color: var(--text-accent);
+}
+
+.contact-group-chip.contact-group-chip-add:hover {
+	border-color: var(--interactive-accent);
+	border-style: solid;
+}
+
 /* The group's name inside a read-only chip, when its page exists — the
    value really is a link, so it reads and behaves like one. Only the label
    is the target, not the whole chip: the coloured dot is a swatch rather
@@ -2166,6 +2243,27 @@ If your plugin does not need CSS, delete this file.
 .group-color-swatch.selected {
 	border-color: var(--text-normal);
 	box-shadow: 0 0 0 2px var(--background-primary) inset;
+}
+
+/* The custom slot before a color's been picked — the "All friends" chip's
+   own look (outlined, no fill), so it reads as the way to something
+   beyond the fixed swatches beside it rather than as one more of them. */
+.group-color-custom-button {
+	display: inline-flex;
+	align-items: center;
+	height: 26px;
+	padding: 0 10px;
+	background: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border-hover);
+	border-radius: 999px;
+	color: var(--text-normal);
+	font-size: 0.85em;
+}
+
+.group-color-custom-button:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
 }
 
 .dashboard-section-header {
@@ -2330,9 +2428,9 @@ If your plugin does not need CSS, delete this file.
 	line-height: 1.4;
 }
 
-/* Drafts: text and a row of what-to-do buttons stack in one column; the
-   Edit/Done icons sit off to the side, so the row reads as one thought with
-   a toolbar rather than a thing with two competing action rows. */
+/* Drafts: text, then its row of what-to-do buttons (View person, Make idea,
+   Add event, Edit) underneath, with Done off to the right, level with the
+   text — the one button that finishes with a draft rather than acting on it. */
 .dashboard-draft-row {
 	align-items: flex-start;
 }
@@ -2351,34 +2449,39 @@ If your plugin does not need CSS, delete this file.
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
-	margin-top: 6px;
+	/* A bit more room than other rows' 6px — Edit and Done sit right at
+	   the end of this one, and want to read as separate from the text
+	   above rather than crowding it. */
+	margin-top: 10px;
 }
 
-.dashboard-draft-actions .dashboard-row-action {
+.dashboard-draft-actions .dashboard-row-action,
+.dashboard-draft-done .dashboard-row-action {
 	padding: 2px 9px;
 	font-size: 0.82em;
 }
 
-.dashboard-draft-icons {
-	display: flex;
-	gap: 2px;
+.dashboard-draft-done {
 	flex-shrink: 0;
 	align-self: flex-start;
 }
 
-.dashboard-draft-edit-input {
-	width: 100%;
-	min-height: 44px;
-	box-sizing: border-box;
-	padding: 6px 8px;
-	background: var(--background-modifier-form-field);
-	border: 1px solid var(--background-modifier-border-focus);
-	border-radius: 4px;
-	color: var(--text-normal);
-	font-family: inherit;
-	font-size: 1em;
-	line-height: 1.4;
-	resize: vertical;
+/* Edit's pencil. The icon button is a fixed 28px square, and the text
+   buttons' side padding above left its icon 8px wide — squashed, not just
+   small. So it sizes to its icon instead, at full size and unshrinkable. */
+.dashboard-draft-actions .callander-button.button-icon {
+	width: auto;
+	height: auto;
+	align-self: stretch;
+	/* 15px icon + this padding keeps the button its 34px width. */
+	padding: 2px 8.5px;
+	--icon-size: 15px;
+}
+
+.dashboard-draft-actions .callander-button.button-icon svg {
+	width: 15px;
+	height: 15px;
+	flex-shrink: 0;
 }
 
 .is-phone .dashboard-draft-actions {
@@ -2580,6 +2683,29 @@ If your plugin does not need CSS, delete this file.
 	line-height: normal;
 }
 
+/* Three controls now (hour, minute, zone) where there were two. Wrapping
+   rather than shrinking: below about 600px thirds of a modal leave a zone
+   name unreadable, and a second line costs less than a truncated one. */
+@media (max-width: 600px) {
+	.plan-time-selects {
+		flex-wrap: wrap;
+	}
+
+	/* .quick-idea-input is width:100%, which with wrapping puts every
+	   select on a line of its own. Widths back to auto so the hour and
+	   minute share the first line the way they do wide. */
+	.plan-time-selects .plan-time-select {
+		width: auto;
+		flex: 1 1 0;
+	}
+
+	/* The zone takes the second line whole — a name like "Los Angeles"
+	   has nothing to spare at a third of a phone's width. */
+	.plan-time-selects .plan-time-zone {
+		flex: 1 0 100%;
+	}
+}
+
 .plan-time-colon {
 	color: var(--text-muted);
 	flex: 0 0 auto;
@@ -2633,7 +2759,7 @@ If your plugin does not need CSS, delete this file.
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
-	padding: 5px 9px 5px 14px;
+	padding: 6px 8px 6px 16px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 999px;
 	background: var(--background-secondary);
@@ -2641,12 +2767,6 @@ If your plugin does not need CSS, delete this file.
 }
 .contact-interest-chip-detail {
 	color: var(--text-muted);
-}
-/* Interest modal: the second (detail) field's label */
-.interest-detail-label {
-	color: var(--text-muted);
-	font-size: 0.85em;
-	margin: 10px 0 2px;
 }
 /* Fun facts as a list */
 .contact-funfacts-list {
@@ -2692,27 +2812,35 @@ If your plugin does not need CSS, delete this file.
 	text-decoration: line-through;
 }
 
-.contact-interest-chip-remove {
+/* View (eye) and Make idea (lightbulb), round and quiet at the chip's end.
+   The first one sits a little further from the text than from its twin. */
+.contact-interest-chip-action {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 18px;
-	height: 18px;
+	flex-shrink: 0;
+	width: 24px;
+	height: 24px;
 	padding: 0;
-	border: none;
+	border: 1px solid var(--background-modifier-border);
 	border-radius: 50%;
-	background: none;
+	background: var(--background-primary);
 	box-shadow: none;
 	color: var(--text-muted);
 	cursor: pointer;
 }
 
-.contact-interest-chip-remove:hover {
+.contact-interest-chip-detail + .contact-interest-chip-action,
+.contact-interest-chip > span + .contact-interest-chip-action {
+	margin-left: 6px;
+}
+
+.contact-interest-chip-action:hover {
 	color: var(--text-normal);
 	background: var(--background-modifier-hover);
 }
 
-.contact-interest-chip-remove svg {
+.contact-interest-chip-action svg {
 	width: 13px;
 	height: 13px;
 }
@@ -4735,11 +4863,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 
-.copy-event-search {
-	width: 100%;
-	margin-bottom: 8px;
-}
-
 .note-input-textarea {
 	width: 100%;
 	box-sizing: border-box;
@@ -5278,6 +5401,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* ── People field: dropdown + removable pills ── */
+/* "Anytime" and "TBD" have no minutes to go with them, so the second
+   dropdown steps out rather than sitting there doing nothing. */
+.plan-time-select.is-hidden {
+	display: none;
+}
+
 /* Obsidian pins <select> to a short fixed height; with .quick-idea-input's
    padding on top of it the label clips. Let them grow to fit instead. */
 .plan-date-select,
@@ -5566,6 +5695,17 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
 	border-color: var(--interactive-accent);
+}
+/* An event category's colour, on its own chip — the same colour the
+   Events-page and Calendar-page calendars draw it in, so a chip reads as
+   a preview of that rather than a separate palette of its own. */
+.someday-filter-pill-dot {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	margin-right: 6px;
+	border-radius: 50%;
+	vertical-align: middle;
 }
 .someday-filter-select {
 	font-size: 0.85em;
@@ -6117,6 +6257,22 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	font-weight: 600;
 }
 
+/* The one heading in Upcoming that's a nudge rather than a timestamp:
+   everything under it was supposed to have happened already. Same red the
+   rows use for a date that's gone by, so the two read as one idea. */
+.dashboard-overdue-heading {
+	color: var(--text-error);
+}
+
+/* Overdue and the weeks are separate blocks, so "This week" is the first
+   heading in its own and `.contact-timeline-year:first-child` strips its
+   top margin — which left the two groups touching. The gap is put back
+   between the blocks, a little wider than one between weeks since these
+   are different kinds of thing. */
+.dashboard-upcoming-timeline + .dashboard-upcoming-timeline {
+	margin-top: 20px;
+}
+
 /* Date as pills, when the plan is short enough that a weekday names each
    day unambiguously. Reuses the Somedays filter pill so the two read the
    same; only the row spacing differs. */
@@ -6338,6 +6494,36 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .someday-filter-pill.quick-idea-cat-add:hover {
 	border-color: var(--interactive-accent);
 	border-style: solid;
+}
+
+
+/* The way into managing categories rather than picking one — muted so it
+   doesn't compete with the real chips, purple (the accent, matched exactly
+   rather than approximated) once it's on, which is also what a click on a
+   chip now does while it's active. */
+.quick-idea-cat-edit-toggle {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 999px;
+	padding: 4px 12px;
+	font-size: 0.85em;
+	background: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+.quick-idea-cat-edit-toggle:hover {
+	color: var(--text-normal);
+}
+
+.quick-idea-cat-edit-toggle.is-active {
+	color: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+}
+
+.quick-idea-cat-edit-toggle.is-hidden {
+	display: none;
 }
 
 /* The same groupings, shown back in the read view. */
@@ -6677,6 +6863,42 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 	margin: 0;
 }
 
+/* "Show N more" under a long category list — a quiet text link, so it
+   reads as part of the list rather than as another option. */
+.fullcal-drawer-more {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: 2px;
+	padding: 0;
+	height: auto;
+	border: none;
+	background: none;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	cursor: pointer;
+}
+
+.fullcal-drawer-more:hover {
+	color: var(--text-normal);
+	background: none;
+}
+
+.fullcal-drawer-more-icon {
+	display: inline-flex;
+	transition: transform 0.15s ease;
+}
+
+.fullcal-drawer-more-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+.fullcal-drawer-more.is-open .fullcal-drawer-more-icon {
+	transform: rotate(180deg);
+}
+
 @container (max-width: 620px) {
 	.fullcal-body {
 		flex-direction: column;
@@ -6885,6 +7107,19 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 
 /* ---- Bulk event import --------------------------------------------------- */
 
+.event-import-intro {
+	margin-bottom: 12px;
+}
+
+.event-import-rules {
+	margin: 4px 0 0;
+	padding-left: 18px;
+}
+
+.event-import-rules li + li {
+	margin-top: 4px;
+}
+
 .event-import-tip {
 	display: flex;
 	gap: 8px;
@@ -6893,6 +7128,9 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 	margin-bottom: 14px;
 	background: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);
+	/* Accented down its leading edge, the way a callout is — enough to
+	   read as an aside rather than as another paragraph of instructions. */
+	border-left: 3px solid var(--interactive-accent);
 	border-radius: 6px;
 	font-size: 0.9em;
 	line-height: 1.45;
@@ -6902,7 +7140,17 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 	flex: 0 0 auto;
 }
 
+/* Wide, the button sits beside the tip rather than under it — which also
+   narrows the text, so it wraps into a block instead of one long line. */
 .event-import-tip-body {
+	display: flex;
+	gap: 10px;
+	align-items: flex-start;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.event-import-tip-text {
 	flex: 1 1 auto;
 	min-width: 0;
 }
@@ -6911,9 +7159,21 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	margin-top: 8px;
+	flex: 0 0 auto;
 	padding: 3px 10px;
 	font-size: 0.9em;
+}
+
+/* Narrow, it goes back under the text: side by side there would leave
+   the tip a column two or three words wide. */
+@media (max-width: 600px) {
+	.event-import-tip-body {
+		display: block;
+	}
+
+	.event-import-modal .event-import-prompt {
+		margin-top: 8px;
+	}
 }
 
 .event-import-prompt .svg-icon {
@@ -6957,9 +7217,11 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 	user-select: text;
 }
 
+/* Accented rather than muted: it's the one part of this box that's an
+   instruction, and muted read as a caption nobody had to act on. */
 .event-import-copy-hint {
 	margin-top: 6px;
-	color: var(--text-muted);
+	color: var(--text-accent);
 	font-size: 0.8em;
 }
 
@@ -6999,6 +7261,34 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 	border: 1px solid rgba(var(--color-orange-rgb, 230, 151, 53), 0.4);
 }
 
+/* The pinned-timezone notice — dashboard Upcoming, Events, Calendar. Lighter
+   than the import errors above: this isn't a problem to fix, just a setting
+   worth remembering is on. */
+.timezone-banner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin: 10px 0;
+	padding: 6px 10px;
+	background: rgba(var(--color-red-rgb, 229, 83, 75), 0.06);
+	border: 1px solid rgba(var(--color-red-rgb, 229, 83, 75), 0.25);
+	border-radius: 6px;
+	font-size: 0.85em;
+}
+
+.timezone-banner-text {
+	color: var(--text-muted);
+	min-width: 0;
+}
+
+.timezone-banner-snooze {
+	flex: 0 0 auto;
+	height: auto;
+	padding: 2px 8px;
+	font-size: 0.9em;
+}
+
 .event-import-errors-title {
 	font-weight: 600;
 	margin-bottom: 4px;
@@ -7008,6 +7298,22 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 .event-import-warnings ul {
 	margin: 0;
 	padding-left: 18px;
+}
+
+/* Under the list, on its own line and left-aligned — the same small
+   button "Copy prompt" uses further up, so the two read as one habit. */
+.event-import-modal .event-import-errors-copy {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 8px;
+	padding: 3px 10px;
+	font-size: 0.9em;
+}
+
+.event-import-errors-copy .svg-icon {
+	width: 14px;
+	height: 14px;
 }
 
 .event-import-summary {

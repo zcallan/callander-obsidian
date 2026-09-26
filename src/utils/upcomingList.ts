@@ -8,6 +8,11 @@ export interface UpcomingItem {
 	key: number;
 	/** Days from today; null when the date is too coarse to count. */
 	days: number | null;
+	/**
+	 * A task whose day has gone by and that nobody has ticked off. It
+	 * stays on the list until someone does, whatever the window says.
+	 */
+	overdue?: boolean;
 }
 
 /**
@@ -27,8 +32,10 @@ export interface UpcomingItem {
  * Included but special:
  * - undated ("Anytime") — actionable now, so never out of window, and keyed
  *   to 0 so it leads rather than sorting to some arbitrary date
- * - a passed *task* — still asks to be ticked off for a week afterwards,
- *   where any other passed event is implicitly done
+ * - a passed *task* — a task is the one thing here that doesn't stop
+ *   mattering when its date goes by. Every other event is implicitly done
+ *   once its day is over; a task asks to be ticked off, and stays until
+ *   someone does it, flagged `overdue` so the section can lead with it.
  */
 export function upcomingItems(
 	events: readonly EventInfo[],
@@ -54,17 +61,17 @@ export function upcomingItems(
 			});
 			continue;
 		}
-		if (event.type === "task" && p.month !== null && p.day !== null) {
-			const target = new Date(p.year, p.month - 1, p.day);
-			target.setHours(0, 0, 0, 0);
-			const today = new Date(now);
-			today.setHours(0, 0, 0, 0);
-			const passed = Math.round(
-				(today.getTime() - target.getTime()) / 86400000
-			);
-			if (passed >= 0 && passed <= 7) {
-				items.push({ event, key: flexSortKey(p), days: -passed });
-			}
+		if (event.type === "task") {
+			// No cut-off. A task a month late is more worth seeing than
+			// one due on Friday, not less — dropping it after a week
+			// meant the ones you'd been avoiding were the ones that
+			// quietly disappeared.
+			items.push({
+				event,
+				key: flexSortKey(p),
+				days: daysUntilFlex(event.date, now),
+				overdue: true,
+			});
 		}
 	}
 
@@ -81,13 +88,14 @@ export function upcomingItems(
  * next" is a span you can picture. It also matches the headings the
  * timeline view groups by.
  *
- * The window reaches backwards to Monday, which matters for exactly one
- * thing: upcomingItems keeps a passed *task* for a week so it can still be
- * ticked off, and that task should stay in view rather than fall out of a
- * window that opens today. Every other kind of event is already gone by
- * the time its date passes.
+ * The window reaches backwards to Monday so a task due earlier this week
+ * stays in view. An overdue one ignores the window entirely — it's the
+ * thing the section most needs to say, and a task three weeks late would
+ * otherwise be the one that fell off the bottom.
  */
-export function thisAndNextWeek<T extends { days: number | null }>(
+export function thisAndNextWeek<
+	T extends { days: number | null; overdue?: boolean }
+>(
 	items: readonly T[],
 	now: Date = new Date(),
 	startsOn: 0 | 1 = 1
@@ -99,7 +107,10 @@ export function thisAndNextWeek<T extends { days: number | null }>(
 	const opened = -((now.getDay() - startsOn + 7) % 7);
 	const closes = opened + 13;
 	return items.filter(
-		(i) => i.days === null || (i.days >= opened && i.days <= closes)
+		(i) =>
+			i.overdue ||
+			i.days === null ||
+			(i.days >= opened && i.days <= closes)
 	);
 }
 
@@ -173,4 +184,26 @@ export function mergeUpcoming(
 	];
 	const rank = (e: UpcomingEntry) => (e.kind === "plan" ? 0 : 1);
 	return merged.sort((a, b) => a.key - b.key || rank(a) - rank(b));
+}
+
+/**
+ * The overdue tasks, and everything else, in the order they were given.
+ *
+ * A separate pass rather than another `eventPeriod` heading: that function
+ * also groups the Events page, which reads backwards through history and
+ * has its own "Last week" for the same dates. Overdue is a dashboard idea
+ * — "you said you'd do this and you haven't" — so it lives here.
+ */
+export function splitOverdue(items: readonly UpcomingEntry[]): {
+	overdue: UpcomingEntry[];
+	rest: UpcomingEntry[];
+} {
+	// Only an event goes overdue. A plan past its date is already left out
+	// by upcomingPlans — finished, or never really dated — so there's no
+	// such thing as a late one to find here.
+	const late = (i: UpcomingEntry) => i.kind === "event" && i.overdue === true;
+	return {
+		overdue: items.filter(late),
+		rest: items.filter((i) => !late(i)),
+	};
 }

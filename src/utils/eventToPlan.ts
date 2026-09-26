@@ -102,7 +102,10 @@ export function eventPlanSeed(
 			// Already on the calendar, so it isn't a maybe.
 			priority: "must",
 			...(dayPrecise && { date: event.date }),
-			...(event.time && { time: event.time }),
+			// Only a clock time carries over: a timeline entry says
+			// "whenever" by having no time at all, and has no way to say
+			// "not settled yet" but the note the plan is for.
+			...(/^\d{1,2}:\d{2}$/.test(event.time) && { time: event.time }),
 			...(event.duration && { duration: event.duration }),
 			...(peopleNames.length > 0 && { people: peopleNames.join(", ") }),
 			...(event.location && { location: event.location }),

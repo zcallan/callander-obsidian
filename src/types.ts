@@ -37,6 +37,9 @@ export interface FriendTrackerSettings {
 	belatedBirthdayDays: number;
 	/** How many somedays the dashboard's shortlist shows before "+N more" */
 	dashboardSomedayCount: number;
+	/** How many recently-touched friends the dashboard suggests under the
+	 * search bar, before the "All friends" chip. */
+	dashboardFriendSuggestionCount: number;
 	/** Default sales tax %, offered on a "by receipt" expense split */
 	receiptTaxPercent: number;
 	/** Default tip %, offered on a "by receipt" expense split */
@@ -60,6 +63,23 @@ export interface FriendTrackerSettings {
 	/** Decides which months each season covers — read when matching a
 	 * someday's chosen seasons against today. */
 	hemisphere: Hemisphere;
+	/**
+	 * Which zone events with a `timezone` are read in. Empty — the default
+	 * — follows whatever machine you're on, so a game quoted in Central
+	 * reads correctly wherever you happen to be. Pin an IANA id to keep
+	 * everything in one zone while travelling instead.
+	 *
+	 * Only affects events that carry a zone. A plain time is floating and
+	 * is shown as typed whatever this says.
+	 */
+	displayTimezone: string;
+	/**
+	 * How long the "times are shown in a pinned zone" banner stays hidden
+	 * after being snoozed: "" (never snoozed), "forever", or an ISO instant
+	 * to reappear after. Shared by every page that shows the banner, so
+	 * dismissing it once covers all of them.
+	 */
+	timezoneBannerSnoozedUntil: string;
 	lastBirthdayNoticeDate: string;
 	/** Sort order for the All friends list, remembered across opens */
 	friendListSort: FriendListSort;
@@ -72,6 +92,11 @@ export interface FriendTrackerSettings {
 	friendListTab: FriendListTab;
 	/** Same, for the Events page. See friendListTab. */
 	eventsTab: FriendListTab;
+	/** The All plans page's tab — no calendar there, so only two. */
+	plansTab: "timeline" | "list";
+	/** The All plans page's sort. Its own, not eventSort: a plan has no
+	 * type, so half of that list means nothing here. */
+	planSort: EventSort;
 	/** Month or week on the Events calendar. See eventsTab. */
 	eventsCalendarMode: CalendarMode;
 	/** Month or week on the full Calendar page. Remembered like
@@ -288,7 +313,6 @@ export interface ContactWithCountdown extends Contact {
 	groups: string[];
 	ideas: Idea[];
 	events: EventInfo[];
-	drafts: Draft[];
 }
 
 /**
@@ -499,6 +523,11 @@ export interface PlanInfo {
 	endDate: string;
 	location: string;
 	status: string; // planning | done
+	/** YYYY-MM-DD stamps from the note. `updated` is kept true by every
+	 * write; `created` is missing on plans made before it was written, so
+	 * it may be "". */
+	created: string;
+	updated: string;
 	items: PlanItem[];
 	/** Wikilink strings, e.g. "[[Austin Philleo]]" */
 	members: string[];
@@ -540,10 +569,32 @@ export interface SortConfig {
 export interface EventInfo {
 	file: TFile;
 	name: string;
-	/** Flex date ("2026-05-12" | "2026-05" | "2026"), or "" for undated */
+	/**
+	 * Flex date ("2026-05-12" | "2026-05" | "2026"), or "" for undated —
+	 * **as it reads in the viewer's zone**. Identical to `sourceDate`
+	 * unless the event carries a `timezone`, in which case converting the
+	 * time can also move the day. This is the date to render, group, sort
+	 * and filter by; see `sourceDate` for the one to write back.
+	 */
 	date: string;
-	/** 24-hour "HH:MM", or "" */
+	/** 24-hour "HH:MM", one of EVENT_SPECIAL_TIMES, or "" — resolved into
+	 * the viewer's zone, the same way `date` is. */
 	time: string;
+	/**
+	 * The zone the stored time belongs to, as an IANA id, or "" for a
+	 * floating time (the default, and every event predating this).
+	 */
+	timezone: string;
+	/**
+	 * Exactly what the file says, before any zone conversion.
+	 *
+	 * Anything written back to the vault uses these — an edit, a copy, a
+	 * generated list's ordering — because writing the converted values
+	 * would rewrite the event to mean something else, differently
+	 * depending on where you happened to be sitting.
+	 */
+	sourceDate: string;
+	sourceTime: string;
 	/** How long it runs, canonical "2h 30m", or "" — used by the calendar
 	 * export to work out an end time. */
 	duration: string;
@@ -633,6 +684,12 @@ export interface Interest {
 	text: string;
 	/** Optional second field; meaning varies by category (author, artist, …) */
 	detail?: string;
+	/** Optional third field, only categories with one of their own ask for
+	 * it (Music's genre, alongside its artist in `detail`). */
+	detail2?: string;
+	/** What they like about it, or how they have it. Saved but not yet shown
+	 * on the person page. */
+	notes?: string;
 }
 
 /** A memorable thing a friend said, with optional context (when/where). */
@@ -742,6 +799,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	defaultActiveTab: "notes",
 	belatedBirthdayDays: 14,
 	dashboardSomedayCount: 10,
+	dashboardFriendSuggestionCount: 9,
 	receiptTaxPercent: 6.25,
 	receiptTipPercent: 20,
 	receiptTaxEnabled: true,
@@ -757,10 +815,14 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	showChineseZodiac: false,
 	yourName: "",
 	hemisphere: "northern",
+	displayTimezone: "",
+	timezoneBannerSnoozedUntil: "",
 	lastBirthdayNoticeDate: "",
 	friendListSort: "birthday",
 	friendListTab: "list",
 	eventsTab: "timeline",
+	plansTab: "timeline",
+	planSort: "natural",
 	eventsCalendarMode: "month",
 	calendarMode: "month",
 	pageWidthContainer: true,
@@ -771,8 +833,10 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	planSectionsCollapsed: [],
 	calendarHidden: [],
 	calendarHideDateTime: false,
-	calendarWrapNames: true,
-	calendarNarrowNames: false,
+	calendarWrapNames: false,
+	// Stored inverted from the "Emojis on mobile" checkbox it backs (see
+	// CalendarView/EventsView) — `true` here is emojis *off* by default.
+	calendarNarrowNames: true,
 	calendarHiddenCategories: [],
 	calendarColorByGroup: true,
 	calendarCustomCategoryColors: true,
@@ -780,9 +844,10 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	calendarFadePastEvents: false,
 	calendarColorBackgrounds: false,
 	calendarGroupColors: { plan: "", birthday: "", event: "", categories: {}, types: {} },
-	eventsCalWrapNames: true,
+	eventsCalWrapNames: false,
 	eventsCalHideDateTime: false,
-	eventsCalNarrowNames: false,
+	// Same inversion as calendarNarrowNames above.
+	eventsCalNarrowNames: true,
 	eventsCalShowPlans: true,
 	eventsCalHiddenCategories: [],
 	eventsCalColorByGroup: true,

@@ -2,6 +2,7 @@ import { createSuite } from "./harness.mjs";
 import {
 	categoryColor,
 	categoryColors,
+	defaultCategoryColor,
 	groupColorFor,
 	typeColorFor,
 	categoryColorFor,
@@ -91,6 +92,27 @@ export function run() {
 		}
 		ok("no generated colour lands on purple, green or pink", hues.every((h) => !inReserved(h)));
 		ok("…and it produces more than one hue", new Set(hues).size > 10);
+	}
+
+	// ---------- a colour picker's reset target ----------
+	{
+		const names = ["Patriots", "Sox"];
+		eq(
+			"an early category's default is its palette slot",
+			defaultCategoryColor("Sox", names),
+			CATEGORY_PALETTE[1]
+		);
+		eq(
+			"…matched without regard to case",
+			defaultCategoryColor("SOX", names),
+			CATEGORY_PALETTE[1]
+		);
+		const many = Array.from({ length: 13 }, (_, i) => `Cat ${i}`);
+		eq(
+			"past the palette, it's the generated colour",
+			defaultCategoryColor("Cat 12", many),
+			categoryColor("Cat 12")
+		);
 	}
 
 	// ---------- which colour wins ----------

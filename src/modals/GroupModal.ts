@@ -3,6 +3,8 @@ import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import type { GroupInfo } from "@/types";
 import { GROUP_COLORS } from "@/constants";
+import { closeColorPopover } from "@/components/colorPicker";
+import { appendColorSwatchRow } from "@/components/colorSwatchRow";
 
 /**
  * Create or manage a group: name, color dot, delete. Deliberately tiny.
@@ -14,7 +16,10 @@ export class GroupModal extends FormModal {
 		app: App,
 		private plugin: FriendTracker,
 		private existing: GroupInfo | null,
-		private onDone: () => Promise<void>
+		/** The saved group's name, lowercased — so a caller creating one
+		 * inline (no group list of its own to refresh from) knows which
+		 * one to select. Not given a name on delete. */
+		private onDone: (name?: string) => Promise<void>
 	) {
 		super(app);
 	}
@@ -35,36 +40,22 @@ export class GroupModal extends FormModal {
 		nameField.createEl("label", { text: "Name" });
 		const nameInput = nameField.createEl("input", {
 			cls: "callander-modal-input",
-			attr: { type: "text", placeholder: "e.g. Basketball" },
+			attr: { type: "text", placeholder: "e.g. Basketball, Run Club, Book Club" },
 		});
 		if (this.existing) {
 			nameInput.value = ops.labelOf(this.existing);
 		}
 
-		// Color: fixed palette of swatches
-		let color = this.existing?.color ?? GROUP_COLORS[0];
 		const colorField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
 		colorField.createEl("label", { text: "Color" });
-		const swatchRow = colorField.createDiv({
-			cls: "group-color-swatches",
+		const swatches = appendColorSwatchRow(colorField, {
+			palette: GROUP_COLORS,
+			initial: this.existing?.color ?? GROUP_COLORS[0],
+			customFallback: "#7f6df2",
+			onChange: () => {},
 		});
-		const swatches = new Map<string, HTMLElement>();
-		for (const c of GROUP_COLORS) {
-			const swatch = swatchRow.createEl("button", {
-				cls: `group-color-swatch ${c === color ? "selected" : ""}`,
-				attr: { "aria-label": c },
-			});
-			swatch.style.backgroundColor = c;
-			swatch.addEventListener("click", () => {
-				color = c;
-				swatches.forEach((el, id) =>
-					el.toggleClass("selected", id === c)
-				);
-			});
-			swatches.set(c, swatch);
-		}
 
 		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
@@ -103,8 +94,8 @@ export class GroupModal extends FormModal {
 			if (this.existing && name !== this.existing.name) {
 				await ops.renameGroup(this.existing.name, name);
 			}
-			await ops.setGroupColor(name, color);
-			await this.onDone();
+			await ops.setGroupColor(name, swatches.getColor());
+			await this.onDone(name);
 			this.close();
 		};
 		saveButton.addEventListener("click", () => void handleSave());
@@ -113,6 +104,7 @@ export class GroupModal extends FormModal {
 	}
 
 	onClose() {
+		closeColorPopover();
 		this.contentEl.empty();
 	}
 }

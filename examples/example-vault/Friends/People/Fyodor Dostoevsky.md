@@ -1,8 +1,8 @@
 ---
 name: Fyodor Dostoevsky
 shortName: Fyodor
-birthday: 1953-12-15
-met: 2023-06-06
+birthday: 1953-12-23
+met: 2023-06-14
 relationship: friend
 groups:
   - writers' room
@@ -18,6 +18,6 @@ funFacts:
   - Wrote an entire novel in twenty-six days to make a deadline, dictating it to a stenographer
   - Then married the stenographer, which by any measure is a good outcome
   - A devoted Dickens reader — he'd talk about him for hours given the chance
-created: 2026-09-18
-updated: 2026-09-18
+created: 2026-09-26
+updated: 2026-09-26
 ---

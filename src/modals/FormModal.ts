@@ -5,11 +5,57 @@ import { App, Modal } from "obsidian";
  * you've edited anything inside it — so a stray click no longer throws away
  * in-progress input. The ✕ button and Escape still close it normally, and
  * clicks on autocomplete popups (which render outside the modal) are untouched.
+ *
+ * Also keeps `.callander-modal-buttons` — the Save/Create/Add row every form
+ * here ends with — stuck to the bottom of the modal's own scroll, so a form
+ * taller than the window never hides its one required action below the
+ * fold. Automatic: a subclass just builds that row as it always has, in
+ * `onOpen()`, and gets this for free — see base.css's `position: sticky`
+ * on `.callander-modal-buttons`. Only the primary (`.mod-cta`) button
+ * should float, so the row is marked `is-stuck` while it's stuck and the
+ * stylesheet hides the rest until it comes to rest.
  */
 export class FormModal extends Modal {
 	private ftDirty = false;
 	private ftDoc: Document;
 	private ftGuard: (evt: Event) => void;
+	/**
+	 * Stuck vs resting. A sticky row can't be asked directly, and it isn't
+	 * clipped when stuck either — sticky holds it inside the scroller's
+	 * padding. So each row gets a 1px marker right after it, in normal flow:
+	 * the marker sits where the row would rest, and when that spot is out of
+	 * view, the row is floating over the form in its place.
+	 *
+	 * Its only write is a class that changes visibility, never layout —
+	 * nothing it does can move the marker and re-trigger it.
+	 */
+	private ftStuckObserver = new IntersectionObserver((entries) => {
+		for (const entry of entries) {
+			const row = entry.target.previousElementSibling;
+			if (row instanceof HTMLElement) {
+				row.toggleClass("is-stuck", !entry.isIntersecting);
+			}
+		}
+	});
+	/**
+	 * Gives each button row its marker as onOpen builds it — including an
+	 * async onOpen, or a form that rebuilds itself. childList only. Inserting
+	 * a marker is itself a childList change, so this runs once more after
+	 * each insert, finds every row already marked, and stops.
+	 */
+	private ftRowFinder = new MutationObserver(() => {
+		this.contentEl
+			.querySelectorAll<HTMLElement>(".callander-modal-buttons")
+			.forEach((row) => {
+				const next = row.nextElementSibling;
+				if (next?.hasClass("callander-modal-buttons-marker")) return;
+				const marker = createDiv({
+					cls: "callander-modal-buttons-marker",
+				});
+				row.after(marker);
+				this.ftStuckObserver.observe(marker);
+			});
+	});
 
 	constructor(app: App) {
 		super(app);
@@ -51,6 +97,11 @@ export class FormModal extends Modal {
 		// background-click handler, so we can veto the close.
 		this.ftDoc.addEventListener("mousedown", this.ftGuard, true);
 		this.ftDoc.addEventListener("click", this.ftGuard, true);
+
+		this.ftRowFinder.observe(this.contentEl, {
+			childList: true,
+			subtree: true,
+		});
 	}
 
 	/**
@@ -72,6 +123,8 @@ export class FormModal extends Modal {
 	close() {
 		this.ftDoc.removeEventListener("mousedown", this.ftGuard, true);
 		this.ftDoc.removeEventListener("click", this.ftGuard, true);
+		this.ftRowFinder.disconnect();
+		this.ftStuckObserver.disconnect();
 		super.close();
 	}
 }

@@ -1,6 +1,6 @@
 import type { CalendarMode, EventInfo, PlanInfo } from "@/types";
-import { EVENT_TYPES, eventColour } from "@/constants";
-import { calendarChipMeta } from "@/utils/eventRow";
+import { EVENT_TYPES, eventColour, specialEventTime } from "@/constants";
+import { calendarChipMeta, eventTimeOrigin } from "@/utils/eventRow";
 import { formatShortWeekdayDate, todayISO } from "@/utils/flexdate";
 import {
 	assignSpanLanes,
@@ -485,7 +485,7 @@ function appendCell(
 				  )
 				: null;
 			if (held && !held.cancelled && run?.opens) {
-				appendNameBar(board, names, held, run);
+				appendNameBar(board, day.date, names, held, run);
 			} else {
 				const slot = appendNameSpacer(names, opts.hideDateTime === true);
 				if (held && !held.cancelled && run) slot.dataset.spanKey = held.key;
@@ -497,6 +497,8 @@ function appendCell(
 			liveRest.length <= room ? room : Math.max(0, room - 1);
 		for (const item of liveRest.slice(0, shown)) {
 			appendName(
+				board,
+				day.date,
 				names,
 				item,
 				opts.hideDateTime === true,
@@ -532,9 +534,22 @@ function appendCell(
 	return cell;
 }
 
+/**
+ * Marks a day selected and redraws — what tapping its empty space already
+ * does (see appendCell). Opening something from inside a narrow day's list
+ * does the same, so closing the modal leaves that day showing underneath
+ * rather than whatever was selected (or nothing) before the tap.
+ */
+function selectDay(board: Board, date: string) {
+	board.opts.state.selected = date;
+	board.opts.rerender();
+}
+
 /** A name in a narrow cell's list, with the chip's second line under it
  * unless that's hidden: its time, or with no time, who's coming. */
 function appendName(
+	board: Board,
+	date: string,
 	names: HTMLElement,
 	item: BoardItem,
 	hideSecond: boolean,
@@ -548,6 +563,15 @@ function appendName(
 	name.style.setProperty("--cal-chip", item.colour);
 	if (filled) applyReadableBackground(name);
 	name.createDiv({ cls: "cal-name-text", text: own ? own.rest : item.name });
+	// Same as appendChip/appendNameBar: a tap opens the event rather than
+	// falling through to the cell's own click — but also selects this day
+	// itself, so closing the modal leaves its other items in view instead
+	// of whatever day was selected (or none) before the tap.
+	name.addEventListener("click", (e) => {
+		e.stopPropagation();
+		selectDay(board, date);
+		item.open();
+	});
 	if (hideSecond) return;
 	const meta = calendarChipMeta(
 		item.glyph,
@@ -564,6 +588,7 @@ function appendName(
  */
 function appendNameBar(
 	board: Board,
+	date: string,
 	names: HTMLElement,
 	item: BoardItem,
 	run: SpanRun
@@ -595,6 +620,7 @@ function appendNameBar(
 	}
 	bar.addEventListener("click", (e) => {
 		e.stopPropagation();
+		selectDay(board, date);
 		item.open();
 	});
 }
@@ -926,19 +952,33 @@ export function eventBoardItem(
 	event: EventInfo,
 	people: string,
 	open: () => void,
-	row: (container: HTMLElement) => void
+	row: (container: HTMLElement) => void,
+	/** The zone the board is read in, so a converted chip can say where
+	 * its time came from. */
+	viewerZone = ""
 ): BoardItem {
+	const origin = viewerZone ? eventTimeOrigin(event, viewerZone) : "";
 	return {
 		key: event.file.path,
 		kind: "event",
 		name: event.name,
 		days: [event.date],
-		time: event.time,
+		// Only a clock time orders a day's list; "Anytime" and "TBD" sit
+		// with the untimed at its head, which is where a thing with no
+		// hour belongs. The label below still says which it is.
+		time: specialEventTime(event.time) ? "" : event.time,
 		glyph: eventGlyph(event.name, "event", event.type),
 		// Its own colour if one was picked for it, on either calendar.
 		colour: event.color || eventColour(event.type),
 		cancelled: event.status === "cancelled",
-		when: event.time ? shortTime(event.time) : "",
+		// Cramped as a chip is, a converted time says so here too — a "1pm"
+		// you entered as 12pm CT is otherwise indistinguishable from a
+		// typo, and the calendar is where most of them are read.
+		when: event.time
+			? [shortTime(event.time), origin && `(${origin})`]
+					.filter(Boolean)
+					.join(" ")
+			: "",
 		people,
 		location: event.location,
 		open,

@@ -40,3 +40,62 @@ export function categoryShown(
 ): boolean {
 	return !hidden.some((h) => h.toLowerCase() === category.toLowerCase());
 }
+
+/** Is this category one of the event's? Compared without case, the way
+ * the picker and the drawer both match names. */
+export function hasCategory(
+	categories: readonly string[],
+	category: string
+): boolean {
+	const key = category.toLowerCase();
+	return categories.some((c) => c.toLowerCase() === key);
+}
+
+/**
+ * Every distinct category across some events' lists, alphabetised, each
+ * under the casing it was first seen in.
+ *
+ * Built from the events on the page rather than from every event in the
+ * vault, so the Filters panel never offers a category that would return
+ * nothing.
+ */
+export function categoriesIn(
+	lists: Iterable<readonly string[]>
+): string[] {
+	const seen = new Map<string, string>();
+	for (const list of lists) {
+		for (const c of list) {
+			const key = c.toLowerCase();
+			if (!seen.has(key)) seen.set(key, c);
+		}
+	}
+	return [...seen.values()].sort((a, b) =>
+		a.localeCompare(b, undefined, { sensitivity: "base" })
+	);
+}
+
+/**
+ * The categories the Filters panel offers: those on the page's events,
+ * less the ones ticked off in the calendar's drawer.
+ *
+ * A category you've hidden from the calendar is one you've said you don't
+ * want to see, so offering it as something to narrow to would contradict
+ * the drawer sitting next to it. Ticking it back on restores the pill.
+ */
+export function filterableCategories(
+	lists: Iterable<readonly string[]>,
+	hidden: readonly string[]
+): string[] {
+	return categoriesIn(lists).filter((c) => categoryShown(hidden, c));
+}
+
+/**
+ * How many categories a calendar drawer lists before the rest fold behind
+ * "Show N more". Up to `limit`, all of them. Past it, `limit` — unless that
+ * would fold away a single one, which costs as much room as just listing
+ * it, so one fewer is listed to leave at least two behind the disclosure.
+ */
+export function visibleCategoryCount(total: number, limit = 5): number {
+	if (total <= limit) return total;
+	return total - limit >= 2 ? limit : limit - 1;
+}

@@ -17,13 +17,16 @@ export function InterestsSection({
 	store,
 	interests,
 	categoryOf,
-	onRemove,
+	onView,
+	onMakeIdea,
 	onAdd,
 }: {
 	store: ViewStore;
 	interests: () => Interest[];
 	categoryOf: (interest: Interest) => string;
-	onRemove: (index: number) => void;
+	/** Opens the interest in its edit modal, where Delete lives too. */
+	onView: (index: number) => void;
+	onMakeIdea: (index: number) => void;
 	onAdd: () => void;
 }) {
 	useViewRevision(store);
@@ -56,17 +59,34 @@ export function InterestsSection({
 									key={index}
 								>
 									<span>{interest.text}</span>
-									{interest.detail && (
-										<span className="contact-interest-chip-detail">
-											{` · ${interest.detail}`}
-										</span>
-									)}
+									{[interest.detail, interest.detail2]
+										.filter(Boolean)
+										.map((value, i) => (
+											<span
+												className="contact-interest-chip-detail"
+												key={i}
+											>
+												{` · ${value}`}
+											</span>
+										))}
+									{/* The note isn't shown on the chip — it rides on the
+									    View button's hover tooltip instead, so a chip
+									    stays one line however much was written. */}
 									<button
-										className="contact-interest-chip-remove"
-										aria-label={`Remove ${interest.text}`}
-										onClick={() => onRemove(index)}
+										className="contact-interest-chip-action"
+										aria-label={interest.notes || "View"}
+										data-tooltip-position="top"
+										onClick={() => onView(index)}
 									>
-										<Icon name="x" />
+										<Icon name="eye" />
+									</button>
+									<button
+										className="contact-interest-chip-action"
+										aria-label="Make idea"
+										data-tooltip-position="top"
+										onClick={() => onMakeIdea(index)}
+									>
+										<Icon name="lightbulb" />
 									</button>
 								</div>
 							))}

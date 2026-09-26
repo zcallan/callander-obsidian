@@ -1,11 +1,16 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import { ConfirmModal } from "@/modals/ConfirmModal";
 import { INTEREST_CATEGORIES, InterestCategory } from "@/constants";
+import type { Interest } from "@/types";
+
+type InterestCategoryInfo = (typeof INTEREST_CATEGORIES)[number];
 
 /**
- * Capture a friend's interest: pick a category, type the thing, and an optional
- * second detail whose label follows the category (author, artist, restaurant…).
- * Deliberately factual — what they're into, never a rating.
+ * Capture a friend's interest: pick a type, name the thing, up to two more
+ * fields where the type has them (a book's author, music's artist and
+ * genre), and notes on what they like about it. Deliberately factual —
+ * what they're into, never a rating.
  */
 export class InterestModal extends FormModal {
 	private category: InterestCategory;
@@ -17,10 +22,14 @@ export class InterestModal extends FormModal {
 		private onSubmit: (
 			category: InterestCategory,
 			text: string,
-			detail: string
+			detail: string,
+			detail2: string,
+			notes: string
 		) => Promise<void>,
-		private initialText = "",
-		private initialDetail = ""
+		/** The interest being edited, or none for a new one. */
+		private existing?: Interest,
+		/** Offered only when editing — the same pattern QuickIdeaModal uses. */
+		private onDelete?: () => Promise<void>
 	) {
 		super(app);
 		this.category = initialCategory;
@@ -29,7 +38,11 @@ export class InterestModal extends FormModal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.createEl("h2", { text: `What's ${this.contactName} into?` });
+		contentEl.createEl("h2", {
+			text: this.existing
+				? "Edit interest"
+				: `What's ${this.contactName} into?`,
+		});
 
 		// Category picker — buttons are added after the inputs exist so their
 		// handlers can update the detail field.
@@ -37,29 +50,73 @@ export class InterestModal extends FormModal {
 			cls: "quick-idea-categories",
 		});
 
-		const textInput = contentEl.createEl("input", {
+		// Each field's label and placeholder follow the selected type — see
+		// INTEREST_CATEGORIES — so the form asks for a Book and its Author,
+		// a Song and its Band, and so on.
+		const nameField = contentEl.createDiv({ cls: "callander-modal-field" });
+		const nameLabel = nameField.createEl("label");
+		const textInput = nameField.createEl("input", {
 			cls: "quick-idea-input",
-			attr: {
-				type: "text",
-				placeholder: "e.g. Dune, cricket, spicy ramen…",
-			},
+			attr: { type: "text" },
 		});
-		textInput.value = this.initialText;
+		textInput.value = this.existing?.text ?? "";
 
-		// Second, optional field — its label/placeholder follow the category
-		const detailLabel = contentEl.createDiv({
-			cls: "interest-detail-label",
+		// Only shown for a type with a natural second (or third) thing to
+		// ask — a book's author, music's artist and its genre.
+		const detailField = contentEl.createDiv({
+			cls: "callander-modal-field",
 		});
-		const detailInput = contentEl.createEl("input", {
+		const detailLabel = detailField.createEl("label");
+		const detailInput = detailField.createEl("input", {
 			cls: "quick-idea-input interest-detail-input",
 			attr: { type: "text" },
 		});
-		detailInput.value = this.initialDetail;
-		const syncDetail = () => {
-			const cat = INTEREST_CATEGORIES.find((c) => c.id === this.category);
-			detailLabel.setText(cat?.detailLabel ?? "Details (optional)");
-			detailInput.placeholder =
-				cat?.detailPlaceholder ?? "Optional details";
+		detailInput.value = this.existing?.detail ?? "";
+
+		const detail2Field = contentEl.createDiv({
+			cls: "callander-modal-field",
+		});
+		const detail2Label = detail2Field.createEl("label");
+		const detail2Input = detail2Field.createEl("input", {
+			cls: "quick-idea-input interest-detail-input",
+			attr: { type: "text" },
+		});
+		detail2Input.value = this.existing?.detail2 ?? "";
+
+		const notesField = contentEl.createDiv({
+			cls: "callander-modal-field",
+		});
+		notesField.createEl("label", { text: "Notes" });
+		const notesInput = notesField.createEl("textarea", {
+			cls: "quick-idea-input quick-note-text",
+			attr: { rows: "2" },
+		});
+		notesInput.value = this.existing?.notes ?? "";
+
+		const current = () =>
+			INTEREST_CATEGORIES.find((c) => c.id === this.category) ??
+			INTEREST_CATEGORIES[0];
+		const detailOf = (cat: InterestCategoryInfo) =>
+			"detailLabel" in cat
+				? { label: cat.detailLabel, placeholder: cat.detailPlaceholder }
+				: null;
+		const detail2Of = (cat: InterestCategoryInfo) =>
+			"detail2Label" in cat
+				? { label: cat.detail2Label, placeholder: cat.detail2Placeholder }
+				: null;
+		const syncFields = () => {
+			const cat = current();
+			nameLabel.setText(cat.label);
+			textInput.placeholder = cat.namePlaceholder;
+			const detail = detailOf(cat);
+			detailField.toggle(!!detail);
+			detailLabel.setText(detail?.label ?? "");
+			detailInput.placeholder = detail?.placeholder ?? "";
+			const detail2 = detail2Of(cat);
+			detail2Field.toggle(!!detail2);
+			detail2Label.setText(detail2?.label ?? "");
+			detail2Input.placeholder = detail2?.placeholder ?? "";
+			notesInput.placeholder = cat.notesPlaceholder;
 		};
 
 		const categoryButtons = new Map<InterestCategory, HTMLButtonElement>();
@@ -80,25 +137,55 @@ export class InterestModal extends FormModal {
 				categoryButtons.forEach((el, id) =>
 					el.toggleClass("selected", id === cat.id)
 				);
-				syncDetail();
-				textInput.focus();
+				syncFields();
 			});
 			categoryButtons.set(cat.id, button);
 		});
-		syncDetail();
+		syncFields();
 
 		const buttonContainer = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
+		// Bottom-left, ahead of Save — the danger class pushes it there.
+		const onDelete = this.onDelete;
+		if (onDelete) {
+			const deleteButton = buttonContainer.createEl("button", {
+				text: "Delete",
+				cls: "callander-modal-button callander-modal-button-danger",
+			});
+			deleteButton.addEventListener("click", () => {
+				new ConfirmModal(
+					this.app,
+					"Delete interest",
+					`Delete "${this.existing?.text ?? ""}"?`,
+					"Delete",
+					async () => {
+						await onDelete();
+						this.close();
+					}
+				).open();
+			});
+		}
 		const saveButton = buttonContainer.createEl("button", {
-			text: this.initialText ? "Save" : "Add",
+			text: this.existing ? "Save" : "Add",
 			cls: "callander-modal-button mod-cta",
 		});
 
 		const submit = async () => {
 			const text = textInput.value.trim();
 			if (!text) return;
-			await this.onSubmit(this.category, text, detailInput.value.trim());
+			// A field hidden by the type isn't asked, so isn't saved —
+			// switching Book → Hobby shouldn't carry a stray author across.
+			const cat = current();
+			const detail = detailOf(cat) ? detailInput.value.trim() : "";
+			const detail2 = detail2Of(cat) ? detail2Input.value.trim() : "";
+			await this.onSubmit(
+				this.category,
+				text,
+				detail,
+				detail2,
+				notesInput.value.trim()
+			);
 			this.close();
 		};
 
@@ -111,9 +198,17 @@ export class InterestModal extends FormModal {
 		};
 		textInput.addEventListener("keydown", onEnter);
 		detailInput.addEventListener("keydown", onEnter);
+		detail2Input.addEventListener("keydown", onEnter);
+		// Plain Enter starts a new line, matching every other notes/description
+		// textarea here — only Cmd/Ctrl+Enter submits.
+		notesInput.addEventListener("keydown", (event) => {
+			if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+				event.preventDefault();
+				void submit();
+			}
+		});
 
-		if (this.initialText) this.blurInitialFocus();
-		else window.setTimeout(() => textInput.focus(), 0);
+		this.blurInitialFocus();
 	}
 
 	onClose() {

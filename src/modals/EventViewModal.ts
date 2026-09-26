@@ -8,6 +8,8 @@ import { splitLeadingEmoji } from "@/components/EventTimeline";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
 import { EVENT_TYPES } from "@/constants";
 import { buildEventShareText, buildGoogleCalendarUrl } from "@/utils/eventShare";
+import { eventTimeOrigin, formatEventTime } from "@/utils/eventRow";
+import { displayZone } from "@/utils/timezone";
 import { normalizeUrl } from "@/utils/url";
 import { closeColorPopover, openColorPopover } from "@/components/colorPicker";
 import { categoryColor, categoryColors } from "@/utils/categoryColor";
@@ -118,19 +120,27 @@ export class EventViewModal extends Modal {
 	}
 
 
-	private formatTime(t: string): string {
-		const [h, m] = t.split(":").map(Number);
-		if (Number.isNaN(h)) return t;
-		const period = h < 12 ? "AM" : "PM";
-		const hr = h % 12 === 0 ? 12 : h % 12;
-		return `${hr}:${String(m || 0).padStart(2, "0")} ${period}`;
-	}
-
 	private whenLabel(): string {
 		const parts: string[] = [];
 		const f = parseFlexDate(this.event.date);
 		if (f) parts.push(formatFlexDate(f));
-		if (this.event.time) parts.push(this.formatTime(this.event.time));
+		// Spelled out here: this line is the event's own answer to "when?",
+		// where a bare "TBD" beside a date reads as though the date were
+		// the uncertain part.
+		if (this.event.time) {
+			parts.push(
+				formatEventTime(this.event.time, {
+					long: true,
+					// The event's own page is where you come to check what a
+					// converted time actually says, so the original always
+					// rides with it here.
+					origin: eventTimeOrigin(
+						this.event,
+						displayZone(this.plugin.settings.displayTimezone)
+					),
+				})
+			);
+		}
 		return parts.join(" · ") || "No date";
 	}
 

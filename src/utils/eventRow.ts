@@ -1,4 +1,6 @@
-import { EVENT_TYPES } from "@/constants";
+import { EVENT_TYPES, specialEventTime } from "@/constants";
+import { shortTime } from "@/utils/calendarGrid";
+import { resolveToZone, zoneAbbreviation } from "@/utils/timezone";
 import { parseFlexDate, flexSortKey, isFlexUpcoming } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import {
@@ -25,6 +27,19 @@ export interface RowableEvent {
 	type: string;
 	location: string;
 	status: string;
+	/** Present on a real EventInfo; optional so the unit suite can build a
+	 * row from a plain object, and so a caller that has no zone to show
+	 * simply doesn't show one. */
+	timezone?: string;
+	sourceDate?: string;
+	sourceTime?: string;
+}
+
+/** Carries a zone, and therefore might have been converted. */
+function isZoned(
+	e: RowableEvent
+): e is RowableEvent & { timezone: string; sourceDate: string; sourceTime: string } {
+	return !!e.timezone && !!e.sourceDate && !!e.sourceTime;
 }
 
 /** The row fields buildUpcomingRow wants, minus its click handler. */
@@ -40,13 +55,56 @@ export interface EventRowFields {
 	cancelled?: boolean;
 }
 
+/**
+ * Where a time came from, when it came from somewhere else.
+ *
+ * An event carrying a zone is shown already converted, which is the point
+ * — but a bare "1:00 PM" on a game you entered as 12pm CT gives you no way
+ * to tell whether the conversion happened or whether you mistyped it. So
+ * the original rides along in brackets wherever the time appears.
+ *
+ * Empty when there's nothing to say: no zone, or a zone that matched the
+ * one being read in, in which case nothing was converted.
+ */
+export function eventTimeOrigin(
+	e: { sourceDate: string; sourceTime: string; timezone: string },
+	viewerZone: string
+): string {
+	if (!e.timezone || e.timezone === viewerZone) return "";
+	if (!/^\d{1,2}:\d{2}$/.test(e.sourceTime)) return "";
+	// Asked of the clock rather than the ids: the picker offers one zone
+	// per group of zones that keep identical time, so someone in Madrid
+	// picking the group Paris represents has a different id and the very
+	// same time. Nothing moved, so there's nothing to explain.
+	const shown = resolveToZone(
+		e.sourceDate,
+		e.sourceTime,
+		e.timezone,
+		viewerZone
+	);
+	if (shown.date === e.sourceDate && shown.time === e.sourceTime) return "";
+	const abbr = zoneAbbreviation(e.sourceDate, e.timezone);
+	if (!abbr) return "";
+	return `${shortTime(e.sourceTime)} ${abbr}`;
+}
+
 /** 24h "19:00" → "7:00 PM"; anything unparseable passes through. */
-export function formatEventTime(t: string): string {
+export function formatEventTime(
+	t: string,
+	/** Spell a special out ("Time TBD") for somewhere it stands alone
+	 * rather than in a row of facts. */
+	options: { long?: boolean; origin?: string } = {}
+): string {
+	const withOrigin = (shown: string) =>
+		options.origin ? `${shown} (${options.origin})` : shown;
+	const special = specialEventTime(t);
+	// A special has no clock reading, so it never carries an origin.
+	if (special) return options.long ? special.long : special.label;
 	const [h, m] = t.split(":").map(Number);
 	if (Number.isNaN(h)) return t;
 	const period = h < 12 ? "AM" : "PM";
 	const hr = h % 12 === 0 ? 12 : h % 12;
-	return `${hr}:${String(m || 0).padStart(2, "0")} ${period}`;
+	return withOrigin(`${hr}:${String(m || 0).padStart(2, "0")} ${period}`);
 }
 
 /**
@@ -61,7 +119,13 @@ export function eventRowFields(
 	now: Date,
 	peopleNames = "",
 	/** Say near dates by weekday — see conversationalLabel. */
-	options: { conversational?: boolean; bareWeekday?: boolean } = {}
+	options: {
+		conversational?: boolean;
+		bareWeekday?: boolean;
+		/** The zone the row is being read in — lets a converted time say
+		 * where it came from. Left out, it simply doesn't. */
+		viewerZone?: string;
+	} = {}
 ): EventRowFields {
 	// The event's own name may lead with an emoji; otherwise its type
 	// supplies one, and a bare calendar is the last resort.
@@ -82,12 +146,25 @@ export function eventRowFields(
 	const isTonight =
 		relative === "today" && !!e.time && Number(e.time.split(":")[0]) >= 18;
 
+	// Only when the row knows which zone it's being read in, and only for
+	// an event that actually came from another one.
+	const origin =
+		options.viewerZone && isZoned(e)
+			? eventTimeOrigin(e, options.viewerZone)
+			: "";
+
 	return {
 		icon: lead ? lead.emoji : type?.emoji ?? "📅",
 		// An undated event is a standing task, not something with a slot —
 		// "Anytime" says so, where a blank would just look broken.
 		date: date || "Anytime",
-		time: e.time ? formatEventTime(e.time) : "",
+		// An undated row already reads "Anytime" in the date's place, so a
+		// special time beside it would say the same thing twice. A clock
+		// time still shows: "Anytime · 7:00 PM" is two real facts.
+		time:
+			e.time && !(!date && specialEventTime(e.time))
+				? formatEventTime(e.time, { origin })
+				: "",
 		name: lead ? lead.rest : e.name,
 		// Whoever's involved rides beside the name; a person-less event
 		// shows where it is instead. A cancelled one says so here instead

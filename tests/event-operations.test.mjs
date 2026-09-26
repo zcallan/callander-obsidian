@@ -32,11 +32,19 @@ export async function run() {
 		ok("created stamped", typeof fm.created === "string");
 	}
 	{
+		// The forms require a date now — an event without one is a someday
+		// — but the service deliberately doesn't. Vaults from before that
+		// rule hold undated events, and the reminders migration has to be
+		// able to carry one across rather than drop it on the floor. So
+		// this is the legacy tolerance, pinned on purpose.
 		const t = await createTestVault();
 		const a = await t.events.createEvent({ name: "Task", date: "" });
 		const b = await t.events.createEvent({ name: "Task" });
 		eq("undated slug is just the name", a.path, "Friends/Events/Task.md");
 		eq("a dupe gets -1 appended", b.path, "Friends/Events/Task-1.md");
+		const undated = t.events.getEvents().find((e) => e.file.path === a.path);
+		eq("...and it still reads back", undated?.date, "");
+		eq("no date key is written at all", "date" in t.frontmatterOf(a), false);
 	}
 	{
 		// The emoji stays in the event's real name; the filename is for
@@ -557,6 +565,33 @@ export async function run() {
 		);
 	}
 
+	// ---------- a draft leads its own day ----------
+	// Not just sorted in by time — a draft has none, and used to fall in
+	// wherever "no time" happens to sort (after everything timed). It's the
+	// thought still unsettled about the day, so it reads first.
+	{
+		const { PlanOperations } = await import("./.build/callander.mjs");
+		const fm = {
+			drafts: [
+				{ text: "Figure out dinner", created: "2026-08-01", date: "2026-08-12" },
+			],
+			items: [
+				{ text: "Museum", category: "activity", priority: "must", date: "2026-08-12", time: "09:00" },
+			],
+			accommodation: [
+				{ text: "Hotel", date: "2026-08-12" },
+			],
+			travel: [
+				{ text: "Train in", date: "2026-08-12", time: "07:00" },
+			],
+		};
+		eq(
+			"the draft leads, ahead of a timed leg, an idea and the stay",
+			PlanOperations.timelineOf(fm).map((e) => e.text),
+			["Figure out dinner", "Train in", "Museum", "Hotel"]
+		);
+	}
+
 	// ---------- quick ideas (unscheduled, plan-local) ----------
 	{
 		const { PlanOperations } = await import("./.build/callander.mjs");
@@ -801,6 +836,31 @@ export async function run() {
 		);
 	}
 
+	// ---------- renaming and deleting a category everywhere ----------
+	{
+		const t = await createTestVault();
+		const a = await t.events.createEvent({ name: "A", date: "2026-10-01", categories: ["sports", "Boston"] });
+		const b = await t.events.createEvent({ name: "B", date: "2026-10-02", categories: ["Sports"] });
+		const c = await t.events.createEvent({ name: "C", date: "2026-10-03", categories: ["music"] });
+
+		await t.events.renameCategory("sports", "NBA");
+		eq("renamed on the event that had the exact case", t.frontmatterOf(a).categories, ["NBA", "Boston"]);
+		eq("...and on one that only matched case-insensitively", t.frontmatterOf(b).categories, ["NBA"]);
+		eq("an event without it is untouched", t.frontmatterOf(c).categories, ["music"]);
+
+		// Renaming onto a name the event already carries merges rather than
+		// duplicating — "Boston" and "NBA" colliding would otherwise leave
+		// two entries that read as the same category.
+		await t.events.renameCategory("NBA", "Boston");
+		eq("a rename that collides merges into one", t.frontmatterOf(a).categories, ["Boston"]);
+
+		await t.events.deleteCategory("Boston");
+		eq("deleting removes it from every event", "categories" in t.frontmatterOf(a), false);
+		eq("...even when the key is now empty", "categories" in t.frontmatterOf(b), false);
+		eq("the event never carrying it is untouched", t.frontmatterOf(c).categories, ["music"]);
+		ok("no event was deleted, only the category", [a, b, c].every((f) => t.vault.getAbstractFileByPath(f.path)));
+	}
+
 	// ---------- an event's own colour ----------
 	{
 		const t = await createTestVault();
@@ -816,6 +876,80 @@ export async function run() {
 		eq("clearing it removes the key", "color" in t.frontmatterOf(file), false);
 		await t.events.setColor(file, "not a colour");
 		eq("something that isn't a hex isn't stored", "color" in t.frontmatterOf(file), false);
+	}
+
+	// ---------- timezones, end to end ----------
+	// The point of resolving inside toInfo is that nothing downstream had
+	// to be taught about zones. These go through the real read path with a
+	// pinned viewer zone, so they assert the thing the design claims
+	// rather than the arithmetic (tests/timezone.test.mjs has that).
+	{
+		const t = await createTestVault({ displayTimezone: "America/New_York" });
+		const file = await t.events.createEvent({
+			name: "Celtics at Bulls",
+			date: "2026-10-22",
+			time: "12:00",
+			timezone: "America/Chicago",
+		});
+		eq("the file keeps the zone it was entered in", t.frontmatterOf(file).time, "12:00");
+		eq("...and names it", t.frontmatterOf(file).timezone, "America/Chicago");
+
+		const e = t.events.getEvents().find((x) => x.name === "Celtics at Bulls");
+		eq("read back converted", e.time, "13:00");
+		eq("the source survives for editing", e.sourceTime, "12:00");
+		eq("as does the zone", e.timezone, "America/Chicago");
+	}
+	{
+		// The one that matters: crossing midnight has to move the DATE, or
+		// every consumer that buckets by it — calendar cell, week heading,
+		// sort — puts the event on the wrong day while looking right.
+		const t = await createTestVault({ displayTimezone: "America/New_York" });
+		await t.events.createEvent({
+			name: "Late game",
+			date: "2026-01-05",
+			time: "21:00",
+			timezone: "America/Los_Angeles",
+		});
+		const e = t.events.getEvents().find((x) => x.name === "Late game");
+		eq("a 9pm Pacific game reads as midnight", e.time, "00:00");
+		eq("...on the following day", e.date, "2026-01-06");
+		eq("while the file still says the 5th", e.sourceDate, "2026-01-05");
+	}
+	{
+		// And with no zone — every event that predates this — the read path
+		// hands back exactly what the file says.
+		const t = await createTestVault({ displayTimezone: "America/New_York" });
+		await t.events.createEvent({
+			name: "Dinner",
+			date: "2026-01-05",
+			time: "19:00",
+		});
+		const e = t.events.getEvents().find((x) => x.name === "Dinner");
+		eq("a floating time is untouched", [e.date, e.time], ["2026-01-05", "19:00"]);
+		eq("and carries no zone", e.timezone, "");
+		eq("no timezone key is written", "timezone" in t.frontmatterOf(e.file), false);
+	}
+	{
+		// Editing from another zone must not rewrite what the event means.
+		// This is the shape of the bug the source fields exist to prevent:
+		// read in New York, written back from the values the form holds.
+		const t = await createTestVault({ displayTimezone: "America/New_York" });
+		const file = await t.events.createEvent({
+			name: "Game",
+			date: "2026-10-22",
+			time: "12:00",
+			timezone: "America/Chicago",
+		});
+		const e = t.events.getEvents().find((x) => x.name === "Game");
+		await t.events.updateEvent(file, {
+			name: "Game (renamed)",
+			date: e.sourceDate,
+			time: e.sourceTime,
+			timezone: e.timezone,
+		});
+		const fm = t.frontmatterOf(file);
+		eq("a round trip leaves the stored time alone", fm.time, "12:00");
+		eq("...and its zone", fm.timezone, "America/Chicago");
 	}
 
 	return result();

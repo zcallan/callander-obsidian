@@ -419,7 +419,11 @@ try {
 					// Put the named section's heading at the top of the frame.
 					// Anchoring to content rather than a pixel offset means the
 					// shot survives the seed data changing height.
-					const el = [...scroller.querySelectorAll("h1, h2, h3, h4")].find((h) =>
+					// A person or plan page titles its sections with a div, not
+					// a heading tag, so that counts as a heading too.
+					const el = [
+						...scroller.querySelectorAll("h1, h2, h3, h4, .contact-stack-header"),
+					].find((h) =>
 						(h.textContent ?? "").includes(heading)
 					);
 					if (!el) return;

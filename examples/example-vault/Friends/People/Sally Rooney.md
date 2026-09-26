@@ -1,17 +1,13 @@
 ---
 name: Sally Rooney
-birthday: 1991-10-13
-met: 2024-10-18
+birthday: 1991-10-21
+met: 2024-10-26
 relationship: friend
 groups:
   - book club
   - pen pals
 hometown: Castlebar, County Mayo
 location: Dublin
-ideas:
-  - category: gift
-    text: The good Porter Square Books tote
-    done: false
 interests:
   - category: books
     text: Anything by Natalia Ginzburg
@@ -20,6 +16,11 @@ interests:
 funFacts:
   - Was ranked the top competitive debater in Europe as a student, then quit and wrote an essay about why
   - Leaves out quotation marks too — she and Cormac have a running agreement about it
-created: 2026-09-18
-updated: 2026-09-18
+created: 2026-09-26
+updated: 2026-09-26
 ---
+## Ideas
+
+### 🎁 Gift
+
+- [ ] The good Porter Square Books tote

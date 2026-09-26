@@ -7,6 +7,7 @@ import {
 	DEFAULT_GROUP_COLORS,
 	categoryColor,
 	categoryColors,
+	ensureGroupColors,
 	type GroupColors,
 } from "@/utils/categoryColor";
 
@@ -70,16 +71,7 @@ export class CalendarColorsModal extends FormModal {
 
 		// Filled in from an older settings file, where some of these keys
 		// won't exist yet.
-		const settings = this.plugin.settings;
-		const saved: Partial<GroupColors> = settings.calendarGroupColors ?? {};
-		const colors: GroupColors = {
-			plan: saved.plan ?? "",
-			birthday: saved.birthday ?? "",
-			event: saved.event ?? "",
-			categories: { ...(saved.categories ?? {}) },
-			types: { ...(saved.types ?? {}) },
-		};
-		settings.calendarGroupColors = colors;
+		const colors = ensureGroupColors(this.plugin.settings);
 
 		if (kinds) this.appendKinds(contentEl, colors);
 		else if (types) this.appendTypes(contentEl, colors);

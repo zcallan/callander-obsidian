@@ -1,8 +1,20 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import { closeColorPopover } from "@/components/colorPicker";
+import { appendColorSwatchRow } from "@/components/colorSwatchRow";
+
+/** Offered only by the callers whose categories carry a colour (events) —
+ * plan and idea categories don't, so they leave this out and get the plain
+ * name-only form. */
+export interface AddCategoryColorOptions {
+	palette: readonly string[];
+	/** What the swatch row starts on, and what Reset restores it to. */
+	defaultColor: string;
+}
 
 /**
- * One text field for naming a new quick-idea category.
+ * One text field for naming a new quick-idea category — plus, for an event
+ * category, a colour to go with it.
  *
  * Opened from the "+ Add" chip rather than living in the idea form itself:
  * the categories a plan uses settle early and then rarely change, so a
@@ -18,9 +30,12 @@ import { FormModal } from "@/modals/FormModal";
 export class AddCategoryModal extends FormModal {
 	constructor(
 		app: App,
-		private onSubmit: (name: string) => void,
+		/** `color` is "" when `colorOptions` wasn't offered, or nothing was
+		 * hand-picked — treat that as "use the default", same as elsewhere. */
+		private onSubmit: (name: string, color: string) => void,
 		/** Existing names, matched case-insensitively to reject duplicates. */
-		private existing: string[] = []
+		private existing: string[] = [],
+		private colorOptions?: AddCategoryColorOptions
 	) {
 		super(app);
 	}
@@ -39,7 +54,13 @@ export class AddCategoryModal extends FormModal {
 			cls: "callander-modal-input",
 			attr: {
 				type: "text",
-				placeholder: "e.g. Boston",
+				// Only an event category carries colourOptions — the same
+				// signal that decides whether the swatch row below shows up
+				// also picks which examples fit here, rather than a plan or
+				// idea category (a trip's places, e.g.) getting event ones.
+				placeholder: this.colorOptions
+					? "e.g. Celtics, Run Club, Movies"
+					: "e.g. Boston",
 				name: "category",
 			},
 		});
@@ -49,6 +70,19 @@ export class AddCategoryModal extends FormModal {
 		// error worth a dialog — the chip is already on screen underneath.
 		const note = field.createDiv({ cls: "section-helper-text" });
 		note.hide();
+
+		let swatches: { getColor(): string } | null = null;
+		if (this.colorOptions) {
+			const colorField = form.createDiv({ cls: "callander-modal-field" });
+			colorField.createEl("label", { text: "Color" });
+			swatches = appendColorSwatchRow(colorField, {
+				palette: this.colorOptions.palette,
+				initial: "",
+				customFallback: this.colorOptions.defaultColor,
+				resetTo: this.colorOptions.defaultColor,
+				onChange: () => {},
+			});
+		}
 
 		const buttons = form.createDiv({ cls: "callander-modal-buttons" });
 		const cancel = buttons.createEl("button", {
@@ -82,7 +116,7 @@ export class AddCategoryModal extends FormModal {
 			e.preventDefault();
 			const name = input.value.trim();
 			if (!name || duplicate(name)) return;
-			this.onSubmit(name);
+			this.onSubmit(name, swatches?.getColor() ?? "");
 			this.close();
 		});
 
@@ -90,6 +124,7 @@ export class AddCategoryModal extends FormModal {
 	}
 
 	onClose() {
+		closeColorPopover();
 		this.contentEl.empty();
 	}
 }

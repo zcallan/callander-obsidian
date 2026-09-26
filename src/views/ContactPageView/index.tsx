@@ -164,7 +164,6 @@ import {
 	todayISO,
 } from "@/utils/flexdate";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
-import { GENERATED_KEY, isGenerated } from "@/utils/generated";
 import {
 	joinFrontmatter,
 	parseQuotesSection,
@@ -175,6 +174,12 @@ import {
 	parseIdeasSection,
 	upsertIdeasSection,
 } from "@/utils/ideasMarkdown";
+import {
+	findDraft,
+	parseDraftsSection,
+	upsertDraftsSection,
+	type LedgerDraft,
+} from "@/utils/draftsMarkdown";
 import {
 	adoptNotes,
 	normalizeNotes,
@@ -348,6 +353,20 @@ export class ContactPageView extends ItemView {
 	private bodyQuotes: Quote[] | null = null;
 	/** Ideas as read from the note body; null until this note is migrated. */
 	private bodyIdeas: Idea[] | null = null;
+	/**
+	 * The open drafts about this person, from the checklist in the dashboard
+	 * note. `index` is each one's place in that whole list, which is what
+	 * changing it is addressed by — the position in this array is only the
+	 * row it's drawn in.
+	 */
+	private aboutDrafts: Array<{ draft: LedgerDraft; index: number }> = [];
+	/**
+	 * A plan's own undated drafts, from its `## Drafts` section. Null means
+	 * this plan hasn't been migrated yet, so its frontmatter `drafts` list
+	 * (filtered to the undated ones) is still the source of truth. Not
+	 * meaningful outside a plan file.
+	 */
+	private bodyDrafts: LedgerDraft[] | null = null;
 	/** Notes as read from the body's `## Notes` section; null until this
 	 * note has one. See notesMarkdown. */
 	private bodyNotes: string | null = null;
@@ -499,6 +518,34 @@ export class ContactPageView extends ItemView {
 		await this.saveContactData(false);
 	}
 
+	/**
+	 * Read the drafts about this person from the dashboard note. Plans keep
+	 * theirs in their own frontmatter — those carry a day, and feed the
+	 * plan's timeline — so this is for everyone else.
+	 */
+	private async loadAboutDrafts(): Promise<void> {
+		const file = this._file;
+		if (!file || this.isPlanFile()) {
+			this.aboutDrafts = [];
+			return;
+		}
+		const ops = this.plugin.contactOperations;
+		const drafts = await ops.readDrafts();
+		if (this._file !== file) return;
+		this.aboutDrafts = drafts
+			.map((draft, index) => ({ draft, index }))
+			.filter(
+				({ draft }) =>
+					!draft.done && ops.draftAbout(draft)?.path === file.path
+			);
+	}
+
+	/** Reload the drafts and redraw — after any change to the checklist. */
+	private async refreshAboutDrafts(): Promise<void> {
+		await this.loadAboutDrafts();
+		this.render();
+	}
+
 	/** Append to a frontmatter list, creating it when absent. */
 	private pushToList(key: string, value: unknown) {
 		const list = asArray(this.contactData[key]);
@@ -592,6 +639,32 @@ export class ContactPageView extends ItemView {
 		this.registerEvent(
 			this.app.metadataCache.on("changed", (f) => rerenderOnEvent(f.path))
 		);
+
+		// This person's drafts are lines in the dashboard note, not in their
+		// own file — so a change there (an edit in the note itself, a sync,
+		// Claude adding one) has to reach this page by its own route. Only
+		// redrawn when what this page shows actually changed, since the
+		// dashboard note is written for plenty of unrelated reasons.
+		const refreshDrafts = (path: string) => {
+			if (
+				!this._file ||
+				this.isPlanFile() ||
+				path !== this.plugin.contactOperations.getDashboardFilePath() ||
+				this.isEditingInView()
+			) {
+				return;
+			}
+			const before = JSON.stringify(this.aboutDrafts);
+			void this.loadAboutDrafts().then(() => {
+				if (JSON.stringify(this.aboutDrafts) !== before) this.render();
+			});
+		};
+		this.registerEvent(
+			this.app.vault.on("modify", (f) => refreshDrafts(f.path))
+		);
+		this.registerEvent(
+			this.app.metadataCache.on("changed", (f) => refreshDrafts(f.path))
+		);
 	}
 
 	/** True if an input/textarea inside this view has focus (mid-edit) */
@@ -666,17 +739,29 @@ export class ContactPageView extends ItemView {
 			this.bodyQuotes = parseQuotesSection(body);
 			this.bodyIdeas = parseIdeasSection(body);
 			this.bodyNotes = parseNotesSection(body);
+			this.bodyDrafts = this.isPlanFile() ? parseDraftsSection(body) : null;
 			this.migrateLegacyGiftIdeas();
 			this.migratePlanStructure();
 			await this.migrateQuotesToBody();
 			await this.migrateIdeasToBody();
 			await this.migrateNotesToBody(body);
+			if (this.isPlanFile()) {
+				await this.migratePlanDraftsToBody();
+			} else if (this.contactData.drafts !== undefined) {
+				// A note that synced in still holding drafts in frontmatter
+				// is carried to the dashboard's checklist before it's read
+				// from there.
+				await this.plugin.contactOperations.migrateDraftsToDashboard();
+			}
+			await this.loadAboutDrafts();
 		} catch (error) {
 			console.error(`Error reading contact file ${file.path}:`, error);
 			this.contactData = {};
 			this.bodyQuotes = null;
 			this.bodyIdeas = null;
 			this.bodyNotes = null;
+			this.bodyDrafts = null;
+			this.aboutDrafts = [];
 		}
 		// Only render if still the same file
 		if (this._file?.path === currentFilePath) {
@@ -816,13 +901,15 @@ export class ContactPageView extends ItemView {
 					"plan-drafts",
 					<PlanDraftsSection
 						store={this.store}
-						drafts={() => this.planDraftTexts()}
-					isGenerated={(i) => this.draftIsGenerated(i)}
+						drafts={() => this.planDrafts().map((d) => d.text)}
+						isGenerated={(i) => this.draftIsGenerated(i)}
 						onMakeIdea={(index, text) =>
 							this.promotePlanDraft(index, text)
 						}
-						onDiscard={(index, text) =>
-							this.confirmDiscardPlanDraft(index, text)
+						onMakeEvent={(text) => this.promotePlanDraftToEvent(text)}
+						onEdit={(index, text) => this.editPlanDraft(index, text)}
+						onDone={(index, text) =>
+							void this.completePlanDraft(index, text)
 						}
 					/>
 				)
@@ -1144,15 +1231,13 @@ export class ContactPageView extends ItemView {
 				"person-drafts",
 				<PersonDraftsSection
 					store={this.store}
-					drafts={() => this.planDraftTexts()}
-					isGenerated={(i) => this.draftIsGenerated(i)}
+					drafts={() => this.aboutDrafts.map((a) => a.draft.text)}
+					isGenerated={(i) => !!this.aboutDrafts[i]?.draft.generated}
 					onMakeIdea={(index, text) =>
 						this.promoteDraftToIdea(index, text)
 					}
 					onEdit={(index, text) => this.editDraft(index, text)}
-					onDiscard={(index, text) =>
-						this.confirmDiscardPlanDraft(index, text)
-					}
+					onDone={(index) => void this.completeAboutDraft(index)}
 				/>
 			)
 		);
@@ -1250,7 +1335,8 @@ export class ContactPageView extends ItemView {
 						categoryOf={(interest) =>
 							this.normalizeInterestCategory(interest)
 						}
-						onRemove={(index) => void this.removeInterest(index)}
+						onView={(index) => this.openEditInterestModal(index)}
+						onMakeIdea={(index) => this.makeIdeaFromInterest(index)}
 						onAdd={() => this.openAddInterestModal()}
 					/>
 				)
@@ -1361,6 +1447,10 @@ export class ContactPageView extends ItemView {
 		// The same dialog the friends table uses, so deleting a person reads
 		// identically wherever it's done.
 		new DeleteContactModal(this.app, file, async () => {
+			// Before trashing: a plan's own "Who's in" is a copy of the
+			// wikilink, not a live query, and only resolves against this
+			// file while it still exists.
+			await this.plugin.planOperations.removePersonFromPlans(file);
 			await this.app.fileManager.trashFile(file);
 			new Notice(`Deleted "${name}"`);
 			// This view is now showing a file that no longer exists.
@@ -2481,7 +2571,11 @@ export class ContactPageView extends ItemView {
 		);
 	}
 
-	private promoteDraftToIdea(index: number, text: string) {
+	/**
+	 * File a draft as an idea. The draft stays until it's marked Done — the
+	 * same as from the dashboard — so this only adds the idea.
+	 */
+	private promoteDraftToIdea(_index: number, text: string) {
 		new QuickIdeaModal(
 			this.app,
 			this.contactData.displayName || this.contactData.name || "",
@@ -2492,8 +2586,6 @@ export class ContactPageView extends ItemView {
 					...this.ideasList(),
 					{ category, text: ideaText, done: false },
 				]);
-				this.removeFromList("drafts", index);
-				await this.saveContactData();
 				this.render();
 			},
 			text
@@ -2501,27 +2593,35 @@ export class ContactPageView extends ItemView {
 	}
 
 	private editDraft(index: number, text: string) {
+		const about = this.aboutDrafts[index];
+		if (!about) return;
 		new NoteInputModal(
 			this.app,
 			this.contactData.displayName || this.contactData.name || "",
 			async (updated) => {
-				const list = asArray(this.contactData.drafts);
-				const current = list[index];
-				// Legacy drafts are plain strings; keep the shape the entry
-				// already had, and preserve `created` — editing the wording
-				// doesn't make it a new note.
-				list[index] =
-					typeof current === "string"
-						? updated
-						: { ...(current as object), text: updated };
-				this.contactData.drafts = list;
-				await this.saveContactData();
-				this.render();
+				// Reworded in the note, keeping its date, person and box.
+				await this.plugin.contactOperations.updateDraft(
+					about.index,
+					about.draft.text,
+					updated
+				);
+				await this.refreshAboutDrafts();
 			},
 			text
 		).open();
 	}
 
+	/** Tick a draft off in the dashboard note; it leaves this strip and
+	 * stays in the record. */
+	private async completeAboutDraft(index: number): Promise<void> {
+		const about = this.aboutDrafts[index];
+		if (!about) return;
+		await this.plugin.contactOperations.completeDraft(
+			about.index,
+			about.draft.text
+		);
+		await this.refreshAboutDrafts();
+	}
 
 	private isPlanFile(): boolean {
 		return !!this._file?.path.startsWith(
@@ -2841,10 +2941,14 @@ export class ContactPageView extends ItemView {
 					file.path
 				);
 				return {
+					// `||`, not `??`: a cleared `displayName: ""` is exactly
+					// as unset as a missing one, and should fall back to the
+					// file's own name the same way, rather than rendering
+					// the chip blank.
 					display: dest
 						? String(
 								this.app.metadataCache.getFileCache(dest)
-									?.frontmatter?.displayName ?? dest.basename
+									?.frontmatter?.displayName || dest.basename
 						  )
 						: linktext,
 					path: dest ? dest.path : null,
@@ -2899,28 +3003,82 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	/** Draft text in stored order — a draft may be a bare string or an object. */
-	private planDraftTexts(): string[] {
-		return asArray(this.contactData.drafts).map((draft) =>
-			typeof draft === "string" ? draft : toText(fieldOf(draft, "text"))
+	/**
+	 * The plan's own undated thoughts, waiting to be sorted — a draft with
+	 * a day sits on the Timeline instead (see PlanOperations.timelineOf),
+	 * so this is specifically the ones that don't have one yet.
+	 *
+	 * Body-backed once migrated (`bodyDrafts`); the frontmatter list still
+	 * stands in until then — that's what makes the migration lazy.
+	 */
+	private planDrafts(): LedgerDraft[] {
+		if (this.bodyDrafts !== null) return this.bodyDrafts;
+		// Pre-migration, every frontmatter draft is still open — nothing in
+		// the old shape could mark one done.
+		return ContactOperations.draftsOf(this.contactData)
+			.filter((d) => !d.date)
+			.map((d) => ({ ...d, done: false }));
+	}
+
+	/** Rewrite just the plan's own Drafts section, leaving the rest of the
+	 * note — frontmatter included — exactly as it was. */
+	private async writeDraftsToBody(drafts: LedgerDraft[]): Promise<void> {
+		if (!this._file) return;
+		this.writingUntil = Date.now() + 1000;
+		await this.app.vault.process(this._file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			return joinFrontmatter(frontmatter, upsertDraftsSection(body, drafts));
+		});
+		this.bodyDrafts = drafts;
+	}
+
+	/**
+	 * Move this plan's own undated drafts out of frontmatter and into its
+	 * `## Drafts` section, once — the same move the dashboard's drafts
+	 * made, scoped to one note. A draft with a day is left exactly where
+	 * it is: it feeds the Timeline from frontmatter, which this doesn't
+	 * touch.
+	 *
+	 * Body first, frontmatter cleared only on success, the same order
+	 * every other move here uses — a crash in between leaves the drafts in
+	 * both places, and the body wins the next read.
+	 */
+	private async migratePlanDraftsToBody(): Promise<void> {
+		if (!this._file || this.bodyDrafts !== null) return;
+		const all = ContactOperations.draftsOf(this.contactData);
+		const undated = all.filter((d) => !d.date);
+		if (undated.length === 0) return;
+		await this.writeDraftsToBody(
+			undated.map((d) => ({
+				text: d.text,
+				created: d.created,
+				done: false,
+				...(d.generated && { generated: true }),
+			}))
 		);
+		const dated = all.filter((d) => d.date);
+		if (dated.length > 0) this.contactData.drafts = dated;
+		else delete this.contactData.drafts;
+		await this.saveContactData(false);
 	}
 
 	/** Whether the draft at this index came from Claude. */
 	private draftIsGenerated(index: number): boolean {
-		return isGenerated(
-			fieldOf(asArray(this.contactData.drafts)[index], GENERATED_KEY)
-		);
+		return !!this.planDrafts()[index]?.generated;
 	}
 
-	/** Turn a draft into a timeline item, dropping it once the item exists. */
+	/**
+	 * Turn a draft into a plan idea — a timeline item with nowhere on the
+	 * calendar yet. Left in place until it's marked Done, same as Make
+	 * idea/Make event on the dashboard: filing it as something else isn't
+	 * the same as being finished with the thought.
+	 */
 	private promotePlanDraft(index: number, text: string) {
 		new PlanItemModal(
 			this.app,
 			String(this.contactData.name ?? ""),
 			async (value) => {
 				this.pushToList("items", value);
-				this.removeFromList("drafts", index);
 				await this.saveContactData();
 				this.render();
 			},
@@ -2928,18 +3086,70 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	private confirmDiscardPlanDraft(index: number, text: string) {
-		const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
-		new ConfirmModal(
+	/** Turn a draft into an event, seeded with its text as the name and
+	 * this plan linked — same pattern as the page's own "Add event". Left
+	 * in place until Done, like Make idea above. */
+	private promotePlanDraftToEvent(text: string) {
+		const file = this._file;
+		if (!file) return;
+		new EventModal(
 			this.app,
-			"Discard draft",
-			`Discard "${preview}"?`,
-			"Discard",
-			async () => {
-				this.removeFromList("drafts", index);
-				await this.saveContactData();
+			this.plugin,
+			null,
+			() => this.render(),
+			{
+				people: [`[[${file.basename}]]`],
+				variant: "timeline",
+			},
+			[`[[${file.basename}]]`]
+		).open();
+	}
+
+	/** Tick a draft off in the plan's own note; it leaves the strip and
+	 * stays in the record. */
+	private async completePlanDraft(index: number, text: string): Promise<void> {
+		const list = this.planDrafts();
+		const at = findDraft(list, index, text);
+		if (at < 0) return;
+		const next = [...list];
+		next[at] = { ...next[at], done: true, doneDate: todayISO() };
+		await this.writeDraftsToBody(next);
+		this.render();
+	}
+
+	/** Edit a plan draft's text — and, from here, give it a day, which
+	 * moves it onto the Timeline instead of leaving it in this strip. */
+	private editPlanDraft(index: number, text: string) {
+		const dayOptions = this.planScheduleOptions().dayOptions;
+		new NoteInputModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name || "",
+			async (updated, date) => {
+				const list = this.planDrafts();
+				const at = findDraft(list, index, text);
+				if (at < 0) return;
+				if (date) {
+					// Handed to the Timeline: out of the body list, into
+					// frontmatter, where timelineOf reads dated drafts from.
+					const next = [...list];
+					next.splice(at, 1);
+					await this.writeDraftsToBody(next);
+					this.pushToList("drafts", {
+						text: updated,
+						created: list[at].created,
+						date,
+						...(list[at].generated && { generated: true }),
+					});
+					await this.saveContactData();
+				} else {
+					const next = [...list];
+					next[at] = { ...next[at], text: updated };
+					await this.writeDraftsToBody(next);
+				}
 				this.render();
-			}
+			},
+			text,
+			dayOptions
 		).open();
 	}
 
@@ -4110,6 +4320,14 @@ export class ContactPageView extends ItemView {
 			this.app,
 			this.contactData.displayName || this.contactData.name || "",
 			async (text, date) => {
+				// A plan keeps its drafts with it — they take a day, and feed
+				// its timeline. Anyone else's go in the dashboard note's
+				// checklist, with a link back to them.
+				if (!this.isPlanFile() && this._file) {
+					await this.plugin.contactOperations.addDraft(text, this._file);
+					await this.refreshAboutDrafts();
+					return;
+				}
 				const created = todayISO();
 				this.pushToList("drafts", {
 					text,
@@ -4179,6 +4397,8 @@ export class ContactPageView extends ItemView {
 		}
 		// Legacy "Movie & TV" → Movie
 		if (String(interest.category) === "screen") return "movie";
+		// Legacy "Music Genre" → Music, once its own category
+		if (String(interest.category) === "musicgenre") return "music";
 		return "other";
 	}
 
@@ -4441,18 +4661,83 @@ export class ContactPageView extends ItemView {
 		this.render();
 	}
 
+	/** The interest's own modal, reopened on it — Delete sits in there. */
+	private openEditInterestModal(index: number) {
+		const interest = (asArray(this.contactData.interests) as Interest[])[
+			index
+		];
+		if (!interest) return;
+		new InterestModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name || "",
+			this.normalizeInterestCategory(interest),
+			async (category, text, detail, detail2, notes) => {
+				const list = [...(asArray(this.contactData.interests) as Interest[])];
+				list[index] = {
+					category,
+					text,
+					...(detail && { detail }),
+					...(detail2 && { detail2 }),
+					...(notes && { notes }),
+				};
+				this.contactData.interests = list;
+				await this.saveContactData();
+				this.render();
+			},
+			interest,
+			() => this.removeInterest(index)
+		).open();
+	}
+
+	/**
+	 * An idea seeded from an interest — its name, with the first detail in
+	 * brackets ("East of Eden (John Steinbeck)"), filed under the idea
+	 * category the interest's type points at. Editable before it's saved.
+	 */
+	private makeIdeaFromInterest(index: number) {
+		const interest = (asArray(this.contactData.interests) as Interest[])[
+			index
+		];
+		if (!interest) return;
+		const type = INTEREST_CATEGORIES.find(
+			(c) => c.id === this.normalizeInterestCategory(interest)
+		);
+		const text = interest.detail
+			? `${interest.text} (${interest.detail})`
+			: interest.text;
+		new QuickIdeaModal(
+			this.app,
+			this.contactData.displayName || this.contactData.name || "",
+			type?.ideaCategory ?? this.lastIdeaCategory,
+			async (category, ideaText) => {
+				this.lastIdeaCategory = category;
+				await this.writeIdeasToBody([
+					...this.ideasList(),
+					{ category, text: ideaText, done: false },
+				]);
+				// The body write leaves frontmatter alone, so the
+				// last-updated stamp has to be set separately.
+				await this.saveContactData();
+				this.render();
+			},
+			text
+		).open();
+	}
+
 
 	private openAddInterestModal() {
 		new InterestModal(
 			this.app,
 			this.contactData.displayName || this.contactData.name || "",
 			this.lastInterestCategory,
-			async (category, text, detail) => {
+			async (category, text, detail, detail2, notes) => {
 				this.lastInterestCategory = category;
 				this.pushToList("interests", {
 					category,
 					text,
 					...(detail && { detail }),
+					...(detail2 && { detail2 }),
+					...(notes && { notes }),
 				});
 				await this.saveContactData();
 				this.render();

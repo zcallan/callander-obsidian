@@ -16,6 +16,7 @@ import { GlanceModal } from "@/modals/GlanceModal";
 import { PlanGlanceModal } from "@/modals/PlanGlanceModal";
 import { monthGrid, weekGrid } from "@/utils/calendarGrid";
 import { eventRowFields } from "@/utils/eventRow";
+import { displayZone } from "@/utils/timezone";
 import { parseFlexDate, todayISO } from "@/utils/flexdate";
 import { birthdaysOnDays, turnsLabel } from "@/utils/friendTimeline";
 import { summarisePeople } from "@/utils/nameFormat";
@@ -30,6 +31,7 @@ import {
 	categoryShown,
 	setCategoryShown,
 	shownByCategory,
+	visibleCategoryCount,
 } from "@/utils/eventCategories";
 import {
 	NO_COLOR_FALLBACK,
@@ -38,6 +40,7 @@ import {
 	groupColorFor,
 } from "@/utils/categoryColor";
 import { CalendarColorsModal } from "@/modals/CalendarColorsModal";
+import { appendTimezoneBanner } from "@/components/timezoneBanner";
 
 export const VIEW_TYPE_CALENDAR = "callander-calendar";
 
@@ -68,6 +71,9 @@ export class CalendarView extends ItemView {
 	private cal: BoardState;
 	/** Open for this view only; every page open starts with it shut. */
 	private drawerOpen = false;
+	/** Whether the drawer's category list is unfolded past "Show N more" —
+	 * kept here because the drawer itself is redrawn on every tick. */
+	private categoriesExpanded = false;
 	private boardEl: HTMLElement | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
@@ -135,6 +141,8 @@ export class CalendarView extends ItemView {
 		setIcon(newBtn, "plus");
 		newBtn.createSpan({ text: "New event" });
 		newBtn.addEventListener("click", () => this.openEditor());
+
+		appendTimezoneBanner(container, this.plugin, () => this.render());
 
 		this.boardEl = container.createDiv({ cls: "fullcal" });
 		this.renderBoard();
@@ -214,22 +222,35 @@ export class CalendarView extends ItemView {
 			this.plugin.eventOperations.getEventCategories()
 		);
 		const hiddenCategories = this.plugin.settings.calendarHiddenCategories;
+		// The zone times are read in — settings if one's pinned, else this
+		// machine's. Constant for the whole draw, so it's worked out once.
+		const viewerZone = displayZone(this.plugin.settings.displayTimezone);
 		const events = this.events
 			.filter((event) => shownByCategory(event.categories, hiddenCategories))
 			.map((event) => {
 			const people = this.peopleSummary(event);
 			const open = () => this.openEvent(event);
-			const item = eventBoardItem(event, people, open, (row) =>
-				this.appendRow(
-					row,
-					// These rows only show in the day list, whose heading
-					// already names the day — the date would repeat it. A
-					// plan's row keeps its own, as it may have started days
-					// before the one picked.
-					{ ...eventRowFields(event, now, people), date: "" },
-					event.status === "cancelled",
-					open
-				)
+			const item = eventBoardItem(
+				event,
+				people,
+				open,
+				(row) =>
+					this.appendRow(
+						row,
+						// These rows only show in the day list, whose heading
+						// already names the day — the date would repeat it. A
+						// plan's row keeps its own, as it may have started
+						// days before the one picked.
+						{
+							...eventRowFields(event, now, people, {
+								viewerZone,
+							}),
+							date: "",
+						},
+						event.status === "cancelled",
+						open
+					),
+				viewerZone
 			);
 			item.colour = calendarEventColor(event, {
 				byGroup,
@@ -410,6 +431,16 @@ export class CalendarView extends ItemView {
 			},
 			{
 				heading: "Event category",
+				fold: {
+					visible: visibleCategoryCount(
+						this.plugin.eventOperations.getEventCategories().length
+					),
+					open: this.categoriesExpanded,
+					onToggle: () => {
+						this.categoriesExpanded = !this.categoriesExpanded;
+						this.renderBoard();
+					},
+				},
 				options: this.plugin.eventOperations
 					.getEventCategories()
 					.map((category) => ({

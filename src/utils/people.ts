@@ -31,7 +31,11 @@ export function resolvePeopleInfo(
 		if (!dest) return { displayName: linktext, shortName: "" };
 		const fm = app.metadataCache.getFileCache(dest)?.frontmatter;
 		return {
-			displayName: String(fm?.displayName ?? dest.basename),
+			// `||`, not `??`: an emptied-out `displayName: ""` is exactly as
+			// unset as a missing one, and should fall back the same way —
+			// `??` alone left a cleared display name rendering as blank
+			// instead of the file's own name.
+			displayName: String(fm?.displayName || dest.basename),
 			shortName: fm?.shortName ? String(fm.shortName).trim() : "",
 		};
 	});

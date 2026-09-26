@@ -15,6 +15,7 @@ import {
 	ContactOperations,
 	EventOperations,
 	EventMigration,
+	PlanOperations,
 } from "./.build/callander.mjs";
 
 // EventOperations waits on the metadata cache via window timers; Node has
@@ -53,9 +54,11 @@ export async function createTestVault(settings = {}) {
 	const contacts = new ContactOperations(plugin);
 	const events = new EventOperations(plugin);
 	const migration = new EventMigration(plugin);
+	const plans = new PlanOperations(plugin);
 	// The services reach each other through the plugin, same as production.
 	plugin.contactOperations = contacts;
 	plugin.eventOperations = events;
+	plugin.planOperations = plans;
 	plugin.refreshDashboards = () => {};
 
 	const base = normalizePath(plugin.settings.baseFolder);
@@ -69,6 +72,7 @@ export async function createTestVault(settings = {}) {
 		contacts,
 		events,
 		migration,
+		plans,
 		vault: app.vault,
 
 		/** Write a person note from plain frontmatter data. */
@@ -76,6 +80,15 @@ export async function createTestVault(settings = {}) {
 			const yaml = stringifyYaml({ name, ...frontmatter });
 			return app.vault.create(
 				`${base}/People/${name}.md`,
+				`---\n${yaml.replace(/\n$/, "")}\n---\n${body}`
+			);
+		},
+
+		/** Write a plan note from plain frontmatter data. */
+		async addPlan(name, frontmatter = {}, body = "") {
+			const yaml = stringifyYaml({ name, ...frontmatter });
+			return app.vault.create(
+				`${base}/Plans/${name}.md`,
 				`---\n${yaml.replace(/\n$/, "")}\n---\n${body}`
 			);
 		},

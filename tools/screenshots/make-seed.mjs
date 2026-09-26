@@ -9,29 +9,51 @@
  * So the cast stores *offsets*, and this re-derives real dates each run.
  * Regenerate before a screenshot pass and everything reads correctly again.
  *
- *   node tools/screenshots/make-seed.mjs            # write examples/example-vault
- *   node tools/screenshots/make-seed.mjs --out DIR  # write somewhere else
+ *   node tools/screenshots/make-seed.mjs                     # write examples/example-vault
+ *   node tools/screenshots/make-seed.mjs --out DIR           # write somewhere else
+ *   node tools/screenshots/make-seed.mjs --today 2026-09-18  # anchor to a day, not the clock
  *
- * Note that the plugin migrates older shapes on load. Run the vault through
- * Obsidian once (shoot.mjs does) and adopt what comes out if you want a seed
- * that loads without firing a migration.
+ * `--today` is for changing what's written without moving every date: the
+ * files are named for their dates, so a plain re-run on a later day renames
+ * most of the vault. Pin it to the day the committed one was made for and
+ * only the change you meant to make shows up in the diff.
+ *
+ * Ideas, quotes, notes and drafts are written as markdown sections in the
+ * note body — the shape the plugin itself stores them in — by calling the
+ * plugin's own serializers, so this can't drift from what Obsidian writes.
+ * The bundle they come from is built fresh on every run. A seed in an older
+ * shape still loads, but only by firing a migration on first open, and would
+ * be rewritten in Obsidian the moment anyone looked at it.
  */
 
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { stringify } from "yaml";
+import { buildTestBundle } from "../../tests/build.mjs";
 import { OWNER, GROUPS, PEOPLE, EVENTS } from "./cast.mjs";
 import { PLANS, SOMEDAYS, DIARY, EXPENSES, INBOX_DRAFTS } from "./cast-plans.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, "..", "..");
 
+const {
+	upsertIdeasSection,
+	upsertQuotesSection,
+	upsertNotesSection,
+	upsertDraftsSection,
+} = await import(pathToFileURL(await buildTestBundle()).href);
+
 const outArg = process.argv.indexOf("--out");
 const OUT = outArg > -1 ? path.resolve(process.argv[outArg + 1]) : path.join(repo, "examples", "example-vault");
 const BASE = "Friends";
 
-const TODAY = new Date();
+const todayArg = process.argv.indexOf("--today");
+const TODAY =
+	todayArg > -1 ? new Date(`${process.argv[todayArg + 1]}T12:00:00`) : new Date();
+if (Number.isNaN(TODAY.getTime())) {
+	throw new Error("--today needs a date, like 2026-09-18");
+}
 TODAY.setHours(12, 0, 0, 0);
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -65,8 +87,15 @@ function month(months) {
 const TODAY_ISO = day(0);
 const link = (name) => `[[${name}]]`;
 
-/** Frontmatter-only note. Keys with empty values are dropped, not emitted. */
-function note(relPath, frontmatter, body = "") {
+/**
+ * A note: frontmatter, then a body. Keys with empty values are dropped, not
+ * emitted.
+ *
+ * `raw` writes the body straight after the closing fence, as the plugin does
+ * for the sections it owns; without it the body is set off by a blank line,
+ * which is what prose (a diary entry) wants.
+ */
+function note(relPath, frontmatter, body = "", { raw = false } = {}) {
 	const clean = {};
 	for (const [k, v] of Object.entries(frontmatter)) {
 		if (v === undefined || v === null || v === "") continue;
@@ -76,7 +105,10 @@ function note(relPath, frontmatter, body = "") {
 	const yaml = stringify(clean, { lineWidth: 0 }).trimEnd();
 	const full = path.join(OUT, relPath);
 	mkdirSync(path.dirname(full), { recursive: true });
-	writeFileSync(full, `---\n${yaml}\n---\n${body ? `\n${body}\n` : ""}`);
+	writeFileSync(
+		full,
+		`---\n${yaml}\n---\n${raw ? body : body ? `\n${body}\n` : ""}`
+	);
 }
 
 /** Filesystem-safe: Obsidian rejects these in filenames. */
@@ -90,8 +122,34 @@ for (const g of GROUPS) {
 	note(`${BASE}/Groups/${safe(g.name)}.md`, { name: g.name, color: g.color });
 }
 
+// Drafts live as a checklist in the dashboard note, not in frontmatter —
+// each about-someone one a wikilink on its line. Gathered here as people
+// are written, then laid down under "## Drafts" with the dashboard below.
+const DRAFTS = [];
+
 // ── People ───────────────────────────────────────────────────────────────
 for (const p of PEOPLE) {
+	for (const d of p.drafts ?? []) {
+		DRAFTS.push({ text: d.text, person: p.name, created: day(d.created), done: false });
+	}
+
+	// Quotes, then ideas, then notes: each goes above `## Notes`, which is
+	// last, and this is the order the plugin's own moves leave them in.
+	let body = "";
+	if (p.quotes?.length) body = upsertQuotesSection(body, p.quotes);
+	if (p.ideas?.length) {
+		body = upsertIdeasSection(
+			body,
+			p.ideas.map((i) => ({
+				category: i.category,
+				text: i.text,
+				done: i.done,
+				...(i.resurface !== undefined ? { resurface: day(i.resurface) } : {}),
+			}))
+		);
+	}
+	if (p.notes) body = upsertNotesSection(body, p.notes);
+
 	note(`${BASE}/People/${safe(p.name)}.md`, {
 		name: p.name,
 		displayName: p.displayName,
@@ -108,21 +166,12 @@ for (const p of PEOPLE) {
 		industry: p.industry,
 		parents: p.parents,
 		siblings: p.siblings,
-		ideas: p.ideas?.map((i) => ({
-			category: i.category,
-			text: i.text,
-			done: i.done,
-			...(i.resurface !== undefined ? { resurface: day(i.resurface) } : {}),
-		})),
 		interests: p.interests,
 		funFacts: p.funFacts,
 		insideJokes: p.insideJokes,
-		quotes: p.quotes,
-		drafts: p.drafts?.map((d) => ({ text: d.text, created: day(d.created) })),
-		notes: p.notes,
 		created: TODAY_ISO,
 		updated: TODAY_ISO,
-	});
+	}, body, { raw: true });
 }
 
 // ── Events ───────────────────────────────────────────────────────────────
@@ -214,16 +263,26 @@ for (const d of DIARY) {
 }
 
 // ── Dashboard: loose expenses and the untriaged inbox ────────────────────
-note(`${BASE}/Dashboard.md`, {
-	expenses: EXPENSES.map((e) => ({
-		label: e.label,
-		amount: e.amount,
-		...(e.settled ? { settled: true } : {}),
-		people: e.people?.map(link),
-		split: e.split,
-	})),
-	drafts: INBOX_DRAFTS.map((d) => ({ text: d.text, created: day(d.created) })),
-});
+for (const d of INBOX_DRAFTS) {
+	DRAFTS.push({ text: d.text, created: day(d.created), done: false });
+}
+// Oldest first, the way a checklist that's appended to would have grown.
+DRAFTS.sort((a, b) => a.created.localeCompare(b.created));
+note(
+	`${BASE}/Dashboard.md`,
+	{
+		kind: "dashboard",
+		expenses: EXPENSES.map((e) => ({
+			label: e.label,
+			amount: e.amount,
+			...(e.settled ? { settled: true } : {}),
+			people: e.people?.map(link),
+			split: e.split,
+		})),
+	},
+	DRAFTS.length ? upsertDraftsSection("", DRAFTS) : "",
+	{ raw: true }
+);
 
 console.log(
 	`seeded ${OUT} for ${TODAY_ISO} — ` +

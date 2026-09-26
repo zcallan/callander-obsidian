@@ -76,6 +76,18 @@ export function run() {
 		eq("and no fields to write", seed.fields, {});
 	}
 
+	{
+		// "Anytime" and "TBD" are an event's vocabulary, not a timeline
+		// entry's — carried over they'd print as the raw stored id on the
+		// plan's schedule.
+		const tbd = eventPlanSeed(event({ time: "tbd" }), []);
+		eq("a TBD time doesn't become a plan item's", "time" in tbd.item, false);
+		const any = eventPlanSeed(event({ time: "anytime" }), []);
+		eq("nor does anytime", "time" in any.item, false);
+		const clock = eventPlanSeed(event({ time: "19:30" }), []);
+		eq("but a real clock time still carries", clock.item.time, "19:30");
+	}
+
 	// ---------- dates the plan form can't take ----------
 	{
 		// The plan form offers month/day precision, so a bare year would

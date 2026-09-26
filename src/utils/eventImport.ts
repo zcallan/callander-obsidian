@@ -1,5 +1,10 @@
-import { EVENT_TYPES, type EventType } from "@/constants";
+import {
+	EVENT_SPECIAL_TIMES,
+	EVENT_TYPES,
+	type EventType,
+} from "@/constants";
 import { parseFlexDate } from "@/utils/flexdate";
+import { normalizeTimezone } from "@/utils/timezone";
 import { formatDurationLabel, parseDurationMinutes } from "@/utils/planFormat";
 
 /**
@@ -18,6 +23,7 @@ export const IMPORT_COLUMNS = [
 	{ key: "name", label: "Name", example: "Celtics vs Knicks" },
 	{ key: "date", label: "Date", example: "2026-10-22" },
 	{ key: "time", label: "Time", example: "19:30" },
+	{ key: "timezone", label: "Timezone", example: "" },
 	{ key: "duration", label: "Duration", example: "2h 30m" },
 	{ key: "type", label: "Type", example: "sports" },
 	{ key: "location", label: "Location", example: "TD Garden, Boston" },
@@ -38,6 +44,7 @@ const PROMPT_EXAMPLE_ROW = [
 	"🏀 Celtics vs Heat",
 	"2026-10-25",
 	"7:00pm",
+	"ET",
 	"",
 	"sports",
 	"Kaseya Center, Miami",
@@ -70,6 +77,8 @@ export interface ImportedEvent {
 	date: string;
 	/** 24-hour "HH:MM", or "". */
 	time: string;
+	/** IANA zone the time belongs to, or "" when it simply floats. */
+	timezone: string;
 	/** Canonical "2h 30m", or "". */
 	duration: string;
 	type: EventType | "";
@@ -158,9 +167,18 @@ export function parseCsv(text: string): { line: number; cells: string[] }[] {
 	return rows;
 }
 
-/** "19:30", "7:30pm", "7pm", "7 PM" → "19:30"; null when it isn't a time. */
+/**
+ * "19:30", "7:30pm", "7pm", "7 PM" → "19:30"; null when it isn't a time.
+ *
+ * "Anytime" and "TBD" come through as themselves — they're answers an
+ * event can store, so a spreadsheet gets to give them.
+ */
 export function normalizeTime(raw: string): string | null {
 	const text = raw.trim().toLowerCase();
+	const special = EVENT_SPECIAL_TIMES.find(
+		(t) => t.id === text || t.label.toLowerCase() === text
+	);
+	if (special) return special.id;
 	const pad = (n: number) => String(n).padStart(2, "0");
 	const clock = /^(\d{1,2}):(\d{2})$/.exec(text);
 	if (clock) {
@@ -299,6 +317,7 @@ export function parseEventImport(text: string): {
 		if (!name) problem("Has no name.");
 
 		const rawDate = at("date");
+		if (!rawDate) problem("Has no date. Every event needs one.");
 		const date = rawDate ? normalizeDate(rawDate) : "";
 		if (date === null) {
 			problem(`"${rawDate}" isn't a date — use YYYY-MM-DD, like 2026-10-22.`);
@@ -307,7 +326,17 @@ export function parseEventImport(text: string): {
 		const rawTime = at("time");
 		const time = rawTime ? normalizeTime(rawTime) : "";
 		if (time === null) {
-			problem(`"${rawTime}" isn't a time — use 24-hour HH:MM, like 19:30.`);
+			problem(
+				`"${rawTime}" isn't a time — use 24-hour HH:MM, like 19:30, or Anytime or TBD.`
+			);
+		}
+
+		const rawZone = at("timezone");
+		const timezone = rawZone ? normalizeTimezone(rawZone) : "";
+		if (timezone === null) {
+			problem(
+				`"${rawZone}" isn't a timezone — use one like ET, Central or America/Chicago, or leave it blank for a local time.`
+			);
 		}
 
 		const rawDuration = at("duration");
@@ -326,7 +355,9 @@ export function parseEventImport(text: string): {
 			);
 		}
 
-		if (!name || date === null || time === null || type === null) continue;
+		if (!name || !rawDate || date === null || time === null) continue;
+		if (type === null) continue;
+		if (timezone === null) continue;
 		if (rawDuration && minutes === null) continue;
 
 		events.push({
@@ -334,6 +365,9 @@ export function parseEventImport(text: string): {
 			name,
 			date,
 			time,
+			// A zone with no clock to qualify has nothing to say — an
+			// "Anytime" in Central is just an Anytime.
+			timezone: /^\d{1,2}:\d{2}$/.test(time) ? timezone : "",
 			duration: minutes ? formatDurationLabel(minutes) : "",
 			type,
 			location: at("location"),
@@ -346,6 +380,29 @@ export function parseEventImport(text: string): {
 		});
 	}
 	return { events: errors.length > 0 ? [] : events, errors };
+}
+
+/** "1 problem to fix" / "3 problems to fix" — the box's own heading. */
+export function problemsHeading(count: number): string {
+	return count === 1 ? "1 problem to fix" : `${count} problems to fix`;
+}
+
+/** One problem as a line: "Line 4: …", or bare when it has no row. */
+export function problemLine(error: ImportError): string {
+	return error.line > 0 ? `Line ${error.line}: ${error.message}` : error.message;
+}
+
+/**
+ * Every problem as plain text, for pasting somewhere else — most usefully
+ * back to whatever produced the CSV, to have it fixed.
+ *
+ * All of them, where the box on screen stops at twenty and says "and N
+ * more": the box is for reading, and a copy that dropped the tail would
+ * hand back a list that fixes twenty and leaves the rest to be found on
+ * the next paste.
+ */
+export function problemsText(errors: readonly ImportError[]): string {
+	return [problemsHeading(errors.length), ...errors.map(problemLine)].join("\n");
 }
 
 /**
@@ -399,12 +456,16 @@ FORMAT
 	).join(", ")}.
 - One event per row, in date order.
 - Separate cells with commas. If a cell contains a comma, a double quote or a line break, wrap the whole cell in double quotes, and write any double quote inside it as two ("").
-- Every row has exactly as many cells as the header. Leave a cell empty (nothing between the commas) when there's nothing to put in it. Only Name is required.
+- Every row has exactly as many cells as the header. Leave a cell empty (nothing between the commas) when there's nothing to put in it. Name and Date are required; everything else may be empty.
 
 COLUMNS
 - Name: the event's title, short and specific (e.g. Celtics vs Knicks). You can start it with one emoji that suits the event (e.g. 🏀 Celtics vs Knicks) — the calendar shows that emoji in place of the type's.
-- Date: the day it happens, as YYYY-MM-DD (e.g. 2026-10-22). It must be a real date. Use YYYY-MM if only the month is known, and leave it empty only if there's genuinely no date.
-- Time: the start time, 24-hour HH:MM (e.g. 19:30). Leave it empty for something all-day, or when the time isn't known.
+- Date: the day it happens, as YYYY-MM-DD (e.g. 2026-10-22). Required — every event has one. It must be a real date. Use YYYY-MM if only the month is known, or YYYY if only the year is.
+- Time: the start time, 24-hour HH:MM (e.g. 19:30). Write Anytime for something that runs whenever, or TBD when a time is coming but isn't settled. Leave it empty for something all-day.
+- Timezone: which zone the Time is quoted in. This matters — get it wrong and every time reads an hour or three out.
+  - Leave it EMPTY when the time is simply the local time where the event happens, and I'd read it that way too. A dinner at 7pm is at 7pm; it shouldn't be converted. This is the normal case, so prefer it when unsure.
+  - FILL IT IN when the time belongs to a zone that isn't necessarily mine — a schedule listing each game in the venue's local time, or a broadcast quoted as "12pm CT". Then I see it converted to my own zone automatically, which is the whole point.
+  - Write it as an abbreviation (ET, CT, MT, PT) or an IANA name (America/Chicago). If a source lists times in the venue's local zone, use the venue's zone for each row — they won't all be the same.
 - Duration: how long it runs, in hours and minutes (e.g. 2h 30m, 3h, 45m). Optional.
 - Type: exactly one of these ids, or empty if none fits:
 ${types}
@@ -418,7 +479,7 @@ EXAMPLE
 ${example}
 \`\`\`
 
-Before replying, check that every row has the same number of cells as the header, every date is real and written YYYY-MM-DD, every time is 24-hour HH:MM, and every Type is one of the ids above.
+Before replying, check that every row has the same number of cells as the header, every row has a date, every date is real and written YYYY-MM-DD, every time is 24-hour HH:MM (or Anytime or TBD), every Timezone is either empty or a real zone, and every Type is one of the ids above.
 
 Here are the events:
 `;

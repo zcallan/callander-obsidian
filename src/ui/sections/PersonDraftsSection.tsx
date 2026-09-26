@@ -8,6 +8,9 @@ import { useViewRevision, type ViewStore } from "@/ui/viewStore";
  * Renders nothing when there are none — this is a nag strip, and an empty
  * nag is a heading taking up the top of the page. Distinct from the plan's
  * version, which triages into a timeline item rather than an idea.
+ *
+ * Finishing one ticks it off in the dashboard note's checklist rather than
+ * deleting it, so the row's last button is Done, not a bin.
  */
 export function PersonDraftsSection({
 	store,
@@ -15,7 +18,7 @@ export function PersonDraftsSection({
 	isGenerated,
 	onMakeIdea,
 	onEdit,
-	onDiscard,
+	onDone,
 }: {
 	store: ViewStore;
 	/** Draft text in stored order; the index is what edits address. */
@@ -24,7 +27,7 @@ export function PersonDraftsSection({
 	isGenerated: (index: number) => boolean;
 	onMakeIdea: (index: number, text: string) => void;
 	onEdit: (index: number, text: string) => void;
-	onDiscard: (index: number, text: string) => void;
+	onDone: (index: number, text: string) => void;
 }) {
 	useViewRevision(store);
 	const rows = drafts();
@@ -53,11 +56,11 @@ export function PersonDraftsSection({
 						<Icon name="pencil" />
 					</button>
 					<button
-						className="callander-button button-icon button-danger"
-						aria-label="Discard draft"
-						onClick={() => onDiscard(index, text)}
+						className="callander-button button-icon"
+						aria-label="Done with this draft"
+						onClick={() => onDone(index, text)}
 					>
-						<Icon name="trash-2" />
+						<Icon name="checkmark" />
 					</button>
 				</div>
 			))}

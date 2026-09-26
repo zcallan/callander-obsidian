@@ -57,6 +57,17 @@ export async function run() {
 		["Basename Only"]
 	);
 
+	// Clearing the field in the UI leaves `displayName: ""` behind rather
+	// than removing the key — that has to fall back exactly like a missing
+	// one, or the name renders as a blank chip instead of the file's own
+	// name (see the `??` vs `||` bug this guards against).
+	await t.addPerson("Emptied Name", { displayName: "" });
+	eq(
+		"an emptied-out displayName falls back to the basename, not blank",
+		resolvePeopleNames(t.app, source, ["[[Emptied Name]]"]),
+		["Emptied Name"]
+	);
+
 	// shortName rides along, since it's what drives nickname overrides.
 	const info = resolvePeopleInfo(t.app, source, [
 		"[[Sam Okafor]]",

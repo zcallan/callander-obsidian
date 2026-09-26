@@ -4,6 +4,47 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
+## 1.10.2 — 2026-09-26
+
+### Plans
+
+- **A Plans page.** Every plan, past and future, with search, Upcoming, Past or All, Timeline or List, and filters for status and who's going. Opened from the dashboard's Plans section or the "Open plans" command.
+- Drafts on a plan work like the dashboard's: Make idea, Make event, Edit and Done. Undated ones are kept in a `## Drafts` checklist in the plan's note, and a draft given a day now leads that day in the running order instead of trailing it.
+
+### Events and calendars
+
+- **Categories have colours.** Each shows as a dot on its chip and colours its events on both calendars. Turn on Edit beside "+ Add" to rename, recolour or delete a category; deleting takes the label off every event and leaves the events alone. The colour can also be set when adding one, and the colour picker has a Reset.
+- **Timezones.** An event's time can belong to a zone, and it's shown converted to yours, with the original alongside where it matters. A new **Plugin timezone** setting pins every time to one zone; while it differs from your device's, a banner on the dashboard, Events and Calendar pages says so, and can be snoozed.
+- Times can be **Anytime** or **TBD** instead of a clock time.
+- On a phone, tapping an event on the calendar opens it and selects its day, so closing it leaves that day's list showing. "Emojis on mobile" now starts off.
+- The calendar drawers fold a long category list after the first few, behind "Show N more".
+- Category sits above Notes in the event form.
+- Overdue events stay in Upcoming until they're dealt with, instead of dropping off after a week.
+- The edit form's "Copy to…" button is gone; add people in the People field instead.
+- Bulk import's instructions are clearer about timezones, and say the example row can be left in.
+
+### Interests
+
+- **Fields that fit the type.** A book asks for its author, music for its artist and genre, food for the restaurant, a place for where it is. Song and Music Genre are now one Music type, and there's a new Place type.
+- **Notes on what they like about it**, kept behind the eye button on each chip: hover to read, click to edit or delete. The lightbulb beside it turns an interest into an idea, filed under a matching category.
+
+### Dashboard and friends
+
+- Quick notes and drafts now live in a `## Drafts` checklist in the dashboard note, with a link to the person they're about, and Done ticks them rather than deleting them. Older drafts move there on their own.
+- A draft's Edit can change who it's about. Done sits at the right of each draft, Edit beside Add event.
+- How many friends are suggested under the search bar is a setting.
+- A new group can be made from the Add friend form, and groups get a custom colour option.
+
+### Modals
+
+- The main button (Save, Add, Create) stays in view at the bottom of a long form, and a field beside it can still be tapped. With the keyboard up on a phone it goes back to its place at the end of the form.
+- The colour picker's hex field can be typed into from inside a form, and on a phone the picker moves up clear of the keyboard.
+
+### Fixes
+
+- Deleting a friend now takes them off every plan's Who's in, instead of leaving their name there with nothing behind it.
+- A friend whose display name was cleared shows their name again instead of a blank chip.
+
 ## 1.10.0 — 2026-09-21
 
 ### Calendar

@@ -2,6 +2,7 @@ import { EVENT_TYPES } from "@/constants";
 import { parseFlexDate, formatFlexDate, formatShortWeekdayDate } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { formatEventTime } from "@/utils/eventRow";
+import { zonedWallTimeToInstant } from "@/utils/timezone";
 import { normalizeUrl } from "@/utils/url";
 import { parseDurationMinutes } from "@/utils/planFormat";
 
@@ -28,6 +29,11 @@ export interface ShareableEvent {
 	location: string;
 	description: string;
 	link: string;
+	/** Set when the time belongs to a specific zone — see EventInfo. Lets
+	 * the calendar link name a real moment rather than a wall clock. */
+	timezone?: string;
+	sourceDate?: string;
+	sourceTime?: string;
 }
 
 export function buildEventShareText(e: ShareableEvent): string {
@@ -44,7 +50,7 @@ export function buildEventShareText(e: ShareableEvent): string {
 			? formatShortWeekdayDate(new Date(flex.year, flex.month - 1, flex.day))
 			: formatFlexDate(flex)
 		: "";
-	const timeText = e.time ? formatEventTime(e.time) : "";
+	const timeText = e.time ? formatEventTime(e.time, { long: true }) : "";
 	const when = [dateText, timeText].filter(Boolean).join(" • ");
 	// "at Location" only reads naturally once something precedes it — with
 	// no date or time, the location stands on its own instead.
@@ -117,12 +123,27 @@ export function buildGoogleCalendarUrl(
 		const endStamp = `${stamp(end)}T${pad(end.getHours())}${pad(
 			end.getMinutes()
 		)}00`;
-		// Floating, not UTC (no "Z"): the stored time carries no timezone of
-		// its own, so it's passed through as the wall-clock time it was
-		// written down as, and Google Calendar renders it in whoever opens
-		// the link's own local time — the same assumption the rest of this
-		// plugin already makes about a bare "HH:MM".
-		dates = `${startStamp}/${endStamp}`;
+		// An event that names a zone names a real moment, so the link says
+		// so in UTC and lands correctly for whoever opens it, wherever they
+		// are. Without one the time is floating and stays floating (no
+		// "Z"): it was written down as a wall clock, and Google renders it
+		// in the opener's own local time, which is the assumption the rest
+		// of this plugin already makes about a bare "HH:MM".
+		const instant =
+			e.timezone && e.sourceDate && e.sourceTime
+				? zonedWallTimeToInstant(e.sourceDate, e.sourceTime, e.timezone)
+				: null;
+		if (instant) {
+			const utc = (d: Date) =>
+				`${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(
+					d.getUTCDate()
+				)}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+			dates = `${utc(instant)}/${utc(
+				new Date(instant.getTime() + minutes * 60000)
+			)}`;
+		} else {
+			dates = `${startStamp}/${endStamp}`;
+		}
 	} else {
 		// All-day: Google's end date is exclusive, so a single day needs the
 		// day after as its end. `day + 1` overflowing into next month is

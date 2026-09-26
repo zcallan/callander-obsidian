@@ -11,6 +11,9 @@ import {
 	importPrompt,
 	importTemplate,
 	parseEventImport,
+	problemLine,
+	problemsHeading,
+	problemsText,
 	type ImportedEvent,
 } from "@/utils/eventImport";
 
@@ -75,36 +78,31 @@ export class EventImportModal extends FormModal {
 		contentEl.empty();
 		contentEl.addClass("event-import-modal");
 		contentEl.createEl("h2", { text: "Import events" });
-
-		const tip = contentEl.createDiv({ cls: "event-import-tip" });
-		tip.createSpan({ cls: "event-import-tip-icon", text: "💡" });
-		const tipBody = tip.createDiv({ cls: "event-import-tip-body" });
-		tipBody.createDiv({
-			text: "Example: to import a sports team's games for the season, you could ask an AI to fill in the format below with every remaining game. Or do it by hand — up to you.",
-		});
-		// Everything an AI needs to get the format right first time — the
-		// rules, the types, an example — to paste in ahead of the events.
-		const promptBtn = tipBody.createEl("button", {
-			cls: "callander-button event-import-prompt",
-			attr: { type: "button" },
-		});
-		setIcon(promptBtn, "copy");
-		const promptLabel = promptBtn.createSpan({ text: "Copy prompt" });
-		promptBtn.addEventListener("click", () => {
-			void navigator.clipboard.writeText(importPrompt()).then(() => {
-				promptLabel.setText("Copied");
-				window.setTimeout(() => promptLabel.setText("Copy prompt"), 1500);
-			});
+		// The same sentence the dashboard's own entry point uses, so what
+		// you read before opening this is what you read inside it.
+		contentEl.createDiv({
+			cls: "section-helper-text event-import-intro",
+			text: "Add a whole batch of events at once with CSV — e.g. a season of games, a term of classes, repeating events...",
 		});
 
 		const format = contentEl.createDiv({ cls: "callander-modal-field" });
 		format.createEl("label", { text: "Events must be in this format" });
-		format.createDiv({
-			cls: "section-helper-text",
-			text: `CSV, one event per line. The first row of column names is optional — without it, columns go in the order below. Only Name is needed. Dates are YYYY-MM-DD, times 24-hour HH:MM, and several people are separated by semicolons. Type is one of: ${EVENT_TYPES.map(
+		// Bullets rather than a paragraph — but few and long rather than
+		// many and short, since the format box, the paste box and the
+		// results all have to fit under them.
+		const rules = format.createEl("ul", {
+			cls: "section-helper-text event-import-rules",
+		});
+		for (const rule of [
+			"One event per line. Name and Date are needed; the rest can be empty. A first row of column names is optional.",
+			`Dates are YYYY-MM-DD, times 24-hour HH:MM (or Anytime, or TBD), and several people are separated by semicolons. Type is one of: ${EVENT_TYPES.map(
 				(t) => t.id
 			).join(", ")}.`,
-		});
+			'Leave timezone empty unless it is important — the UI will display the event in that timezone alongside your device timezone (if different). Format as "ET" or "America/New_York".',
+			"Copy the example below and then paste into any spreadsheet editor such as Excel or Sheets for easier editing. You do not have to remove the example line — this will be ignored during the import.",
+		]) {
+			rules.createEl("li", { text: rule });
+		}
 		const template = importTemplate();
 		const copyBox = format.createEl("button", {
 			cls: "event-import-copy",
@@ -123,6 +121,28 @@ export class EventImportModal extends FormModal {
 					copyHint.setText("Click to copy");
 					copyBox.removeClass("is-copied");
 				}, 1500);
+			});
+		});
+
+		const tip = contentEl.createDiv({ cls: "event-import-tip" });
+		tip.createSpan({ cls: "event-import-tip-icon", text: "💡" });
+		const tipBody = tip.createDiv({ cls: "event-import-tip-body" });
+		tipBody.createDiv({
+			cls: "event-import-tip-text",
+			text: "Tip: to import a sports team's games for the season, you could ask an AI to fill in the format above with every remaining game. Or do it by hand — up to you.",
+		});
+		// Everything an AI needs to get the format right first time — the
+		// rules, the types, an example — to paste in ahead of the events.
+		const promptBtn = tipBody.createEl("button", {
+			cls: "callander-button event-import-prompt",
+			attr: { type: "button" },
+		});
+		setIcon(promptBtn, "copy");
+		const promptLabel = promptBtn.createSpan({ text: "Copy prompt" });
+		promptBtn.addEventListener("click", () => {
+			void navigator.clipboard.writeText(importPrompt()).then(() => {
+				promptLabel.setText("Copied");
+				window.setTimeout(() => promptLabel.setText("Copy prompt"), 1500);
 			});
 		});
 
@@ -154,22 +174,32 @@ export class EventImportModal extends FormModal {
 				const box = result.createDiv({ cls: "event-import-errors" });
 				box.createDiv({
 					cls: "event-import-errors-title",
-					text:
-						parsed.errors.length === 1
-							? "1 problem to fix"
-							: `${parsed.errors.length} problems to fix`,
+					text: problemsHeading(parsed.errors.length),
 				});
 				const list = box.createEl("ul");
 				for (const err of parsed.errors.slice(0, 20)) {
-					list.createEl("li", {
-						text: err.line > 0 ? `Line ${err.line}: ${err.message}` : err.message,
-					});
+					list.createEl("li", { text: problemLine(err) });
 				}
 				if (parsed.errors.length > 20) {
 					list.createEl("li", {
 						text: `…and ${parsed.errors.length - 20} more.`,
 					});
 				}
+				// Under the list, where the eye finishes reading. Copies all
+				// of them, not just the twenty shown.
+				const copy = box.createEl("button", {
+					cls: "callander-button event-import-errors-copy",
+					attr: { type: "button" },
+				});
+				setIcon(copy, "copy");
+				const copyLabel = copy.createSpan({ text: "Copy" });
+				const text = problemsText(parsed.errors);
+				copy.addEventListener("click", () => {
+					void navigator.clipboard.writeText(text).then(() => {
+						copyLabel.setText("Copied");
+						window.setTimeout(() => copyLabel.setText("Copy"), 1500);
+					});
+				});
 			} else if (events.length > 0) {
 				renderPreview(result, events);
 			}
@@ -332,6 +362,7 @@ class EventImportConfirmModal extends FormModal {
 						name: e.name,
 						date: e.date || undefined,
 						time: e.time || undefined,
+						timezone: e.timezone || undefined,
 						duration: e.duration || undefined,
 						type: e.type,
 						people,

@@ -1,3 +1,4 @@
+import { specialEventTime } from "@/constants";
 import { monthName } from "@/utils/flexdate";
 import { weekStart } from "@/utils/eventGroups";
 
@@ -227,6 +228,8 @@ export function assignSpanLanes(
 
 /** "8pm", "7:30pm" — compact enough for a chip, where "7:30 PM" wraps. */
 export function shortTime(time: string): string {
+	const special = specialEventTime(time);
+	if (special) return special.label;
 	const [h, m] = time.split(":").map(Number);
 	if (Number.isNaN(h)) return time;
 	const period = h < 12 ? "am" : "pm";

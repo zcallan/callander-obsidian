@@ -19,6 +19,12 @@ export interface DrawerOption {
 export interface DrawerSection {
 	heading: string;
 	options: DrawerOption[];
+	/**
+	 * Fold all but the first `visible` options behind "Show N more". The
+	 * drawer is rebuilt on every tick, so whether it's open is the page's to
+	 * remember and pass back in, not something the drawer can hold.
+	 */
+	fold?: { visible: number; open: boolean; onToggle: () => void };
 }
 
 /**
@@ -72,7 +78,13 @@ export function appendDrawer(body: HTMLElement, sections: DrawerSection[]) {
 				}`,
 				text: section.heading,
 			});
-			for (const option of section.options) {
+			const fold = section.fold;
+			const folded = fold ? section.options.length - fold.visible : 0;
+			const listed =
+				fold && folded > 0 && !fold.open
+					? section.options.slice(0, fold.visible)
+					: section.options;
+			for (const option of listed) {
 				const row = drawer.createEl("label", {
 					cls: "fullcal-drawer-option",
 				});
@@ -95,6 +107,20 @@ export function appendDrawer(body: HTMLElement, sections: DrawerSection[]) {
 						action.onClick();
 					});
 				}
+			}
+			if (fold && folded > 0) {
+				const more = drawer.createEl("button", {
+					cls: `fullcal-drawer-more${fold.open ? " is-open" : ""}`,
+					attr: { type: "button", "aria-expanded": String(fold.open) },
+				});
+				setIcon(
+					more.createSpan({ cls: "fullcal-drawer-more-icon" }),
+					"chevron-down"
+				);
+				more.createSpan({
+					text: fold.open ? "Show less" : `Show ${folded} more`,
+				});
+				more.addEventListener("click", fold.onToggle);
 			}
 		});
 }

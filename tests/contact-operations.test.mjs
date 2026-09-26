@@ -169,32 +169,145 @@ export async function run() {
 		);
 	}
 
-	// ---------- drafts round trip through frontmatter ----------
+	// ---------- drafts: a checklist in the dashboard note ----------
 	{
 		const t = await createTestVault();
-		const file = await t.addPerson("Bo Nakamura", {});
-		await t.contacts.addDraft(file, "Something half-formed");
+		const bo = await t.addPerson("Bo Nakamura", {});
+		await t.contacts.addDraft("Something half-formed");
+		await t.contacts.addDraft("Ask about the trip", bo);
+
+		const dash = t.vault.getAbstractFileByPath(t.contacts.getDashboardFilePath());
+		ok("the dashboard note is made if it wasn't there", !!dash);
+		const body = t.bodyOf(dash);
+		ok("under a Drafts heading", body.includes("## Drafts"));
+		// Local date, matching todayISO() — toISOString() is UTC and drifts
+		// a day off local near midnight, which is what made this flaky.
+		const now = new Date();
+		const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+		ok(
+			"as unchecked tasks with a created date",
+			/- \[ \] Something half-formed ➕ \d{4}-\d{2}-\d{2}/.test(body)
+		);
+		ok(
+			"someone it's about is a wikilink",
+			/- \[ \] Ask about the trip \[\[Bo Nakamura\]\] ➕/.test(body)
+		);
+		eq("the note's own frontmatter is left alone", t.frontmatterOf(dash).kind, "dashboard");
+		eq("and no drafts key is written anywhere", "drafts" in t.frontmatterOf(bo), false);
+
+		const drafts = await t.contacts.readDrafts();
+		eq("read back in order", drafts.map((d) => d.text), ["Something half-formed", "Ask about the trip"]);
+		eq("the link resolves to their note", t.contacts.draftAbout(drafts[1])?.path, bo.path);
+		eq("a draft with no one has no note", t.contacts.draftAbout(drafts[0]), null);
+
+		// Done ticks it and stamps the day — it does not delete the line,
+		// which is the point of the checklist.
+		await t.contacts.completeDraft(0, "Something half-formed");
+		const after = t.bodyOf(dash);
+		ok("ticked, with the day it was done", /- \[x\] Something half-formed ➕ \d{4}-\d{2}-\d{2} ✅ \d{4}-\d{2}-\d{2}/.test(after));
+		ok("the other draft is untouched", /- \[ \] Ask about the trip \[\[Bo Nakamura\]\]/.test(after));
+		eq("still in the record", (await t.contacts.readDrafts()).length, 2);
 		eq(
-			"draft is written",
-			t.frontmatterOf(file).drafts.map((d) => d.text),
-			["Something half-formed"]
+			"and it's the ticked one that's done",
+			(await t.contacts.readDrafts()).map((d) => d.done),
+			[true, false]
 		);
 
-		await t.contacts.addDraft(file, "Another");
-		await t.contacts.removeDraft(file, 0);
+		await t.contacts.updateDraft(1, "Ask about the trip", "Ask about the Maine trip");
+		const reworded = (await t.contacts.readDrafts())[1];
+		eq("rewording changes the text", reworded.text, "Ask about the Maine trip");
+		eq("...and keeps who it's about", reworded.person, "Bo Nakamura");
+		eq("...and the day it was captured", reworded.created, today);
+
+		// The list moved under the click: acting on the position alone would
+		// tick the wrong line.
+		await t.contacts.addDraft("A third");
+		await t.contacts.completeDraft(0, "A third");
 		eq(
-			"removing a draft persists",
-			t.frontmatterOf(file).drafts.map((d) => d.text),
-			["Another"]
+			"an action finds its draft by text when the position is off",
+			(await t.contacts.readDrafts()).map((d) => [d.text, d.done]),
+			[["Something half-formed", true], ["Ask about the Maine trip", false], ["A third", true]]
 		);
 
-		// Removing the last one must delete the key outright — assigning an
-		// empty array would leave `drafts: []` behind forever.
-		await t.contacts.removeDraft(file, 0);
+		await t.contacts.addDraft("   ");
+		eq("blank text isn't a draft", (await t.contacts.readDrafts()).length, 3);
+	}
+
+	// ---------- moving drafts out of frontmatter ----------
+	{
+		const t = await createTestVault();
+		const bo = await t.addPerson("Bo Nakamura", {
+			drafts: [
+				{ text: "About Bo, older", created: "2026-08-01" },
+				{ text: "Claude's idea", created: "2026-09-01", generated: true },
+			],
+			updated: "2026-01-01",
+		});
+		await t.vault.create(
+			t.contacts.getDashboardFilePath(),
+			"---\nkind: dashboard\ndrafts:\n  - text: Unattached thought\n    created: 2026-08-15\n---\n"
+		);
+
+		eq("it says how many it moved", await t.contacts.migrateDraftsToDashboard(), 3);
+		const drafts = await t.contacts.readDrafts();
 		eq(
-			"removing the last draft deletes the key",
-			"drafts" in t.frontmatterOf(file),
-			false
+			"oldest first, whoever they were on",
+			drafts.map((d) => [d.text, d.person ?? null]),
+			[["About Bo, older", "Bo Nakamura"], ["Unattached thought", null], ["Claude's idea", "Bo Nakamura"]]
+		);
+		eq("the flag is carried", drafts[2].generated, true);
+		eq("none of them is ticked", drafts.some((d) => d.done), false);
+		eq("the person's frontmatter key is gone", "drafts" in t.frontmatterOf(bo), false);
+		const dash = t.vault.getAbstractFileByPath(t.contacts.getDashboardFilePath());
+		eq("and the dashboard's", "drafts" in t.frontmatterOf(dash), false);
+		eq("moving one isn't an edit to the friend", t.frontmatterOf(bo).updated, "2026-01-01");
+
+		eq("running it again finds nothing", await t.contacts.migrateDraftsToDashboard(), 0);
+		eq("...and adds nothing", (await t.contacts.readDrafts()).length, 3);
+	}
+	{
+		// A run that died after writing the checklist but before clearing
+		// the keys leaves the drafts in both places. The next run must clear
+		// the keys without adding them a second time.
+		const t = await createTestVault();
+		const bo = await t.addPerson("Bo Nakamura", {
+			drafts: [{ text: "Already moved", created: "2026-08-01" }],
+		});
+		await t.contacts.addDraft("Already moved", bo);
+		const before = await t.contacts.readDrafts();
+		// Same text and person, but today's date — make it match exactly.
+		const dash = t.vault.getAbstractFileByPath(t.contacts.getDashboardFilePath());
+		await t.vault.modify(
+			dash,
+			t.read(dash).replace(/➕ \d{4}-\d{2}-\d{2}/, "➕ 2026-08-01")
+		);
+		await t.contacts.migrateDraftsToDashboard();
+		eq("not added twice", (await t.contacts.readDrafts()).length, before.length);
+		eq("but the stale key is cleared", "drafts" in t.frontmatterOf(bo), false);
+	}
+	{
+		// The metadata cache lags a write by a beat, so right after the move
+		// clears a key it can still show it. The dashboard refreshes on that
+		// very write and would run the move again on that stale picture; the
+		// file itself, checked first, says there's nothing left to move.
+		const t = await createTestVault();
+		const bo = await t.addPerson("Bo Nakamura", {});
+		const real = t.app.metadataCache.getFileCache.bind(t.app.metadataCache);
+		t.app.metadataCache.getFileCache = (f) =>
+			f.path === bo.path
+				? { frontmatter: { name: "Bo Nakamura", drafts: [{ text: "Ghost", created: "2026-08-01" }] } }
+				: real(f);
+		eq("a stale cache alone moves nothing", await t.contacts.migrateDraftsToDashboard(), 0);
+		eq("...and adds nothing to the checklist", (await t.contacts.readDrafts()).length, 0);
+	}
+	{
+		const t = await createTestVault();
+		await t.addPerson("Bo Nakamura", {});
+		eq("nothing to move", await t.contacts.migrateDraftsToDashboard(), 0);
+		eq(
+			"and it doesn't conjure a dashboard note",
+			t.vault.getAbstractFileByPath(t.contacts.getDashboardFilePath()),
+			null
 		);
 	}
 

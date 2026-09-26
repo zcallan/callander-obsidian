@@ -1,4 +1,5 @@
 ---
+kind: dashboard
 expenses:
   - label: Taxi back from the Wilbur
     amount: 34.5
@@ -33,7 +34,8 @@ expenses:
         John Steinbeck: 38+23
       tax: 6.25
       tip: 20
-drafts:
-  - text: Haruki mentioned a record fair in the fall — ask where
-    created: 2026-09-17
 ---
+## Drafts
+
+- [ ] He mentioned wanting to show me the allotment on the next visit [[George Orwell]] ➕ 2026-09-23
+- [ ] Haruki mentioned a record fair in the fall — ask where ➕ 2026-09-25

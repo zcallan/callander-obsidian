@@ -2,7 +2,7 @@
 kind: someday
 name: Cycle the Minuteman Trail end to end
 status: open
-created: 2026-09-18
+created: 2026-09-26
 types:
   - activity
   - nature
@@ -15,5 +15,5 @@ days:
 times:
   - morning
 company: either
-updated: 2026-09-18
+updated: 2026-09-26
 ---

@@ -16,6 +16,7 @@ import type {
 import { EventModal } from "@/modals/EventModal";
 import { EventViewModal } from "@/modals/EventViewModal";
 import { EVENT_TYPES, type EventType } from "@/constants";
+import { displayZone } from "@/utils/timezone";
 import {
 	EVENT_SORTS,
 	EVENT_WHEN_FILTERS,
@@ -51,10 +52,14 @@ import {
 } from "@/components/calendarDrawer";
 import {
 	categoryShown,
+	filterableCategories,
+	hasCategory,
 	setCategoryShown,
 	shownByCategory,
+	visibleCategoryCount,
 } from "@/utils/eventCategories";
 import { PlanGlanceModal } from "@/modals/PlanGlanceModal";
+import { appendTimezoneBanner } from "@/components/timezoneBanner";
 import {
 	planRowFields,
 	planWhenDate,
@@ -85,6 +90,9 @@ type PageItem = SortableEvent & {
 	/** Wikilinks — an event's people, a plan's members. */
 	people: string[];
 	description: string;
+	/** An event's categories. A plan has none, so a category filter drops
+	 * it — the same way a type chip does. */
+	categories: string[];
 	/** What Upcoming / Past judges it by — see planWhenDate. */
 	whenDate: string;
 } & ({ kind: "event"; event: EventInfo } | { kind: "plan"; plan: PlanInfo });
@@ -104,6 +112,7 @@ function eventItem(event: EventInfo): PageItem {
 		location: event.location,
 		people: event.people,
 		description: event.description,
+		categories: event.categories,
 		whenDate: event.date,
 	};
 }
@@ -125,6 +134,7 @@ function planItem(plan: PlanInfo): PageItem {
 		location: plan.location,
 		people: plan.members,
 		description: "",
+		categories: [],
 		whenDate: planWhenDate(plan),
 	};
 }
@@ -149,6 +159,7 @@ export class EventsView extends ItemView {
 	// Filters — one type and one person at a time, like the Somedays page's
 	// own single-pick facets.
 	private type: EventType | "" = "";
+	private category = "";
 	private personPath = "";
 	// Which half of the timeline. Out in the open rather than in the filter
 	// panel — it's the first question you ask of a list of events, the same
@@ -179,6 +190,9 @@ export class EventsView extends ItemView {
 	/** The Calendar tab's drawer. Open for this view only; every page
 	 * open starts with it shut, as on the Calendar page. */
 	private drawerOpen = false;
+	/** Whether the drawer's category list is unfolded past "Show N more" —
+	 * kept here because the drawer itself is redrawn on every tick. */
+	private categoriesExpanded = false;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -352,10 +366,13 @@ export class EventsView extends ItemView {
 	 */
 	private matchesFilters(
 		e: PageItem,
-		over: { type?: EventType; personPath?: string } = {}
+		over: { type?: EventType; category?: string; personPath?: string } = {}
 	): boolean {
 		const type = over.type ?? this.type;
 		if (type && e.type !== type) return false;
+
+		const category = over.category ?? this.category;
+		if (category && !hasCategory(e.categories, category)) return false;
 
 		const personPath = over.personPath ?? this.personPath;
 		if (personPath && !this.peoplePaths(e).includes(personPath)) {
@@ -383,6 +400,7 @@ export class EventsView extends ItemView {
 	 */
 	private countWith(over: {
 		type?: EventType;
+		category?: string;
 		personPath?: string;
 	}): number {
 		return this.pipeline(over).length;
@@ -415,6 +433,7 @@ export class EventsView extends ItemView {
 
 	private pipeline(over: {
 		type?: EventType;
+		category?: string;
 		personPath?: string;
 		/** Skip the Upcoming / Past / All filter — the Calendar's arrows
 		 * are its own, and a "when" on top of them would blank out half
@@ -470,6 +489,7 @@ export class EventsView extends ItemView {
 			// blank out the first half of the month you're looking at.
 			if (this.tab !== "calendar") this.renderWhenStrip(container);
 			else this.renderFilterRow(container);
+			appendTimezoneBanner(container, this.plugin, () => this.render());
 			// Narrow first, then pick a view of what's left — the same order
 			// the All friends page puts these in.
 			this.renderTabs(container);
@@ -504,7 +524,11 @@ export class EventsView extends ItemView {
 	}
 
 	private activeFilterCount(): number {
-		return (this.type ? 1 : 0) + (this.personPath ? 1 : 0);
+		return (
+			(this.type ? 1 : 0) +
+			(this.category ? 1 : 0) +
+			(this.personPath ? 1 : 0)
+		);
 	}
 
 	/**
@@ -581,7 +605,13 @@ export class EventsView extends ItemView {
 				}
 				return plan;
 			}
-			const event = eventBoardItem(item.event, people, open, row);
+			const event = eventBoardItem(
+				item.event,
+				people,
+				open,
+				row,
+				displayZone(settings.displayTimezone)
+			);
 			event.colour = calendarEventColor(item.event, {
 				byGroup: settings.eventsCalColorByGroup,
 				byCategory: settings.eventsCalUseCategoryColors,
@@ -752,6 +782,16 @@ export class EventsView extends ItemView {
 		return [
 			{
 				heading: "Category",
+				fold: {
+					visible: visibleCategoryCount(
+						this.plugin.eventOperations.getEventCategories().length
+					),
+					open: this.categoriesExpanded,
+					onToggle: () => {
+						this.categoriesExpanded = !this.categoriesExpanded;
+						this.renderContent();
+					},
+				},
 				options: this.plugin.eventOperations
 					.getEventCategories()
 					.map((category) => ({
@@ -766,6 +806,15 @@ export class EventsView extends ItemView {
 								category,
 								checked
 							);
+							// Its pill leaves the Filters panel with it, so a
+							// filter still set to it would have nothing left to
+							// unclick.
+							if (
+								!checked &&
+								this.category.toLowerCase() === category.toLowerCase()
+							) {
+								this.category = "";
+							}
 							apply();
 						},
 					})),
@@ -973,6 +1022,49 @@ export class EventsView extends ItemView {
 		// group still applied, so a roster chip can honestly read 0.
 		const scope = this.inScope();
 
+		// Category first, as it leads the drawer's own list. Only drawn when
+		// some event on the page has one — a vault that never uses them
+		// shouldn't grow an empty row.
+		const categories = filterableCategories(
+			scope.map((e) => e.categories),
+			this.plugin.settings.eventsCalHiddenCategories
+		);
+		// Keep the current pick even once the Upcoming / Past switch has
+		// taken its last event out of scope, or the filter would stay
+		// applied with nothing left to unclick it.
+		if (
+			this.category &&
+			!categories.some((c) => c.toLowerCase() === this.category.toLowerCase())
+		) {
+			categories.push(this.category);
+			categories.sort((a, b) =>
+				a.localeCompare(b, undefined, { sensitivity: "base" })
+			);
+		}
+		if (categories.length > 0) {
+			const categoryRow = wrap.createDiv({ cls: "someday-filter-row" });
+			categoryRow.createSpan({
+				cls: "someday-filter-label",
+				text: "Category",
+			});
+			const categoryOpts = categoryRow.createDiv({
+				cls: "someday-filter-options",
+			});
+			for (const name of categories) {
+				const active = this.category.toLowerCase() === name.toLowerCase();
+				this.filterPill(
+					categoryOpts,
+					name,
+					active,
+					() => {
+						this.category = active ? "" : name;
+						this.render();
+					},
+					this.countWith({ category: name })
+				);
+			}
+		}
+
 		const typeRow = wrap.createDiv({ cls: "someday-filter-row" });
 		typeRow.createSpan({ cls: "someday-filter-label", text: "Type" });
 		const typeOpts = typeRow.createDiv({ cls: "someday-filter-options" });
@@ -1055,6 +1147,7 @@ export class EventsView extends ItemView {
 			clear.addEventListener("click", () => {
 				this.searchQuery = "";
 				this.type = "";
+				this.category = "";
 				this.personPath = "";
 				this.render();
 			});
@@ -1115,7 +1208,11 @@ export class EventsView extends ItemView {
 			event.kind === "plan"
 				? planRowFields(event.plan, now, people)
 				: {
-						...eventRowFields(event.event, now, people),
+						...eventRowFields(event.event, now, people, {
+							viewerZone: displayZone(
+								this.plugin.settings.displayTimezone
+							),
+						}),
 						...(inDayList ? { date: "" } : {}),
 				  };
 		const row = buildUpcomingRow(container, {

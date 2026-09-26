@@ -1,7 +1,7 @@
 ---
 name: 🎿 Ski weekend in Stowe
-date: 2026-05-13
-endDate: 2026-05-20
+date: 2026-05-21
+endDate: 2026-05-28
 location: Stowe, Vermont
 status: done
 members:
@@ -18,6 +18,6 @@ costs:
     settled: true
     split:
       mode: even
-created: 2026-09-18
-updated: 2026-09-18
+created: 2026-09-26
+updated: 2026-09-26
 ---

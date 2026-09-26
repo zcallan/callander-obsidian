@@ -11,12 +11,6 @@ export const GETTING_STARTED_STEPS = [
 		action: "Add friend",
 	},
 	{
-		id: "name",
-		title: "Add your name in the settings",
-		blurb: "So shared plan messages count you in — and a look at what else is there.",
-		action: "Open settings",
-	},
-	{
 		id: "group",
 		title: "Add your first group",
 		blurb: "Circles like Family or Basketball, with a colour and ideas of their own.",
@@ -27,6 +21,12 @@ export const GETTING_STARTED_STEPS = [
 		title: "Add your first quick note",
 		blurb: "Jot something down now and file it onto someone later.",
 		action: "Quick note",
+	},
+	{
+		id: "name",
+		title: "Add your name in the settings",
+		blurb: "So shared plan messages count you in — and a look at what else is there.",
+		action: "Open settings",
 	},
 	{
 		id: "event",

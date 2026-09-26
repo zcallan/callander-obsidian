@@ -26,6 +26,14 @@ import {
 	parseIdeasSection,
 	upsertIdeasSection,
 } from "@/utils/ideasMarkdown";
+import {
+	findDraft,
+	fromLegacyDrafts,
+	mergeLegacyDrafts,
+	parseDraftsSection,
+	upsertDraftsSection,
+	type LedgerDraft,
+} from "@/utils/draftsMarkdown";
 
 /** Where the inbox lived before it became the dashboard file's properties. */
 const LEGACY_INBOX_BASENAME = "Idea Inbox";
@@ -179,49 +187,215 @@ export class ContactOperations {
 			.filter((d) => d.text.length > 0);
 	}
 
-	/** Capture a raw thought onto a friend (or the inbox) for later triage */
-	async addDraft(file: TFile, text: string): Promise<void> {
-		const created = todayISO();
-		await this.writeFrontMatter(file, (fm) => {
-				fm.drafts = [
-					...ContactOperations.draftsOf(fm),
-					{ text, created },
-				];
-			}
-		);
-	}
+	// ---- Drafts: a checklist in the dashboard note ----
+	// Every draft lives as a task line under `## Drafts` in the dashboard
+	// file, a person it's about being a wikilink on the line. Handling one
+	// ticks it rather than deleting it, so the note is a record of what was
+	// captured. See draftsMarkdown for the format.
 
-	async removeDraft(file: TFile, index: number): Promise<void> {
-		await this.writeFrontMatter(file, (fm) => {
-				const drafts = ContactOperations.draftsOf(fm);
-				if (index >= 0 && index < drafts.length) {
-					drafts.splice(index, 1);
-				}
-				if (drafts.length > 0) fm.drafts = drafts;
-				else delete fm.drafts;
-			}
+	/** Every draft, ticked ones included, in file order. Empty when the
+	 * dashboard note doesn't exist yet or has no `## Drafts`. */
+	async readDrafts(): Promise<LedgerDraft[]> {
+		const file = this.app.vault.getAbstractFileByPath(
+			this.getDashboardFilePath()
 		);
-	}
-
-	/** Edit a draft's text in place, leaving its date and created stamp. */
-	async updateDraft(file: TFile, index: number, text: string): Promise<void> {
-		await this.writeFrontMatter(file, (fm) => {
-				const drafts = ContactOperations.draftsOf(fm);
-				if (index >= 0 && index < drafts.length) {
-					drafts[index] = { ...drafts[index], text };
-				}
-				if (drafts.length > 0) fm.drafts = drafts;
-				else delete fm.drafts;
-			}
-		);
-	}
-
-	async getInboxDrafts(): Promise<Draft[]> {
-		const file = this.app.vault.getAbstractFileByPath(this.getDashboardFilePath());
 		if (!(file instanceof TFile)) return [];
-		const metadata =
-			this.app.metadataCache.getFileCache(file)?.frontmatter;
-		return ContactOperations.draftsOf(metadata);
+		try {
+			const body = splitFrontmatter(
+				await this.app.vault.cachedRead(file)
+			).body;
+			return parseDraftsSection(body) ?? [];
+		} catch {
+			return [];
+		}
+	}
+
+	/**
+	 * Read-modify-write on the checklist, inside one `process` so what's
+	 * changed is the file as it is at that moment rather than a copy read a
+	 * while ago. `null` from the callback means nothing to write.
+	 */
+	private async changeDrafts(
+		fn: (drafts: LedgerDraft[]) => LedgerDraft[] | null
+	): Promise<boolean> {
+		const file = await this.ensureDashboardFile();
+		let changed = false;
+		await this.app.vault.process(file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			const next = fn(parseDraftsSection(body) ?? []);
+			if (next === null) return content;
+			changed = true;
+			return joinFrontmatter(frontmatter, upsertDraftsSection(body, next));
+		});
+		return changed;
+	}
+
+	/** Capture a raw thought, optionally about someone, for later triage. */
+	async addDraft(text: string, about?: TFile | null): Promise<void> {
+		const draft: LedgerDraft = {
+			text: text.trim(),
+			...(about && { person: about.basename }),
+			created: todayISO(),
+			done: false,
+		};
+		if (!draft.text) return;
+		await this.changeDrafts((list) => [...list, draft]);
+	}
+
+	/**
+	 * Tick a draft off, stamping the day. It stays in the note: that's the
+	 * record. `index` and `text` say which — see findDraft for why both.
+	 */
+	async completeDraft(index: number, text: string): Promise<void> {
+		await this.changeDrafts((list) => {
+			const at = findDraft(list, index, text);
+			if (at < 0) return null;
+			const next = [...list];
+			next[at] = { ...next[at], done: true, doneDate: todayISO() };
+			return next;
+		});
+	}
+
+	/**
+	 * Reword a draft in place, leaving its date and box as they were.
+	 *
+	 * `about` reassigns who it's about: a `TFile` links to them, `null`
+	 * clears the link, and `undefined` (the default) leaves it as it was —
+	 * so a caller that only ever reworded text doesn't have to start
+	 * passing its person back in too.
+	 */
+	async updateDraft(
+		index: number,
+		text: string,
+		newText: string,
+		about?: TFile | null
+	): Promise<void> {
+		const reworded = newText.trim();
+		if (!reworded) return;
+		await this.changeDrafts((list) => {
+			const at = findDraft(list, index, text);
+			if (at < 0) return null;
+			const next = [...list];
+			const { person, ...rest } = next[at];
+			next[at] =
+				about === undefined
+					? { ...next[at], text: reworded }
+					: { ...rest, text: reworded, ...(about && { person: about.basename }) };
+			return next;
+		});
+	}
+
+	/** The note a draft is about, or null: no link, or one that leads
+	 * nowhere. Resolved the way any wikilink in the dashboard note is. */
+	draftAbout(draft: LedgerDraft): TFile | null {
+		if (!draft.person) return null;
+		const linktext = draft.person.split("|")[0].trim();
+		return (
+			this.app.metadataCache.getFirstLinkpathDest(
+				linktext,
+				this.getDashboardFilePath()
+			) ?? null
+		);
+	}
+
+	private migratingDrafts: Promise<number> | null = null;
+
+	/**
+	 * Move drafts out of frontmatter — the dashboard note's own, and each
+	 * friend's — into the checklist, once. Returns how many it carried.
+	 *
+	 * Checklist first, keys cleared only on success, like the other moves:
+	 * a run that dies in between leaves the drafts in both places, and the
+	 * next one recognises the ones already carried (mergeLegacyDrafts)
+	 * rather than adding them twice. Safe to run on every start, and on
+	 * notes that sync in from a device still writing the old way.
+	 *
+	 * The old keys go without stamping `updated`: moving a field between
+	 * storage formats isn't an edit to the friend.
+	 */
+	migrateDraftsToDashboard(): Promise<number> {
+		// One at a time — the dashboard refreshes on every vault event, and
+		// this touches the very files that fire them.
+		if (this.migratingDrafts) return this.migratingDrafts;
+		const run = this.moveDraftsToChecklist().finally(() => {
+			this.migratingDrafts = null;
+		});
+		this.migratingDrafts = run;
+		return run;
+	}
+
+	private async moveDraftsToChecklist(): Promise<number> {
+		const sources: Array<{
+			file: TFile;
+			drafts: Draft[];
+			about: string | undefined;
+		}> = [];
+		const collect = (file: TFile, about: string | undefined) => {
+			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+			const drafts = ContactOperations.draftsOf(fm);
+			// A key that's there but empty still wants clearing.
+			const has = isRecord(fm) && fm.drafts !== undefined;
+			if (drafts.length > 0 || has) sources.push({ file, drafts, about });
+		};
+		const dashboard = this.app.vault.getAbstractFileByPath(
+			this.getDashboardFilePath()
+		);
+		if (dashboard instanceof TFile) collect(dashboard, undefined);
+		for (const path of [
+			this.getPeopleFolderPath(),
+			this.getGroupsFolderPath(),
+		]) {
+			const folder = this.app.vault.getAbstractFileByPath(path);
+			if (!(folder instanceof TFolder)) continue;
+			for (const child of folder.children) {
+				if (child instanceof TFile && child.extension === "md") {
+					collect(child, child.basename);
+				}
+			}
+		}
+		if (sources.length === 0) return 0;
+
+		// The cache lags a write by a beat, so right after this clears a key
+		// it can still show it — and the dashboard, refreshing on that very
+		// write, would run this again against a stale picture. Each
+		// candidate is checked against the file itself before anything is
+		// carried or cleared.
+		const live: typeof sources = [];
+		for (const source of sources) {
+			try {
+				const { frontmatter } = splitFrontmatter(
+					await this.app.vault.read(source.file)
+				);
+				if (/^drafts\s*:/m.test(frontmatter ?? "")) live.push(source);
+			} catch {
+				// Unreadable now; the next run will try again.
+			}
+		}
+		if (live.length === 0) return 0;
+
+		const legacy = live.flatMap((s) =>
+			s.drafts.map((d) => ({
+				text: d.text,
+				created: d.created,
+				generated: d.generated,
+				person: s.about,
+			}))
+		);
+		if (legacy.length > 0) {
+			await this.changeDrafts((list) => {
+				const merged = mergeLegacyDrafts(list, fromLegacyDrafts(legacy));
+				return merged.length === list.length ? null : merged;
+			});
+		}
+		for (const { file } of live) {
+			await this.app.fileManager.processFrontMatter(
+				file,
+				(fm: Record<string, unknown>) => {
+					delete fm.drafts;
+				}
+			);
+		}
+		return legacy.length;
 	}
 
 	/**
@@ -764,7 +938,6 @@ export class ContactOperations {
 						groups: ContactOperations.groupsOf(metadata),
 						ideas,
 						events,
-						drafts: ContactOperations.draftsOf(metadata),
 						file,
 					});
 				}

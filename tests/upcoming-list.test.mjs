@@ -1,6 +1,7 @@
 import { createSuite } from "./harness.mjs";
 import {
 	mergeUpcoming,
+	splitOverdue,
 	thisAndNextWeek,
 	upcomingItems,
 	upcomingPlans,
@@ -75,16 +76,43 @@ export function run() {
 		names(upcomingItems([ev({ name: "gone", date: "2026-07-01" })], now)),
 		[]
 	);
-	// A task keeps asking to be ticked off for a week after its date; any
-	// other passed event is implicitly done.
+	// A task keeps asking to be ticked off until someone does; any other
+	// passed event is implicitly done once its day is over.
 	eq(
 		"a task passed 3 days ago still asks",
 		names(upcomingItems([ev({ name: "task", type: "task", date: "2026-08-02" })], now)),
 		["task"]
 	);
 	eq(
-		"...but not after a week",
+		"...and still asks weeks later",
 		names(upcomingItems([ev({ name: "task", type: "task", date: "2026-07-20" })], now)),
+		["task"]
+	);
+	eq(
+		"...and months later — being avoided is not a reason to disappear",
+		names(upcomingItems([ev({ name: "task", type: "task", date: "2026-02-11" })], now)),
+		["task"]
+	);
+	eq(
+		"a passed task is flagged overdue",
+		upcomingItems([ev({ name: "task", type: "task", date: "2026-07-20" })], now)[0]
+			?.overdue,
+		true
+	);
+	eq(
+		"a task still ahead is not",
+		upcomingItems([ev({ name: "task", type: "task", date: "2026-08-20" })], now)[0]
+			?.overdue,
+		undefined
+	);
+	eq(
+		"a ticked-off task is gone whatever its date",
+		names(
+			upcomingItems(
+				[ev({ name: "task", type: "task", date: "2026-07-20", status: "done" })],
+				now
+			)
+		),
 		[]
 	);
 
@@ -143,6 +171,39 @@ export function run() {
 			names(thisAndNextWeek(list, wed)).includes("undated"),
 			true
 		);
+	}
+	{
+		// A long-overdue task escapes the window entirely. Falling out of
+		// a fortnight is exactly how the ones you've been avoiding used to
+		// vanish, which is the opposite of what they're for.
+		const list = upcomingItems(
+			[ev({ name: "months late", date: "2026-03-02", type: "task" })],
+			now
+		);
+		eq(
+			"an overdue task ignores the fortnight",
+			names(thisAndNextWeek(list, now)),
+			["months late"]
+		);
+	}
+
+	// ---------- overdue leads its own group ----------
+	{
+		const entries = mergeUpcoming(
+			upcomingItems(
+				[
+					ev({ name: "late task", date: "2026-07-01", type: "task" }),
+					ev({ name: "soon", date: "2026-08-06" }),
+				],
+				now
+			),
+			[]
+		);
+		const { overdue, rest } = splitOverdue(entries);
+		eq("the late task is pulled out", overdue.map((e) => e.event.name), [
+			"late task",
+		]);
+		eq("everything else stays put", rest.map((e) => e.event.name), ["soon"]);
 	}
 
 	// ---------- plans on the same list ----------
@@ -229,6 +290,57 @@ export function run() {
 		eq("a Sunday week reaches back three", window(0), [-3, -2, 0, 10]);
 		// Fourteen days wide either way — the edge moves, the span doesn't.
 		eq("both spans are a fortnight", [window(1).length, window(0).length], [4, 4]);
+	}
+
+	{
+		// Monday 21 Sept: nine events this week, five next — fourteen, more
+		// than the ten-row cap the section used to apply. That cap trimmed
+		// from the end, so Saturday 3 Oct (next week) was the first to go.
+		// Nothing inside the fortnight is held back now.
+		const mon = new Date(2026, 8, 21);
+		const dates = [
+			"2026-09-22", "2026-09-23", "2026-09-24", "2026-09-24", "2026-09-25",
+			"2026-09-26", "2026-09-26", "2026-09-27", "2026-09-27",
+			"2026-09-30", "2026-09-30", "2026-10-03", "2026-10-04", "2026-10-04",
+		];
+		const list = upcomingItems(
+			dates.map((date, i) => ev({ name: `e${i}`, date })),
+			mon
+		);
+		eq(
+			"a fortnight of fourteen shows all fourteen",
+			thisAndNextWeek(list, mon).length,
+			14
+		);
+		eq(
+			"...including Saturday 3 Oct, across the month boundary",
+			names(thisAndNextWeek(list, mon)).includes("e11"),
+			true
+		);
+		eq(
+			"...and Sunday the 4th, the last day of next week",
+			names(thisAndNextWeek(list, mon)).includes("e13"),
+			true
+		);
+		eq(
+			"Monday the 5th is the week after, and stays out",
+			names(
+				thisAndNextWeek(
+					upcomingItems([ev({ name: "later", date: "2026-10-05" })], mon),
+					mon
+				)
+			),
+			[]
+		);
+	}
+	{
+		// A plan has no overdue state — upcomingPlans already drops one
+		// whose date has gone by — so the split must never claim one.
+		const entries = mergeUpcoming(
+			[],
+			upcomingPlans([plan("trip", "2026-08-10")], now)
+		);
+		eq("a plan is never overdue", splitOverdue(entries).overdue, []);
 	}
 
 	return result();

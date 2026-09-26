@@ -4,12 +4,15 @@ import {
 	parseCsv,
 	normalizeTime,
 	parseEventImport,
+	problemLine,
+	problemsHeading,
+	problemsText,
 	duplicateNames,
 	importPrompt,
 	IMPORT_COLUMNS,
 } from "./.build/callander.mjs";
 
-const HEADER = "Name,Date,Time,Duration,Type,Location,People,Link,Description";
+const HEADER = "Name,Date,Time,Timezone,Duration,Type,Location,People,Link,Description";
 
 /**
  * The bulk import reads CSV an AI or a spreadsheet wrote, so these pin down
@@ -63,12 +66,17 @@ export function run() {
 	eq("a bare hour with pm", normalizeTime("7 PM"), "19:00");
 	eq("12am is midnight", normalizeTime("12am"), "00:00");
 	eq("12pm is noon", normalizeTime("12pm"), "12:00");
+	// Words an event can genuinely store, so a spreadsheet gets to give
+	// them — by id or by the label the picker shows.
+	eq("anytime comes through", normalizeTime("Anytime"), "anytime");
+	eq("tbd comes through", normalizeTime("TBD"), "tbd");
+	eq("...however it's cased", normalizeTime("tbd"), "tbd");
 	eq("nonsense isn't a time", normalizeTime("soon"), null);
 	eq("25:00 isn't a time", normalizeTime("25:00"), null);
 
 	// ---------- rows ----------
 	{
-		const text = `${HEADER}\nGig,2026-10-02,8pm,2h,Concert,"The Sinclair, Cambridge",[[Sally Rooney]]; Haruki Murakami,https://x.y,Loud`;
+		const text = `${HEADER}\nGig,2026-10-02,8pm,,2h,Concert,"The Sinclair, Cambridge",[[Sally Rooney]]; Haruki Murakami,https://x.y,Loud`;
 		const { events, errors } = parseEventImport(text);
 		eq("a full row imports", errors, []);
 		const e = events[0];
@@ -77,19 +85,53 @@ export function run() {
 		eq("the duration is stored canonically", e.duration, "2h");
 		eq("people split on semicolons, links unwrapped", e.people, ["Sally Rooney", "Haruki Murakami"]);
 		eq("a quoted location keeps its comma", e.location, "The Sinclair, Cambridge");
+		eq("an empty timezone floats", e.timezone, "");
 	}
 	{
-		const { events, errors } = parseEventImport("date,NAME\n2026-1-5,Dentist\n,Someday thing");
+		// The case the Timezone column exists for: a listing quoting a
+		// game in the venue's zone rather than the reader's.
+		const text = `${HEADER}\nGame,2026-10-22,12:00,CT,,sports,,,,`;
+		const { events, errors } = parseEventImport(text);
+		eq("a zoned row imports", errors, []);
+		eq("an abbreviation becomes an IANA id", events[0].timezone, "America/Chicago");
+	}
+	{
+		const text = `${HEADER}\nGame,2026-10-22,12:00,Neptune,,sports,,,,`;
+		const { errors } = parseEventImport(text);
+		ok(
+			"a zone that isn't one is reported",
+			errors.some((e) => e.message.includes("Neptune"))
+		);
+	}
+	{
+		// A zone with no clock to qualify says nothing, so it isn't kept.
+		const text = `${HEADER}\nGame,2026-10-22,TBD,CT,,sports,,,,`;
+		const { events } = parseEventImport(text);
+		eq("a zone on a TBD time is dropped", events[0].timezone, "");
+	}
+	{
+		const { events, errors } = parseEventImport("date,NAME\n2026-1-5,Dentist");
 		eq("columns in any order and case", errors, []);
 		eq("dates are zero-padded", events[0].date, "2026-01-05");
-		eq("only a name is needed", events[1].date, "");
+	}
+	{
+		// An event without a date is a someday — a different page with a
+		// different shape — so the import says so rather than making one.
+		const { events, errors } = parseEventImport(
+			"date,NAME\n2026-1-5,Dentist\n,Someday thing"
+		);
+		ok(
+			"a row with no date is refused",
+			errors.some((e) => e.message.includes("no date"))
+		);
+		eq("...and nothing imports around it", events, []);
 	}
 	eq("nothing pasted, nothing to say", parseEventImport("  \n "), { events: [], errors: [] });
 
 	// ---------- what's wrong, and where ----------
 	{
 		const { events, errors } = parseEventImport(
-			`${HEADER}\nFine,2026-10-02\n,2026-10-03\nBad date,2026-02-30\nBad time,2026-10-04,soon\nBad type,2026-10-05,,,picnic`
+			`${HEADER}\nFine,2026-10-02\n,2026-10-03\nBad date,2026-02-30\nBad time,2026-10-04,soon\nBad type,2026-10-05,,,,picnic`
 		);
 		eq("any error means nothing imports", events, []);
 		eq(
@@ -110,10 +152,37 @@ export function run() {
 		ok("an unknown column is an error", errors.some((e) => e.message.includes('"Title"')));
 	}
 
+	// ---------- copying the problems ----------
+	{
+		const errs = [
+			{ line: 3, message: "Has no name." },
+			{ line: 0, message: "Missing the Name column." },
+		];
+		eq(
+			"a copy is the heading, then a line per problem",
+			problemsText(errs),
+			"2 problems to fix\nLine 3: Has no name.\nMissing the Name column."
+		);
+		eq("one problem is singular", problemsHeading(1), "1 problem to fix");
+		eq("a row-less problem has no line prefix", problemLine(errs[1]), "Missing the Name column.");
+		// The box on screen stops at twenty and says "and N more". The copy
+		// must not — it's what gets pasted back to have them all fixed.
+		const many = Array.from({ length: 35 }, (_, i) => ({
+			line: i + 2,
+			message: "Has no date.",
+		}));
+		const lines = problemsText(many).split("\n");
+		eq("all thirty-five make it into the copy", lines.length, 36);
+		eq("...headed with the true count", lines[0], "35 problems to fix");
+		eq("...ending on the last one", lines[35], "Line 36: Has no date.");
+	}
+
 	// ---------- no header ----------
 	{
 		const { events, errors } = parseEventImport(
-			"Gig,2026-10-02,8pm,,concert\nDentist,2026-10-05"
+			// Name, Date, Time, Timezone, Duration, Type — the order
+		// IMPORT_COLUMNS declares, which is what a headerless row means.
+		"Gig,2026-10-02,8pm,,,concert\nDentist,2026-10-05"
 		);
 		eq("without a header, the first row is an event", errors, []);
 		eq("…in the standard column order", events.map((e) => [e.name, e.date, e.time, e.type]), [

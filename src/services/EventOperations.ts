@@ -15,6 +15,7 @@ import {
 	joinFrontmatter,
 } from "@/utils/markdownSection";
 import { EVENTS_SECTION, ownsEventLine } from "@/utils/eventsSection";
+import { displayZone, resolveToZone } from "@/utils/timezone";
 
 /** The editable fields of an event — used for both create and update. */
 export interface EventFields {
@@ -23,6 +24,9 @@ export interface EventFields {
 	date?: string;
 	/** 24-hour "HH:MM". */
 	time?: string;
+	/** IANA zone the time belongs to, or "" / undefined for a floating
+	 * time — one that means the same clock reading wherever you are. */
+	timezone?: string;
 	/** How long it runs, canonical "2h 30m" — read by the calendar export
 	 * for an end time. Same shape a plan item stores. */
 	duration?: string;
@@ -133,11 +137,29 @@ export class EventOperations {
 			const v = fieldOf(fm, key);
 			return v ? toText(v) : "";
 		};
+		// Events carrying a zone are converted here, once, rather than at
+		// each of the twenty-odd places that read a date — a calendar cell,
+		// a week heading, a sort, an upcoming filter. Converting a time can
+		// move the day with it, so the two have to travel together or a
+		// late-evening event lands in the wrong square. Without a zone this
+		// returns its inputs untouched, which is every event predating it.
+		const sourceDate = str("date");
+		const sourceTime = str("time");
+		const timezone = str("timezone");
+		const shown = resolveToZone(
+			sourceDate,
+			sourceTime,
+			timezone,
+			displayZone(this.plugin.settings.displayTimezone)
+		);
 		return {
 			file,
 			name: str("name") || file.basename,
-			date: str("date"),
-			time: str("time"),
+			date: shown.date,
+			time: shown.time,
+			timezone,
+			sourceDate,
+			sourceTime,
 			duration: str("duration"),
 			type: eventTypeOf(str("type")),
 			people: asArray(fieldOf(fm, "people")).map(String),
@@ -312,6 +334,7 @@ export class EventOperations {
 				fm?.name === fields.name &&
 				optional(fm, "date", fields.date) &&
 				optional(fm, "time", fields.time) &&
+				optional(fm, "timezone", fields.timezone) &&
 				optional(fm, "type", fields.type || undefined) &&
 				(people.length === 0
 					? fm?.people === undefined
@@ -330,6 +353,7 @@ export class EventOperations {
 				fm.name = fields.name;
 				set("date", fields.date);
 				set("time", fields.time);
+				set("timezone", fields.timezone);
 				set("duration", fields.duration);
 				set("type", fields.type || undefined);
 				if (people.length > 0) fm.people = people;
@@ -433,6 +457,60 @@ export class EventOperations {
 		);
 	}
 
+	/**
+	 * Rename a category everywhere it's used — the same act as a group
+	 * rename, since categories are a shared vocabulary rather than a
+	 * per-event field. Matched without case; if the new name collides with
+	 * one an event already carries, the two merge rather than duplicating.
+	 */
+	async renameCategory(oldName: string, newName: string): Promise<void> {
+		const trimmed = newName.trim();
+		if (!trimmed) return;
+		const key = oldName.trim().toLowerCase();
+		if (key === trimmed.toLowerCase()) return;
+		for (const event of this.getEvents()) {
+			if (!event.categories.some((c) => c.toLowerCase() === key)) continue;
+			await this.app.fileManager.processFrontMatter(
+				event.file,
+				(fm: Record<string, unknown>) => {
+					const next: string[] = [];
+					for (const c of asArray(fieldOf(fm, "categories")).map(toText)) {
+						const value = c.toLowerCase() === key ? trimmed : c;
+						if (!next.some((n) => n.toLowerCase() === value.toLowerCase())) {
+							next.push(value);
+						}
+					}
+					if (next.length > 0) fm.categories = next;
+					else delete fm.categories;
+					fm.updated = todayISO();
+				}
+			);
+		}
+	}
+
+	/**
+	 * Remove a category from every event carrying it. The events
+	 * themselves are untouched — only the `categories` list loses it, the
+	 * same as unticking it by hand would.
+	 */
+	async deleteCategory(name: string): Promise<void> {
+		const key = name.trim().toLowerCase();
+		for (const event of this.getEvents()) {
+			if (!event.categories.some((c) => c.toLowerCase() === key)) continue;
+			await this.app.fileManager.processFrontMatter(
+				event.file,
+				(fm: Record<string, unknown>) => {
+					const next = asArray(fieldOf(fm, "categories"))
+						.map(toText)
+						.filter((c) => c.toLowerCase() !== key);
+					if (next.length > 0) fm.categories = next;
+					else delete fm.categories;
+					fm.updated = todayISO();
+				}
+			);
+		}
+	}
+
 	async setVariant(file: TFile, variant: EventVariant): Promise<void> {
 		await this.app.fileManager.processFrontMatter(
 			file,
@@ -484,7 +562,11 @@ export class EventOperations {
 			await this.updateEvent(existing.file, {
 				name,
 				date,
-				time: existing.time || undefined,
+				// Source, not the resolved time — this rewrites the note,
+				// and the viewer's zone has no business changing what a
+				// diary entry's event says.
+				time: existing.sourceTime || undefined,
+				timezone: existing.timezone || undefined,
 				duration: existing.duration || undefined,
 				type: existing.type,
 				people: peopleLinks,
@@ -535,7 +617,10 @@ export class EventOperations {
 	private sectionLines(personFile: TFile): string[] {
 		const events = this.eventsFor(personFile);
 		const key = (e: EventInfo) => {
-			const p = parseFlexDate(e.date);
+			// Source, not the resolved date: this list is written into
+			// person pages, and ordering it by the viewer's zone would
+			// rewrite those files every time you changed timezone.
+			const p = parseFlexDate(e.sourceDate);
 			// Undated events sink to the bottom rather than leading the list.
 			return p && p.year !== null
 				? flexSortKey(p)

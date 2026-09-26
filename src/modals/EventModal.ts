@@ -1,7 +1,6 @@
-import { App, setIcon } from "obsidian";
+import { App, Notice, setIcon } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
-import { CopyEventModal } from "@/modals/CopyEventModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { appendContactPicker } from "@/components/ContactPicker";
 import {
@@ -10,6 +9,14 @@ import {
 } from "@/modals/scheduleFields";
 import { normalizeUrl } from "@/utils/url";
 import { renderCategoryChips } from "@/components/categoryChips";
+import { EventCategoryEditModal } from "@/modals/EventCategoryEditModal";
+import {
+	CATEGORY_PALETTE,
+	categoryColorFor,
+	categoryColors,
+	defaultCategoryColor,
+	ensureGroupColors,
+} from "@/utils/categoryColor";
 import type FriendTracker from "@/main";
 import type { EventInfo } from "@/types";
 import type { EventFields } from "@/services/EventOperations";
@@ -120,11 +127,16 @@ export class EventModal extends FormModal {
 		});
 
 		// ---- When ----
-		let dateValue = this.existing?.date ?? this.prefill?.date ?? "";
+		// Source, never the resolved date: an event stored as 9pm Pacific
+		// reads as the next day's midnight in Eastern, and prefilling the
+		// form with that would rewrite the event to mean something else
+		// the moment it was saved — differently depending on where you
+		// happened to be sitting. Same for the time and zone below.
+		let dateValue = this.existing?.sourceDate ?? this.prefill?.date ?? "";
 		const dateField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
-		dateField.createEl("label", { text: "When (optional)" });
+		dateField.createEl("label", { text: "When" });
 		createFlexDateInput(
 			dateField,
 			dateValue,
@@ -144,7 +156,9 @@ export class EventModal extends FormModal {
 		});
 		const time = appendClockField(
 			timeField,
-			this.existing?.time ?? this.prefill?.time
+			this.existing?.sourceTime ?? this.prefill?.time,
+			undefined,
+			this.existing?.timezone ?? ""
 		);
 
 		// ---- Duration ----
@@ -303,6 +317,63 @@ export class EventModal extends FormModal {
 			window.open(normalizeUrl(raw), "_blank");
 		});
 
+		// ---- Categories ----
+		// The plan ideas' picker, offering every category already on an
+		// event — a season imported under "Celtics" is one tap to join.
+		const categoryPicker = renderCategoryChips(detailsBody, {
+			app: this.app,
+			label: "Categories (optional)",
+			selected: categories,
+			known: this.plugin.eventOperations.getEventCategories(),
+			deleteScope: "event",
+			colorPicker: {
+				palette: CATEGORY_PALETTE,
+				colorFor: (cat) => {
+					const colors = ensureGroupColors(this.plugin.settings);
+					const known = this.plugin.eventOperations.getEventCategories();
+					return (
+						categoryColorFor([cat], colors, categoryColors(known)) ??
+						CATEGORY_PALETTE[0]
+					);
+				},
+				defaultFor: (cat) =>
+					defaultCategoryColor(
+						cat,
+						this.plugin.eventOperations.getEventCategories()
+					),
+				onSetColor: (cat, color) => {
+					const colors = ensureGroupColors(this.plugin.settings);
+					const key = cat.toLowerCase();
+					if (color) colors.categories[key] = color;
+					else delete colors.categories[key];
+					void this.plugin.saveSettings();
+				},
+			},
+			editing: {
+				onEdit: (cat) => {
+					new EventCategoryEditModal(
+						this.app,
+						this.plugin,
+						cat,
+						this.plugin.eventOperations.getEventCategories(),
+						(result) => {
+							const at = categories.findIndex(
+								(c) => c.toLowerCase() === cat.toLowerCase()
+							);
+							if (result.deleted) {
+								if (at >= 0) categories.splice(at, 1);
+							} else if (at >= 0) {
+								categories[at] = result.name;
+							}
+							categoryPicker.refresh(
+								this.plugin.eventOperations.getEventCategories()
+							);
+						}
+					).open();
+				},
+			},
+		});
+
 		// ---- Notes ----
 		const descField = detailsBody.createDiv({
 			cls: "callander-modal-field",
@@ -317,17 +388,6 @@ export class EventModal extends FormModal {
 		});
 		descInput.value =
 			this.existing?.description ?? this.prefill?.description ?? "";
-
-		// ---- Categories ----
-		// The plan ideas' picker, offering every category already on an
-		// event — a season imported under "Celtics" is one tap to join.
-		renderCategoryChips(detailsBody, {
-			app: this.app,
-			label: "Categories (optional)",
-			selected: categories,
-			known: this.plugin.eventOperations.getEventCategories(),
-			deleteScope: "event",
-		});
 
 		// ---- Buttons ----
 		const buttons = contentEl.createDiv({
@@ -354,14 +414,6 @@ export class EventModal extends FormModal {
 					}
 				).open();
 			});
-			const copyBtn = buttons.createEl("button", {
-				text: "Copy to…",
-				cls: "callander-modal-button",
-			});
-			copyBtn.addEventListener("click", () => {
-				this.close();
-				new CopyEventModal(this.app, this.plugin, existing).open();
-			});
 		}
 		const saveBtn = buttons.createEl("button", {
 			text: "Save",
@@ -372,6 +424,18 @@ export class EventModal extends FormModal {
 			const name = nameInput.value.trim();
 			if (!name) {
 				nameInput.focus();
+				return;
+			}
+			// An event is a thing with a date on it; without one it's a
+			// someday, which has its own page and its own shape. Enforced
+			// here rather than in EventOperations, because the migration
+			// from the old reminders still has to be able to carry an
+			// undated one across rather than drop it.
+			if (!dateValue.trim()) {
+				new Notice("An event needs a date — add one, or make it a someday.");
+				dateField
+					.querySelector<HTMLElement>("input, select")
+					?.focus();
 				return;
 			}
 			const picked = people.wikilinks();
@@ -388,6 +452,7 @@ export class EventModal extends FormModal {
 				name,
 				date: dateValue.trim() || undefined,
 				time: time.value() || undefined,
+				timezone: time.timezone() || undefined,
 				duration: duration.value() || undefined,
 				type: this.type,
 				people: picked,

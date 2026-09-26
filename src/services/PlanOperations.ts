@@ -443,12 +443,14 @@ export class PlanOperations {
 			);
 		});
 
-		// Within a day: timed entries, then untimed, then stays last — you go
-		// to bed after everything else. The tier digit outranks the clock.
+		// Within a day: drafts first — they're the thoughts not yet worked
+		// into the day, so they read as what's still unsettled about it —
+		// then timed and untimed entries, then stays last, since you go to
+		// bed after everything else. The tier digit outranks the clock.
+		const tier = (e: PlanTimelineEntry) =>
+			e.source === "draft" ? "0" : e.source === "accommodation" ? "2" : "1";
 		const key = (e: PlanTimelineEntry) =>
-			`${e.date}T${e.source === "accommodation" ? "1" : "0"}${timeSortValue(
-				e.time
-			)}`;
+			`${e.date}T${tier(e)}${timeSortValue(e.time)}`;
 		return entries.sort((a, b) => key(a).localeCompare(key(b)));
 	}
 
@@ -480,6 +482,8 @@ export class PlanOperations {
 					endDate: str("endDate"),
 					location: str("location"),
 					status: str("status") || "planning",
+					created: str("created"),
+					updated: str("updated"),
 					items: PlanOperations.itemsOf(fm),
 					members: PlanOperations.membersOf(fm),
 					hiddenFromUpcoming:
@@ -488,6 +492,47 @@ export class PlanOperations {
 						fieldOf(fm, "hiddenFromEvents") === true,
 				};
 			});
+	}
+
+	/**
+	 * Drop a person from every plan's `members`/`unconfirmedMembers` once
+	 * they're deleted — otherwise a plan keeps its own copy of the wikilink
+	 * forever, and "Who's in" renders it as bare, unremovable text once the
+	 * link stops resolving to anything (see `planMemberChips` in
+	 * ContactPageView, which falls back to the raw linktext rather than
+	 * dropping an entry it can't resolve). Call this *before* trashing the
+	 * file — the link only resolves to it, and so only matches it here,
+	 * while the file still exists.
+	 */
+	async removePersonFromPlans(file: TFile): Promise<void> {
+		const folder = this.app.vault.getAbstractFileByPath(
+			this.getPlansFolderPath()
+		);
+		if (!(folder instanceof TFolder)) return;
+		const plans = folder.children.filter(
+			(f): f is TFile => f instanceof TFile && f.extension === "md"
+		);
+		for (const plan of plans) {
+			const resolves = (raw: unknown) =>
+				this.app.metadataCache.getFirstLinkpathDest(
+					toText(raw).replace(/^\[\[|\]\]$/g, ""),
+					plan.path
+				)?.path === file.path;
+			const fm = this.app.metadataCache.getFileCache(plan)?.frontmatter;
+			const hasEntry = (key: string) =>
+				asArray(fieldOf(fm, key)).some(resolves);
+			if (!hasEntry("members") && !hasEntry("unconfirmedMembers")) continue;
+			await this.app.fileManager.processFrontMatter(plan, (data) => {
+				const fm = data as Record<string, unknown>;
+				for (const key of ["members", "unconfirmedMembers"]) {
+					const next = asArray(fieldOf(fm, key)).filter(
+						(raw) => !resolves(raw)
+					);
+					if (next.length > 0) fm[key] = next;
+					else delete fm[key];
+				}
+			});
+		}
 	}
 
 	async createPlan(

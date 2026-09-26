@@ -2,7 +2,7 @@
 kind: someday
 name: Ride the Swan Boats in the Public Garden
 status: open
-created: 2026-09-18
+created: 2026-09-26
 types:
   - activity
   - explore
@@ -14,5 +14,5 @@ days:
   - sun
 company: either
 cost: 5
-updated: 2026-09-18
+updated: 2026-09-26
 ---

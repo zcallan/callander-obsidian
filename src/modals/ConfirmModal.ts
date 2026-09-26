@@ -7,7 +7,11 @@ export class ConfirmModal extends Modal {
 		private title: string,
 		private message: string,
 		private confirmLabel: string,
-		private onConfirm: () => void | Promise<void>
+		private onConfirm: () => void | Promise<void>,
+		/** Most things confirmed here are destructive, so the button is
+		 * red by default. Ticking a task off isn't — it asks the same
+		 * "are you sure?" without dressing it as damage. */
+		private tone: "danger" | "normal" = "danger"
 	) {
 		super(app);
 	}
@@ -29,7 +33,10 @@ export class ConfirmModal extends Modal {
 
 		const confirm = buttons.createEl("button", {
 			text: this.confirmLabel,
-			cls: "callander-modal-button callander-modal-button-danger",
+			cls:
+				this.tone === "danger"
+					? "callander-modal-button callander-modal-button-danger"
+					: "callander-modal-button mod-cta",
 		});
 		const handleConfirm = async () => {
 			await this.onConfirm();

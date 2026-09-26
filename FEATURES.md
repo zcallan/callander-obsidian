@@ -16,7 +16,7 @@ Every page is kept to a comfortable reading width by default. When there's room 
 
 The dashboard is where you see everything at a glance — upcoming birthdays, the ones you missed, notes you've jotted down, what's coming up, your plans, your wishlist, recent diary entries, your groups, and any money still owed.
 
-Four quick actions sit across the top to add a friend, jot an idea, take a quick note, and open your full list of friends. There's a search bar to find someone fast, with buttons below it for the friends you've looked at most recently. Each of those buttons shows a count of the ideas you've saved for that person, so you can see at a glance who you've got something ready for and who you haven't thought about in a while.
+Four quick actions sit across the top to add a friend, jot an idea, take a quick note, and open your full list of friends. There's a search bar to find someone fast, with buttons below it for the friends you've looked at most recently; how many it offers is a setting. Each of those buttons shows a count of the ideas you've saved for that person, so you can see at a glance who you've got something ready for and who you haven't thought about in a while.
 
 Underneath is anything you've jotted down and not yet filed. The idea is that writing something down should cost you nothing in the moment — you catch the thought, and decide later whether it was a gift idea, a conversation to have, or nothing at all.
 
@@ -64,7 +64,7 @@ Then come your ideas for them, grouped by what they are — gifts, conversations
 
 Their timeline is one merged history of the two of you. Anything coming up sits at the top, including any trips they're part of, and below that it becomes a year-by-year record going back to the day you met — which is itself the first entry.
 
-The rest of the page is the character stuff. Interests are short and factual — a hobby, a drink they always order, a team they follow — kept that way so they're actually useful when you're buying a present. Fun facts is the trivia drawer. Inside jokes keep the shared reference next to the story of how it started, which is the half you always forget. Quotes holds the lines worth keeping, and there's a free-text area at the bottom for anything that doesn't fit a box.
+The rest of the page is the character stuff. Interests are short and factual — a hobby, a drink they always order, a team they follow — kept that way so they're actually useful when you're buying a present. Each type asks for what fits it: a book's author, a song's artist and genre, which restaurant does the dish, where a favourite place is. A note on what they like about it sits behind the eye button on each chip, where hovering shows it and clicking opens the interest to edit or delete. The lightbulb beside it turns the interest straight into an idea, already filed as a book to read, somewhere to go or a gift. Fun facts is the trivia drawer. Inside jokes keep the shared reference next to the story of how it started, which is the half you always forget. Quotes holds the lines worth keeping, and there's a free-text area at the bottom for anything that doesn't fit a box.
 
 Your full list of friends lives on its own page, and it shows the same people three ways. **List** is the plain roll-call: narrow it to a single group, and sort by next birthday, where in the year a birthday falls, name, who you added most recently, who you saw last, or age. **B'day Timeline** is the year ahead, month by month, with the age each person is turning. **B'day Calendar** is that same year as a month grid, one square per day. Every row and every square opens a short briefing on that person for when you're about to see them.
 
@@ -109,9 +109,9 @@ Adding someone asks for very little — a first name is enough. Everything else 
 </p>
 
 <p align="center">
-	<img alt="Interests, fun facts, inside jokes and quotes" src="examples/screenshots/person-3.png" />
+	<img alt="Interests grouped by type, each with view and idea buttons, then life goals and fun facts" src="examples/screenshots/person-3.png" />
 	<br />
-	<em>The character stuff — what they're into, and the things you don't want to forget.</em>
+	<em>What they're into, grouped by type — each with a note behind the eye and an idea one tap away.</em>
 </p>
 
 ---
@@ -120,7 +120,7 @@ Adding someone asks for very little — a first name is enough. Everything else 
 
 A group is any circle you want to keep track of — a book club, the people you hike with, family. You don't build the group; you tag the person, and the group assembles itself from whoever's in it.
 
-Each group gets a colour that shows up next to its members everywhere else, and its own page with the same ideas, timeline and notes a person has. That means an idea can belong to a whole circle rather than one individual — a bar to try with everyone, or a trip to float at the next meet-up.
+Each group gets a colour that shows up next to its members everywhere else, and its own page with the same ideas, timeline and notes a person has. That means an idea can belong to a whole circle rather than one individual — a bar to try with everyone, or a trip to float at the next meet-up. A new group can also be made on the spot from the Add friend form, without leaving it.
 
 <p align="center">
 	<img alt="A group page listing its members" src="examples/screenshots/group-1.png" />
@@ -134,7 +134,7 @@ Each group gets a colour that shows up next to its members everywhere else, and 
 
 This is the smallest thing in Callander and possibly the most useful. Type the thought, optionally say who it's about, save.
 
-It lands on the dashboard and on that person's page as something to sort later. The reason it's this bare is that deciding what a thought _is_ — a gift idea? a conversation? — is work, and work at the wrong moment means you don't write it down at all. So Callander lets you skip that decision entirely and come back to it.
+It lands on the dashboard and on that person's page as something to sort later. Underneath, every quick note is a checkbox in a `## Drafts` list in the dashboard note, with a link to the person if you named one. Marking one Done ticks it and takes it off the dashboard rather than deleting it, so the note stays a record of what you've jotted down. Turning a draft into an idea or an event leaves it in place until you tick it off yourself. The reason it's this bare is that deciding what a thought _is_ — a gift idea? a conversation? — is work, and work at the wrong moment means you don't write it down at all. So Callander lets you skip that decision entirely and come back to it.
 
 <p align="center">
 	<img alt="The quick note form" src="examples/screenshots/quick-note-1.png" />
@@ -150,13 +150,13 @@ Events are anything with a date on it, past or future — a dinner, a gig, someo
 
 The events page shows the lot, and you can flip between what's coming up, what's already happened, or everything together. Each entry shows what kind of thing it was, when, and who was there.
 
-It shows them three ways. **Timeline** groups by how soon rather than by date — This week, Next week, Later this month, then by month — which is how you actually think about what's ahead. **List** is the flat, sortable version. **Calendar** is a month grid with events in the squares; clicking an empty day starts a new event already dated. The ☰ beside the month opens a drawer to show or hide event categories and plans, and to choose how the squares draw — names wrapped or cut short, a second line or not, and names instead of emoji on a phone. Looking backwards, month headings carry their year, so August 2025 and August 2026 can't be mistaken for each other.
+It shows them three ways. **Timeline** groups by how soon rather than by date — This week, Next week, Later this month, then by month — which is how you actually think about what's ahead. **List** is the flat, sortable version. **Calendar** is a month grid with events in the squares; clicking an empty day starts a new event already dated. The ☰ beside the month opens a drawer to show or hide event categories and plans, and to choose how the squares draw — names wrapped or cut short, a second line or not, and emoji instead of names on a phone. A long list of categories folds after the first few behind "Show more". On a phone, tapping an event opens it and selects its day, so closing it leaves the rest of that day listed underneath. Looking backwards, month headings carry their year, so August 2025 and August 2026 can't be mistaken for each other.
 
 Something you cancelled stays on the list, crossed out and labelled, rather than being deleted. An evening that didn't happen is still part of the story.
 
 When you log one, you pick what sort of event it was from a row of options, and the date can be as vague as you like — a full date, just a month, or only a year, because something you remember as "sometime in 2019" shouldn't need a made-up day attached to it. You add whoever was there, and choose whether it shows up on their pages or stays private to your calendar.
 
-Events can carry **categories** — free-form labels like a team's name or "Sports" — picked from the ones already in use or added on the spot, under Additional details.
+Events can carry **categories** — free-form labels like a team's name or "Sports" — picked from the ones already in use or added on the spot, under Additional details. The Filters panel has a Category row, next to Type and Person, to narrow any tab — the list, the timeline or the calendar — down to one of them. Each category has a colour, shown as a dot on its chip and used for its events on both calendars. Switch the picker to Edit and tapping a category lets you rename it, recolour it, or delete it; deleting takes the label off every event but leaves the events themselves alone.
 
 For a whole batch at once, **Bulk event import** lives in the dashboard's Secret actions section, folded away at the bottom. Paste rows of CSV in the format it gives you to copy — a season of games is an easy thing to ask an AI to fill in — and it checks every line as you type, pointing at anything it can't read. Before anything is written, a confirmation shows how many events there are, flags names that repeat or already exist and people it can't find, and lets you put categories on every one of them. There's no bulk undo, so it asks you to be sure.
 
@@ -232,9 +232,11 @@ A plan is the big one: several days, several people, an itinerary, a packing lis
 
 Starting one asks almost nothing — a name, and a date as rough as you like, because a plan should get created the moment somebody says "we should do that", not once the details exist. A month is a perfectly good answer.
 
+The **Plans** page, opened from the dashboard's Plans section or the "Open plans" command, lists every plan you've made and works like the Events page: search, Upcoming, Past or All, Timeline or List, and filters for status and who's going. A trip counts as upcoming until its last day has passed, so one that's underway doesn't drop into the past. It shows plans you've hidden from Upcoming or the Events page too, since it's the one place meant to have them all.
+
 You add the people going, and anyone who hasn't answered yet sits separately as unconfirmed. They aren't counted in any of the costs until they say yes, so a maybe doesn't quietly change everyone's share.
 
-Everything you add that has a date on it — things to do, journeys, where you're staying — flows into a single running order for the trip, grouped by day and sorted by time. A drive shows its length, its cost and who's in the car. Dinner shows a rough price each. Where you're staying appears on the day you check in and says how long you're there, with the address and the door code right on it. Anything you haven't booked yet is flagged, so the loose ends stand out.
+Everything you add that has a date on it — things to do, journeys, where you're staying — flows into a single running order for the trip, grouped by day and sorted by time. A drive shows its length, its cost and who's in the car. Dinner shows a rough price each. Where you're staying appears on the day you check in and says how long you're there, with the address and the door code right on it. Anything you haven't booked yet is flagged, so the loose ends stand out. Loose thoughts about the trip can go in as drafts: the ones without a day sit at the top of the plan with the same Make idea, Make event, Edit and Done buttons as the dashboard's, and one given a day leads that day in the running order.
 
 Below the running order, everywhere you might stay is listed together, including the backup you haven't committed to and the date you need to decide by. There's a shared packing list that everyone can tick off, a full cost breakdown — the expenses, any credits, and who owes what, each under its own heading — and a free-text area at the bottom for booking confirmations and anything else that doesn't fit a box.
 
@@ -356,13 +358,15 @@ Most of what Callander does is meant to work without being configured. The setti
 
 **Birthday reminders on startup** puts up a notice when Obsidian opens, at most once a day, and you set how far ahead it looks.
 
+**Plugin timezone** is for the rare case of events in more than one timezone, or being somewhere else for a while and wanting times shown as if you were home. It's off by default, which means times follow your device. When it's set to a zone other than the device's, a small banner on the dashboard, the Events page and the Calendar page says which zone times are in, and can be snoozed for a day, a week, a month or for good.
+
 **Quick actions** are the icons down Obsidian's ribbon, each on its own toggle: the dashboard, the diary, the somedays and events pages, capturing an idea, and adding an event. A fresh install turns on only the dashboard, because six new icons in somebody's sidebar is a decision they should get to make rather than one they have to undo.
 
 **Files and folders** is where the data lives — the base folder holding People, Groups, Plans and Somedays, the note that opens the dashboard, and the folder diary entries are written to. Change any of them and Callander follows; the notes are ordinary Markdown wherever they sit.
 
 **Dashboard sections** is a drag-to-reorder list of everything the dashboard shows, on Obsidian 1.13 and later. If money owed is the thing you open the app for, put it at the top. A section added by a later update slots in where it ships rather than at the bottom, so a new feature doesn't arrive somewhere you'd never scroll to. On older versions the dashboard keeps the order it ships with.
 
-**Dashboard** covers the two numbers that change how much it holds: how long a birthday stays on the page after it's passed, so a forgotten one becomes a belated message rather than a lost cause, and how many somedays are listed before the rest fold into a "+N more" link.
+**Dashboard** covers the numbers that change how much it holds: how long a birthday stays on the page after it's passed, so a forgotten one becomes a belated message rather than a lost cause, how many somedays are listed before the rest fold into a "+N more" link, and how many friends are suggested under the search bar.
 
 **Friends** turns the birthday trivia on and off one piece at a time — star sign, birthstone, birth flower, Chinese zodiac — for when you want the date without the astrology.
 

@@ -1,4 +1,17 @@
-import { ALL_DAY_TIME, ANY_TIME, ROUGH_TIMES, roughTime } from "@/constants";
+import {
+	allZones,
+	commonZones,
+	deviceZoneOption,
+	zoneLabel,
+} from "@/utils/timezone";
+import {
+	ALL_DAY_TIME,
+	ANY_TIME,
+	EVENT_SPECIAL_TIMES,
+	ROUGH_TIMES,
+	roughTime,
+	specialEventTime,
+} from "@/constants";
 import {
 	formatDurationLabel,
 	formatHourLabel,
@@ -477,6 +490,8 @@ export function appendHourRangeField(
 /** An hours+minutes clock control's handle — "HH:MM", or "" when unset. */
 export interface ClockFieldHandle {
 	value: () => string;
+	/** The chosen IANA zone, or "" for a floating time. */
+	timezone: () => string;
 }
 
 /**
@@ -495,7 +510,9 @@ export interface ClockFieldHandle {
 export function appendClockField(
 	container: HTMLElement,
 	initial: string | undefined,
-	label = "Time (optional)"
+	label = "Time (optional)",
+	/** The zone the stored time belongs to; "" means it floats. */
+	initialZone = ""
 ): ClockFieldHandle {
 	container.createEl("label", { text: label });
 	const row = container.createDiv({ cls: "plan-time-selects" });
@@ -513,6 +530,19 @@ export function appendClockField(
 		attr: { "aria-label": "Hour" },
 	});
 	hourSelect.createEl("option", { value: "", text: "—" });
+	// Answers to "when?" that aren't an hour, kept together at the top and
+	// ruled off from the clock below — the same shape the rough-time
+	// picker uses, since it's the same kind of distinction.
+	const initialSpecial = specialEventTime(initial)?.id;
+	for (const special of EVENT_SPECIAL_TIMES) {
+		const opt = hourSelect.createEl("option", {
+			value: special.id,
+			text: special.label,
+		});
+		if (special.id === initialSpecial) opt.selected = true;
+	}
+	const divider = hourSelect.createEl("option", { text: "—" });
+	divider.disabled = true;
 	for (let h = 0; h < 24; h++) {
 		const opt = hourSelect.createEl("option", {
 			value: String(h),
@@ -535,9 +565,72 @@ export function appendClockField(
 		if (m === initialMinute) opt.selected = true;
 	}
 
+	/**
+	 * Which zone the clock reading belongs to. The default — "Local" —
+	 * means it doesn't belong to one: 7pm is 7pm wherever the event is,
+	 * and nothing converts it. That's what every event has always meant,
+	 * so it stays the default and the other options are opt-in.
+	 */
+	const zoneSelect = row.createEl("select", {
+		cls: "quick-idea-input plan-time-select plan-time-zone",
+		attr: { "aria-label": "Timezone" },
+	});
+	zoneSelect.createEl("option", { value: "", text: "Local" });
+	const rule = () => {
+		zoneSelect.createEl("option", { text: "—" }).disabled = true;
+	};
+	// Ruled off the way the hours are from "Anytime": "Local" isn't a
+	// zone, it's the absence of one.
+	rule();
+	const known = new Set<string>();
+	const addZone = (zone: { id: string; label: string }) => {
+		known.add(zone.id);
+		zoneSelect.createEl("option", { value: zone.id, text: zone.label });
+	};
+	for (const zone of commonZones()) addZone(zone);
+	// Your own zone by its own name, when the short list doesn't already
+	// carry it and the grouped list below would only offer its neighbour.
+	const own = deviceZoneOption();
+	if (own) addZone(own);
+	// Then everything else, ordered by offset — the short list stays one
+	// scroll away, without anyone in Madrid being stuck with it.
+	const rest = allZones();
+	if (rest.length > 0) {
+		rule();
+		for (const zone of rest) addZone(zone);
+	}
+	// A zone from a hand-edited note that Intl has never heard of still
+	// has to be selectable, or saving the form would quietly drop it.
+	if (initialZone && !known.has(initialZone)) {
+		rule();
+		addZone({ id: initialZone, label: zoneLabel(initialZone) });
+	}
+	// Set once, rather than marking options as they're made: a curated
+	// zone appears twice (by name above, by offset below) and this picks
+	// the first, which is the one with the friendlier label.
+	zoneSelect.value = initialZone;
+
+	// No minutes to pick for "Anytime" or "TBD" — and no zone either, since
+	// there's no clock reading for one to apply to. Same for no time at
+	// all, which is how it already behaved, just without saying so.
+	const syncTime = () => {
+		const hasClock =
+			hourSelect.value !== "" && !specialEventTime(hourSelect.value);
+		minuteSelect.toggleClass("is-hidden", !hasClock);
+		zoneSelect.toggleClass("is-hidden", !hasClock);
+	};
+	hourSelect.addEventListener("change", syncTime);
+	syncTime();
+
+	const hasClock = () =>
+		hourSelect.value !== "" && !specialEventTime(hourSelect.value);
+
 	return {
 		value: () => {
 			if (hourSelect.value === "") return "";
+			// Stored as the id, so it survives a round trip through the
+			// vault and reads back as the same option.
+			if (specialEventTime(hourSelect.value)) return hourSelect.value;
 			const hour = Number(hourSelect.value);
 			const minute = Number(minuteSelect.value);
 			return `${String(hour).padStart(2, "0")}:${String(minute).padStart(
@@ -545,5 +638,9 @@ export function appendClockField(
 				"0"
 			)}`;
 		},
+		// Only meaningful with a clock reading to attach it to — a zone
+		// left over from before the time was cleared would otherwise be
+		// written against an "Anytime".
+		timezone: () => (hasClock() ? zoneSelect.value : ""),
 	};
 }

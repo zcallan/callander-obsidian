@@ -3,6 +3,10 @@ import {
 	shownByCategory,
 	setCategoryShown,
 	categoryShown,
+	categoriesIn,
+	filterableCategories,
+	hasCategory,
+	visibleCategoryCount,
 } from "./.build/callander.mjs";
 
 /** The calendars' category filter: what shows, and how a tick is stored. */
@@ -29,6 +33,64 @@ export function run() {
 	eq("unticking twice doesn't list it twice", setCategoryShown(["Patriots"], "patriots", false), ["patriots"]);
 	eq("a category nobody unticked is ticked", categoryShown(["Sox"], "Patriots"), true);
 	eq("…and an unticked one isn't", categoryShown(["Sox"], "sox"), false);
+
+	// ---------- the Filters panel's Category row ----------
+	eq("an event has a category it's filed under", hasCategory(["Patriots", "NFL"], "NFL"), true);
+	eq("...compared without case", hasCategory(["Patriots"], "patriots"), true);
+	eq("...and not one it isn't", hasCategory(["Patriots"], "Sox"), false);
+	eq("an event with none matches nothing", hasCategory([], "Patriots"), false);
+	eq(
+		"the roster is each category once, alphabetised",
+		categoriesIn([["Sox", "Patriots"], ["Bruins"], []]),
+		["Bruins", "Patriots", "Sox"]
+	);
+	eq(
+		"...merging case, under the first spelling seen",
+		categoriesIn([["Patriots"], ["patriots", "PATRIOTS"]]),
+		["Patriots"]
+	);
+	eq("no events, no categories", categoriesIn([]), []);
+
+	// A category unticked in the drawer isn't offered to filter by.
+	const lists = [["Patriots", "NFL"], ["Sox"], []];
+	eq(
+		"nothing hidden leaves every category on offer",
+		filterableCategories(lists, []),
+		["NFL", "Patriots", "Sox"]
+	);
+	eq(
+		"a hidden category drops out of the row",
+		filterableCategories(lists, ["Sox"]),
+		["NFL", "Patriots"]
+	);
+	eq(
+		"...whatever its case",
+		filterableCategories(lists, ["patriots"]),
+		["NFL", "Sox"]
+	);
+	eq(
+		"...several at once",
+		filterableCategories(lists, ["Sox", "NFL"]),
+		["Patriots"]
+	);
+	eq(
+		"ticking it back on restores it",
+		filterableCategories(lists, setCategoryShown(["Sox"], "Sox", true)),
+		["NFL", "Patriots", "Sox"]
+	);
+	eq(
+		"everything hidden leaves no row at all",
+		filterableCategories(lists, ["Patriots", "NFL", "Sox"]),
+		[]
+	);
+
+	// ---------- folding a long drawer list behind "Show N more" ----------
+	eq("five or fewer all show", visibleCategoryCount(5), 5);
+	eq("…and so does one", visibleCategoryCount(1), 1);
+	eq("six shows four, leaving two behind the disclosure", visibleCategoryCount(6), 4);
+	eq("seven shows five, leaving two", visibleCategoryCount(7), 5);
+	eq("many shows five", visibleCategoryCount(20), 5);
+	eq("nothing to show, nothing shown", visibleCategoryCount(0), 0);
 
 	return result();
 }
