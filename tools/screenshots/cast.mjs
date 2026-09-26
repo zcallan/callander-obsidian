@@ -38,7 +38,10 @@ export const PEOPLE = [
 		shortName: "Eric",
 		nicknames: ["Eric"],
 		year: 1958,
-		bd: 2,
+		// Past the 30-day upcoming-birthdays horizon, so the dashboard shows
+		// only Haruki's and Sally's — a third row here was one more than the
+		// screenshot needed.
+		bd: 45,
 		met: -1580,
 		relationship: "friend",
 		groups: ["book club", "writers' room"],
@@ -69,7 +72,6 @@ export const PEOPLE = [
 			{ text: "Rule Eleven", context: "There are eleven rules for tea and he checks you on all of them" },
 		],
 		quotes: [{ text: "Good prose is like a windowpane.", context: "Over the third pot of tea" }],
-		drafts: [{ text: "He mentioned wanting to show me the allotment on the next visit", created: -3 }],
 		notes: "Writes in the mornings, gardens in the afternoons, so evenings are the safe time to call.",
 	},
 	{

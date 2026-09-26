@@ -2484,6 +2484,29 @@ body.callander-kb-open .callander-modal-buttons {
 	flex-shrink: 0;
 }
 
+/* View person, Make idea and Add event: icon plus label on desktop, an
+   ordinary text row action. Their icon matches Edit's size so the row
+   reads as one family rather than two icon sizes side by side. */
+.dashboard-draft-actions .dashboard-draft-action-adaptive svg {
+	width: 15px;
+	height: 15px;
+	flex-shrink: 0;
+}
+
+/* On mobile, four-plus text buttons don't fit a row without wrapping
+   awkwardly under the draft's text — so the label collapses and the
+   button shrinks to the same icon-only shape as Edit above. */
+.is-mobile .dashboard-draft-actions .dashboard-draft-action-label {
+	display: none;
+}
+
+.is-mobile .dashboard-draft-actions .dashboard-draft-action-adaptive {
+	width: auto;
+	height: auto;
+	align-self: stretch;
+	padding: 2px 8.5px;
+}
+
 .is-phone .dashboard-draft-actions {
 	width: 100%;
 }
@@ -2759,7 +2782,7 @@ body.callander-kb-open .callander-modal-buttons {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
-	padding: 6px 8px 6px 16px;
+	padding: 4px 5px 4px 12px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 999px;
 	background: var(--background-secondary);
@@ -2812,8 +2835,9 @@ body.callander-kb-open .callander-modal-buttons {
 	text-decoration: line-through;
 }
 
-/* View (eye) and Make idea (lightbulb), round and quiet at the chip's end.
-   The first one sits a little further from the text than from its twin. */
+/* Edit (pencil) and Make idea (lightbulb), round at the chip's end. They
+   take Obsidian's own button fill rather than the page background, which
+   sits darker than the chip in dark themes and read as a hole in it. */
 .contact-interest-chip-action {
 	display: inline-flex;
 	align-items: center;
@@ -2821,28 +2845,102 @@ body.callander-kb-open .callander-modal-buttons {
 	flex-shrink: 0;
 	width: 24px;
 	height: 24px;
+	min-height: 0;
 	padding: 0;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 50%;
-	background: var(--background-primary);
+	background: var(--interactive-normal);
 	box-shadow: none;
 	color: var(--text-muted);
+	line-height: 0;
 	cursor: pointer;
-}
-
-.contact-interest-chip-detail + .contact-interest-chip-action,
-.contact-interest-chip > span + .contact-interest-chip-action {
-	margin-left: 6px;
 }
 
 .contact-interest-chip-action:hover {
 	color: var(--text-normal);
-	background: var(--background-modifier-hover);
+	background: var(--interactive-hover);
+	border-color: var(--background-modifier-border-hover);
 }
 
-.contact-interest-chip-action svg {
+.contact-interest-chip-action:focus-visible {
+	outline: none;
+	color: var(--text-normal);
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+/* Says a note exists; hovering shows it at once. Not a button — there's
+   nothing to do with it but read. */
+.contact-interest-chip-note {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 20px;
+	height: 24px;
+	color: var(--color-purple);
+	line-height: 0;
+	cursor: default;
+}
+
+/* The note itself: screen-reader text at rest, drawn as a tooltip above
+   the marker on hover. Values match Obsidian's own .tooltip, which can't be
+   used here because its hover delay is fixed at about a second. */
+.contact-interest-chip-note-tip {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.contact-interest-chip-note:hover .contact-interest-chip-note-tip {
+	bottom: calc(100% + 6px);
+	left: 50%;
+	z-index: var(--layer-tooltip);
+	width: max-content;
+	max-width: 240px;
+	height: auto;
+	padding: 4px 8px;
+	overflow: visible;
+	clip-path: none;
+	transform: translateX(-50%);
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-message);
+	box-shadow: var(--shadow-s);
+	color: var(--text-on-accent);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.3;
+	text-align: center;
+	white-space: normal;
+	pointer-events: none;
+}
+
+/* The first thing after the text sits a little further from it than the
+   trailing icons do from each other. */
+.contact-interest-chip > span:not(.contact-interest-chip-note) + :is(.contact-interest-chip-note, .contact-interest-chip-action) {
+	margin-left: 6px;
+}
+
+/* The Icon wrapper is an inline span, whose line box adds descender room
+   under the svg and nudges it off-centre — most visibly on mobile, where
+   the base font is larger. Flex it so the svg is the only thing measured. */
+.contact-interest-chip-action > span,
+.contact-interest-chip-note > span {
+	display: flex;
+}
+
+.contact-interest-chip-action svg,
+.contact-interest-chip-note svg {
+	display: block;
 	width: 13px;
 	height: 13px;
+}
+
+/* A clear break between the last chips and Add interest. */
+.contact-interests-section .contact-section-footer {
+	margin-top: 16px;
 }
 
 .expense-field {
@@ -5448,6 +5546,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	background: none;
 	box-shadow: none;
 	color: var(--text-muted);
+	flex-shrink: 0;
 	cursor: pointer;
 	font-size: 0.85em;
 }
@@ -6501,16 +6600,33 @@ body.is-mobile.callander-kb-open .modal-content > * {
    doesn't compete with the real chips, purple (the accent, matched exactly
    rather than approximated) once it's on, which is also what a click on a
    chip now does while it's active. */
+/* A round pencil the height of "+ Add". Obsidian sizes every button to
+   --input-height (taller on mobile), so the same token as the width makes
+   a circle that tracks it on both. */
 .quick-idea-cat-edit-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	box-sizing: border-box;
+	width: var(--input-height);
+	height: var(--input-height);
+	min-height: 0;
+	padding: 0;
 	border: 1px solid var(--background-modifier-border);
-	border-radius: 999px;
-	padding: 4px 12px;
-	font-size: 0.85em;
+	border-radius: 50%;
 	background: none;
+	box-shadow: none;
 	color: var(--text-muted);
 	cursor: pointer;
 	-webkit-appearance: none;
 	appearance: none;
+}
+
+.quick-idea-cat-edit-toggle svg {
+	display: block;
+	width: 13px;
+	height: 13px;
 }
 
 .quick-idea-cat-edit-toggle:hover {

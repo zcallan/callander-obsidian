@@ -4,6 +4,28 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
+## 1.10.3 — 2026-09-26
+
+### Interests
+
+- The eye button is now a pencil, labelled Edit. A note gets its own purple icon beside it, showing the note straight away on hover instead of after the usual second-long wait.
+- Chips are a touch more compact, and their two round buttons are a shade lighter so they read against the chip rather than blending into it, with hover and focus states of their own. Icons sit centred in the button on a phone as well as on desktop.
+- Subheadings are now plural — Drinks, Books, Places — matching how Ideas already reads.
+- A bit more air between the last chip and "Add interest".
+
+### Events and calendars
+
+- Turning on Edit beside a category's "+ Add" is now a round pencil, the same height as "+ Add", rather than text.
+
+### Dashboard
+
+- A draft's View person, Make idea and Add event buttons get an icon — person, lightbulb, calendar — alongside their label. On a phone the label drops and they shrink to icon-only, so four buttons still fit a row without crowding the draft's text.
+- Add friend's placeholders are clearer about what each field is for: the name field, what you usually call them, and the short name used in lists.
+
+### Fixes
+
+- Editing an idea no longer autofocuses its text field and pulls up the keyboard — only adding a new one does, matching every other edit modal.
+
 ## 1.10.2 — 2026-09-26
 
 ### Plans

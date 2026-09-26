@@ -3,7 +3,7 @@ name: George Orwell
 shortName: Eric
 nicknames:
   - Eric
-birthday: 1958-09-28
+birthday: 1958-11-10
 met: 2022-05-30
 relationship: friend
 groups:

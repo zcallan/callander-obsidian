@@ -117,6 +117,8 @@ export type IdeaCategory = (typeof IDEA_CATEGORIES)[number]["id"];
 // to ask), and a Notes placeholder written as what *they* like about it or
 // how they have it, never a recommendation to them.
 //
+// `plural` heads the group on the friend page ("Books"), matching Ideas.
+//
 // `ideaCategory` is where the chip's lightbulb files an idea made from it:
 // a book is a book to read, a place somewhere to go, a team more often a gift.
 export const INTEREST_CATEGORIES = [
@@ -124,6 +126,7 @@ export const INTEREST_CATEGORIES = [
 		id: "hobbies",
 		ideaCategory: "activity",
 		label: "Hobby",
+		plural: "Hobbies",
 		emoji: "🎨",
 		namePlaceholder: "e.g. Rock climbing",
 		notesPlaceholder: "e.g. Mostly bouldering; wants to try climbing outdoors",
@@ -132,6 +135,7 @@ export const INTEREST_CATEGORIES = [
 		id: "books",
 		ideaCategory: "book",
 		label: "Book",
+		plural: "Books",
 		emoji: "📚",
 		namePlaceholder: "e.g. East of Eden",
 		detailLabel: "Author",
@@ -142,6 +146,7 @@ export const INTEREST_CATEGORIES = [
 		id: "music",
 		ideaCategory: "music",
 		label: "Music",
+		plural: "Music",
 		emoji: "🎵",
 		namePlaceholder: "e.g. Stick Season",
 		detailLabel: "Artist",
@@ -154,6 +159,7 @@ export const INTEREST_CATEGORIES = [
 		id: "movie",
 		ideaCategory: "movie",
 		label: "Movie",
+		plural: "Movies",
 		emoji: "🎬",
 		namePlaceholder: "e.g. The Dark Knight",
 		notesPlaceholder: "e.g. Quotes it constantly, Christian Bale is their favourite Batman",
@@ -162,6 +168,7 @@ export const INTEREST_CATEGORIES = [
 		id: "tv",
 		ideaCategory: "show",
 		label: "TV Show",
+		plural: "TV Shows",
 		emoji: "📺",
 		namePlaceholder: "e.g. The Bear",
 		notesPlaceholder: "e.g. Loves the Christmas special episode",
@@ -170,6 +177,7 @@ export const INTEREST_CATEGORIES = [
 		id: "games",
 		ideaCategory: "gift",
 		label: "Game",
+		plural: "Games",
 		emoji: "🎮",
 		namePlaceholder: "e.g. Stardew Valley",
 		detailLabel: "Platform",
@@ -180,6 +188,7 @@ export const INTEREST_CATEGORIES = [
 		id: "sports",
 		ideaCategory: "activity",
 		label: "Sport",
+		plural: "Sports",
 		emoji: "⚽",
 		namePlaceholder: "e.g. Basketball",
 		notesPlaceholder: "e.g. Plays every Tuesday night, team named \"Run n' Dunk\"",
@@ -188,6 +197,7 @@ export const INTEREST_CATEGORIES = [
 		id: "teams",
 		ideaCategory: "gift",
 		label: "Team",
+		plural: "Teams",
 		emoji: "🏟️",
 		namePlaceholder: "e.g. Boston Celtics",
 		detailLabel: "Sport/league",
@@ -198,6 +208,7 @@ export const INTEREST_CATEGORIES = [
 		id: "foods",
 		ideaCategory: "place",
 		label: "Food",
+		plural: "Foods",
 		emoji: "🍔",
 		namePlaceholder: "e.g. Spicy miso ramen",
 		detailLabel: "Restaurant",
@@ -208,6 +219,7 @@ export const INTEREST_CATEGORIES = [
 		id: "drinks",
 		ideaCategory: "gift",
 		label: "Drink",
+		plural: "Drinks",
 		emoji: "🍹",
 		namePlaceholder: "e.g. Martini",
 		notesPlaceholder: "e.g. Shaken, not stirred",
@@ -216,6 +228,7 @@ export const INTEREST_CATEGORIES = [
 		id: "places",
 		ideaCategory: "place",
 		label: "Place",
+		plural: "Places",
 		emoji: "📍",
 		namePlaceholder: "e.g. The Avenue",
 		detailLabel: "Location",
@@ -226,6 +239,7 @@ export const INTEREST_CATEGORIES = [
 		id: "other",
 		ideaCategory: "gift",
 		label: "Other",
+		plural: "Other",
 		emoji: "✨",
 		namePlaceholder: "e.g. Vintage cameras",
 		notesPlaceholder: "e.g. Loves Leica and Fujifilm the best",

@@ -37,5 +37,4 @@ expenses:
 ---
 ## Drafts
 
-- [ ] He mentioned wanting to show me the allotment on the next visit [[George Orwell]] ➕ 2026-09-23
 - [ ] Haruki mentioned a record fair in the fall — ask where ➕ 2026-09-25

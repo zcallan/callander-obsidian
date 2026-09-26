@@ -64,7 +64,7 @@ Then come your ideas for them, grouped by what they are — gifts, conversations
 
 Their timeline is one merged history of the two of you. Anything coming up sits at the top, including any trips they're part of, and below that it becomes a year-by-year record going back to the day you met — which is itself the first entry.
 
-The rest of the page is the character stuff. Interests are short and factual — a hobby, a drink they always order, a team they follow — kept that way so they're actually useful when you're buying a present. Each type asks for what fits it: a book's author, a song's artist and genre, which restaurant does the dish, where a favourite place is. A note on what they like about it sits behind the eye button on each chip, where hovering shows it and clicking opens the interest to edit or delete. The lightbulb beside it turns the interest straight into an idea, already filed as a book to read, somewhere to go or a gift. Fun facts is the trivia drawer. Inside jokes keep the shared reference next to the story of how it started, which is the half you always forget. Quotes holds the lines worth keeping, and there's a free-text area at the bottom for anything that doesn't fit a box.
+The rest of the page is the character stuff. Interests are short and factual — a hobby, a drink they always order, a team they follow — kept that way so they're actually useful when you're buying a present. Each type asks for what fits it: a book's author, a song's artist and genre, which restaurant does the dish, where a favourite place is. A purple note icon on a chip means there's a note on what they like about it, and hovering it shows the note. The pencil opens the interest to edit or delete, and the lightbulb beside it turns the interest straight into an idea, already filed as a book to read, somewhere to go or a gift. Fun facts is the trivia drawer. Inside jokes keep the shared reference next to the story of how it started, which is the half you always forget. Quotes holds the lines worth keeping, and there's a free-text area at the bottom for anything that doesn't fit a box.
 
 Your full list of friends lives on its own page, and it shows the same people three ways. **List** is the plain roll-call: narrow it to a single group, and sort by next birthday, where in the year a birthday falls, name, who you added most recently, who you saw last, or age. **B'day Timeline** is the year ahead, month by month, with the age each person is turning. **B'day Calendar** is that same year as a month grid, one square per day. Every row and every square opens a short briefing on that person for when you're about to see them.
 
@@ -109,9 +109,9 @@ Adding someone asks for very little — a first name is enough. Everything else 
 </p>
 
 <p align="center">
-	<img alt="Interests grouped by type, each with view and idea buttons, then life goals and fun facts" src="examples/screenshots/person-3.png" />
+	<img alt="Interests grouped by type, each with edit and idea buttons, then life goals and fun facts" src="examples/screenshots/person-3.png" />
 	<br />
-	<em>What they're into, grouped by type — each with a note behind the eye and an idea one tap away.</em>
+	<em>What they're into, grouped by type — each with its note on hover and an idea one tap away.</em>
 </p>
 
 ---

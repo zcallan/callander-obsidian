@@ -135,7 +135,9 @@ export class QuickIdeaModal extends FormModal {
 				categoryButtons.forEach((el, id) =>
 					el.toggleClass("selected", id === cat.id)
 				);
-				textInput.focus();
+				// Editing opens unfocused, so don't pull the keyboard up
+				// just for re-filing the idea.
+				if (!this.onDelete) textInput.focus();
 			});
 			categoryButtons.set(cat.id, button);
 		});
@@ -208,7 +210,10 @@ export class QuickIdeaModal extends FormModal {
 			}
 		});
 
-		window.setTimeout(() => textInput.focus(), 0);
+		// A new idea wants typing straight away; an edit is as likely to be
+		// a category change, so it opens unfocused (onDelete marks an edit).
+		if (this.onDelete) this.blurInitialFocus();
+		else window.setTimeout(() => textInput.focus(), 0);
 	}
 
 	onClose() {

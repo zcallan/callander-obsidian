@@ -106,6 +106,11 @@ function buildVault(vaultDir) {
 				ribbonSomedays: true,
 				ribbonEvents: true,
 				ribbonReminder: true,
+				// A fresh vault always starts this checklist unfinished, and
+				// it would dominate every dashboard shot with a section none
+				// of them are about. Off for the whole run rather than
+				// per-shot, so no dashboard frame ever shows it.
+				showGettingStarted: false,
 			},
 			null,
 			2

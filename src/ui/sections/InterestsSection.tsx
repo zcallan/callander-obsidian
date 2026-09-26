@@ -17,7 +17,7 @@ export function InterestsSection({
 	store,
 	interests,
 	categoryOf,
-	onView,
+	onEdit,
 	onMakeIdea,
 	onAdd,
 }: {
@@ -25,7 +25,7 @@ export function InterestsSection({
 	interests: () => Interest[];
 	categoryOf: (interest: Interest) => string;
 	/** Opens the interest in its edit modal, where Delete lives too. */
-	onView: (index: number) => void;
+	onEdit: (index: number) => void;
 	onMakeIdea: (index: number) => void;
 	onAdd: () => void;
 }) {
@@ -50,7 +50,7 @@ export function InterestsSection({
 				return (
 					<div className="contact-idea-group" key={cat.id}>
 						<div className="contact-idea-group-header">
-							{`${cat.emoji} ${cat.label}`}
+							{`${cat.emoji} ${cat.plural}`}
 						</div>
 						<div className="contact-interest-chips">
 							{items.map(({ interest, index }) => (
@@ -69,16 +69,31 @@ export function InterestsSection({
 												{` · ${value}`}
 											</span>
 										))}
-									{/* The note isn't shown on the chip — it rides on the
-									    View button's hover tooltip instead, so a chip
-									    stays one line however much was written. */}
+									{/* The note isn't shown on the chip — a marker says one
+									    exists and shows it on hover, so a chip stays one
+									    line however much was written. */}
+									{interest.notes && (
+										<span
+											className="contact-interest-chip-note"
+										>
+											<Icon name="document" />
+											{/* Not an aria-label: Obsidian's tooltip for
+											    those waits about a second, and the note should
+											    show on hover straight away. CSS draws this as
+											    the tooltip on hover and keeps it screen-reader
+											    text the rest of the time. */}
+											<span className="contact-interest-chip-note-tip">
+												{interest.notes}
+											</span>
+										</span>
+									)}
 									<button
 										className="contact-interest-chip-action"
-										aria-label={interest.notes || "View"}
+										aria-label="Edit"
 										data-tooltip-position="top"
-										onClick={() => onView(index)}
+										onClick={() => onEdit(index)}
 									>
-										<Icon name="eye" />
+										<Icon name="pencil" />
 									</button>
 									<button
 										className="contact-interest-chip-action"

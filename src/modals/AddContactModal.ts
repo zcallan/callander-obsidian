@@ -12,7 +12,10 @@ import { ContactOperations } from "@/services/ContactOperations";
 import { GroupModal } from "@/modals/GroupModal";
 
 export class AddContactModal extends FormModal {
-	constructor(app: App, private plugin: FriendTracker) {
+	constructor(
+		app: App,
+		private plugin: FriendTracker,
+	) {
 		super(app);
 	}
 
@@ -33,7 +36,7 @@ export class AddContactModal extends FormModal {
 				type: "text",
 				name: "name",
 				required: true,
-				placeholder: "A first name is enough",
+				placeholder: "Their full name ideally, but anything works",
 			},
 			cls: "callander-modal-input",
 		});
@@ -48,7 +51,7 @@ export class AddContactModal extends FormModal {
 			attr: {
 				type: "text",
 				name: "displayName",
-				placeholder: "What you call them, e.g. Mum",
+				placeholder: "What you usually call them by, e.g. Mum",
 			},
 			cls: "callander-modal-input",
 		});
@@ -64,7 +67,7 @@ export class AddContactModal extends FormModal {
 			attr: {
 				type: "text",
 				name: "shortName",
-				placeholder: "For shortened names, e.g. Obama",
+				placeholder: "Used in lists to save space, e.g. 'Callan' -> 'Cal'",
 			},
 			cls: "callander-modal-input",
 		});
@@ -81,7 +84,7 @@ export class AddContactModal extends FormModal {
 			(value) => {
 				birthdayValue = value;
 			},
-			{ inputClass: "callander-modal-input" }
+			{ inputClass: "callander-modal-input" },
 		);
 
 		// When you met (as precisely as you remember)
@@ -96,7 +99,7 @@ export class AddContactModal extends FormModal {
 			(value) => {
 				metValue = value;
 			},
-			{ inputClass: "callander-modal-input" }
+			{ inputClass: "callander-modal-input" },
 		);
 
 		// Relationship field
@@ -106,7 +109,7 @@ export class AddContactModal extends FormModal {
 		relationshipField.createEl("label", { text: "Relationship" });
 		const relationshipInput = createRelationshipInput(
 			relationshipField,
-			this.plugin
+			this.plugin,
 		);
 
 		// Groups: toggle chips of known groups + a quick new-group input
@@ -156,11 +159,14 @@ export class AddContactModal extends FormModal {
 		addGroupChip.addEventListener("click", () => {
 			new GroupModal(this.app, this.plugin, null, async (name) => {
 				if (!name) return;
-				const created = ops.getGroupInfos().find((i) => i.name === name);
+				const created = ops
+					.getGroupInfos()
+					.find((i) => i.name === name);
 				colorOf.set(name, created?.color ?? "");
 				displayOf.set(
 					name,
-					ops.groupDisplayNames().get(name) ?? ops.prettyGroupName(name)
+					ops.groupDisplayNames().get(name) ??
+						ops.prettyGroupName(name),
 				);
 				member.add(name);
 				const chip = addChip(name);
@@ -198,7 +204,7 @@ export class AddContactModal extends FormModal {
 				data.groups = [...member]
 					.sort()
 					.map((g) =>
-						ContactOperations.groupLink(g, displayOf.get(g))
+						ContactOperations.groupLink(g, displayOf.get(g)),
 					);
 			}
 			if (relationshipInput.value) {
@@ -207,15 +213,15 @@ export class AddContactModal extends FormModal {
 				// Add new relationship type to settings if it doesn't exist
 				if (
 					!this.plugin.settings.relationshipTypes.includes(
-						relationship
+						relationship,
 					)
 				) {
 					// Remove any duplicates (case-insensitive) before adding
 					this.plugin.settings.relationshipTypes = [
 						...new Set(
 							this.plugin.settings.relationshipTypes.filter(
-								(type) => type.toLowerCase() !== relationship
-							)
+								(type) => type.toLowerCase() !== relationship,
+							),
 						),
 						relationship,
 					];
@@ -252,7 +258,7 @@ export class AddContactModal extends FormModal {
 
 			// Refresh the Friend Tracker view
 			const friendTrackerLeaves = this.app.workspace.getLeavesOfType(
-				VIEW_TYPE_FRIEND_TRACKER
+				VIEW_TYPE_FRIEND_TRACKER,
 			);
 
 			for (const leaf of friendTrackerLeaves) {

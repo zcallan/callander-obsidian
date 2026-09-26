@@ -661,23 +661,43 @@ export class DashboardView extends ItemView {
 		}
 
 		const actions = main.createDiv({ cls: "dashboard-draft-actions" });
+		// Icon plus label on desktop, where there's room; icon only on
+		// mobile, where four-plus buttons a row need to fit — the label
+		// collapses via .dashboard-draft-action-label under .is-mobile,
+		// same breakpoint the rest of the app uses. Edit (below) skips this;
+		// it's icon-only everywhere already.
 		if (item.contact) {
 			const file = item.contact.file;
 			const viewButton = actions.createEl("button", {
-				cls: "callander-button dashboard-row-action",
+				cls: "callander-button dashboard-row-action dashboard-draft-action-adaptive",
+				attr: { "aria-label": "View person", "data-tooltip-position": "top" },
+			});
+			setIcon(viewButton, "user");
+			viewButton.createSpan({
+				cls: "dashboard-draft-action-label",
 				text: "View person",
 			});
 			viewButton.addEventListener("click", () => void this.openContact(file));
 		}
 		const ideaButton = actions.createEl("button", {
-			cls: "callander-button dashboard-row-action",
+			cls: "callander-button dashboard-row-action dashboard-draft-action-adaptive",
+			attr: { "aria-label": "Make idea", "data-tooltip-position": "top" },
+		});
+		setIcon(ideaButton, "lightbulb");
+		ideaButton.createSpan({
+			cls: "dashboard-draft-action-label",
 			text: "Make idea",
 		});
 		ideaButton.addEventListener("click", () =>
 			this.categorizeDraft(item.draft, item.contact)
 		);
 		const eventButton = actions.createEl("button", {
-			cls: "callander-button dashboard-row-action",
+			cls: "callander-button dashboard-row-action dashboard-draft-action-adaptive",
+			attr: { "aria-label": "Add event", "data-tooltip-position": "top" },
+		});
+		setIcon(eventButton, "calendar-plus");
+		eventButton.createSpan({
+			cls: "dashboard-draft-action-label",
 			text: "Add event",
 		});
 		eventButton.addEventListener("click", () =>
@@ -686,7 +706,7 @@ export class DashboardView extends ItemView {
 
 		const editButton = actions.createEl("button", {
 			cls: "callander-button button-icon dashboard-row-action",
-			attr: { "aria-label": "Edit draft" },
+			attr: { "aria-label": "Edit draft", "data-tooltip-position": "top" },
 		});
 		setIcon(editButton, "pencil");
 		editButton.addEventListener("click", () => {

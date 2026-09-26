@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, setIcon } from "obsidian";
 import { AddCategoryModal } from "@/modals/AddCategoryModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 
@@ -152,9 +152,13 @@ export function renderCategoryChips(
 	// this each time would forget whether Edit was on.
 	const editToggle = field.createEl("button", {
 		cls: "quick-idea-cat-edit-toggle",
-		text: "Edit",
-		attr: { type: "button" },
+		attr: {
+			type: "button",
+			"aria-label": "Edit categories",
+			"data-tooltip-position": "top",
+		},
 	});
+	setIcon(editToggle, "pencil");
 	editToggle.toggleClass("is-hidden", !options.editing);
 
 	const toggle = (cat: string) => {

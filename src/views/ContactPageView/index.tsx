@@ -1335,7 +1335,7 @@ export class ContactPageView extends ItemView {
 						categoryOf={(interest) =>
 							this.normalizeInterestCategory(interest)
 						}
-						onView={(index) => this.openEditInterestModal(index)}
+						onEdit={(index) => this.openEditInterestModal(index)}
 						onMakeIdea={(index) => this.makeIdeaFromInterest(index)}
 						onAdd={() => this.openAddInterestModal()}
 					/>
