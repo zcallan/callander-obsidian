@@ -88,6 +88,20 @@ Everything you'd want in front of you before you saw someone. A first name is al
 	<em>What's coming up, then the record going back to the day you met.</em>
 </p>
 
+### 📅 Calendar page
+
+Events, plans and birthdays together on one calendar, a month or a week at a time.
+
+**Everything together.** A multi-day plan draws as one bar across its dates rather than repeating on each day, and a birthday shows as a cake with the age they're turning. Clicking an empty day starts a new event already dated; clicking anything on it opens a short briefing instead.
+
+**The drawer.** Tick Events, Plans or Birthdays off individually, fold a long category list away, and choose how the grid draws and colours itself — by category, event type, or group.
+
+<p align="center">
+	<img alt="The calendar page showing a month of events, plans and birthdays" src="examples/screenshots/calendar-1.png" />
+	<br />
+	<em>Events, plans and birthdays together — a multi-day plan draws as one bar across its dates.</em>
+</p>
+
 ### 🗺️ Plan page
 
 For the bigger things — a weekend away, several people, real money.

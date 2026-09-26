@@ -10,6 +10,8 @@ export interface UpcomingRowOpts {
 	relative: string;
 	/** Emphasis for the relative text (right-hand side) */
 	tone?: RowTone;
+	/** Emphasis for the date/when line (top-left) — a birthday that's today */
+	whenTone?: RowTone;
 	/** Emphasis for the suffix — rows whose timing lives there */
 	suffixTone?: RowTone;
 	/** Called off: the name is struck and the suffix reads "Cancelled". */
@@ -21,6 +23,8 @@ export interface UpcomingRowOpts {
 		label: string;
 		ariaLabel: string;
 		onClick: (e: MouseEvent) => void;
+		/** Filled accent style — a birthday due today, not Missed's muted one */
+		accent?: boolean;
 	};
 }
 
@@ -47,7 +51,12 @@ export function buildUpcomingRow(
 		// doesn't open its line on a stray separator.
 		const when = [opts.date, opts.time].filter(Boolean).join(" · ");
 		mainCol.createDiv({
-			cls: "dashboard-upcoming-when",
+			cls: [
+				"dashboard-upcoming-when",
+				opts.whenTone ? `dashboard-rel-${opts.whenTone}` : "",
+			]
+				.filter(Boolean)
+				.join(" "),
 			text: [opts.icon, when].filter(Boolean).join(" "),
 		});
 	}
@@ -70,7 +79,13 @@ export function buildUpcomingRow(
 	}
 	if (opts.action) {
 		const button = row.createEl("button", {
-			cls: "callander-button dashboard-row-action",
+			cls: [
+				"callander-button",
+				"dashboard-row-action",
+				opts.action.accent ? "button-primary" : "",
+			]
+				.filter(Boolean)
+				.join(" "),
 			attr: { "aria-label": opts.action.ariaLabel },
 		});
 		setIcon(button, opts.action.icon);

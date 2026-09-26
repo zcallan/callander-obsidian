@@ -1214,7 +1214,14 @@ export class DashboardView extends ItemView {
 			.filter(
 				(c) =>
 					c.daysUntilBirthday !== null &&
-					c.daysUntilBirthday <= HORIZON
+					c.daysUntilBirthday <= HORIZON &&
+					// A same-day birthday ticked Done drops out for the rest
+					// of today, exactly like a missed one — but the mark is
+					// this year's date, so next year's birthday isn't done.
+					!(
+						c.daysUntilBirthday === 0 &&
+						c.birthdayWished === this.lastOccurrenceDate(0)
+					)
 			)
 			.sort((a, b) => a.daysUntilBirthday! - b.daysUntilBirthday!);
 
@@ -1268,28 +1275,55 @@ export class DashboardView extends ItemView {
 			const giftCount = c.ideas.filter(
 				(i) => !i.done && i.category === "gift"
 			).length;
+			const isToday = days === 0;
+			const handleDone = async (e: MouseEvent) => {
+				// Don't also open the contact page behind the row's click.
+				e.stopPropagation();
+				// Same field and shape Missed birthdays writes — today's
+				// date is this year's occurrence, so the row drops out now
+				// and doesn't reappear in Missed tomorrow, but a birthday is
+				// never wished more than a year ahead of itself.
+				await this.plugin.contactOperations.markBirthdayWished(
+					c.file,
+					this.lastOccurrenceDate(0)
+				);
+				new Notice(`🎈 Nice — ${c.displayName} checked off`);
+				await this.refresh();
+			};
 			buildUpcomingRow(section, {
 				icon: "",
-				date: this.formatDayDate(days),
+				// Today drops the date entirely — the row is already the
+				// only one that says so, and "!" carries the occasion.
+				date: isToday ? "Today!" : this.formatDayDate(days),
+				// Bold and accented, the same emphasis its Done button gets
+				// in its place on the right.
+				whenTone: isToday ? "soon" : undefined,
 				name: c.displayName,
 				suffix:
 					giftCount > 0
 						? `${giftCount} gift idea${giftCount > 1 ? "s" : ""}`
 						: "no gift ideas yet",
 				// The date label already says "Tomorrow", so the count goes
-				// here rather than repeating it. Today keeps the cake — a
-				// birthday has no time to count down to, so an event's
-				// "in 3 hours" has no equivalent here.
-				relative:
-					days === 0
-						? "today! 🎂"
-						: days === 1
-						? "in 1 day"
-						: `in ${days} days`,
+				// here rather than repeating it.
+				relative: isToday ? "" : days === 1 ? "in 1 day" : `in ${days} days`,
 				// This list is upcoming-only — never a past day — so soon is
 				// the only tone that applies here.
 				tone: days <= 1 ? "soon" : undefined,
 				onClick: () => void this.openContact(c.file),
+				// Today swaps the countdown for the same Done action Missed
+				// birthdays offers — there's nothing left to count down to.
+				action: isToday
+					? {
+							icon: "check",
+							label: "Done",
+							ariaLabel: "Mark birthday as wished",
+							onClick: (e) => void handleDone(e),
+							// Filled purple — the day itself is the one
+							// birthday row with nothing left to count down
+							// to, so its Done stands out from Missed's.
+							accent: true,
+					  }
+					: undefined,
 			});
 		}
 	}

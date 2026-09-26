@@ -116,6 +116,28 @@ Adding someone asks for very little — a first name is enough. Everything else 
 
 ---
 
+## Calendar
+
+Everything with a date, on one calendar: events, plans and birthdays together, a month or a week at a time. It's the whole picture — the Events page has its own Calendar tab too, but that one shows only events and plans; this is the page for seeing all three kinds of thing at once.
+
+A day with a lot on it still fits: events and plans show as coloured bars (coloured by category, event type or group, whichever you'd rather track by), a birthday shows as a cake with the age they're turning, and a plan spanning several days draws as one bar across them rather than repeating on each. Clicking an empty day starts a new event already dated; clicking anything on it opens a short briefing instead — what it is, who's involved, and a way in to the full page.
+
+The ☰ beside the month opens a drawer: tick Events, Plans or Birthdays off individually, fold a long list of categories behind "Show more", and choose how the grid draws — names wrapped or cut short, a second line shown or not, emoji instead of names on a phone, and whether past events fade. Colour by category, event type or group are each their own toggle; turn one off and colouring falls through to the next.
+
+<p align="center">
+	<img alt="The calendar page showing a month of events, plans and birthdays" src="examples/screenshots/calendar-1.png" />
+	<br />
+	<em>Events, plans and birthdays together — a multi-day plan draws as one bar across its dates.</em>
+</p>
+
+<p align="center">
+	<img alt="The calendar page's drawer for toggling calendars, display and colours" src="examples/screenshots/calendar-2.png" />
+	<br />
+	<em>The drawer: which calendars show, how the grid draws, and what colours it by.</em>
+</p>
+
+---
+
 ## Groups
 
 A group is any circle you want to keep track of — a book club, the people you hike with, family. You don't build the group; you tag the person, and the group assembles itself from whoever's in it.

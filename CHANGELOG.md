@@ -4,6 +4,16 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
+## 1.10.4 — 2026-09-26
+
+### Dashboard
+
+- A birthday due today now shows a bold "Today!" and a filled Done button in place of the countdown. Done marks it wished for this year, so it drops off today and won't reappear in Missed birthdays tomorrow, but still shows again next year.
+
+### Docs
+
+- README.md and FEATURES.md now cover the Calendar page — events, plans and birthdays together, a month or a week at a time — with new screenshots.
+
 ## 1.10.3 — 2026-09-26
 
 ### Interests

@@ -57,6 +57,20 @@ const clickButton = (label, scope = "body") =>
 	}`;
 
 /**
+ * Click a button by its aria-label, for the icon-only ones clickButton's
+ * text match can't reach — the calendar page's drawer toggle has an SVG
+ * for a label, not text.
+ */
+const clickAriaLabel = (label, scope = "body") =>
+	`async () => {
+		const root = document.querySelector(${JSON.stringify(scope)});
+		if (!root) return "no scope " + ${JSON.stringify(scope)};
+		const el = root.querySelector('[aria-label="' + ${JSON.stringify(label)} + '"]');
+		if (!el) return "no button aria-labelled " + ${JSON.stringify(label)};
+		el.click();
+	}`;
+
+/**
  * Open the plugin's own settings tab.
  *
  * `app.setting` isn't in the public typings, but this is capture tooling
@@ -167,6 +181,14 @@ export const SHOTS = [
 		setup: steps(command("callander:open-events"), clickButton("^List$")),
 	},
 	{ name: "diary-1", setup: command("callander:open-diary") },
+	{ name: "calendar-1", setup: command("callander:open-calendar") },
+	{
+		name: "calendar-2",
+		setup: steps(
+			command("callander:open-calendar"),
+			clickAriaLabel("Show options")
+		),
+	},
 
 	{ name: "person-1", setup: openNote("person") },
 	{ name: "person-2", setup: openNote("person"), scroll: 900 },
