@@ -22,6 +22,16 @@ DUMP_TEXT=/tmp/shots.txt npm run screenshots
 
 Captures are taken at 2x off a Retina display and downscaled to half that (1077px wide) on the way out, which is what keeps the set around 6MB rather than 20MB.
 
+## Mobile
+
+```bash
+npm run screenshots:mobile    # dashboard, events, calendar, friend and plan, at a phone's 9:16
+```
+
+`shoot-mobile.mjs` shares the same seeded vault and launch/CDP plumbing (`harness.mjs`) but drives Obsidian's own `app.emulateMobile(true)` and a phone-sized window (414×736 — an iPhone 6/7/8 Plus's point size, exactly 9:16) instead of the desktop window. Capture is CDP's `Page.captureScreenshot` rather than `screencapture(1)`: a phone screenshot has no traffic lights or drop shadow to keep, and CDP hands back exactly the page's own pixels. Output goes to `examples/screenshots/mobile/`, named for the page rather than kept as `-1`/`-2` (`friend.png`, not `person-1.png`) since there's one per page rather than several angles of it.
+
+It reuses `dashboard-1`, `events-1`, `calendar-1`, `plan-1` and `person-1` from `shots.mjs`'s own `SHOTS` list rather than keeping a second copy of how to reach each page — so a shot that changes there (a renamed command, a moved button) doesn't quietly drift out of sync for mobile.
+
 ## Why the vault is regenerated
 
 Callander's UI is almost entirely relative dates — "in 2 days", "8 days ago", "Next Wednesday". A vault with hardcoded dates only photographs correctly on the day it was written; the previous example vault was pinned to a single afternoon and had drifted into showing an empty dashboard.
@@ -32,7 +42,7 @@ Everything in the cast is invented. Nothing is taken from a real vault.
 
 ## Requirements
 
-- **Screen Recording permission** for whatever runs this. Capture goes through `screencapture(1)` so the shots get native rounded corners, traffic lights and the drop shadow. Without the permission it fails with `could not create image from display`.
+- **Screen Recording permission** for whatever runs `npm run screenshots`. Capture goes through `screencapture(1)` so the shots get native rounded corners, traffic lights and the drop shadow. Without the permission it fails with `could not create image from display`. `npm run screenshots:mobile` doesn't need this — it captures over CDP instead, which is also why a phone shot has no window chrome to begin with.
 - The window must be frontmost for each shot, so **the run takes focus**. Start it and leave the machine alone.
 
 ## Files
@@ -43,7 +53,9 @@ Everything in the cast is invented. Nothing is taken from a real vault.
 | `cast-plans.mjs` | Plans, somedays, diary, loose expenses |
 | `make-seed.mjs` | Cast → `examples/example-vault` |
 | `shots.mjs` | The shot list, and helpers for driving the app |
-| `shoot.mjs` | Launches Obsidian, runs the shot list, captures |
+| `harness.mjs` | Shared setup — seeded vault, launch, CDP connect — for both capture scripts |
+| `shoot.mjs` | Launches Obsidian, runs the shot list, captures the desktop set |
+| `shoot-mobile.mjs` | Same shot list, five of them, captured at a phone's 9:16 |
 | `windowid.swift` | Resolves a PID to a CGWindowID for `screencapture -l` |
 
 ## Adding a shot

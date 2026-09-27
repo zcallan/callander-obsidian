@@ -21,33 +21,22 @@
  */
 
 import { spawn, execFileSync, execFile } from "node:child_process";
-import {
-	mkdtempSync,
-	mkdirSync,
-	writeFileSync,
-	copyFileSync,
-	cpSync,
-	rmSync,
-	existsSync,
-	utimesSync,
-	readdirSync,
-} from "node:fs";
-import { randomBytes } from "node:crypto";
+import { mkdtempSync, mkdirSync, rmSync, readdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { waitForTarget, CdpSession } from "../../tests/e2e/cdp.mjs";
 import { startFocusGuard } from "../../tests/e2e/focusGuard.mjs";
 import { SHOTS, PATHS } from "./shots.mjs";
-// Imported rather than repeated: the split-by-name keys in the seeded
-// expenses are written against this, so a mismatch silently drops your own
-// line from every split.
-import { OWNER, PEOPLE } from "./cast.mjs";
+import {
+	repo,
+	OBSIDIAN,
+	buildVault,
+	registerVault,
+	acceptTrustPrompt,
+	windowIdFor,
+	raise,
+} from "./harness.mjs";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const repo = path.resolve(here, "..", "..");
-const OBSIDIAN = "/Applications/Obsidian.app/Contents/MacOS/Obsidian";
-const PLUGIN_ID = "callander";
 const OUT_DIR = path.join(repo, "examples", "screenshots");
 
 // Sized so the capture lands at 2154x1816, matching the screenshots this
@@ -67,195 +56,6 @@ if (shots.length === 0) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function buildVault(vaultDir) {
-	const obsidian = path.join(vaultDir, ".obsidian");
-	const pluginDir = path.join(obsidian, "plugins", PLUGIN_ID);
-	mkdirSync(pluginDir, { recursive: true });
-
-	for (const file of ["main.js", "manifest.json", "styles.css"]) {
-		const src = path.join(repo, file);
-		if (!existsSync(src)) throw new Error(`${file} missing — run \`npm run build\` first`);
-		copyFileSync(src, path.join(pluginDir, file));
-	}
-
-	cpSync(path.join(repo, "examples", "example-vault", "Friends"), path.join(vaultDir, "Friends"), {
-		recursive: true,
-	});
-
-	// The dashboard orders friend chips by file mtime ("most recently
-	// interacted with"), shows ten, and a plain copy stamps every file with
-	// the same instant. Stagger them in cast order so a rerun photographs
-	// the same chips — and so the people with the richest data lead, rather
-	// than whoever happens to sort first alphabetically.
-	const people = path.join(vaultDir, "Friends", "People");
-	const base = Date.now() / 1000 - 3600;
-	PEOPLE.forEach((p, i) => {
-		const file = path.join(people, `${p.name}.md`);
-		if (existsSync(file)) utimesSync(file, base - i * 600, base - i * 600);
-	});
-
-	writeFileSync(
-		path.join(pluginDir, "data.json"),
-		JSON.stringify(
-			{
-				yourName: OWNER,
-				// Ribbon toggles default off; the screenshots show them on.
-				ribbonDashboard: true,
-				ribbonDiary: true,
-				ribbonAddIdea: true,
-				ribbonSomedays: true,
-				ribbonEvents: true,
-				ribbonReminder: true,
-				// A fresh vault always starts this checklist unfinished, and
-				// it would dominate every dashboard shot with a section none
-				// of them are about. Off for the whole run rather than
-				// per-shot, so no dashboard frame ever shows it.
-				showGettingStarted: false,
-			},
-			null,
-			2
-		)
-	);
-
-	writeFileSync(path.join(obsidian, "community-plugins.json"), JSON.stringify([PLUGIN_ID]));
-	writeFileSync(
-		path.join(obsidian, "core-plugins.json"),
-		JSON.stringify({
-			"file-explorer": true,
-			"global-search": true,
-			switcher: true,
-			graph: true,
-			backlink: true,
-			canvas: true,
-			"outgoing-link": true,
-			"tag-pane": true,
-			properties: true,
-			"page-preview": true,
-			"daily-notes": true,
-			templates: true,
-			"note-composer": true,
-			"command-palette": true,
-			"editor-status": true,
-			bookmarks: true,
-			outline: true,
-			"word-count": true,
-			"file-recovery": true,
-			bases: true,
-		})
-	);
-	writeFileSync(path.join(obsidian, "appearance.json"), JSON.stringify({ theme: "obsidian" }));
-	writeFileSync(path.join(obsidian, "app.json"), JSON.stringify({}));
-	writeFileSync(
-		path.join(obsidian, "workspace.json"),
-		JSON.stringify({
-			main: {
-				id: "main-split",
-				type: "split",
-				direction: "vertical",
-				children: [
-					{
-						id: "main-tabs",
-						type: "tabs",
-						children: [{ id: "main-leaf", type: "leaf", state: { type: "empty", state: {} } }],
-					},
-				],
-			},
-			left: {
-				id: "left-split",
-				type: "split",
-				direction: "horizontal",
-				width: 200,
-				children: [
-					{
-						id: "left-tabs",
-						type: "tabs",
-						children: [
-							{
-								id: "fe-leaf",
-								type: "leaf",
-								state: {
-									type: "file-explorer",
-									state: { sortOrder: "alphabetical", autoReveal: false },
-								},
-							},
-						],
-					},
-				],
-			},
-			right: {
-				id: "right-split",
-				type: "split",
-				direction: "horizontal",
-				width: 300,
-				collapsed: true,
-				children: [
-					{
-						id: "right-tabs",
-						type: "tabs",
-						children: [{ id: "bl-leaf", type: "leaf", state: { type: "backlink", state: {} } }],
-					},
-				],
-			},
-			active: "main-leaf",
-			lastOpenFiles: [],
-		})
-	);
-}
-
-function registerVault(userDataDir, vaultDir) {
-	mkdirSync(userDataDir, { recursive: true });
-	writeFileSync(
-		path.join(userDataDir, "obsidian.json"),
-		JSON.stringify({
-			vaults: {
-				[randomBytes(8).toString("hex")]: { path: vaultDir, ts: Date.now(), open: true },
-			},
-			updateDisabled: true,
-		})
-	);
-}
-
-async function acceptTrustPrompt(cdp) {
-	return cdp.waitFor(
-		() => {
-			if (window.app.plugins?.plugins?.callander) return "already-loaded";
-			if (!/trust the author/i.test(document.body.textContent ?? "")) return false;
-			const button = [...document.querySelectorAll(".modal button")].find((b) =>
-				/trust author/i.test(b.textContent ?? "")
-			);
-			if (!button) return false;
-			button.click();
-			return "clicked";
-		},
-		{ timeoutMs: 30000, label: "the vault trust prompt" }
-	);
-}
-
-let cachedWindowId = null;
-function windowIdFor(pid) {
-	if (cachedWindowId) return cachedWindowId;
-	cachedWindowId = execFileSync("swift", [path.join(here, "windowid.swift"), String(pid)], {
-		encoding: "utf8",
-	}).trim();
-	return cachedWindowId;
-}
-
-/**
- * Bring the window forward and make it *key*. Two things depend on this:
- * screencapture reads the window off the screen, and `steal: true` is what
- * gets the traffic lights drawn in colour rather than greyed out.
- */
-async function raise(cdp) {
-	await cdp.evaluate(() => {
-		const { remote } = window.require("electron");
-		remote.app.focus({ steal: true });
-		const win = remote.getCurrentWindow();
-		win.moveTop();
-		win.focus();
-	});
-	await sleep(500);
-}
-
 function captureWindow(pid, outPath) {
 	// No -o: the drop shadow is part of the look.
 	execFileSync("screencapture", ["-x", `-l${windowIdFor(pid)}`, "-t", "png", outPath]);
@@ -264,6 +64,7 @@ function captureWindow(pid, outPath) {
 	// the files to roughly a quarter — the full set was 20MB before.
 	execFileSync("sips", ["--resampleWidth", String(HALF_WIDTH), outPath], { stdio: "ignore" });
 }
+
 
 const tmpRoot = mkdtempSync(path.join(os.tmpdir(), "callander-shots-"));
 const vaultDir = path.join(tmpRoot, "vault");
@@ -524,7 +325,7 @@ try {
 	child.kill("SIGKILL");
 	await sleep(400);
 	if (process.env.KEEP_VAULT) console.log(`\nkept vault at ${tmpRoot}`);
-	else rmSync(tmpRoot, { recursive: true, force: true });
+	else rmSync(tmpRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
 
 const ok = results.filter((r) => r.status === "ok").length;

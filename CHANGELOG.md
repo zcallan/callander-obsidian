@@ -4,6 +4,11 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
+## 1.10.5 — 2026-09-26
+
+- Dropped a CSS property from an interest's note tooltip that only some Obsidian versions fully support — no visible change, it was redundant anyway.
+- Internal: mobile screenshots for the dashboard, events, calendar, friend and plan pages, and the tooling that captures them.
+
 ## 1.10.4 — 2026-09-26
 
 ### Dashboard

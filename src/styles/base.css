@@ -2891,7 +2891,6 @@ body.callander-kb-open .callander-modal-buttons {
 	width: 1px;
 	height: 1px;
 	overflow: hidden;
-	clip-path: inset(50%);
 	white-space: nowrap;
 }
 
@@ -2904,7 +2903,6 @@ body.callander-kb-open .callander-modal-buttons {
 	height: auto;
 	padding: 4px 8px;
 	overflow: visible;
-	clip-path: none;
 	transform: translateX(-50%);
 	border-radius: var(--radius-s);
 	background: var(--background-modifier-message);
