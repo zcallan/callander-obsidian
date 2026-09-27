@@ -4,6 +4,17 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
+## 1.10.6 — 2026-09-27
+
+### Dashboard
+
+- An event with a start time and a duration leaves Upcoming once it's over, instead of staying until midnight. A 3:30pm game running 3h 15m is gone by 6:45pm. Without a duration, an event still stays until the end of its day, and a task that runs past its duration moves to Overdue rather than disappearing.
+
+### Docs
+
+- **A new `docs/` folder**, one page per feature — Dashboard, Friends, Ideas, Quick notes, Groups, Events, Calendar, Plans, Expenses, Somedays, Diary, Settings and Your data — each with tips that aren't obvious from the plugin itself and its own version history. The index lists every command.
+- FEATURES.md and the README no longer say a plain-text name links a diary entry to a friend (it takes a `[[link]]`), or that accommodation has a decide-by date.
+
 ## 1.10.5 — 2026-09-26
 
 - Dropped a CSS property from an interest's note tooltip that only some Obsidian versions fully support — no visible change, it was redundant anyway.

@@ -116,6 +116,69 @@ export function run() {
 		[]
 	);
 
+	// ---------- a same-day duration running out ----------
+	{
+		// Wednesday 5 August 2026, 7:00pm — the same day `now` falls on, so
+		// only the time of day differs from the shared fixture.
+		const evening = new Date(2026, 7, 5, 19, 0);
+		eq(
+			"a 3:30pm game with a 3h15m duration is gone by 7:00pm",
+			names(
+				upcomingItems(
+					[ev({ name: "game", date: "2026-08-05", time: "15:30", duration: "3h 15m" })],
+					evening
+				)
+			),
+			[]
+		);
+		eq(
+			"...but still showing at 6:00pm, before it ends",
+			names(
+				upcomingItems(
+					[ev({ name: "game", date: "2026-08-05", time: "15:30", duration: "3h 15m" })],
+					new Date(2026, 7, 5, 18, 0)
+				)
+			),
+			["game"]
+		);
+		eq(
+			"no duration at all keeps it until the day turns over",
+			names(
+				upcomingItems(
+					[ev({ name: "dinner", date: "2026-08-05", time: "15:30" })],
+					evening
+				)
+			),
+			["dinner"]
+		);
+		eq(
+			"a duration on a *different* day never applies",
+			names(
+				upcomingItems(
+					[ev({ name: "tomorrow", date: "2026-08-06", time: "08:00", duration: "1h" })],
+					evening
+				)
+			),
+			["tomorrow"]
+		);
+		eq(
+			"an ended task turns overdue rather than disappearing",
+			upcomingItems(
+				[
+					ev({
+						name: "task",
+						type: "task",
+						date: "2026-08-05",
+						time: "15:30",
+						duration: "3h 15m",
+					}),
+				],
+				evening
+			)[0]?.overdue,
+			true
+		);
+	}
+
 	// ---------- ordering ----------
 	{
 		const list = upcomingItems(

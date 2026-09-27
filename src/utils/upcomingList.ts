@@ -1,6 +1,45 @@
 import type { EventInfo, PlanInfo } from "@/types";
-import { parseFlexDate, flexSortKey, isFlexUpcoming } from "@/utils/flexdate";
+import {
+	parseFlexDate,
+	flexSortKey,
+	isFlexUpcoming,
+	type FlexDate,
+} from "@/utils/flexdate";
 import { daysUntilFlex } from "@/utils/upcomingWhen";
+import { parseDurationMinutes } from "@/utils/planFormat";
+
+/**
+ * Has a same-day event's own start time already run past its duration?
+ *
+ * `isFlexUpcoming` only counts days, so an event due to start at 3:30pm
+ * still reads as "upcoming" at 11pm the same day — right for something
+ * with no known length (a dinner nobody put an end time on stays visible
+ * until the day itself turns over), wrong for a 3h15m game that in fact
+ * finished at 6:45. Only a *known* duration moves the goalposts; a bare
+ * start time says when something begins, not how long it runs.
+ */
+function hasEndedToday(event: EventInfo, date: FlexDate, now: Date): boolean {
+	if (date.year === null || date.month === null || date.day === null) {
+		return false;
+	}
+	const today = new Date(now);
+	today.setHours(0, 0, 0, 0);
+	const target = new Date(date.year, date.month - 1, date.day);
+	target.setHours(0, 0, 0, 0);
+	if (target.getTime() !== today.getTime()) return false;
+
+	const [rawHour, rawMinute] = (event.time || "").split(":");
+	const hour = Number(rawHour);
+	// Empty, "anytime" and "tbd" all fail this the same way a real "HH:MM"
+	// wouldn't — none of them name a moment a duration could run out from.
+	if (!Number.isFinite(hour)) return false;
+	const minutes = parseDurationMinutes(event.duration);
+	if (minutes === null) return false;
+
+	const start = new Date(now);
+	start.setHours(hour, Number(rawMinute) || 0, 0, 0);
+	return now.getTime() >= start.getTime() + minutes * 60000;
+}
 
 export interface UpcomingItem {
 	event: EventInfo;
@@ -53,7 +92,11 @@ export function upcomingItems(
 			items.push({ event, key: 0, days: null });
 			continue;
 		}
-		if (isFlexUpcoming(p, now)) {
+		// A same-day event whose known duration has run out falls through
+		// exactly like a day that's already gone by — which for a task
+		// means the branch below picks it up as overdue instead, the same
+		// as any other kind of late.
+		if (isFlexUpcoming(p, now) && !hasEndedToday(event, p, now)) {
 			items.push({
 				event,
 				key: flexSortKey(p),

@@ -206,14 +206,14 @@ For a whole batch at once, **Bulk event import** lives in the dashboard's Secret
 
 The diary is for writing about a day rather than filing a fact.
 
-Entries are grouped by month and show a preview of what you wrote. If you mention a friend's name in an entry, Callander picks it up automatically — the entry knows they were there, and it shows up on their page too. You don't have to tag anyone or fill in a field.
+Entries are grouped by month and show a preview of what you wrote. Link a friend in an entry the ordinary Obsidian way, with `[[their name]]`, and Callander picks it up — the entry shows up on their page too, with no separate field to fill in. One command then logs the day as an event on the timeline of everyone it links to, and keeps that event in step if you edit the entry later.
 
 Each entry is just a note, so you can write it however you like and the diary keeps up.
 
 <p align="center">
 	<img alt="The diary, with entries grouped by month" src="examples/screenshots/diary-1.png" />
 	<br />
-	<em>Write about the day; mentioning someone is enough to link them to it.</em>
+	<em>Write about the day; a <code>[[link]]</code> to someone puts it on their page.</em>
 </p>
 
 ---
@@ -260,7 +260,7 @@ You add the people going, and anyone who hasn't answered yet sits separately as 
 
 Everything you add that has a date on it — things to do, journeys, where you're staying — flows into a single running order for the trip, grouped by day and sorted by time. A drive shows its length, its cost and who's in the car. Dinner shows a rough price each. Where you're staying appears on the day you check in and says how long you're there, with the address and the door code right on it. Anything you haven't booked yet is flagged, so the loose ends stand out. Loose thoughts about the trip can go in as drafts: the ones without a day sit at the top of the plan with the same Make idea, Make event, Edit and Done buttons as the dashboard's, and one given a day leads that day in the running order.
 
-Below the running order, everywhere you might stay is listed together, including the backup you haven't committed to and the date you need to decide by. There's a shared packing list that everyone can tick off, a full cost breakdown — the expenses, any credits, and who owes what, each under its own heading — and a free-text area at the bottom for booking confirmations and anything else that doesn't fit a box.
+Below the running order, everywhere you might stay is listed together, including the backup you haven't committed to, which can sit undated or marked To book until you decide. There's a shared packing list that everyone can tick off, a full cost breakdown — the expenses, any credits, and who owes what, each under its own heading — and a free-text area at the bottom for booking confirmations and anything else that doesn't fit a box.
 
 Adding to a plan is quick. Things to do can be given a category, a day, and either an exact time or a rough one — "late afternoon" and "dinner time" are real answers that still sort correctly. Journeys pick how you're travelling, how long it takes and whether it's booked. Places to stay pick what kind of place it is, how many nights, and take an address that opens in Maps.
 

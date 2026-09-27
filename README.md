@@ -15,7 +15,7 @@ What this plugin holds:
 - **Somedays.** The loose wishlist of things you'd like to do but haven't committed to, complete with filters and a dedicated page to help you tick off those things you've always wanted to do with friends or alone, but never sparked actual plans for it (trip to Maine when?).
 - **Expenses.** Split costs in five different ways — evenly, by percent, by share, by exact amount, or line-by-line off a receipt with sales tax and tip. Breakdowns display a person-by-person total, complete with a crediting system and checklist.
 - **Groups.** Group friends together and the circle assembles itself, with colour coding, ideas, and a timeline of its own.
-- **Diary.** Write about a day; mentioning someone is enough to link them to it and integrate it into their file.
+- **Diary.** Write about a day; linking someone with `[[their name]]` puts the entry on their page, and one command logs it to their timeline.
 
 <p align="center">
 	<img alt="The Callander dashboard" src="examples/screenshots/dashboard-1.png" />
