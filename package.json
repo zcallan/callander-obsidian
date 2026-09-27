@@ -1,6 +1,6 @@
 {
 	"name": "callander-obsidian",
-	"version": "1.10.4",
+	"version": "1.10.5",
 	"description": "Callander — a private secondary memory for your friendships, as an Obsidian plugin.",
 	"main": "main.js",
 	"scripts": {
@@ -14,6 +14,7 @@
 		"test:e2e": "node tests/e2e/run.mjs",
 		"seed": "node tools/screenshots/make-seed.mjs",
 		"screenshots": "node tools/screenshots/shoot.mjs",
+		"screenshots:mobile": "node tools/screenshots/shoot-mobile.mjs",
 		"preview": "node scripts/preview.mjs"
 	},
 	"keywords": [],
