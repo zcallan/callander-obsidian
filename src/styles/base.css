@@ -1,180 +1,30 @@
 /*
-
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
-
-.callander-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	gap: 1rem;
-	margin-bottom: 32px;
-	padding: 12px 16px;
-	border-bottom: 2px solid var(--background-modifier-border);
-	position: sticky;
-	top: 0;
-	z-index: 10;
-	background: rgba(var(--background-primary-rgb), 0.8);
-	backdrop-filter: blur(8px);
-	-webkit-backdrop-filter: blur(8px);
-	flex-shrink: 0;
-}
-
-.callander-header h2 {
-	font-size: 0.75em;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
-	color: var(--text-muted);
-	margin: 0;
-}
-
-.callander-header select {
-	padding: var(--size-4-1) var(--size-4-2);
-	box-shadow: none;
-	border: 1px solid var(--background-modifier-border);
-	background-color: var(--background-modifier-form-field);
-}
-
-.callander-header select:hover {
-	border-color: var(--background-modifier-border-hover);
-}
-
-.callander-header select:focus {
-	outline: none;
-}
-
-.callander-add-button {
-	/* Remove all styles */
-}
-
-.callander-empty-state {
-	text-align: center;
-	padding: 40px 20px;
-	color: var(--text-muted);
-}
-
-.callander-view table {
-	border-collapse: collapse;
-	width: 100%;
-	margin: 0;
-}
-
-.callander-view tr {
-	cursor: default;
-}
-
-.callander-view tr:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.callander-view th,
-.callander-view td {
-	padding: 8px 12px;
-	text-align: left;
-}
-
-.callander-sort-button {
-	background: transparent;
-	border: none;
-	margin: 0;
-	padding: 8px 0;
-	cursor: pointer;
-	width: auto;
-	min-width: 0;
-	text-align: left;
-	color: var(--text-muted);
-	display: flex;
-	align-items: center;
-	justify-content: flex-start;
-	box-shadow: none;
-	border-radius: 0;
-	-webkit-appearance: none;
-	font-weight: inherit;
-	gap: 4px;
-}
-
-.callander-sort-button:hover {
-	color: var(--text-normal);
-	background: transparent;
-}
-
-.callander-sort-button:active,
-.callander-sort-button:focus {
-	background: transparent;
-	box-shadow: none;
-	outline: none;
-}
-
-.callander-sort-button .sort-indicator {
-	font-size: 0.8em;
-	opacity: 0.5;
-	margin-left: 0;
-}
-
-.callander-sort-button:hover .sort-indicator {
-	opacity: 0.8;
-}
-
-.callander-sort-button:active {
-	box-shadow: none;
-	background: none;
-}
-
-.callander-sort-button:focus {
-	box-shadow: none;
-}
-
-.callander-sort-button:focus-visible {
-	outline: none;
-}
-
-.callander-actions {
-	text-align: right;
-	padding-right: 16px;
-}
-
-.callander-delete-button {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 4px;
-	background: none;
-	border: none;
-	border-radius: 4px;
-	color: var(--text-muted);
-	cursor: pointer;
-}
-
-.callander-delete-button:hover {
-	color: var(--text-error);
-	background-color: var(--background-modifier-error-hover);
-}
-
-.callander-delete-button svg {
-	width: 16px;
-	height: 16px;
-}
-
-.callander-delete-modal-buttons {
-	display: flex;
-	justify-content: flex-end;
-	gap: 8px;
-	margin-top: 20px;
-}
-
-.callander-button-secondary {
-	background-color: var(--background-modifier-hover);
-}
-
-.callander-button-danger {
-	background-color: var(--background-modifier-error);
-	color: var(--text-on-accent);
-}
+ * Callander's global stylesheet. The build appends each component's
+ * compiled `.module.css` to it to make the plugin's styles.css, so edit
+ * this file and not that one.
+ *
+ * What stays here: the fit with Obsidian's own shell (pages, modals, the
+ * mobile keyboard), building blocks shared across pages (`.callander-button`,
+ * `.modal-section-label`, the accordions), and any class that tests, tools
+ * or users' snippets rely on. New component styles go in a co-located
+ * `.module.css`, where a name can't collide with anything else's.
+ *
+ * Obsidian's own element rules outrank a single class:
+ *
+ *   button:not(.clickable-icon)             color, background-color, box-shadow
+ *   .is-tablet button:not(.clickable-icon)  padding
+ *   input[type='text'] and its siblings     background, border, color
+ *
+ * so a one-class rule never sets those on a <button> or a text input. The
+ * two levers Obsidian supports: set `--text-color` to recolour a button's
+ * text, as its own `button.mod-destructive` does, and add `clickable-icon`
+ * to take a flat or icon-only button out of the fill, shadow and padding.
+ *
+ * Breakpoints: 620px for container queries (with 621px as its min-width
+ * side), which calendarBoard.ts's CAL_NARROW mirrors and must agree with;
+ * 600px and 480px for media queries. `.is-mobile`, `.is-phone` and
+ * `.is-tablet` are the classes Obsidian itself puts on the body.
+ */
 
 /* Contact Page Styles */
 .contact-page-header,
@@ -495,109 +345,6 @@ If your plugin does not need CSS, delete this file.
 .contact-extras-section {
 	padding: 12px 16px;
 	border-top: 1px solid var(--background-modifier-border);
-}
-
-.contact-extras-section-list {
-	margin-top: 16px;
-}
-
-.contact-extras-section-item {
-	display: flex;
-	align-items: flex-start;
-	padding: 12px;
-	border-bottom: 1px solid var(--background-modifier-border);
-	gap: 12px;
-}
-
-.contact-extras-section-date {
-	color: var(--text-muted);
-	font-size: 0.9em;
-	width: 100px;
-	flex-shrink: 0;
-}
-
-.contact-extras-section-text {
-	flex: 1;
-	line-height: 1.4;
-}
-
-.contact-extras-section-actions {
-	display: flex;
-	gap: 8px;
-	opacity: 0;
-	transition: opacity 0.2s ease;
-}
-
-.contact-extras-section-item:hover .contact-extras-section-actions {
-	opacity: 1;
-}
-
-/* Buttons */
-.contact-add-field-button,
-.contact-add-interaction-button {
-	margin-top: 8px;
-	padding: 6px 12px;
-	background: none;
-	color: var(--text-muted);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 4px;
-	cursor: pointer;
-	font-size: 0.9em;
-	transition: all 0.2s ease;
-}
-
-.contact-add-field-button:hover,
-.contact-add-interaction-button:hover {
-	color: var(--text-normal);
-	border-color: var(--text-muted);
-	background: none;
-}
-
-.contact-interaction-edit,
-.contact-interaction-delete { /* legacy */
-	background: none;
-	border: none;
-	padding: 4px;
-	border-radius: 4px;
-	color: var(--text-muted);
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.contact-interaction-edit:hover {
-	color: var(--text-normal);
-	background-color: var(--background-modifier-hover);
-}
-
-.contact-interaction-delete:hover {
-	color: var(--text-error);
-	background-color: var(--background-modifier-error-hover);
-}
-
-/* Modal Styles */
-.contact-interaction-text-input {
-	width: 100%;
-	min-height: 100px;
-	margin: 16px 0;
-	background: var(--background-modifier-form-field);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: 4px;
-	padding: 8px;
-	resize: vertical;
-}
-
-.contact-interaction-submit,
-.contact-add-field-submit {
-	width: 100%;
-	margin-top: 16px;
-	padding: 8px;
-	background-color: var(--interactive-accent);
-	color: var(--text-on-accent);
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
 }
 
 /* Date Input Styles */
@@ -973,28 +720,6 @@ If your plugin does not need CSS, delete this file.
 	margin-top: 0;
 }
 
-.callander-name-cell {
-	cursor: pointer;
-	position: relative;
-}
-
-.table-birthday-status-dot {
-	position: absolute;
-	left: -10px;
-	top: 50%;
-	transform: translateY(-50%);
-	padding: 2px;
-	border-radius: 9999px;
-	background-color: rgba(var(--color-green-rgb), 0.1);
-}
-
-.table-birthday-status-dot-inner {
-	width: 6px;
-	height: 6px;
-	border-radius: 9999px;
-	background-color: var(--color-green);
-}
-
 /* Modal Styles */
 .callander-modal-field {
 	margin-bottom: 16px;
@@ -1142,40 +867,6 @@ body.callander-kb-open .callander-modal-buttons {
 	margin-top: 16px;
 }
 
-.callander-view {
-	display: flex;
-	flex-direction: column;
-	width: 100%;
-	height: -webkit-fill-available;
-	min-height: -webkit-fill-available;
-}
-
-.callander-content {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	overflow: auto;
-	min-height: 0;
-	-webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-}
-
-/* Table styles */
-.callander-table {
-	width: 100%;
-	min-width: 600px;
-	border-collapse: collapse;
-	margin: 0;
-	table-layout: auto;
-}
-
-/* Base styles for all cells */
-.callander-table th,
-.callander-table td {
-	padding: 8px 12px;
-	text-align: left;
-	white-space: nowrap;
-}
-
 .contact-age-display {
 	color: var(--text-muted);
 	font-size: 0.9em;
@@ -1194,32 +885,6 @@ body.callander-kb-open .callander-modal-buttons {
 	color: var(--text-muted);
 	font-size: 0.9em;
 	position: relative;
-}
-
-.birthday-status-dot {
-	flex-shrink: 0;
-	padding: 2px;
-	border-radius: 9999px;
-	background-color: rgba(var(--color-green-rgb), 0.1);
-}
-
-.birthday-status-dot-inner {
-	width: 6px;
-	height: 6px;
-	border-radius: 9999px;
-	background-color: var(--color-green);
-}
-
-.callander-table-container {
-	flex: 1;
-	padding: 0 16px;
-	min-width: 100%;
-	-webkit-overflow-scrolling: touch;
-}
-
-/* Capitalize relationship values in table */
-.callander-relationship-cell {
-	text-transform: capitalize;
 }
 
 /* Capitalize relationship input field */
@@ -1243,62 +908,6 @@ body.callander-kb-open .callander-modal-buttons {
 	align-items: center;
 	gap: 8px;
 	margin: 12px 0 8px;
-}
-
-.contact-extras-edit {
-	background: none;
-	border: none;
-	padding: 2px;
-	border-radius: 4px;
-	color: var(--text-muted);
-	cursor: pointer;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 20px;
-	width: 20px;
-	margin-left: 8px;
-	transition: color 0.2s ease;
-}
-
-.contact-extras-edit:hover {
-	color: var(--text-normal);
-	background-color: var(--background-modifier-hover);
-}
-
-.contact-info-header {
-	display: none;
-}
-
-.contact-info-edit-button,
-.contact-info-done-button {
-	margin-top: 16px;
-	padding: 6px 12px;
-	background-color: var(--interactive-accent);
-	color: var(--text-on-accent);
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	font-size: 0.9em;
-	transition: all 0.2s ease;
-	align-self: flex-end;
-}
-
-.contact-info-edit-button:hover,
-.contact-info-done-button:hover {
-	background-color: var(--interactive-accent-hover);
-	color: var(--text-on-accent);
-}
-
-.contact-info-done-button {
-	margin-top: 24px;
-	background-color: var(--interactive-accent);
-	color: var(--text-on-accent);
-}
-
-.contact-info-done-button:hover {
-	background-color: var(--interactive-accent-hover);
-	color: var(--text-on-accent);
 }
 
 .contact-fields-container {
@@ -1366,19 +975,6 @@ body.callander-kb-open .callander-modal-buttons {
 	--color-green-rgb: 74, 222, 128;
 }
 
-.table-birthday-indicator {
-	position: absolute;
-	left: -10px;
-	top: 50%;
-	transform: translateY(-50%);
-	font-size: 14px;
-	line-height: 1;
-}
-
-.table-birthday-indicator.birthday-today {
-	animation: bounce 1s infinite;
-}
-
 @keyframes bounce {
 	0%,
 	100% {
@@ -1387,11 +983,6 @@ body.callander-kb-open .callander-modal-buttons {
 	50% {
 		transform: translateY(-65%);
 	}
-}
-
-.contact-birthday-countdown .table-birthday-indicator,
-.contact-birthday-countdown .birthday-status-dot {
-	margin-left: -2px;
 }
 
 /* Remove border-top from sections */
@@ -1469,11 +1060,6 @@ body.callander-kb-open .callander-modal-buttons {
 	border: none;
 }
 
-/* Remove the button-outlined class since all buttons now have borders by default */
-.callander-button.button-outlined {
-	/* Remove this class */
-}
-
 /* Icon-only button variant */
 .callander-button.button-icon {
 	padding: 4px;
@@ -1499,26 +1085,6 @@ body.callander-kb-open .callander-modal-buttons {
 	width: 100%;
 }
 
-/* Position modifiers */
-.button-align-right {
-	margin-left: auto;
-}
-
-/* Remove ALL old button styles */
-.contact-add-field-button,
-.contact-add-interaction-button,
-.contact-interaction-edit,
-.contact-interaction-delete,
-.contact-info-edit-button,
-.contact-info-done-button,
-.contact-extras-edit,
-.contact-name-edit,
-.callander-add-button,
-.contact-interaction-submit,
-.contact-add-field-submit {
-	/* Remove all styles */
-}
-
 /* Style for helper text */
 .section-helper-text {
 	margin: 12px 0 8px;
@@ -1540,10 +1106,6 @@ body.callander-kb-open .callander-modal-buttons {
 
 .contact-ideas-add-row .contact-field-input {
 	flex: 1;
-}
-
-.contact-idea-category-select {
-	flex-shrink: 0;
 }
 
 .contact-idea-group {
@@ -1759,12 +1321,6 @@ body.callander-kb-open .callander-modal-buttons {
 	flex: 1;
 }
 
-.contact-birthday-belated,
-.callander-belated-cell {
-	color: var(--text-muted);
-	font-style: italic;
-}
-
 .contact-bday-inputs {
 	display: flex;
 	gap: 8px;
@@ -1841,7 +1397,6 @@ body.callander-kb-open .callander-modal-buttons {
 	outline: 2px solid var(--text-accent);
 	outline-offset: 1px;
 }
-
 
 @media (prefers-reduced-motion: reduce) {
 	.callander-width-toggle {
@@ -1977,12 +1532,6 @@ body.callander-kb-open .callander-modal-buttons {
 	color: var(--text-muted);
 	font-size: 0.85em;
 	flex-shrink: 0;
-}
-
-/* Group filter + shared event modal */
-.callander-group-filter {
-	margin-left: auto;
-	margin-right: 8px;
 }
 
 .group-event-friend-list {
@@ -2128,13 +1677,6 @@ body.callander-kb-open .callander-modal-buttons {
 	flex-shrink: 0;
 }
 
-.group-dot-table {
-	width: 8px;
-	height: 8px;
-	margin-left: 5px;
-	vertical-align: middle;
-}
-
 .contact-group-chips {
 	display: flex;
 	flex-wrap: wrap;
@@ -2189,35 +1731,11 @@ body.callander-kb-open .callander-modal-buttons {
 	text-decoration: underline;
 }
 
-.contact-member-chip .contact-member-remove {
-	color: var(--text-muted);
-	cursor: pointer;
-	padding-left: 2px;
-}
-
-.contact-member-chip .contact-member-remove:hover {
-	color: var(--text-error);
-}
-
-.contact-member-chip span:first-of-type {
-	cursor: pointer;
-}
-
 .contact-groups-edit {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 	flex: 1;
-}
-
-.contact-groups-add-row {
-	display: flex;
-	gap: 8px;
-}
-
-.contact-groups-add-row .contact-field-input {
-	flex: 1;
-	max-width: 220px;
 }
 
 .contact-field-groups {
@@ -2351,10 +1869,6 @@ body.callander-kb-open .callander-modal-buttons {
 	min-height: 36px;
 }
 
-.is-phone .contact-idea-category-select {
-	width: 100%;
-}
-
 .is-phone .contact-met-controls {
 	flex-direction: column;
 	align-items: stretch;
@@ -2368,17 +1882,8 @@ body.callander-kb-open .callander-modal-buttons {
 	max-width: none;
 }
 
-.is-phone .contact-groups-add-row {
-	flex-direction: column;
-}
-
-.is-phone .contact-groups-add-row .contact-field-input {
-	max-width: none;
-}
-
 /* Touch devices have no hover — reveal the hover-gated action buttons */
-.is-mobile .contact-idea-item .button-icon,
-.is-mobile .contact-gift-item .button-icon {
+.is-mobile .contact-idea-item .button-icon {
 	opacity: 1;
 }
 
@@ -2519,43 +2024,8 @@ body.callander-kb-open .callander-modal-buttons {
 	margin-top: 10px;
 }
 
-/* Event type dot colors */
-
-
-
-
-
-/* The reminder types that joined the merged vocabulary */
-
-
-
-/* Moss, kept clear of type-life's brighter green — a walk and a life event
-   sit near each other on a timeline often enough to need telling apart. */
-
-
-
-/* Plans */
-.plan-meta {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	flex-wrap: wrap;
-}
-
 .plan-meta-line {
 	color: var(--text-muted);
-}
-
-
-.item-cost {
-	color: var(--text-muted);
-	font-size: 0.9em;
-}
-
-.plan-item-duration {
-	color: var(--text-muted);
-	font-size: 0.9em;
 }
 
 /* Transport-type glyph shown to the left of a travel leg's name */
@@ -2639,12 +2109,6 @@ body.callander-kb-open .callander-modal-buttons {
    rule's own 0.8em, which would compound into a second timeline row. */
 .plan-timeline-booking-todo {
 	color: var(--text-error);
-}
-
-/* Inline "people" tag on a plain list row */
-.plan-item-people {
-	color: var(--text-muted);
-	font-size: 0.9em;
 }
 
 /* "People" sub-line under a timeline row */
@@ -2941,24 +2405,8 @@ body.callander-kb-open .callander-modal-buttons {
 	margin-top: 16px;
 }
 
-.expense-field {
-	max-width: 70px;
-	flex: 0 0 auto;
-}
-
 .expense-input {
 	margin-top: 8px;
-}
-
-.is-phone .expense-field {
-	max-width: none;
-}
-
-.plan-meta-buttons {
-	display: flex;
-	gap: 6px;
-	align-items: center;
-	flex-wrap: wrap;
 }
 
 .plan-member-add-row {
@@ -3011,7 +2459,6 @@ body.callander-kb-open .callander-modal-buttons {
 	font-size: 0.85em;
 }
 
-
 .plan-member-chip .contact-member-remove {
 	color: var(--text-muted);
 	cursor: pointer;
@@ -3021,7 +2468,6 @@ body.callander-kb-open .callander-modal-buttons {
 .plan-member-chip .contact-member-remove:hover {
 	color: var(--text-error);
 }
-
 
 /* Members body — aligns the chips with the section header's 16px inset */
 .plan-members-body {
@@ -3073,27 +2519,19 @@ body.callander-kb-open .callander-modal-buttons {
 	cursor: pointer;
 }
 
-/* Section headers rendered inside already-padded sections */
-.plan-section-header {
-	padding: 0 0 8px;
-}
-
 /* Add-row alignment: stretch every control to the same height so the
    button can't sit lower than the inputs, whatever the theme's metrics */
 .contact-ideas-add-row,
-.contact-groups-add-row,
 .plan-member-add-row {
 	align-items: stretch;
 }
 
 .contact-ideas-add-row > *,
-.contact-groups-add-row > *,
 .plan-member-add-row > * {
 	margin: 0;
 }
 
 .contact-ideas-add-row .callander-button,
-.contact-groups-add-row .callander-button,
 .plan-member-add-row .callander-button {
 	display: inline-flex;
 	align-items: center;
@@ -3174,7 +2612,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .modal .contact-met-controls,
 .modal .contact-bday-inputs,
-.modal .contact-groups-add-row,
 .modal .quick-idea-categories {
 	min-width: 0;
 	max-width: 100%;
@@ -4205,7 +3642,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* .is-plan-hover is the same look, applied by hand: a plan crossing a week
    boundary draws a second bar on the row below, a separate element :hover
    alone can't reach — hovering either bar adds this class to both, via
-   appendCalChip's mouseenter/mouseleave pair. */
+   calendarBoard.ts's linkSpanHover. */
 .cal-chip:hover,
 .cal-chip.is-plan-hover {
 	background: var(--background-modifier-hover);
@@ -4216,12 +3653,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	   the two backgrounds compare, and says which event it is rather than
 	   just "something's hovered". */
 	box-shadow: 0 0 0 1px var(--cal-chip, var(--background-modifier-border));
-}
-
-.cal-chip-time {
-	color: var(--text-muted);
-	font-variant-numeric: tabular-nums;
-	flex: 0 0 auto;
 }
 
 .cal-chip-name {
@@ -4489,7 +3920,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	}
 }
 
-
 /* Birthdays known to the month but not the day: named under the grid,
    because they belong to the month and to no square in it. */
 .cal-month-only {
@@ -4498,21 +3928,8 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin-top: 4px;
 }
 
-/* Plan idea priority tag */
-.plan-priority-tag {
-	flex-shrink: 0;
-	font-size: 0.85em;
-	width: 1.4em;
-	text-align: center;
-}
-
 .plan-priority-row {
 	margin-top: 0;
-}
-
-/* Cost breakdown */
-.expense-label {
-	font-weight: 600;
 }
 
 /* Sub-headings inside the cost breakdown — Expenses, Credits, Who owes
@@ -4730,7 +4147,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .expense-settled-label {
 	color: var(--color-green, #5cb870);
 }
-
 
 /* Settled expenses, folded away beneath the open ones. Closed by default:
    they're the record, not the to-do. */
@@ -4950,14 +4366,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .expense-share-input {
 	max-width: 90px;
 }
-
-.expense-preview {
-	margin-top: 10px;
-	padding: 8px 10px;
-	background: var(--background-secondary);
-	border-radius: 6px;
-}
-
 
 .note-input-textarea {
 	width: 100%;
@@ -5252,7 +4660,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	gap: 8px;
 }
 
-/* ---- Mobile responsiveness pass (2026-07-23) ---- */
+/* ---- Mobile responsiveness ---- */
 
 /* Friend page: stack the header so actions drop below the name and
    share the full width evenly instead of crushing into a right column */
@@ -5270,16 +4678,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	justify-content: center;
 }
 
-/* Plan meta: stack the info lines above a left-aligned, wrapping button row */
-.is-phone .plan-meta {
-	flex-direction: column;
-	align-items: stretch;
-}
-
-.is-phone .plan-meta-buttons {
-	justify-content: flex-start;
-}
-
 /* All friends: let the header + sort controls wrap on narrow screens */
 .is-phone .friend-list-container .dashboard-section-header,
 .is-phone .friend-list-toolbar {
@@ -5294,12 +4692,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .expense-check span {
 	overflow: hidden;
 	text-overflow: ellipsis;
-}
-
-/* Group/plan member add rows and quick-action rows wrap cleanly */
-.is-phone .callander-header {
-	flex-wrap: wrap;
-	gap: 8px;
 }
 
 /* Diary title input: don't force a min-width that overflows narrow phones */
@@ -5340,13 +4732,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .modal.ft-modal-shake {
 	animation: ft-modal-shake 0.28s ease;
-}
-
-/* ── Timeline section: Copy button in the header, quick-add footer ── */
-.contact-stack-header .plan-timeline-cal {
-	margin-top: 0;
-	padding: 3px 9px;
-	font-size: 0.8em;
 }
 
 .plan-timeline-footer {
@@ -5484,11 +4869,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .contact-content-stacked .contact-funfacts-section {
 	padding-top: 20px;
-}
-
-.contact-funfacts-text {
-	white-space: pre-wrap;
-	line-height: 1.5;
 }
 
 /* ── Add-person modal: group filter pills ── */
@@ -5818,59 +5198,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .someday-inactive {
 	opacity: 0.55;
 }
-.someday-card-header {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	cursor: pointer;
-}
-.someday-card-headtext {
-	flex: 1;
-	min-width: 0;
-}
-.someday-header-location {
-	color: var(--text-muted);
-	font-size: 0.85em;
-}
-.someday-card-chevron {
-	flex: 0 0 auto;
-	display: inline-flex;
-	align-items: center;
-	color: var(--text-muted);
-	transition: transform 0.15s ease;
-}
-.someday-card.is-open .someday-card-chevron {
-	transform: rotate(180deg);
-}
-.someday-card-body {
-	display: none;
-	margin-top: 10px;
-}
-.someday-card.is-open .someday-card-body {
-	display: block;
-}
 /* Body type, both places. The dashboard used to take this back down to
    its own size with an override; sizing it once here means the shared row
    renders identically wherever it's used, with nothing to keep in step. */
 .someday-title {
 	font-size: inherit;
 	font-weight: inherit;
-}
-.someday-when {
-	color: var(--text-accent);
-	font-size: 0.85em;
-	white-space: nowrap;
-}
-.someday-meta {
-	color: var(--text-muted);
-	font-size: 0.85em;
-	margin-top: 3px;
-}
-.someday-notes {
-	color: var(--text-normal);
-	font-size: 0.9em;
-	margin-top: 6px;
-	white-space: pre-wrap;
 }
 .someday-converted-link {
 	color: var(--text-accent);
@@ -5880,9 +5213,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 .someday-converted-link:hover {
 	text-decoration: underline;
-}
-.someday-subideas {
-	margin-top: 10px;
 }
 .someday-subidea {
 	display: flex;
@@ -5898,46 +5228,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	text-decoration: line-through;
 	color: var(--text-muted);
 }
-.someday-subidea-addbtn {
-	margin-top: 8px;
-}
 .someday-view-notes-input {
 	box-sizing: border-box;
 	width: 100%;
 	margin-top: 8px;
 	font-size: 0.9em;
 	resize: vertical;
-}
-.someday-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	margin-top: 12px;
-}
-.someday-action {
-	margin-top: 0;
-	height: 34px;
-	box-sizing: border-box;
-}
-.someday-action.button-icon {
-	width: 40px;
-	height: 40px;
-	padding: 0;
-	justify-content: center;
-	--icon-size: 20px;
-}
-.someday-icon-actions {
-	margin-top: 8px;
-}
-.someday-card.is-focused {
-	background: var(--background-modifier-hover);
-	border-radius: 6px;
-}
-/* Editor: timeframe + day chips */
-.callander-modal-sublabel {
-	color: var(--text-muted);
-	font-size: 0.85em;
-	margin: 8px 0 4px;
 }
 .someday-timeframe-chips {
 	display: flex;
@@ -5989,9 +5285,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .someday-when-range-field label {
 	font-size: 0.75em;
 	margin-bottom: 2px;
-}
-.someday-timeframe-free {
-	margin-top: 4px;
 }
 .someday-day-chips {
 	display: flex;
@@ -6266,12 +5559,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	color: var(--text-muted);
 }
 
-/* Booking status on a stay's list row */
-.plan-item-booking {
-	color: var(--text-muted);
-	font-size: 0.9em;
-}
-
 /* Address/location + notes sub-lines under a timeline row — a stay's
    address, an idea's location, either one. */
 .plan-entry-place {
@@ -6322,10 +5609,9 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	font-size: 0.85em;
 }
 
-/* Desktop only. `.contact-timeline-actions` is force-shown on touch (it's
-   the only way to reach Edit/Delete there), but an empty day has the footer
-   buttons right below it — so these would be a duplicate pair on every
-   blank day, on the narrowest screen. */
+/* Desktop only: an empty day has the footer buttons right below it, so on
+   touch these would be a duplicate pair on every blank day, on the
+   narrowest screen. */
 .is-mobile .plan-timeline-empty-actions {
 	display: none;
 }
@@ -6393,10 +5679,10 @@ body.is-mobile.callander-kb-open .modal-content > * {
    so it reads as separate from the content rather than as one more action,
    and right-aligned so it isn't under the thumb while scrolling.
 
-   Both rules are two-class selectors: `.callander-button` sets
-   `background: none` and a muted colour several hundred lines further down
-   this file, and at equal specificity the later rule wins. Qualifying with
-   the base class outranks it regardless of where either sits. */
+   Both rules are two-class selectors: `.callander-button`, near the top of
+   this file, sets `background: none` and a muted colour, and one class
+   against another is decided by order alone. Qualifying with the base
+   class outranks it wherever either rule sits. */
 .contact-delete-section {
 	display: flex;
 	justify-content: flex-end;
@@ -6593,7 +5879,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	border-style: solid;
 }
 
-
 /* The way into managing categories rather than picking one — muted so it
    doesn't compete with the real chips, purple (the accent, matched exactly
    rather than approximated) once it's on, which is also what a click on a
@@ -6667,12 +5952,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .plan-hour-range-half {
 	flex: 1 1 0;
 	min-width: 0;
-}
-
-.plan-hour-range-label {
-	color: var(--text-muted);
-	font-size: 0.8em;
-	margin-bottom: 2px;
 }
 
 /* The half is a plain block, so .plan-time-select's `flex: 1 1 auto` has
@@ -6803,7 +6082,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* Hidden on desktop — the tick alone says "booked", and the word would
    only cost room the name could use. Shown on a phone, where this already
    has its own full-width line with nothing to compete with. "To book"
-   never gets this class at all (see renderStayRow), so it keeps its label
+   never gets this class at all (see StayRow.tsx), so it keeps its label
    everywhere — that's the one worth scanning for. */
 .plan-stay-booking-suffix-desktop-hidden {
 	display: none;
@@ -7621,7 +6900,6 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
    background rule's specificity by not needing one. Cancelled events fade
    as they already do; the fill just fades with them. */
 
-
 @container (max-width: 620px) {
 	/* A phone: one card per line, the full width, as the stacked week was. */
 	.cal.is-week-rows .cal-week .cal-chip {
@@ -7818,7 +7096,7 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 	margin: 0;
 }
 
-/* "Fade past events": everything before today at 70% opacity, on either
+/* "Fade past events": everything before today at 65% opacity, on either
    calendar's chips or (a phone's) name list. A cancelled item keeps its own
    stronger fade instead — the two don't stack, one opacity wins either way,
    and cancelled already says the more important thing. */

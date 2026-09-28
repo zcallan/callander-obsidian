@@ -1,5 +1,4 @@
-import { createContext, useContext } from "react";
-import type { App } from "obsidian";
+import { createContext, useContext, type ReactNode } from "react";
 import type FriendTracker from "@/main";
 
 /**
@@ -20,7 +19,7 @@ export function PluginProvider({
 	children,
 }: {
 	plugin: FriendTracker;
-	children: React.ReactNode;
+	children: ReactNode;
 }) {
 	return <PluginCtx.Provider value={plugin}>{children}</PluginCtx.Provider>;
 }
@@ -31,8 +30,4 @@ export function usePlugin(): FriendTracker {
 		throw new Error("usePlugin() used outside <PluginProvider>");
 	}
 	return plugin;
-}
-
-export function useApp(): App {
-	return usePlugin().app;
 }

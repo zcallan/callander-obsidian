@@ -159,6 +159,7 @@ export function formatItemTime(time: string): string {
 	return `${hour}:${minute}${ampm}`;
 }
 
+/** An item's cost as a label: an explicit 0 reads as "Free". */
 export function formatItemCost(cost: number): string {
 	return cost === 0 ? "Free" : `$${cost}`;
 }

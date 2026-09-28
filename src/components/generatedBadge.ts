@@ -1,4 +1,4 @@
-import styles from "./GeneratedBadge.module.css";
+import styles from "@/components/GeneratedBadge.module.css";
 import { GENERATED_LABEL, GENERATED_TITLE } from "@/utils/generated";
 
 /**

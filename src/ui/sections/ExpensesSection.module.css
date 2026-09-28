@@ -1,7 +1,8 @@
 /*
- * Scoped to this section. The equivalent global rules (.expense-settled-group,
- * .expense-settled-summary) stay in base.css for now — the plan page still
- * uses them — and will come across when that page is ported.
+ * Scoped to this section. A plan's Cost breakdown draws the same settled
+ * accordion from global rules in base.css (.expense-settled-group,
+ * .expense-settled-summary), so the look is defined twice until those move
+ * into a module the two sections share.
  */
 
 .settledGroup {

@@ -34,7 +34,7 @@ function definePicker() {
  * — so a theme's `var(--interactive-accent)` or an `hsl()` both become
  * something a picker and a hex field can hold.
  */
-export function resolveHex(color: string, within: HTMLElement): string {
+function resolveHex(color: string, within: HTMLElement): string {
 	const probe = within.createDiv();
 	probe.style.color = color;
 	const rgb = parseColor(getComputedStyle(probe).color);
@@ -280,10 +280,9 @@ export function openColorPopover(
 
 /**
  * Below this, a row's swatch, hex field and reset button no longer leave
- * room for the label — matches the calendar's own narrow-pane breakpoint
- * (CAL_NARROW), so the two settle on "mobile-shaped" the same way. The
- * window, not the device: a split pane or a resized window this narrow
- * needs the same fix a phone does.
+ * room for the label. Near the calendar's own narrow-pane breakpoint
+ * (CAL_NARROW, 620) but not tied to it. The window, not the device: a split
+ * pane or a resized window this narrow needs the same fix a phone does.
  */
 const NARROW_ROW = 600;
 

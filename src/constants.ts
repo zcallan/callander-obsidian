@@ -248,12 +248,6 @@ export const INTEREST_CATEGORIES = [
 
 export type InterestCategory = (typeof INTEREST_CATEGORIES)[number]["id"];
 
-// Fixed event types — deliberately few; "hangout" is the broad default.
-// No call/text granularity: that's the road to contact-frequency logging.
-// One vocabulary for everything on a timeline or the dashboard — the old
-// reminder types (outings you're going to) folded into the event types
-// (things that happened). "Task" is the odd one out: not really an event,
-// but a person-less "renew passport" needs somewhere to live too.
 /**
  * The dashboard's sections, in the order they ship in.
  *
@@ -282,13 +276,17 @@ export const DASHBOARD_SECTIONS = [
 	{ id: "secretActions", label: "🤫 Secret actions" },
 ] as const;
 
-export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number]["id"];
-
 /** The shipped order, as plain ids. */
 export const DEFAULT_DASHBOARD_ORDER: string[] = DASHBOARD_SECTIONS.map(
 	(s) => s.id
 );
 
+// Fixed event types — deliberately few; "hangout" is the broad default.
+// No call/text granularity: that's the road to contact-frequency logging.
+// One vocabulary for everything on a timeline or the dashboard — the old
+// reminder types (outings you're going to) folded into the event types
+// (things that happened). "Task" is the odd one out: not really an event,
+// but a person-less "renew passport" needs somewhere to live too.
 export const EVENT_TYPES = [
 	{ id: "hangout", label: "Hangout", emoji: "🤝", color: "#5a9cf8" },
 	{ id: "party", label: "Party", emoji: "🎉", color: "#e0559a" },
@@ -399,8 +397,6 @@ export const ROUGH_TIMES = [
 	{ id: "late-night", label: "Late night", sort: "21:30" },
 ] as const;
 
-export type RoughTimeId = (typeof ROUGH_TIMES)[number]["id"];
-
 /**
  * Something that takes the whole day rather than sitting at a point in it.
  * Kept out of ROUGH_TIMES because it isn't a time of day — it's the absence
@@ -430,8 +426,6 @@ export const EVENT_SPECIAL_TIMES = [
 	{ id: "anytime", label: "Anytime", long: "Anytime" },
 	{ id: "tbd", label: "TBD", long: "Time TBD" },
 ] as const;
-
-export type EventSpecialTimeId = (typeof EVENT_SPECIAL_TIMES)[number]["id"];
 
 /** The special an event's stored time names, if it names one at all. */
 export function specialEventTime(time: string | undefined | null) {
@@ -532,13 +526,6 @@ export const SOMEDAY_SEASONS = [
 	{ id: "fall", label: "Fall", emoji: "🍂" },
 	{ id: "winter", label: "Winter", emoji: "❄️" },
 ] as const;
-
-export type SomedaySeason = (typeof SOMEDAY_SEASONS)[number]["id"];
-
-/** Look up a season for its emoji/label. */
-export function somedaySeason(id: string | undefined | null) {
-	return id ? SOMEDAY_SEASONS.find((s) => s.id === id) : undefined;
-}
 
 /**
  * A season window read as a deadline: "by end of Fall". Where several
@@ -679,13 +666,6 @@ export const GROUP_COLORS = [
 	"#e57fb3",
 	"#8f9aa5",
 ];
-
-// Fields that have special input handling
-export const SPECIAL_INPUT_FIELDS = {
-	[STANDARD_FIELDS.BIRTHDAY]: "date",
-	[STANDARD_FIELDS.PHONE]: "tel",
-	[STANDARD_FIELDS.EMAIL]: "email",
-} as const;
 
 // The sidebar ribbon's icons — each individually toggleable from settings
 // (Quick actions). Metadata only: main.ts owns the actual click behaviour,

@@ -1,15 +1,5 @@
 import { openColorPopover } from "@/components/colorPicker";
 
-/**
- * A row of preset colour dots plus a custom slot — Group's own picker,
- * lifted out so anything else that wants "pick one of these, or your own"
- * (an event category) can have the identical control rather than a
- * lookalike that drifts from it over time.
- *
- * The custom slot is a text pill reading "Custom" until a colour is picked,
- * then a dot like the others — the dashboard's "All friends" button is the
- * shape it borrows before that happens.
- */
 export interface ColorSwatchRowOptions {
 	palette: readonly string[];
 	/** The current hand-picked colour, or "" for nothing hand-picked yet —
@@ -37,6 +27,16 @@ export interface ColorSwatchRowHandle {
 	getColor(): string;
 }
 
+/**
+ * A row of preset colour dots plus a custom slot — Group's own picker,
+ * lifted out so anything else that wants "pick one of these, or your own"
+ * (an event category) can have the identical control rather than a
+ * lookalike that drifts from it over time.
+ *
+ * The custom slot is a text pill reading "Custom" until a colour is picked,
+ * then a dot like the others — the dashboard's "All friends" button is the
+ * shape it borrows before that happens.
+ */
 export function appendColorSwatchRow(
 	container: HTMLElement,
 	opts: ColorSwatchRowOptions

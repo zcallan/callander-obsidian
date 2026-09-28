@@ -1,4 +1,4 @@
-import { TFile, TFolder, normalizePath } from "obsidian";
+import { TFile, normalizePath } from "obsidian";
 import type FriendTracker from "@/main";
 import type {
 	SomedayCompany,
@@ -201,10 +201,10 @@ export class SomedayOperations {
 
 	/** All somedays, straight from the metadata cache — zero file I/O. */
 	getSomedays(): SomedayInfo[] {
-		const folder = this.app.vault.getAbstractFileByPath(
+		const folder = this.app.vault.getFolderByPath(
 			this.getSomedaysFolderPath()
 		);
-		if (!(folder instanceof TFolder)) return [];
+		if (!folder) return [];
 		return folder.children
 			.filter(
 				(f): f is TFile => f instanceof TFile && f.extension === "md"

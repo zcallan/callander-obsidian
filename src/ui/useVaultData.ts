@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePlugin } from "@/ui/PluginContext";
-import type FriendTracker from "@/main";
 
 /**
  * A counter that bumps whenever anything the plugin owns changes on disk, or
@@ -103,12 +102,4 @@ export function useVaultQuery<T>(read: () => Promise<T>, initial: T): T {
 	}, [version]);
 
 	return value;
-}
-
-/** Settings, re-read whenever they change. */
-export function useSettings(): FriendTracker["settings"] {
-	const plugin = usePlugin();
-	// The version covers settings-changed, so this re-renders with them.
-	useVaultVersion();
-	return plugin.settings;
 }

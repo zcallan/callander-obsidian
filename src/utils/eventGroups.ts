@@ -34,23 +34,6 @@ export function weekStart(d: Date, startsOn: 0 | 1 = 1): Date {
 	return start;
 }
 
-/**
- * Which heading a date belongs under, relative to today.
- *
- * The near future is named by how soon it is — "This week", "Next week",
- * "Later this month" — because that's how you actually think about it. Past
- * that, months are enough, and naming a month twelve times is more useful
- * than naming fifty-two weeks.
- *
- * The year appears whenever the date isn't in the current one. That is what
- * keeps "September" from meaning two different things in a list that runs
- * both ways, and it happens to fall exactly where you'd want it: a year out
- * is where a bare month name stops being enough to place something.
- *
- * The page's Past and All modes mean this runs backwards too. "This week"
- * and "Earlier this month" cover a date behind today; anything further back
- * is a month like any other, carrying its year once it leaves this one.
- */
 export interface PeriodOptions {
 	/**
 	 * Put the year on every month heading, even one in the current year.
@@ -75,6 +58,23 @@ export interface PeriodOptions {
 	weekStartsOn?: 0 | 1;
 }
 
+/**
+ * Which heading a date belongs under, relative to today.
+ *
+ * The near future is named by how soon it is — "This week", "Next week",
+ * "Later this month" — because that's how you actually think about it. Past
+ * that, months are enough, and naming a month twelve times is more useful
+ * than naming fifty-two weeks.
+ *
+ * The year appears whenever the date isn't in the current one. That is what
+ * keeps "September" from meaning two different things in a list that runs
+ * both ways, and it happens to fall exactly where you'd want it: a year out
+ * is where a bare month name stops being enough to place something.
+ *
+ * The page's Past and All modes mean this runs backwards too. "This week"
+ * and "Earlier this month" cover a date behind today; anything further back
+ * is a month like any other, carrying its year once it leaves this one.
+ */
 export function eventPeriod(
 	date: string,
 	now: Date = new Date(),
@@ -184,8 +184,8 @@ export function groupEventsByPeriod<T>(
 		a.key < b.key ? -1 : a.key > b.key ? 1 : 0
 	);
 	if (!options.recentFirst) return sorted;
-	const undated = sorted.filter((g) => g.key === "");
-	const dated = sorted.filter((g) => g.key !== "");
+	const undated = sorted.filter((g) => g.key === UNDATED_KEY);
+	const dated = sorted.filter((g) => g.key !== UNDATED_KEY);
 	return [...undated, ...dated.reverse()];
 }
 

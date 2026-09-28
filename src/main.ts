@@ -13,7 +13,8 @@ import {
 	DEFAULT_SETTINGS,
 	SomedayInfo,
 	EventInfo,
-} from "./types";
+	type ContactWithCountdown,
+} from "@/types";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import { classifyExistingEvent } from "@/utils/eventRow";
 import { eventPlanSeed, type EventPlanSeed } from "@/utils/eventToPlan";
@@ -44,12 +45,30 @@ import { EventMigration } from "@/services/EventMigration";
 import {
 	FriendTrackerView,
 	VIEW_TYPE_FRIEND_TRACKER,
-} from "./views/FriendTrackerView";
+} from "@/views/FriendTrackerView";
 import {
 	ContactPageView,
 	VIEW_TYPE_CONTACT_PAGE,
 } from "@/views/ContactPageView";
-import { FriendTrackerSettingTab } from "./views/FriendTrackerView/settings";
+import { FriendTrackerSettingTab } from "@/views/FriendTrackerView/settings";
+import { ContactOperations } from "@/services/ContactOperations";
+import { DiaryOperations } from "@/services/DiaryOperations";
+import { DiaryView, VIEW_TYPE_DIARY } from "@/views/DiaryView";
+import { DashboardView, VIEW_TYPE_DASHBOARD } from "@/views/DashboardView";
+import { SomedaysView, VIEW_TYPE_SOMEDAYS } from "@/views/SomedaysView";
+import { EventsView, VIEW_TYPE_EVENTS } from "@/views/EventsView";
+import { CalendarView, VIEW_TYPE_CALENDAR } from "@/views/CalendarView";
+import { PlansView, VIEW_TYPE_PLANS } from "@/views/PlansView";
+import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
+import { AddContactModal } from "@/modals/AddContactModal";
+import { GlanceModal } from "@/modals/GlanceModal";
+import { GroupEventModal } from "@/modals/GroupEventModal";
+import { IdeaSearchModal } from "@/modals/IdeaSearchModal";
+import { SomedayModal } from "@/modals/SomedayModal";
+import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
+import { PlanModal } from "@/modals/PlanModal";
+import { EventModal } from "@/modals/EventModal";
+import { parseFlexDate, todayISO } from "@/utils/flexdate";
 
 /**
  * The markdown-view intercept: contact/someday notes navigated to as
@@ -134,24 +153,6 @@ function createSetViewStateOverride(
 		return original.call(this, viewState, eventState);
 	};
 }
-import { ContactOperations } from "@/services/ContactOperations";
-import { DiaryOperations } from "@/services/DiaryOperations";
-import { DiaryView, VIEW_TYPE_DIARY } from "@/views/DiaryView";
-import { DashboardView, VIEW_TYPE_DASHBOARD } from "@/views/DashboardView";
-import { SomedaysView, VIEW_TYPE_SOMEDAYS } from "@/views/SomedaysView";
-import { EventsView, VIEW_TYPE_EVENTS } from "@/views/EventsView";
-import { CalendarView, VIEW_TYPE_CALENDAR } from "@/views/CalendarView";
-import { PlansView, VIEW_TYPE_PLANS } from "@/views/PlansView";
-import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
-import { AddContactModal } from "@/modals/AddContactModal";
-import { GlanceModal } from "@/modals/GlanceModal";
-import { GroupEventModal } from "@/modals/GroupEventModal";
-import { IdeaSearchModal } from "@/modals/IdeaSearchModal";
-import { SomedayModal } from "@/modals/SomedayModal";
-import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
-import { PlanModal } from "@/modals/PlanModal";
-import { EventModal } from "@/modals/EventModal";
-import { parseFlexDate, todayISO } from "@/utils/flexdate";
 
 /** How to open a Callander page — see FriendTracker.openHere. */
 export interface NavOptions {
@@ -173,10 +174,6 @@ export default class FriendTracker extends Plugin {
 	 * once and then kept for the life of the plugin — refreshRibbonIcons()
 	 * shows and hides them rather than adding and removing them. */
 	private ribbonIcons = new Map<RibbonActionKey, HTMLElement>();
-
-	/** True when this install carries the .hotreload dev marker —
-	 * gates the dev-only build-stamp notice. */
-	private devBuild = false;
 
 	async onload() {
 		await this.loadSettings();
@@ -200,7 +197,6 @@ export default class FriendTracker extends Plugin {
 		void this.app.vault.adapter
 			.exists(`${this.manifest.dir ?? ""}/.hotreload`)
 			.then((dev) => {
-				this.devBuild = dev;
 				if (dev) {
 					new Notice(`Callander dev build ${__CALLANDER_BUILD__}`);
 				}
@@ -942,7 +938,7 @@ export default class FriendTracker extends Plugin {
 
 	/** Everywhere an idea can be captured to: friends, groups, the inbox */
 	public buildCaptureTargets(
-		contacts: import("@/types").ContactWithCountdown[]
+		contacts: ContactWithCountdown[]
 	): CaptureTarget[] {
 		return [
 			...contacts.map(
@@ -1407,39 +1403,37 @@ export default class FriendTracker extends Plugin {
 				.replace(/[^a-z0-9]+/g, "-");
 
 			// The next occurrence only — one year of coverage
-			{
-				const today = new Date();
-				today.setHours(0, 0, 0, 0);
-				let year = now.getFullYear();
-				let occurrence = new Date(year, parsed.month - 1, parsed.day);
-				occurrence.setHours(0, 0, 0, 0);
-				if (occurrence < today) {
-					year++;
-					occurrence = new Date(year, parsed.month - 1, parsed.day);
-				}
-
-				const title =
-					parsed.year !== null
-						? `🎂 ${c.displayName} turns ${year - parsed.year}`
-						: `🎂 ${c.displayName}'s birthday`;
-
-				lines.push(
-					"BEGIN:VEVENT",
-					`UID:callander-${uidBase}-${year}@callander`,
-					`DTSTAMP:${stamp}`,
-					`DTSTART;VALUE=DATE:${year}${pad(parsed.month)}${pad(
-						parsed.day
-					)}`,
-					`SUMMARY:${escape(title)}`,
-					"BEGIN:VALARM",
-					"ACTION:DISPLAY",
-					`DESCRIPTION:${escape(title)}`,
-					"TRIGGER:PT9H",
-					"END:VALARM",
-					"END:VEVENT"
-				);
-				eventCount++;
+			const today = new Date();
+			today.setHours(0, 0, 0, 0);
+			let year = now.getFullYear();
+			let occurrence = new Date(year, parsed.month - 1, parsed.day);
+			occurrence.setHours(0, 0, 0, 0);
+			if (occurrence < today) {
+				year++;
+				occurrence = new Date(year, parsed.month - 1, parsed.day);
 			}
+
+			const title =
+				parsed.year !== null
+					? `🎂 ${c.displayName} turns ${year - parsed.year}`
+					: `🎂 ${c.displayName}'s birthday`;
+
+			lines.push(
+				"BEGIN:VEVENT",
+				`UID:callander-${uidBase}-${year}@callander`,
+				`DTSTAMP:${stamp}`,
+				`DTSTART;VALUE=DATE:${year}${pad(parsed.month)}${pad(
+					parsed.day
+				)}`,
+				`SUMMARY:${escape(title)}`,
+				"BEGIN:VALARM",
+				"ACTION:DISPLAY",
+				`DESCRIPTION:${escape(title)}`,
+				"TRIGGER:PT9H",
+				"END:VALARM",
+				"END:VEVENT"
+			);
+			eventCount++;
 		}
 		lines.push("END:VCALENDAR");
 
@@ -1448,99 +1442,6 @@ export default class FriendTracker extends Plugin {
 		new Notice(
 			`📅 Saved "${path}" to your vault root (${eventCount} events — everyone's next birthday).\n\nOpen it in Finder and double-click to add to Apple Calendar — pick an iCloud calendar to get iPhone alerts too. Re-run and re-import yearly to top up.`,
 			15000
-		);
-	}
-
-	/**
-	 * Export a plan as one all-day calendar block spanning its dates, so the
-	 * whole time is reserved in Apple Calendar. The itinerary itself stays in
-	 * Callander — this just marks off the days.
-	 */
-	public async exportPlanCalendar(metadata: unknown, name: string) {
-		const dateRaw = fieldOf(metadata, "date");
-		const start = parseFlexDate(
-			typeof dateRaw === "string" ? dateRaw : undefined
-		);
-		if (
-			!start ||
-			start.year === null ||
-			start.month === null ||
-			start.day === null
-		) {
-			new Notice(
-				"Add an exact start date to export this plan to calendar."
-			);
-			return;
-		}
-
-		const pad = (n: number) => String(n).padStart(2, "0");
-		const asDate = (d: Date) =>
-			`${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
-
-		// An all-day DTEND is exclusive, so cover through the day after the last.
-		const endRaw = fieldOf(metadata, "endDate");
-		const endFlex = parseFlexDate(
-			typeof endRaw === "string" ? endRaw : undefined
-		);
-		const last =
-			endFlex &&
-			endFlex.year !== null &&
-			endFlex.month !== null &&
-			endFlex.day !== null
-				? new Date(endFlex.year, endFlex.month - 1, endFlex.day)
-				: new Date(start.year, start.month - 1, start.day);
-		last.setHours(0, 0, 0, 0);
-		const endExclusive = new Date(last);
-		endExclusive.setDate(endExclusive.getDate() + 1);
-
-		const now = new Date();
-		const stamp =
-			now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-		const escape = (s: string) =>
-			s
-				.replace(/\\/g, "\\\\")
-				.replace(/[,;]/g, (m) => "\\" + m)
-				.replace(/\n/g, "\\n");
-
-		const members = PlanOperations.membersOf(metadata);
-		const headcount =
-			members.length > 0
-				? `${members.length} ${
-						members.length === 1 ? "person" : "people"
-				  }. `
-				: "";
-		const uidBase = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-
-		const lines: string[] = [
-			"BEGIN:VCALENDAR",
-			"VERSION:2.0",
-			"PRODID:-//Callander//Plans//EN",
-			"CALSCALE:GREGORIAN",
-			"BEGIN:VEVENT",
-			`UID:callander-plan-${uidBase}@callander`,
-			`DTSTAMP:${stamp}`,
-			`DTSTART;VALUE=DATE:${asDate(
-				new Date(start.year, start.month - 1, start.day)
-			)}`,
-			`DTEND;VALUE=DATE:${asDate(endExclusive)}`,
-			`SUMMARY:${escape("🗺️ " + name)}`,
-			`DESCRIPTION:${escape(
-				`${headcount}Open Callander for the itinerary.`
-			)}`,
-		];
-		const location = fieldOf(metadata, "location");
-		if (location) {
-			lines.push(`LOCATION:${escape(toText(location))}`);
-		}
-		lines.push("END:VEVENT", "END:VCALENDAR");
-
-		const safe =
-			name.replace(/[\\/:*?"<>|#^[\]]/g, "-").trim() || "Plan";
-		const path = `${safe}.ics`;
-		await this.app.vault.adapter.write(path, lines.join("\r\n"));
-		new Notice(
-			`📅 Saved "${path}" to your vault root.\n\nOpen it (double-click on desktop, or tap on iPhone) and add it to an iCloud calendar to block off the time.`,
-			12000
 		);
 	}
 

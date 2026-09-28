@@ -126,8 +126,9 @@ function planItem(plan: PlanInfo): PageItem {
 		date: plan.date,
 		type: "plan",
 		status: plan.status,
-		// Plans carry no stamps, so Oldest and Last updated sink them to
-		// the end — the same place an unstamped event goes.
+		// Read as unstamped, though plans do carry created and updated,
+		// so Oldest and Last updated sink them to the end — the same place
+		// an unstamped event goes.
 		created: "",
 		updated: "",
 		time: "",
@@ -156,8 +157,8 @@ export class EventsView extends ItemView {
 	private focusPath: string | null = null;
 	private listEl: HTMLElement | null = null;
 
-	// Filters — one type and one person at a time, like the Somedays page's
-	// own single-pick facets.
+	// Filters — one type, one category and one person at a time, like the
+	// Somedays page's own single-pick facets.
 	private type: EventType | "" = "";
 	private category = "";
 	private personPath = "";
@@ -459,7 +460,7 @@ export class EventsView extends ItemView {
 	// ---- Rendering ----
 
 	private render() {
-		const container = this.containerEl.children[1] as HTMLElement;
+		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		container.empty();
 		container.addClass("dashboard-container", "somedays-container");
@@ -562,11 +563,6 @@ export class EventsView extends ItemView {
 		this.maybeFilterPanel(container);
 	}
 
-	/**
-	 * The Filters button on its own line, for the Calendar tab — which has
-	 * no when-pills to share a row with, but still filters by type, person
-	 * and search like every other tab.
-	 */
 	/**
 	 * The Calendar tab — the shared board (see calendarBoard), fed with
 	 * what's left after the filters.
@@ -824,6 +820,11 @@ export class EventsView extends ItemView {
 		];
 	}
 
+	/**
+	 * The Filters button on its own line, for the Calendar tab — which has
+	 * no when-pills to share a row with, but still filters by type, person
+	 * and search like every other tab.
+	 */
 	private renderFilterRow(container: HTMLElement) {
 		const row = container.createDiv({ cls: "events-when-row" });
 		row.createSpan();
@@ -890,8 +891,8 @@ export class EventsView extends ItemView {
 		);
 		// A vault saved earlier may still hold "upcoming" or "past" (before
 		// they became filters) or "soonest"/"nearest" (this sort's old
-		// names); all
-		// fall back to Natural rather than leaving the select blank.
+		// names); all fall back to Natural rather than leaving the select
+		// blank.
 		sortSel.value = eventSortOf(this.plugin.settings.eventSort);
 		const handleSortChange = async () => {
 			this.plugin.settings.eventSort = sortSel.value as EventSort;
@@ -951,7 +952,7 @@ export class EventsView extends ItemView {
 	 * the position is still reachable.
 	 */
 	private renderContent() {
-		const container = this.containerEl.children[1] as HTMLElement;
+		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		if (this.tab === "timeline") {
 			this.renderTimeline();
@@ -1012,7 +1013,7 @@ export class EventsView extends ItemView {
 	private renderFilterPanel(container: HTMLElement) {
 		const wrap = container.createDiv({ cls: "someday-filters" });
 
-		// Both rows are built from what the SORT leaves in scope (see
+		// Both rows are built from what Upcoming/Past leaves in scope (see
 		// inScope) and go no further: a chip renders when any in-scope
 		// event satisfies its facet, whatever the other live filters say.
 		// Chips vanishing as you filter — especially the selected one — is
@@ -1070,7 +1071,8 @@ export class EventsView extends ItemView {
 		const typeOpts = typeRow.createDiv({ cls: "someday-filter-options" });
 		EVENT_TYPES.forEach((t) => {
 			// The current pick always renders, even once it's out of scope —
-			// otherwise changing the sort could leave it applied invisibly.
+			// otherwise switching Upcoming/Past could leave it applied
+			// invisibly.
 			if (!scope.some((e) => e.type === t.id) && this.type !== t.id) {
 				return;
 			}
@@ -1087,8 +1089,8 @@ export class EventsView extends ItemView {
 		});
 
 		const roster = this.personRoster(scope);
-		// Keep the current pick on the row even when the sort has taken
-		// their last event out of scope — otherwise the filter stays
+		// Keep the current pick on the row even when Upcoming/Past has
+		// taken their last event out of scope — otherwise the filter stays
 		// applied with nothing left to unclick it.
 		if (this.personPath && !roster.some((p) => p.path === this.personPath)) {
 			roster.push({

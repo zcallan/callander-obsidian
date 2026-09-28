@@ -1,14 +1,11 @@
 import type { Expense } from "@/types";
 import { paidStateOf, payersOf, splitModeLabel } from "@/utils/expenseMath";
-import styles from "@/components/ExpenseRow.module.css";
+import styles from "@/ui/components/ExpenseRow.module.css";
 
 /**
- * One expense, over two lines — the React twin of components/ExpenseRow.ts.
- *
- * Deliberately sharing that file's stylesheet rather than copying it: the
- * plan page still renders the imperative version, and two stylesheets for
- * one visual component is exactly how they drift. When the plan page moves
- * across, the imperative builder goes and this keeps the CSS.
+ * One expense, over two lines: its label and how much of it is paid, then
+ * its amount and how it's split. The same row on the dashboard and in a
+ * plan's Cost breakdown.
  */
 export function ExpenseRow({
 	expense,

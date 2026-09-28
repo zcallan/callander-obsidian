@@ -79,7 +79,7 @@ export class DiaryView extends ItemView {
 		// Wrapped after the fact rather than at each of renderBody's exits,
 		// which include an early return for an empty diary.
 		applyPageWidth(
-			this.containerEl.children[1] as HTMLElement,
+			this.contentEl,
 			this.plugin,
 			this.pageWide,
 			() => {
@@ -90,7 +90,7 @@ export class DiaryView extends ItemView {
 	}
 
 	private renderBody() {
-		const container = this.containerEl.children[1] as HTMLElement;
+		const container = this.contentEl;
 		container.empty();
 		container.addClass("diary-view-container");
 

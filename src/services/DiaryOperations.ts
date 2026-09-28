@@ -17,11 +17,11 @@ export class DiaryOperations {
 
 	async ensureDiaryFolder(): Promise<TFolder> {
 		const path = this.getDiaryFolderPath();
-		const existing = this.app.vault.getAbstractFileByPath(path);
-		if (existing instanceof TFolder) return existing;
+		const existing = this.app.vault.getFolderByPath(path);
+		if (existing) return existing;
 		await this.app.vault.createFolder(path);
-		const created = this.app.vault.getAbstractFileByPath(path);
-		if (!(created instanceof TFolder)) {
+		const created = this.app.vault.getFolderByPath(path);
+		if (!created) {
 			throw new Error(`Could not create diary folder: ${path}`);
 		}
 		return created;
@@ -35,10 +35,10 @@ export class DiaryOperations {
 	}
 
 	async getEntries(): Promise<DiaryEntry[]> {
-		const folder = this.app.vault.getAbstractFileByPath(
+		const folder = this.app.vault.getFolderByPath(
 			this.getDiaryFolderPath()
 		);
-		if (!(folder instanceof TFolder)) return [];
+		if (!folder) return [];
 
 		const files = folder.children.filter(
 			(f): f is TFile => f instanceof TFile && f.extension === "md"
@@ -80,10 +80,10 @@ export class DiaryOperations {
 	 * Use this when bodies aren't needed (e.g. diary-mention lookups).
 	 */
 	getEntriesMeta(): Array<{ file: TFile; title: string; date: string }> {
-		const folder = this.app.vault.getAbstractFileByPath(
+		const folder = this.app.vault.getFolderByPath(
 			this.getDiaryFolderPath()
 		);
-		if (!(folder instanceof TFolder)) return [];
+		if (!folder) return [];
 		return folder.children
 			.filter(
 				(f): f is TFile => f instanceof TFile && f.extension === "md"
@@ -102,7 +102,7 @@ export class DiaryOperations {
 			.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 	}
 
-	splitContent(content: string): {
+	private splitContent(content: string): {
 		frontmatter: Record<string, unknown>;
 		body: string;
 	} {

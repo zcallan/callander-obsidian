@@ -11,7 +11,7 @@ import { usePlugin } from "@/ui/PluginContext";
 import { useVaultQuery } from "@/ui/useVaultData";
 import { Icon } from "@/ui/components/Icon";
 import { ExpenseRow } from "@/ui/components/ExpenseRow";
-import styles from "./ExpensesSection.module.css";
+import styles from "@/ui/sections/ExpensesSection.module.css";
 
 const EMPTY: Expense[] = [];
 

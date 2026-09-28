@@ -7,7 +7,7 @@ import { guardedAction, reportFailure } from "@/components/guardedAction";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { EventModal } from "@/modals/EventModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
-import { splitLeadingEmoji } from "@/components/EventTimeline";
+import { splitLeadingEmoji } from "@/utils/emoji";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
 import {
 	formatSomedayDays,

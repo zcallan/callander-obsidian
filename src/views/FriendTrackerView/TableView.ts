@@ -1,5 +1,5 @@
 import { Platform, setIcon } from "obsidian";
-import type { FriendTrackerView } from "./index";
+import type { FriendTrackerView } from "@/views/FriendTrackerView";
 import type {
 	ContactWithCountdown,
 	FriendListSort,
@@ -54,8 +54,8 @@ const TABS: Array<{ id: FriendListTab; label: string }> = [
 /**
  * The All friends page: search, group-pill filtering and a remembered sort
  * over three presentations of the same people — a two-line list in the
- * dashboard's visual language, a year of birthdays as a timeline, and a
- * calendar grid still to come.
+ * dashboard's visual language, a year of birthdays as a timeline, and
+ * those birthdays on a calendar grid.
  */
 export class TableView {
 	private searchQuery = "";
@@ -551,6 +551,11 @@ export class TableView {
 		}
 	}
 
+	/** Which day the grid opens on — 1 Monday, 0 Sunday. */
+	private weekStartsOn(): 0 | 1 {
+		return this.view.callander.settings.weekStartsOn === 0 ? 0 : 1;
+	}
+
 	/**
 	 * A person's birthday as a chip: their name on a line of its own, with
 	 * the age they reach under it.
@@ -560,11 +565,6 @@ export class TableView {
 	 * that got truncated first in a narrow column — which is the wrong way
 	 * round when the whole question is whose birthday it is.
 	 */
-	/** Which day the grid opens on — 1 Monday, 0 Sunday. */
-	private weekStartsOn(): 0 | 1 {
-		return this.view.callander.settings.weekStartsOn === 0 ? 0 : 1;
-	}
-
 	private appendCalBirthday(
 		cell: HTMLElement,
 		person: ContactWithCountdown,

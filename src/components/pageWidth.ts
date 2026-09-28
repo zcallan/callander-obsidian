@@ -2,7 +2,7 @@ import { ItemView } from "obsidian";
 import type FriendTracker from "@/main";
 
 /** The reading column every page is capped to when the setting is on. */
-export const PAGE_WIDTH = 760;
+const PAGE_WIDTH = 760;
 /** Room the widen button needs beside that column before it's worth offering. */
 const GUTTER = 56;
 

@@ -7,11 +7,11 @@ import { Icon } from "@/ui/components/Icon";
 
 /**
  * The two-line "when / what" row — the React twin of
- * components/UpcomingRow.ts, which the Events page still uses.
+ * components/UpcomingRow.ts, which the Calendar page still uses.
  *
  * Keeps the same class names deliberately: the styling lives in base.css and
  * is shared with the imperative version, so the two can't drift while both
- * exist. It moves to a module when the Events page comes across.
+ * exist. It moves to a module when the Calendar page comes across.
  */
 export function UpcomingRow({
 	icon,

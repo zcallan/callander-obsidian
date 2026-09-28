@@ -58,6 +58,12 @@ Fixes from a review of the whole plugin, most of them ways an edit could be lost
 - A save that fails says so, and the form stays open with what you entered. Before, most failed silently. Adding a friend under a name that's taken is one case.
 - Notes typed into a view (an event, someday, plan item, life goal or draft) that can't be saved as it closes now say so too.
 
+### Internal
+
+- About 500 lines of code nothing used any more are gone, among them a plan calendar export with no button, two fields worked out for every friend on every read and then never shown, and a second copy of the emoji splitter. So are 720 lines of stylesheet rules that no element could match.
+- Comments that had drifted from the code, or sat on the wrong function, are corrected or moved to the one they describe.
+- Tests, lint and a build run on every push and pull request, and a release now waits for them to pass.
+
 ## 1.10.6 — 2026-09-27
 
 ### Dashboard

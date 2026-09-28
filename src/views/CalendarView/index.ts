@@ -129,7 +129,7 @@ export class CalendarView extends ItemView {
 	}
 
 	private render() {
-		const container = this.containerEl.children[1] as HTMLElement;
+		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		container.empty();
 		container.addClass("dashboard-container", "fullcal-container");
@@ -173,7 +173,7 @@ export class CalendarView extends ItemView {
 		// the scroll to the top — and it stayed there once the board was
 		// back, so every tick in the drawer or tap on a day jumped the page.
 		// Held and put back, the same way render() does for a full redraw.
-		const scroller = this.containerEl.children[1] as HTMLElement;
+		const scroller = this.contentEl;
 		const scrollTop = scroller.scrollTop;
 		el.empty();
 		el.toggleClass("is-drawer-open", this.drawerOpen);
@@ -395,11 +395,6 @@ export class CalendarView extends ItemView {
 
 	// ---- The drawer ----
 
-	/**
-	 * The ☰ beside the month. Drawn rather than named, like the page-width
-	 * button: setIcon renders nothing for a name Obsidian doesn't ship, and
-	 * none on CLAUDE.md's verified list means "menu".
-	 */
 	/**
 	 * The drawer's sections: which calendars, which event categories, and
 	 * how the month grid draws. Everything is remembered across opens, like

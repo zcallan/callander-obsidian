@@ -46,7 +46,6 @@ import {
 import { ViewStore } from "@/ui/viewStore";
 import type FriendTracker from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
-import { ContactFields } from "@/components/ContactFields";
 import { EventTimeline } from "@/components/EventTimeline";
 import type {
 	ContactWithCountdown,
@@ -58,6 +57,13 @@ import type {
 	LifeGoal,
 	PlanBringItem,
 	Quote,
+	Draft,
+	Expense,
+	Credit,
+	PlanItem,
+	PlanQuickIdea,
+	PlanSimpleItem,
+	PlanTimelineEntry,
 } from "@/types";
 import { AddFieldModal } from "@/modals/AddFieldModal";
 import { NoteSuggest } from "@/components/NoteSuggest";
@@ -81,8 +87,10 @@ import { PlanQuickIdeaModal } from "@/modals/PlanQuickIdeaModal";
 import { PlanQuickIdeaViewModal } from "@/modals/PlanQuickIdeaViewModal";
 import { DeleteContactModal } from "@/modals/DeleteContactModal";
 import { ContactSuggestModal, QuickIdeaModal } from "@/modals/QuickIdeaModal";
-import { VIEW_TYPE_FRIEND_TRACKER } from "@/views/FriendTrackerView";
-import { FriendTrackerView } from "@/views/FriendTrackerView";
+import {
+	FriendTrackerView,
+	VIEW_TYPE_FRIEND_TRACKER,
+} from "@/views/FriendTrackerView";
 import {
 	STANDARD_FIELDS,
 	SYSTEM_FIELDS,
@@ -94,15 +102,6 @@ import {
 	EventType,
 	TRAVEL_TYPES,
 } from "@/constants";
-import type {
-	Draft,
-	Expense,
-	Credit,
-	PlanItem,
-	PlanQuickIdea,
-	PlanSimpleItem,
-	PlanTimelineEntry,
-} from "@/types";
 import { PlanOperations } from "@/services/PlanOperations";
 import { PlanDetailsModal } from "@/modals/PlanDetailsModal";
 import { AddPlanMemberModal } from "@/modals/AddPlanMemberModal";
@@ -285,14 +284,11 @@ export class ContactPageView extends ItemView {
 	private saveQueue: Promise<void> = Promise.resolve();
 	/** Widened for this view only, until it closes. */
 	private pageWide = false;
-	private contactFields: ContactFields;
 	private eventTimeline: EventTimeline;
 	public plugin: FriendTracker;
 	private lastIdeaCategory: IdeaCategory = "gift";
 	private lastInterestCategory: InterestCategory = "hobbies";
-	// Which collapsible plan sections are expanded (persists across re-renders)
-	private expandedPlanSections = new Set<string>();
-	// The raw-markdown accordion — likewise collapsed by default
+	// The raw-markdown accordion, collapsed by default
 	private expandedMarkdownSection = false;
 	/** Guards against reacting to our own writes */
 	private writingUntil = 0;
@@ -347,10 +343,6 @@ export class ContactPageView extends ItemView {
 	/** Legacy `giftIdeas` on a note whose ideas already moved to the body —
 	 * appended there by migrateIdeasToBody rather than lost. */
 	private pendingLegacyIdeas: Idea[] = [];
-
-	public getRelationshipTypes(): string[] {
-		return this.plugin.settings.relationshipTypes;
-	}
 
 	/** This page's events, derived from the Events/ files that link here. */
 	private eventsList(): EventInfo[] {
@@ -543,21 +535,9 @@ export class ContactPageView extends ItemView {
 		else delete this.contactData.drafts;
 	}
 
-	public async addRelationshipType(
-		type: string,
-		existingTypes?: string[]
-	): Promise<void> {
-		this.plugin.settings.relationshipTypes = [
-			...(existingTypes || this.plugin.settings.relationshipTypes),
-			type,
-		];
-		await this.plugin.saveSettings();
-	}
-
-	constructor(leaf: WorkspaceLeaf, private _plugin: FriendTracker) {
+	constructor(leaf: WorkspaceLeaf, plugin: FriendTracker) {
 		super(leaf);
-		this.plugin = _plugin;
-		this.contactFields = new ContactFields(this);
+		this.plugin = plugin;
 		this.eventTimeline = new EventTimeline(this);
 		// Participate in tab history so back/forward arrows work
 		this.navigation = true;
@@ -818,7 +798,7 @@ export class ContactPageView extends ItemView {
 		// root stays attached to its own element, so moving that element
 		// doesn't disturb it.
 		applyPageWidth(
-			this.containerEl.children[1] as HTMLElement,
+			this.contentEl,
 			this.plugin,
 			this.pageWide,
 			() => {
@@ -829,7 +809,7 @@ export class ContactPageView extends ItemView {
 	}
 
 	private renderBody() {
-		const container = this.containerEl.children[1] as HTMLElement;
+		const container = this.contentEl;
 		// Anchored into DOM this is about to discard, and its dismiss
 		// handlers are on the document — closing first keeps them from
 		// pointing at a detached node.
@@ -1435,21 +1415,11 @@ export class ContactPageView extends ItemView {
 		}
 	}
 
-	/**
-	 * Delete this person, at the very bottom and set apart by a divider.
-	 *
-	 * Deliberately not in the header with the other actions: it's the one
-	 * control here that destroys something, and putting it beside "Add idea"
-	 * makes a misclick cheap. Reaching it means scrolling past the whole page.
-	 */
-
 	/** Trash this person's note, then leave the page it was showing. */
 	private confirmDeletePerson() {
 		const file = this._file;
 		if (!file) return;
 		const name = this.contactData.name || file.basename;
-		// The same dialog the friends table uses, so deleting a person reads
-		// identically wherever it's done.
 		new DeleteContactModal(this.app, file, async () => {
 			// Before trashing: a plan's own "Who's in" is a copy of the
 			// wikilink, not a live query, and only resolves against this
@@ -2039,10 +2009,6 @@ export class ContactPageView extends ItemView {
 	}
 
 	/**
-	 * "When we met" with honest vagueness: record just the year, the month,
-	 * or the exact day — whatever you actually remember.
-	 */
-	/**
 	 * A field's label, plus — while editing — the button that explains it.
 	 *
 	 * Shared by the read view and every edit-mode field so the wording can't
@@ -2192,6 +2158,10 @@ export class ContactPageView extends ItemView {
 		};
 	}
 
+	/**
+	 * "When we met" with honest vagueness: record just the year, the month,
+	 * or the exact day — whatever you actually remember.
+	 */
 	private createMetField(container: HTMLElement) {
 		const fieldContainer = container.createDiv({
 			cls: "contact-field",
@@ -2816,7 +2786,6 @@ export class ContactPageView extends ItemView {
 		return resolvePeopleInfo(this.app, this._file?.path ?? "", members);
 	}
 
-	/** "Thu 30 Jul - Sun 2 Aug", "Thu 30 Jul", or just "October" */
 	/** Member display names — resolved contacts use displayName, guests as-is */
 	private planMemberDisplays(list?: string[]): string[] {
 		return this.planMemberInfo(list).map((m) => m.displayName);
@@ -2847,7 +2816,6 @@ export class ContactPageView extends ItemView {
 		});
 	}
 
-	/** Resolve the plan's wikilink members to contact files */
 	/**
 	 * Plans this person is a member of, shaped as timeline rows.
 	 *
@@ -2889,6 +2857,7 @@ export class ContactPageView extends ItemView {
 			}));
 	}
 
+	/** Resolve the plan's wikilink members to contact files */
 	private resolvePlanMembers(): TFile[] {
 		if (!this._file) return [];
 		const members = asArray(this.contactData.members).map(String);
@@ -3280,15 +3249,6 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	/**
-	 * Ideas parked against the plan — things you might do, with no day
-	 * committed. Sits above the Timeline because it's the pile you're still
-	 * deciding from; the Timeline is what you've decided.
-	 *
-	 * Grouped by the plan's own categories when any are set. An idea in two
-	 * categories appears under both, deliberately — the grouping is a lens,
-	 * not a filing cabinet.
-	 */
 	/** A people string as first names, using the plan's own roster. */
 	private shortenPlanPeople(people: string): string {
 		return shortenPeopleList(
@@ -3447,14 +3407,6 @@ export class ContactPageView extends ItemView {
 			: { text: "e.g. Beachfront Airbnb" };
 	}
 
-	/** Item cost label: an explicit 0 reads as "Free"; blank stays hidden. */
-	/**
-	 * The plan as an itinerary: every dated item across ideas, travel and
-	 * accommodation, grouped by day, earliest first. Derived on the fly from
-	 * PlanOperations.timelineOf — each row points back to its one real item.
-	 * When the plan has an exact start+end date, every day in that range is
-	 * listed (empty ones show "No plans yet") so it reads day-by-day.
-	 */
 	/** Every day of the plan's exact span, or none when it hasn't got one. */
 	private planRangeDays(): string[] {
 		const startISO = this.exactPlanDay(this.contactData.date);
@@ -3463,7 +3415,6 @@ export class ContactPageView extends ItemView {
 		return this.daysBetween(startISO, endISO);
 	}
 
-	/** "Copy as text", top-right in the section header (desktop). */
 	/** Collapsed plan sections, tolerant of a hand-edited data.json. */
 	private collapsedPlanSections(): string[] {
 		const saved = this.plugin.settings.planSectionsCollapsed;
@@ -3565,11 +3516,6 @@ export class ContactPageView extends ItemView {
 			"Delete",
 			() => this.deleteTimelineEntry(entry)
 		).open();
-	}
-
-	/** True when the text already leads with an emoji/pictograph. */
-	private startsWithEmoji(text: string): boolean {
-		return /^\p{Extended_Pictographic}/u.test(text.trim());
 	}
 
 	/** Exact YYYY-MM-DD for a plan flex date, or null if not day-precise. */
@@ -3751,7 +3697,6 @@ export class ContactPageView extends ItemView {
 		}
 	}
 
-	/** Add (index null) or edit a travel leg via the shared item modal. */
 	/** Day dropdown (when exact range) + trip people for the item modals. */
 	private planScheduleOptions(): ScheduleFieldOptions {
 		const opts: ScheduleFieldOptions = {
@@ -3943,12 +3888,7 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	/**
-	 * The one real delete for a stay category — saving only ever adds.
-	 * stayCategoriesOf unions the persisted list with whatever stays still
-	 * reference, so clearing it from the vocabulary alone would let any stay
-	 * still carrying it put it straight back.
-	 */
+	/** Add any new categories a saved stay carries to the plan's list. */
 	private rememberStayCategories(categories: string[] | undefined) {
 		if (!categories || categories.length === 0) return;
 		const known = PlanOperations.stayCategoriesOf(this.contactData);
@@ -3960,6 +3900,12 @@ export class ContactPageView extends ItemView {
 		this.contactData.accommodationCategories = known;
 	}
 
+	/**
+	 * The one real delete for a stay category — saving only ever adds.
+	 * stayCategoriesOf unions the persisted list with whatever stays still
+	 * reference, so clearing it from the vocabulary alone would let any stay
+	 * still carrying it put it straight back.
+	 */
 	private async deleteStayCategory(category: string) {
 		const matches = (c: string) =>
 			c.toLowerCase() === category.toLowerCase();
@@ -4260,8 +4206,6 @@ export class ContactPageView extends ItemView {
 		delete this.contactData.giftIdeas;
 	}
 
-	// Migrate legacy interactions -> events. Same shape ({date, text}), new
-	// name and flexible dates. In-memory on load; rewritten on next save.
 	// Old plan items had a single `bucket`; split into category+priority,
 	// and move logistics items to the travel list. In-memory; persists on save.
 	private migratePlanStructure() {
@@ -4562,8 +4506,8 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	/** Normalized quote list (legacy plain strings read as { text }). */
-	/** Quotes still in frontmatter — the pre-migration source. */
+	/** Quotes still in frontmatter — the pre-migration source. Legacy plain
+	 * strings read as `{ text }`. */
 	private frontmatterQuotes(): Quote[] {
 		return asArray(this.contactData.quotes)
 			.map((q): Quote => {
@@ -4785,11 +4729,10 @@ export class ContactPageView extends ItemView {
 	 * @param container The section wrap — the Edit button hangs off this, so
 	 * on the person page it stays visible while the section is collapsed.
 	 * @param body The collapsible area holding the rendered markdown.
-	 * Defaults to the container, which is the plan page's flat layout.
 	 */
 	private async renderExtrasSection(
 		container: HTMLElement,
-		body: HTMLElement = container
+		body: HTMLElement
 	) {
 		const extrasSection = body.createDiv({
 			cls: "contact-extras-section",
@@ -4858,15 +4801,6 @@ export class ContactPageView extends ItemView {
 		});
 	}
 
-	private adjustTextareaHeight(textarea: HTMLTextAreaElement) {
-		textarea.classList.add("measuring");
-		textarea.style.setProperty(
-			"--scroll-height",
-			`${textarea.scrollHeight}px`
-		);
-		textarea.classList.remove("measuring");
-	}
-
 	/**
 	 * Write what this page changed in the note's frontmatter since it last
 	 * read or wrote it (frontmatterPatch): changed keys are set, removed keys
@@ -4926,10 +4860,10 @@ export class ContactPageView extends ItemView {
 
 		// `contactData` was mutated before this ran, so the islands are
 		// already behind by the time the write lands. Bumping here rather
-		// than at each of the ~55 call sites means a ported section updates
-		// whether or not its caller also redraws the imperative DOM — and
-		// the double bump when one does costs a re-render of a small tree,
-		// not a re-read of the vault.
+		// than at each of its fifty-odd call sites means a ported section
+		// updates whether or not its caller also redraws the imperative DOM
+		// — and the double bump when one does costs a re-render of a small
+		// tree, not a re-read of the vault.
 		this.store.bump();
 	}
 
@@ -4970,7 +4904,7 @@ export class ContactPageView extends ItemView {
 	}
 
 	/** Log a quick event on this page's timeline (idea done → timeline). */
-	public async addEvent(
+	private async addEvent(
 		date: string,
 		text: string,
 		type: EventType,

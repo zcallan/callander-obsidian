@@ -1,4 +1,4 @@
-import { TFile, TFolder, normalizePath } from "obsidian";
+import { TFile, normalizePath } from "obsidian";
 import type FriendTracker from "@/main";
 import type { PlanIdeaCategory, PlanPriority } from "@/constants";
 import {
@@ -460,10 +460,10 @@ export class PlanOperations {
 
 	/** All plans, straight from the metadata cache — zero file I/O */
 	getPlans(): PlanInfo[] {
-		const folder = this.app.vault.getAbstractFileByPath(
+		const folder = this.app.vault.getFolderByPath(
 			this.getPlansFolderPath()
 		);
-		if (!(folder instanceof TFolder)) return [];
+		if (!folder) return [];
 		return folder.children
 			.filter(
 				(f): f is TFile => f instanceof TFile && f.extension === "md"
@@ -505,10 +505,10 @@ export class PlanOperations {
 	 * while the file still exists.
 	 */
 	async removePersonFromPlans(file: TFile): Promise<void> {
-		const folder = this.app.vault.getAbstractFileByPath(
+		const folder = this.app.vault.getFolderByPath(
 			this.getPlansFolderPath()
 		);
-		if (!(folder instanceof TFolder)) return;
+		if (!folder) return;
 		const plans = folder.children.filter(
 			(f): f is TFile => f instanceof TFile && f.extension === "md"
 		);
@@ -563,7 +563,9 @@ export class PlanOperations {
 		);
 	}
 
-	/** Every write goes through here so the file's `updated` stamp stays true. */
+	/** Plan writes go through here so the file's `updated` stamp stays true —
+	 * all but removePersonFromPlans, which writes directly and leaves
+	 * `updated` as it was. */
 	private async writePlan(
 		file: TFile,
 		fn: (fm: Record<string, unknown>) => void

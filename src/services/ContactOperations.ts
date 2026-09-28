@@ -1,4 +1,4 @@
-import { Notice, TFile, TFolder, normalizePath } from "obsidian";
+import { Notice, TFile, normalizePath } from "obsidian";
 import type FriendTracker from "@/main";
 import type {
 	ContactWithCountdown,
@@ -9,12 +9,7 @@ import type {
 } from "@/types";
 import { expensesOf } from "@/utils/expenseMath";
 import type { IdeaCategory } from "@/constants";
-import {
-	parseFlexDate,
-	formatFlexDate,
-	flexSortKey,
-	todayISO,
-} from "@/utils/flexdate";
+import { parseFlexDate, todayISO } from "@/utils/flexdate";
 import { nextBirthdayOccurrence } from "@/utils/friendTimeline";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import { generatedField } from "@/utils/generated";
@@ -223,10 +218,10 @@ export class ContactOperations {
 	/** Every draft, ticked ones included, in file order. Empty when the
 	 * dashboard note doesn't exist yet or has no `## Drafts`. */
 	async readDrafts(): Promise<LedgerDraft[]> {
-		const file = this.app.vault.getAbstractFileByPath(
+		const file = this.app.vault.getFileByPath(
 			this.getDashboardFilePath()
 		);
-		if (!(file instanceof TFile)) return [];
+		if (!file) return [];
 		try {
 			const body = splitFrontmatter(
 				await this.app.vault.cachedRead(file)
@@ -364,16 +359,16 @@ export class ContactOperations {
 			const has = isRecord(fm) && fm.drafts !== undefined;
 			if (drafts.length > 0 || has) sources.push({ file, drafts, about });
 		};
-		const dashboard = this.app.vault.getAbstractFileByPath(
+		const dashboard = this.app.vault.getFileByPath(
 			this.getDashboardFilePath()
 		);
-		if (dashboard instanceof TFile) collect(dashboard, undefined);
+		if (dashboard) collect(dashboard, undefined);
 		for (const path of [
 			this.getPeopleFolderPath(),
 			this.getGroupsFolderPath(),
 		]) {
-			const folder = this.app.vault.getAbstractFileByPath(path);
-			if (!(folder instanceof TFolder)) continue;
+			const folder = this.app.vault.getFolderByPath(path);
+			if (!folder) continue;
 			for (const child of folder.children) {
 				if (child instanceof TFile && child.extension === "md") {
 					collect(child, child.basename);
@@ -523,10 +518,10 @@ export class ContactOperations {
 	getGroupNames(contacts: ContactWithCountdown[]): string[] {
 		const names = new Set<string>();
 		contacts.forEach((c) => c.groups.forEach((g) => names.add(g)));
-		const folder = this.app.vault.getAbstractFileByPath(
+		const folder = this.app.vault.getFolderByPath(
 			this.getGroupsFolderPath()
 		);
-		if (folder instanceof TFolder) {
+		if (folder) {
 			folder.children.forEach((f) => {
 				if (f instanceof TFile && f.extension === "md") {
 					names.add(f.basename.toLowerCase());
@@ -542,10 +537,10 @@ export class ContactOperations {
 	 */
 	getGroupInfos(contacts?: ContactWithCountdown[]): GroupInfo[] {
 		const infos = new Map<string, GroupInfo>();
-		const folder = this.app.vault.getAbstractFileByPath(
+		const folder = this.app.vault.getFolderByPath(
 			this.getGroupsFolderPath()
 		);
-		if (folder instanceof TFolder) {
+		if (folder) {
 			for (const f of folder.children) {
 				if (f instanceof TFile && f.extension === "md") {
 					const fm =
@@ -781,8 +776,8 @@ export class ContactOperations {
 
 	async ensureDashboardFile(): Promise<TFile> {
 		const path = this.getDashboardFilePath();
-		const existing = this.app.vault.getAbstractFileByPath(path);
-		if (existing instanceof TFile) return existing;
+		const existing = this.app.vault.getFileByPath(path);
+		if (existing) return existing;
 		return await this.app.vault.create(
 			path,
 			`---\nkind: dashboard\n---\n`
@@ -794,20 +789,20 @@ export class ContactOperations {
 		if (this.app.vault.getAbstractFileByPath(this.getDashboardFilePath())) {
 			return;
 		}
-		const legacy = this.app.vault.getAbstractFileByPath(
+		const legacy = this.app.vault.getFileByPath(
 			normalizePath(
 				`${this.plugin.settings.baseFolder}/${LEGACY_INBOX_BASENAME}.md`
 			)
 		);
-		if (!(legacy instanceof TFile)) return;
+		if (!legacy) return;
 		await this.app.fileManager.renameFile(
 			legacy,
 			this.getDashboardFilePath()
 		);
-		const renamed = this.app.vault.getAbstractFileByPath(
+		const renamed = this.app.vault.getFileByPath(
 			this.getDashboardFilePath()
 		);
-		if (renamed instanceof TFile) {
+		if (renamed) {
 			await this.writeFrontMatter(renamed, (fm) => {
 				delete fm.name; // was "Idea Inbox" — no longer meaningful
 				fm.kind = "dashboard";
@@ -816,8 +811,8 @@ export class ContactOperations {
 	}
 
 	async getInboxIdeas(): Promise<Idea[]> {
-		const file = this.app.vault.getAbstractFileByPath(this.getDashboardFilePath());
-		if (!(file instanceof TFile)) return [];
+		const file = this.app.vault.getFileByPath(this.getDashboardFilePath());
+		if (!file) return [];
 		const metadata =
 			this.app.metadataCache.getFileCache(file)?.frontmatter;
 		return ContactOperations.ideasOf(metadata);
@@ -831,10 +826,10 @@ export class ContactOperations {
 	 * if a dashboard note is ever reused for something else.
 	 */
 	async getExpenses(): Promise<Expense[]> {
-		const file = this.app.vault.getAbstractFileByPath(
+		const file = this.app.vault.getFileByPath(
 			this.getDashboardFilePath()
 		);
-		if (!(file instanceof TFile)) return [];
+		if (!file) return [];
 		const metadata =
 			this.app.metadataCache.getFileCache(file)?.frontmatter;
 		return expensesOf(metadata, "expenses");
@@ -868,8 +863,8 @@ export class ContactOperations {
 	 * in case the list moved while the friend's note was being written.
 	 */
 	async moveInboxIdea(index: number, target: TFile): Promise<Idea | null> {
-		const inbox = this.app.vault.getAbstractFileByPath(this.getDashboardFilePath());
-		if (!(inbox instanceof TFile)) return null;
+		const inbox = this.app.vault.getFileByPath(this.getDashboardFilePath());
+		if (!inbox) return null;
 		const idea = ContactOperations.ideasOf(
 			this.app.metadataCache.getFileCache(inbox)?.frontmatter
 		)[index];
@@ -924,15 +919,16 @@ export class ContactOperations {
 	}
 
 	async getContacts(): Promise<ContactWithCountdown[]> {
-		const vault = this.plugin.app.vault;
-		const folderPath = vault.getFolderByPath(this.getPeopleFolderPath());
+		const folder = this.app.vault.getFolderByPath(
+			this.getPeopleFolderPath()
+		);
 
-		if (!folderPath) {
+		if (!folder) {
 			new Notice("Callander People folder not found.");
 			return [];
 		}
 
-		const files = folderPath.children.filter(
+		const files = folder.children.filter(
 			(file) => file instanceof TFile
 		);
 		const contacts: ContactWithCountdown[] = [];
@@ -960,23 +956,6 @@ export class ContactOperations {
 
 					const events = eventsByPerson.get(file.path) ?? [];
 
-					// The most recent (largest) event date stands in for
-					// "last interaction", matching the old newest-first read.
-					let latestDate = "";
-					let latestKey = -1;
-					for (const e of events) {
-						const p = parseFlexDate(e.date);
-						if (!p || p.year === null) continue;
-						const k = flexSortKey(p);
-						if (k > latestKey) {
-							latestKey = k;
-							latestDate = e.date;
-						}
-					}
-					const lastInteraction = latestDate
-						? this.formatDaysAgo(latestDate)
-						: null;
-
 					// Ideas live in the note body, so unlike everything else
 					// here they cost a read. Obsidian caches it per file
 					// until the file changes — one read per edit, not one
@@ -991,14 +970,12 @@ export class ContactOperations {
 							str("displayName") || str("name") || "Unknown",
 						shortName: str("shortName"),
 						birthday,
-						formattedBirthday: this.formatBirthday(birthday),
 						relationship: str("relationship"),
 						age: this.calculateAge(birthday),
 						daysUntilBirthday:
 							this.calculateDaysUntilBirthday(birthday),
 						daysSinceBirthday:
 							this.calculateDaysSinceBirthday(birthday),
-						lastInteraction,
 						met: str("met"),
 						openIdeas,
 						birthdayWished: str("birthdayWished"),
@@ -1104,18 +1081,6 @@ export class ContactOperations {
 		return parts.join(" ") + " old";
 	}
 
-	private formatBirthday(dateStr: string): string {
-		if (!dateStr) return "";
-
-		const parsed = parseFlexDate(dateStr);
-		if (!parsed || parsed.month === null) {
-			return String(dateStr);
-		}
-
-		// Month (+ day if known), at recorded precision — no year in the table
-		return formatFlexDate({ ...parsed, year: null });
-	}
-
 	/**
 	 * Days to the next birthday, or null when it isn't known to the day.
 	 *
@@ -1154,22 +1119,5 @@ export class ContactOperations {
 
 		const diffTime = today.getTime() - lastBirthday.getTime();
 		return Math.round(diffTime / (1000 * 60 * 60 * 24));
-	}
-
-	private formatDaysAgo(dateStr: string): string {
-		const parsed = parseFlexDate(dateStr);
-		if (!parsed) return "";
-
-		// Imprecise event dates show at their own precision ("May 2026")
-		if (parsed.month === null || parsed.day === null) {
-			return formatFlexDate(parsed);
-		}
-
-		const date = new Date(parsed.year!, parsed.month - 1, parsed.day);
-		const today = new Date();
-		const diffTime = today.getTime() - date.getTime();
-		const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-		return `${diffDays} days`;
 	}
 }

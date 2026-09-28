@@ -10,27 +10,7 @@ import {
 	flexSortKey,
 	isFlexUpcoming,
 } from "@/utils/flexdate";
-
-/**
- * If the text opens with an emoji (incl. variation selectors, skin tones,
- * ZWJ sequences, flags and keycaps), split it off so it can stand in for
- * the type emoji.
- */
-export function splitLeadingEmoji(
-	text: string
-): { emoji: string; rest: string } | null {
-	const trimmed = text.trimStart();
-	// Three shapes, in order: a flag (a pair of regional-indicator letters —
-	// 🇺🇸 is "U"+"S", which Unicode does NOT class as pictographic); a keycap
-	// (starts with an ASCII digit/#/*); or a base pictographic plus any
-	// joiners, variation selectors and skin tones that follow it.
-	const match = trimmed.match(
-		/^(\p{Regional_Indicator}{2}|[0-9#*]️?⃣|\p{Extended_Pictographic}(?:‍\p{Extended_Pictographic}|[︀-️]|[\u{1F3FB}-\u{1F3FF}])*)/u
-	);
-	if (!match) return null;
-	const emoji = match[1];
-	return { emoji, rest: trimmed.slice(emoji.length).trimStart() };
-}
+import { splitLeadingEmoji } from "@/utils/emoji";
 
 /**
  * What one timeline row needs to draw itself — the common ground between

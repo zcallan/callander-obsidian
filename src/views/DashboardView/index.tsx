@@ -120,14 +120,6 @@ export class DashboardView extends ItemView {
 	}
 
 	/**
-	 * Mount (or remount) the ported sections.
-	 *
-	 * StrictMode is deliberately off. It double-invokes effects, and this
-	 * plugin's effects reach disk — a debounced autosave firing twice would
-	 * write twice. The checks it buys aren't worth that here, where the tree
-	 * is small and the side effects are real files.
-	 */
-	/**
 	 * The host node for a ported section, ready to be placed in the layout.
 	 *
 	 * Rendered once on creation and never again from here — React owns its
@@ -135,6 +127,11 @@ export class DashboardView extends ItemView {
 	 * it. Re-rendering on every dashboard render would be redundant work and
 	 * would tie React's update timing back to the imperative path this is
 	 * meant to escape.
+	 *
+	 * StrictMode is deliberately off. It double-invokes effects, and this
+	 * plugin's effects reach disk — a debounced autosave firing twice would
+	 * write twice. The checks it buys aren't worth that here, where the tree
+	 * is small and the side effects are real files.
 	 */
 	private island(key: string, node: ReactNode): HTMLElement {
 		const existing = this.islands.get(key);
@@ -167,7 +164,7 @@ export class DashboardView extends ItemView {
 	}
 
 	private async render() {
-		const container = this.containerEl.children[1] as HTMLElement;
+		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		container.empty();
 		container.addClass("dashboard-container", "dashboard-home-container");
@@ -846,7 +843,8 @@ export class DashboardView extends ItemView {
 		).open();
 	}
 
-	/** Future events, sorted; soonest (and undated) first. */
+	/** "On this day": events from earlier years on today's date, the most
+	 * recent year first. Nothing at all when there are none. */
 	private renderOnThisDay(container: HTMLElement) {
 		const now = new Date();
 		const month = now.getMonth() + 1;

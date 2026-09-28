@@ -1,4 +1,4 @@
-import { Notice, TFile, TFolder, normalizePath } from "obsidian";
+import { Notice, TFile, normalizePath } from "obsidian";
 import type FriendTracker from "@/main";
 import type { EventFields } from "@/services/EventOperations";
 import { eventTypeOf } from "@/services/EventOperations";
@@ -74,10 +74,10 @@ export class EventMigration {
 	// ---- 1. Events embedded in person/group frontmatter ----
 
 	private mdFilesIn(folderPath: string): TFile[] {
-		const folder = this.app.vault.getAbstractFileByPath(
+		const folder = this.app.vault.getFolderByPath(
 			normalizePath(folderPath)
 		);
-		if (!(folder instanceof TFolder)) return [];
+		if (!folder) return [];
 		return folder.children.filter(
 			(f): f is TFile => f instanceof TFile && f.extension === "md"
 		);
@@ -149,9 +149,8 @@ export class EventMigration {
 		);
 	}
 
-	/** Move every embedded event on one file into Events/. Public so the
-	 * straggler watcher can target a single just-synced file. */
-	async migrateFileEvents(file: TFile): Promise<number> {
+	/** Move every embedded event on one file into Events/. */
+	private async migrateFileEvents(file: TFile): Promise<number> {
 		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
 		const rows = [
 			...asArray(fieldOf(fm, "events")),
@@ -231,10 +230,10 @@ export class EventMigration {
 		}
 		// The folder's job is done once this run has emptied it — not merely
 		// because an empty folder of that name exists, which may be yours.
-		const folder = this.app.vault.getAbstractFileByPath(folderPath);
+		const folder = this.app.vault.getFolderByPath(folderPath);
 		if (
 			moved > 0 &&
-			folder instanceof TFolder &&
+			folder &&
 			folder.children.length === 0
 		) {
 			try {
@@ -258,8 +257,9 @@ export class EventMigration {
 		return links.length > 0 ? links : undefined;
 	}
 
-	/** writeEventFile equivalent for the in-place reminder transform —
-	 * uses the same code path, then clears the reminder-only keys. */
+	/** Rewrites a reminder's frontmatter as an event's, in place, and clears
+	 * the reminder-only `notes`. Written out here rather than going through
+	 * EventOperations' writeEventFile. */
 	private async writeAsEvent(
 		file: TFile,
 		fields: EventFields
@@ -325,8 +325,8 @@ export class EventMigration {
 		const path = normalizePath(
 			`${this.plugin.settings.baseFolder}/${REMINDERS_BASENAME}.md`
 		);
-		const file = this.app.vault.getAbstractFileByPath(path);
-		if (!(file instanceof TFile)) return 0;
+		const file = this.app.vault.getFileByPath(path);
+		if (!file) return 0;
 		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
 		// Only the old store itself: a note of your own that happens to be
 		// called Reminders has no `reminders` list, and isn't ours to trash.

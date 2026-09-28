@@ -1,4 +1,4 @@
-import { TFile } from "obsidian";
+import type { TFile } from "obsidian";
 import type {
 	AccommodationType,
 	BookingState,
@@ -14,13 +14,13 @@ import type {
 	SomedayTime,
 	SomedayType,
 	TravelType,
-} from "./constants";
-import type { EventSort } from "./utils/eventRow";
-import type { GroupColors } from "./utils/categoryColor";
+} from "@/constants";
+import type { EventSort } from "@/utils/eventRow";
+import type { GroupColors } from "@/utils/categoryColor";
 import type {
 	EventStatus,
 	EventVariant,
-} from "./services/EventOperations";
+} from "@/services/EventOperations";
 
 export interface FriendTrackerSettings {
 	/** Holds all Callander data: the People, Groups, Plans, Somedays and
@@ -297,10 +297,8 @@ export interface Contact {
 }
 
 export interface ContactWithCountdown extends Contact {
-	formattedBirthday: string;
 	daysUntilBirthday: number | null;
 	daysSinceBirthday: number | null;
-	lastInteraction: string | null;
 	met: string;
 	openIdeas: number;
 	/** The birthday occurrence (YYYY-MM-DD) already wished, if any */
@@ -556,11 +554,6 @@ export interface GroupInfo {
 	color: string | null;
 }
 
-export interface SortConfig {
-	column: keyof Omit<ContactWithCountdown, "file">;
-	direction: "asc" | "desc";
-}
-
 /**
  * Something on the calendar, past or future: a meetup, a booking, a life
  * event, a person-less task. One markdown note per event in an Events/
@@ -698,7 +691,12 @@ export interface Quote {
 	context?: string;
 }
 
-/** An inside joke you share, with optional context (how it started). */
+/** One line on a plan's packing list. */
+export interface PlanBringItem {
+	text: string;
+	done: boolean;
+}
+
 /**
  * Something this person wants to do someday — learn Spanish, run a marathon.
  *
@@ -709,12 +707,6 @@ export interface Quote {
  * Completed goals are kept rather than deleted — the point is partly the
  * record, and "they finally did it" is worth being able to look back on.
  */
-/** One line on a plan's packing list. */
-export interface PlanBringItem {
-	text: string;
-	done: boolean;
-}
-
 export interface LifeGoal {
 	text: string;
 	notes?: string;
@@ -723,6 +715,7 @@ export interface LifeGoal {
 	completed?: string;
 }
 
+/** An inside joke you share, with optional context (how it started). */
 export interface InsideJoke {
 	text: string;
 	context?: string;

@@ -264,7 +264,7 @@ export function mergeLegacyDrafts(
 	incoming: readonly LedgerDraft[]
 ): LedgerDraft[] {
 	const key = (d: LedgerDraft) =>
-		`${d.text} ${d.person ?? ""} ${d.created}`;
+		`${d.text}\u0000${d.person ?? ""}\u0000${d.created}`;
 	const present = new Map<string, number>();
 	for (const d of existing) present.set(key(d), (present.get(key(d)) ?? 0) + 1);
 	const added: LedgerDraft[] = [];

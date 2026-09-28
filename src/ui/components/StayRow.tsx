@@ -16,7 +16,7 @@ import type { PlanSimpleItem } from "@/types";
  * phone/desktop split, the ellipsis behaviour and the row divider, and were
  * tuned against real content; porting the markup and rewriting the CSS in
  * one step would leave no way to tell which half broke a layout. The module
- * belongs in the same change that retires the imperative `renderStayRow`.
+ * was waiting on the imperative `renderStayRow` to go, which it now has.
  */
 export function StayRow({
 	item,

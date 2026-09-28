@@ -261,7 +261,7 @@ export class SomedaysView extends ItemView {
 	// ---- Rendering ----
 
 	private render() {
-		const container = this.containerEl.children[1] as HTMLElement;
+		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		container.empty();
 		container.addClass("dashboard-container", "somedays-container");
@@ -275,7 +275,7 @@ export class SomedaysView extends ItemView {
 		});
 		setIcon(newBtn, "plus");
 		newBtn.createSpan({ text: "New someday" });
-		newBtn.addEventListener("click", () => this.openEditor(null));
+		newBtn.addEventListener("click", () => this.openNewSomeday());
 
 		if (this.openCandidates().length >= 2) {
 			const surpriseBtn = actions.createEl("button", {
@@ -612,11 +612,11 @@ export class SomedaysView extends ItemView {
 		).open();
 	}
 
-	private openEditor(someday: SomedayInfo | null) {
+	private openNewSomeday() {
 		new SomedayModal(
 			this.app,
 			this.plugin,
-			someday,
+			null,
 			() => this.refresh(),
 			() => this.refresh()
 		).open();

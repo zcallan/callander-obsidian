@@ -301,7 +301,7 @@ function typeRank(type: string): number {
  * end is "furthest away" — last under every date sort rather than
  * pretending to be ancient or imminent.
  */
-const UNDATED_KEY = Number.MAX_SAFE_INTEGER;
+const UNDATED_SORT_KEY = Number.MAX_SAFE_INTEGER;
 
 /** What the one-time backfill needs to read off an existing event. */
 export interface ClassifiableEvent {
@@ -375,10 +375,10 @@ export function applyEventSort<T extends SortableEvent>(
 	const keys = new Map<string, number>();
 	for (const e of list) {
 		const f = parseFlexDate(e.date);
-		keys.set(e.file.path, f ? flexSortKey(f) : UNDATED_KEY);
+		keys.set(e.file.path, f ? flexSortKey(f) : UNDATED_SORT_KEY);
 	}
-	const keyOf = (e: T) => keys.get(e.file.path) ?? UNDATED_KEY;
-	const undated = (e: T) => (keyOf(e) === UNDATED_KEY ? 1 : 0);
+	const keyOf = (e: T) => keys.get(e.file.path) ?? UNDATED_SORT_KEY;
+	const undated = (e: T) => (keyOf(e) === UNDATED_SORT_KEY ? 1 : 0);
 	const narrowed = [...list];
 
 	/**

@@ -76,7 +76,7 @@ function categoryFromHeading(heading: string): IdeaCategory | null {
 	// The emoji is decoration — match on the label so a hand-typed
 	// "### Gift" works exactly as well as the emoji form.
 	const cleaned = heading
-		.replace(/[\p{Extended_Pictographic}️]/gu, "")
+		.replace(/[\p{Extended_Pictographic}\uFE0F]/gu, "")
 		.trim()
 		.toLowerCase();
 	const found = IDEA_CATEGORIES.find(

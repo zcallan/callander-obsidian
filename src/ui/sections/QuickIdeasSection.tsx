@@ -57,7 +57,9 @@ function QuickIdeaRow({
 
 /**
  * Ideas parked against the plan — things you might do, with no day
- * committed. Grouped by the plan's own categories when any are set.
+ * committed. Sits above the Timeline because it's the pile you're still
+ * deciding from; the Timeline is what you've decided. Grouped by the plan's
+ * own categories when any are set.
  *
  * An idea in two categories appears under both, deliberately: the grouping
  * is a lens, not a filing cabinet. Each row carries the idea's real index so

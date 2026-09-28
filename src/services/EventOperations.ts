@@ -1,4 +1,4 @@
-import { TFile, TFolder, normalizePath } from "obsidian";
+import { TFile, normalizePath } from "obsidian";
 import { normalizeHex } from "@/utils/contrastColor";
 import type FriendTracker from "@/main";
 import type { EventInfo } from "@/types";
@@ -203,10 +203,10 @@ export class EventOperations {
 
 	/** All events, straight from the metadata cache — zero file I/O. */
 	getEvents(): EventInfo[] {
-		const folder = this.app.vault.getAbstractFileByPath(
+		const folder = this.app.vault.getFolderByPath(
 			this.getEventsFolderPath()
 		);
-		if (!(folder instanceof TFolder)) return [];
+		if (!folder) return [];
 		return folder.children
 			.filter(
 				(f): f is TFile => f instanceof TFile && f.extension === "md"
@@ -594,11 +594,6 @@ export class EventOperations {
 		});
 	}
 
-	async removeDiaryEvent(source: string): Promise<void> {
-		const existing = this.findBySource(source);
-		if (existing) await this.deleteEvent(existing.file);
-	}
-
 	/** A diary entry was renamed — keep event source links pointing at it. */
 	async retargetDiarySource(
 		oldPath: string,
@@ -642,8 +637,8 @@ export class EventOperations {
 	 */
 	async refreshPersonSections(paths: string[]): Promise<void> {
 		for (const path of paths) {
-			const file = this.app.vault.getAbstractFileByPath(path);
-			if (!(file instanceof TFile)) continue;
+			const file = this.app.vault.getFileByPath(path);
+			if (!file) continue;
 			const lines = this.sectionLines(file);
 			await this.app.vault.process(file, (content) => {
 				const { frontmatter, body } = splitFrontmatter(content);

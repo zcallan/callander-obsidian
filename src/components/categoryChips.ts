@@ -61,6 +61,16 @@ export interface CategoryChipsOptions {
 	};
 }
 
+/** What a caller can do to an already-rendered picker, from outside it. */
+export interface CategoryChipsHandle {
+	/**
+	 * Re-derive the chip row from a fresh `known` list, keeping whatever's
+	 * currently `selected` — for after a rename or delete elsewhere has
+	 * changed the vocabulary out from under this picker.
+	 */
+	refresh(known: readonly string[]): void;
+}
+
 /**
  * The category picker: every name the plan knows as a chip, tapped to pick.
  *
@@ -72,16 +82,6 @@ export interface CategoryChipsOptions {
  * of act as picking, and a chip keeps it on the line rather than spending a
  * form row on it.
  */
-/** What a caller can do to an already-rendered picker, from outside it. */
-export interface CategoryChipsHandle {
-	/**
-	 * Re-derive the chip row from a fresh `known` list, keeping whatever's
-	 * currently `selected` — for after a rename or delete elsewhere has
-	 * changed the vocabulary out from under this picker.
-	 */
-	refresh(known: readonly string[]): void;
-}
-
 export function renderCategoryChips(
 	form: HTMLElement,
 	options: CategoryChipsOptions

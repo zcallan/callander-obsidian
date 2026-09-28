@@ -195,7 +195,7 @@ export class PlansView extends ItemView {
 	// ---- Rendering ----
 
 	private render() {
-		const container = this.containerEl.children[1] as HTMLElement;
+		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		container.empty();
 		container.addClass("dashboard-container", "somedays-container");
@@ -409,7 +409,7 @@ export class PlansView extends ItemView {
 
 	/** Rebuild just the list, keeping where you were reading. */
 	private renderContent() {
-		const container = this.containerEl.children[1] as HTMLElement;
+		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		if (this.tab === "timeline") this.renderTimeline();
 		else this.renderList();

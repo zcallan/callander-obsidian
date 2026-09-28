@@ -37,7 +37,7 @@ const CAL_DOTS = 3;
  * Must match the container query in base.css — the stylesheet decides what
  * is drawn, this decides what a tap does.
  */
-export const CAL_NARROW = 620;
+const CAL_NARROW = 620;
 /** Indexed by Date.getDay(), so Sunday leads whatever the week opens on. */
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 /** For a week's day headings, which have the room to spell it out —
@@ -404,8 +404,8 @@ function appendCell(
 			// Under a bar passing overhead: sized to it once laid out, so
 			// a wrapped name can't run down over the chips below.
 			if (held && run) slot.dataset.spanKey = held.key;
-			slot.createDiv({ cls: "cal-chip-name", text: " " });
-			slot.createDiv({ cls: "cal-chip-meta", text: " " });
+			slot.createDiv({ cls: "cal-chip-name", text: "\u00A0" });
+			slot.createDiv({ cls: "cal-chip-meta", text: "\u00A0" });
 		}
 	}
 
@@ -748,6 +748,13 @@ function linkSpanHover(board: Board, el: HTMLElement, key: string) {
 	el.addEventListener("mouseleave", () => setLinked(false));
 }
 
+/** Its last day, before today — the one date a multi-day plan needs, and
+ * a single-day item's only one. Empty (undated) is never "past". */
+function isPast(item: BoardItem): boolean {
+	if (item.days.length === 0) return false;
+	return item.days[item.days.length - 1] < todayISO();
+}
+
 /**
  * With the chip's colour filling its background instead of just its left
  * edge, the fixed white/muted text this stylesheet otherwise gives it can
@@ -757,13 +764,6 @@ function linkSpanHover(board: Board, el: HTMLElement, key: string) {
  * likely `var(--interactive-accent)` as it is a fixed hex) and mark the
  * chip when it needs dark text instead.
  */
-/** Its last day, before today — the one date a multi-day plan needs, and
- * a single-day item's only one. Empty (undated) is never "past". */
-function isPast(item: BoardItem): boolean {
-	if (item.days.length === 0) return false;
-	return item.days[item.days.length - 1] < todayISO();
-}
-
 function applyReadableBackground(chip: HTMLElement) {
 	// Chips on a wide grid, and names and plan bars in a phone's squares —
 	// the stylesheet fills both under .is-bg-colored.
@@ -934,7 +934,7 @@ function appendDayAgenda(
  * emoji if it has one, else its type's (or the plan icon). Shared by the
  * chip and the narrow grid so the same thing reads the same at both widths.
  */
-export function eventGlyph(
+function eventGlyph(
 	name: string,
 	kind: "event" | "plan",
 	type: string

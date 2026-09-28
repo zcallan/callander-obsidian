@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, type TFile } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
@@ -9,7 +9,7 @@ export class PlanModal extends FormModal {
 	constructor(
 		app: App,
 		private plugin: FriendTracker,
-		private onCreated: (file: import("obsidian").TFile) => void,
+		private onCreated: (file: TFile) => void,
 		/** Starting values — e.g. seeded from a Someday being promoted.
 		 * Nothing is written until Create. */
 		private prefill?: { name?: string; date?: string }

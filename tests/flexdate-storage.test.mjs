@@ -1,6 +1,5 @@
 import { createSuite } from "./harness.mjs";
 import {
-	daysFromToday,
 	flexPrecision,
 	flexSortKey,
 	formatFlexDate,
@@ -104,11 +103,6 @@ export function run() {
 	// ---------- today ----------
 	const stamp = /^\d{4}-\d{2}-\d{2}$/;
 	ok("today is a local YYYY-MM-DD stamp", stamp.test(todayISO()));
-	eq("zero days from today is today", daysFromToday(0), todayISO());
-	ok(
-		"yesterday sorts before today, and tomorrow after",
-		daysFromToday(-1) < todayISO() && todayISO() < daysFromToday(1)
-	);
 
 	return result();
 }

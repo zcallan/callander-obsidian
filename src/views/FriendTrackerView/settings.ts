@@ -13,9 +13,9 @@ import {
 	DEFAULT_DASHBOARD_ORDER,
 	HEMISPHERES,
 	RIBBON_ACTIONS,
+	type Hemisphere,
 } from "@/constants";
 import { resolveDashboardOrder } from "@/utils/dashboardOrder";
-import type { Hemisphere } from "@/constants";
 import {
 	ZONES,
 	allZones,

@@ -5,7 +5,7 @@ import type { ContactWithCountdown, EventInfo } from "@/types";
 import { EventModal } from "@/modals/EventModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
-import { splitLeadingEmoji } from "@/components/EventTimeline";
+import { splitLeadingEmoji } from "@/utils/emoji";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
 import { EVENT_TYPES } from "@/constants";
 import { buildEventShareText, buildGoogleCalendarUrl } from "@/utils/eventShare";

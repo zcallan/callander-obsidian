@@ -1,32 +1,22 @@
-import { ItemView, WorkspaceLeaf, EventRef, TFile } from "obsidian";
+import { ItemView, WorkspaceLeaf, TFile } from "obsidian";
 import type FriendTracker from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
-import { TableView } from "./TableView";
-import { ContactOperations } from "@/services/ContactOperations";
-import type {
-	ContactWithCountdown,
-	FriendListSort,
-	FriendListTab,
-} from "@/types";
+import { TableView } from "@/views/FriendTrackerView/TableView";
+import type { FriendListSort, FriendListTab } from "@/types";
 import { AddContactModal } from "@/modals/AddContactModal";
-import { DeleteContactModal } from "@/modals/DeleteContactModal";
 
 export const VIEW_TYPE_FRIEND_TRACKER = "callander-view";
 
 export class FriendTrackerView extends ItemView {
 	public groupFilter = "";
 	private tableView: TableView;
-	private contactOps: ContactOperations;
-	private fileChangeHandler: EventRef | null = null;
 	private isRefreshing = false;
-	private _contacts: ContactWithCountdown[] | null = null;
 	/** Widened for this view only, until it closes. */
 	private pageWide = false;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
 		this.tableView = new TableView(this);
-		this.contactOps = new ContactOperations(this.plugin);
 		// Main-pane page: participate in tab history
 		this.navigation = true;
 	}
@@ -46,14 +36,12 @@ export class FriendTrackerView extends ItemView {
 	}
 
 	get contactOperations() {
-		return this.contactOps;
+		return this.plugin.contactOperations;
 	}
 
 	get callander() {
 		return this.plugin;
 	}
-
-	// ... rest of the implementation from earlier
 
 	public async openAddContactModal() {
 		const modal = new AddContactModal(this.app, this.plugin);
@@ -62,18 +50,6 @@ export class FriendTrackerView extends ItemView {
 
 	public async openContact(file: TFile) {
 		await this.plugin.openContactPage(file);
-	}
-
-	public async openDeleteModal(file: TFile) {
-		const modal = new DeleteContactModal(this.app, file, async () => {
-			// Before trashing: a plan's own "Who's in" is a copy of the
-			// wikilink, not a live query, and only resolves against this
-			// file while it still exists.
-			await this.plugin.planOperations.removePersonFromPlans(file);
-			await this.app.fileManager.trashFile(file);
-			await this.refresh();
-		});
-		modal.open();
 	}
 
 	getViewType(): string {
@@ -110,7 +86,6 @@ export class FriendTrackerView extends ItemView {
 			})
 		);
 
-		// Add visibility change handler
 		document.addEventListener(
 			"visibilitychange",
 			this.handleVisibilityChange
@@ -143,18 +118,13 @@ export class FriendTrackerView extends ItemView {
 		this.isRefreshing = true;
 
 		try {
-			// Clear any cached data
-			this._contacts = null;
-
-			// Get the container and completely clear it
-			const container = this.containerEl.children[1] as HTMLElement;
-			// Remove all child elements
+			const container = this.contentEl;
 			while (container.firstChild) {
 				container.removeChild(container.firstChild);
 			}
 
 			// The list view handles its own filtering and sorting
-			const contacts = await this.contactOps.getContacts();
+			const contacts = await this.plugin.contactOperations.getContacts();
 			const tableContainer = container.createDiv();
 			await this.tableView.render(tableContainer, contacts);
 			applyPageWidth(container, this.plugin, this.pageWide, () => {
