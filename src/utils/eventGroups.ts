@@ -1,4 +1,9 @@
-import { monthName, parseFlexDate } from "@/utils/flexdate";
+import {
+	flexToLocalDate,
+	isExactFlexDate,
+	monthName,
+	parseFlexDate,
+} from "@/utils/flexdate";
 import { isoDay } from "@/utils/dates";
 
 /** One heading on the Events timeline, and what sits under it. */
@@ -82,18 +87,11 @@ export function eventPeriod(
 	{ alwaysYear = false, weekStartsOn = 1 }: PeriodOptions = {}
 ): { key: string; label: string } {
 	const parsed = parseFlexDate(date);
-	const dayPrecise =
-		parsed &&
-		parsed.year !== null &&
-		parsed.month !== null &&
-		parsed.day !== null;
-	if (!dayPrecise) return { key: UNDATED_KEY, label: UNDATED_LABEL };
+	if (!isExactFlexDate(parsed)) {
+		return { key: UNDATED_KEY, label: UNDATED_LABEL };
+	}
 
-	const on = new Date(
-		parsed.year as number,
-		(parsed.month as number) - 1,
-		parsed.day as number
-	);
+	const on = flexToLocalDate(parsed);
 	on.setHours(0, 0, 0, 0);
 
 	const thisWeek = weekStart(now, weekStartsOn);

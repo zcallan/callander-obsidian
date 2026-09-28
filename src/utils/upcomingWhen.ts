@@ -1,6 +1,13 @@
-import { parseFlexDate, formatFlexDate, monthName } from "@/utils/flexdate";
+import {
+	flexToLocalDate,
+	formatFlexDate,
+	isExactFlexDate,
+	parseFlexDate,
+	shortMonthName,
+} from "@/utils/flexdate";
 import { formatDate } from "@/utils/dateFormat";
 import { wholeDaysBetween } from "@/utils/dates";
+import { formatCount } from "@/utils/text";
 
 /** Emphasis for a row's relative-time text: "soon" is today/tomorrow,
  * "past" is anything already gone by. Derived from the day count, never by
@@ -65,11 +72,7 @@ export function conversationalLabel(
 	bare = false
 ): string | null {
 	if (days < 0 || days >= 14) return null;
-	// Self-built short month — Intl's en-AU "short" doesn't actually
-	// abbreviate (renders "August" in full). See upcomingWhen's other note.
-	const short = `${target.getDate()} ${monthName(
-		target.getMonth() + 1
-	).slice(0, 3)}`;
+	const short = `${target.getDate()} ${shortMonthName(target.getMonth() + 1)}`;
 	// The two days nobody says by name.
 	if (days === 0) return `Today • ${short}`;
 	if (days === 1) return `Tomorrow • ${short}`;
@@ -117,12 +120,12 @@ export function immediacyRelative(
 	// Started, or near enough that a countdown would be noise.
 	if (minutes < 1) return "now";
 	if (minutes < 60) {
-		return `in ${minutes} minute${minutes === 1 ? "" : "s"}`;
+		return `in ${formatCount(minutes, "minute")}`;
 	}
 	// Nearest hour rather than floor: at 1h50m "in 2 hours" is off by ten
 	// minutes, where "in 1 hour" is off by fifty.
 	const hours = Math.round(minutes / 60);
-	return `in ${hours} hour${hours === 1 ? "" : "s"}`;
+	return `in ${formatCount(hours, "hour")}`;
 }
 
 /** Split "when" into a date ("Friday 21 Aug") and a relative ("in 25 days"). */
@@ -134,8 +137,8 @@ export function upcomingWhen(
 ): { date: string; relative: string; tone?: RowTone } {
 	const p = parseFlexDate(dateStr);
 	if (!p) return { date: "", relative: "" };
-	if (p.year !== null && p.month !== null && p.day !== null) {
-		const target = new Date(p.year, p.month - 1, p.day);
+	if (isExactFlexDate(p)) {
+		const target = flexToLocalDate(p);
 		target.setHours(0, 0, 0, 0);
 		const days = wholeDaysBetween(now, target);
 		// Close by, the weekday says it better than the calendar does — and
@@ -144,15 +147,9 @@ export function upcomingWhen(
 			? conversationalLabel(target, days, options.bareWeekday)
 			: null;
 		if (near) return { date: near, ...relativeFromDays(days) };
-		// Intl's en-AU "short" month doesn't actually abbreviate (renders
-		// "July" in full) — build the short form ourselves rather than
-		// trust it, the same way TableView's birthdayDate() does.
 		const weekday = formatDate(target, { weekday: "long" });
 		const year = p.year !== now.getFullYear() ? ` ${p.year}` : "";
-		const date = `${weekday} ${p.day} ${monthName(p.month).slice(
-			0,
-			3
-		)}${year}`;
+		const date = `${weekday} ${p.day} ${shortMonthName(p.month)}${year}`;
 		return { date, ...relativeFromDays(days) };
 	}
 	// Month precision ("August 2026"): counting days would imply a

@@ -16,6 +16,7 @@ import {
 	problemsText,
 	type ImportedEvent,
 } from "@/utils/eventImport";
+import { formatCount } from "@/utils/text";
 
 /**
  * The imported events as a collapsible list — shut by default, since the
@@ -254,7 +255,7 @@ class EventImportConfirmModal extends FormModal {
 		const n = this.events.length;
 		contentEl.createDiv({
 			cls: "event-import-summary",
-			text: `${n} event${n === 1 ? "" : "s"} ready to import.`,
+			text: `${formatCount(n, "event")} ready to import.`,
 		});
 
 		const ops = this.plugin.eventOperations;
@@ -318,7 +319,7 @@ class EventImportConfirmModal extends FormModal {
 		});
 		back.addEventListener("click", () => this.close());
 		const importBtn = buttons.createEl("button", {
-			text: n === 1 ? "Import 1 event" : `Import ${n} events`,
+			text: `Import ${formatCount(n, "event")}`,
 			cls: "callander-modal-button mod-cta",
 		});
 		importBtn.addEventListener("click", () => {
@@ -389,7 +390,7 @@ class EventImportConfirmModal extends FormModal {
 		new Notice(
 			failed > 0
 				? `Imported ${done} of ${done + failed} events — ${failed} couldn't be written (see the console).`
-				: `Imported ${done} event${done === 1 ? "" : "s"}`
+				: `Imported ${formatCount(done, "event")}`
 		);
 		this.close();
 		this.onImported();

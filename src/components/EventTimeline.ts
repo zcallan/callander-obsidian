@@ -1,7 +1,7 @@
 import { setIcon } from "obsidian";
 import type { ContactPageView } from "@/views/ContactPageView";
 import type { EventInfo, FriendEvent } from "@/types";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
 import { eventColour, EVENT_TYPES } from "@/constants";
 import { appendGeneratedBadge } from "@/components/generatedBadge";
 import {
@@ -11,6 +11,7 @@ import {
 	isFlexUpcoming,
 } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
+import { truncate } from "@/utils/text";
 
 /**
  * What one timeline row needs to draw itself — the common ground between
@@ -310,10 +311,7 @@ export class EventTimeline {
 		setIcon(deleteBtn, "trash");
 		deleteBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
-			const preview =
-				event.name.length > 80
-					? event.name.slice(0, 80) + "…"
-					: event.name;
+			const preview = truncate(event.name, CONFIRM_PREVIEW_CHARS);
 			new ConfirmModal(
 				this.view.app,
 				"Delete event",

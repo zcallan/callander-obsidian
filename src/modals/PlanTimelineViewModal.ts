@@ -8,7 +8,7 @@ import {
 	PLAN_PRIORITIES,
 	TRAVEL_TYPES,
 } from "@/constants";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
 import {
 	formatItemCost,
 	formatItemTime,
@@ -18,6 +18,7 @@ import {
 } from "@/utils/planFormat";
 import { shortenPeopleList } from "@/utils/nameFormat";
 import { buildTimelineCalendarUrl } from "@/utils/planShare";
+import { truncate } from "@/utils/text";
 
 /**
  * A read view of one plan-timeline row — whatever it happens to be: an idea,
@@ -325,8 +326,7 @@ export class PlanTimelineViewModal extends Modal {
 		// Not stopped by a note that didn't save: it's about to go anyway.
 		await this.flushNotes();
 		const e = this.entry;
-		const preview =
-			e.text.length > 80 ? e.text.slice(0, 80) + "…" : e.text;
+		const preview = truncate(e.text, CONFIRM_PREVIEW_CHARS);
 		new ConfirmModal(
 			this.app,
 			"Delete from plan",

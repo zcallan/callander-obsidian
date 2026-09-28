@@ -1,5 +1,5 @@
 import { specialEventTime } from "@/constants";
-import { monthName } from "@/utils/flexdate";
+import { monthName, shortMonthName } from "@/utils/flexdate";
 import { weekStart } from "@/utils/eventGroups";
 import { isoDay, pad2 } from "@/utils/dates";
 
@@ -78,8 +78,9 @@ export function weekGrid(
  * month happened to have a long name.
  */
 export function monthLabel(cursor: Date, short = false): string {
-	const name = monthName(cursor.getMonth() + 1);
-	return `${short ? name.slice(0, 3) : name} ${cursor.getFullYear()}`;
+	const month = cursor.getMonth() + 1;
+	const name = short ? shortMonthName(month) : monthName(month);
+	return `${name} ${cursor.getFullYear()}`;
 }
 
 /**
@@ -99,10 +100,8 @@ export function weekLabel(
 	// A week spanning two long months is the longest label this bar can be
 	// asked to hold — "28 September – 4 October 2026" — so it abbreviates
 	// on the same terms the month does.
-	const name = (d: Date) => {
-		const full = monthName(d.getMonth() + 1);
-		return short ? full.slice(0, 3) : full;
-	};
+	const name = (d: Date) =>
+		(short ? shortMonthName : monthName)(d.getMonth() + 1);
 	const sameYear = start.getFullYear() === end.getFullYear();
 	const sameMonth = sameYear && start.getMonth() === end.getMonth();
 	const from = sameMonth

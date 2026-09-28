@@ -16,7 +16,7 @@ import type {
 	PlanSimpleItem,
 	PlanTimelineEntry,
 } from "@/types";
-import { asArray, fieldOf, toText } from "@/utils/fm";
+import { asArray, fieldOf, fieldText, toText } from "@/utils/fm";
 import { generatedField } from "@/utils/generated";
 import { ContactOperations } from "@/services/ContactOperations";
 import { todayISO } from "@/utils/flexdate";
@@ -471,10 +471,7 @@ export class PlanOperations {
 			.map((file) => {
 				const fm: unknown =
 					this.app.metadataCache.getFileCache(file)?.frontmatter;
-				const str = (key: string): string => {
-					const v = fieldOf(fm, key);
-					return v ? toText(v) : "";
-				};
+				const str = (key: string) => fieldText(fm, key);
 				return {
 					file,
 					name: str("name") || file.basename,

@@ -1,7 +1,7 @@
 import { TFile, TFolder, normalizePath, parseYaml } from "obsidian";
 import type FriendTracker from "@/main";
 import type { DiaryEntry } from "@/types";
-import { fieldOf, isRecord, toText } from "@/utils/fm";
+import { fieldText, isRecord } from "@/utils/fm";
 import { todayISO } from "@/utils/flexdate";
 
 export class DiaryOperations {
@@ -49,10 +49,7 @@ export class DiaryOperations {
 			try {
 				const content = await this.app.vault.cachedRead(file);
 				const { frontmatter, body } = this.splitContent(content);
-				const str = (key: string): string => {
-					const v = frontmatter[key];
-					return v ? toText(v) : "";
-				};
+				const str = (key: string) => fieldText(frontmatter, key);
 				entries.push({
 					file,
 					title: str("title") || file.basename,
@@ -91,12 +88,10 @@ export class DiaryOperations {
 			.map((file) => {
 				const fm: unknown =
 					this.app.metadataCache.getFileCache(file)?.frontmatter;
-				const title = fieldOf(fm, "title");
-				const date = fieldOf(fm, "date");
 				return {
 					file,
-					title: title ? toText(title) : file.basename,
-					date: date ? toText(date) : "",
+					title: fieldText(fm, "title") || file.basename,
+					date: fieldText(fm, "date"),
 				};
 			})
 			.sort((a, b) => (b.date || "").localeCompare(a.date || ""));

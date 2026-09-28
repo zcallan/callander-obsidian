@@ -1,3 +1,5 @@
+import { capitalize } from "@/utils/text";
+
 /**
  * How a frontmatter key reads on screen, and what it's for.
  *
@@ -41,7 +43,7 @@ export function fieldLabel(key: string): string {
 		.trim();
 	if (!spaced) return key;
 	const lower = spaced.toLowerCase();
-	return lower.charAt(0).toUpperCase() + lower.slice(1);
+	return capitalize(lower);
 }
 
 /** One or two sentences on what a field is for, plus an example where one helps. */

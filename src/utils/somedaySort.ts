@@ -5,7 +5,7 @@ import {
 	type SomedayDay,
 	type SomedaySort,
 } from "@/constants";
-import { parseFlexDate, monthName } from "@/utils/flexdate";
+import { monthName, parseFlexDate, shortMonthName } from "@/utils/flexdate";
 import { nameWithoutLeadingEmoji } from "@/utils/emoji";
 import { wholeDaysBetween } from "@/utils/dates";
 
@@ -105,7 +105,7 @@ export function untilDateLabel(iso: string, now: Date): string {
 	const distantYear =
 		f.year !== null && f.year !== now.getFullYear() ? ` ${f.year}` : "";
 	if (f.month !== null && f.day !== null) {
-		return `before ${f.day} ${monthName(f.month).slice(0, 3)}${distantYear}`;
+		return `before ${f.day} ${shortMonthName(f.month)}${distantYear}`;
 	}
 	if (f.month !== null) {
 		return `by end of ${monthName(f.month)}${distantYear}`;
@@ -139,10 +139,10 @@ export function fromDateLabel(iso: string, now: Date): string {
 	if (!future) return "";
 	const distantYear = f.year !== y ? ` ${f.year}` : "";
 	if (f.month !== null && f.day !== null) {
-		return `from ${f.day} ${monthName(f.month).slice(0, 3)}${distantYear}`;
+		return `from ${f.day} ${shortMonthName(f.month)}${distantYear}`;
 	}
 	if (f.month !== null) {
-		return `from ${monthName(f.month).slice(0, 3)}${distantYear}`;
+		return `from ${shortMonthName(f.month)}${distantYear}`;
 	}
 	return `from ${f.year}`;
 }
@@ -162,7 +162,7 @@ export function dateDeadlineLabel(iso: string, now: Date): string {
 	const distantYear =
 		f.year !== null && f.year !== now.getFullYear() ? ` ${f.year}` : "";
 	if (f.month !== null) {
-		return `by end of ${monthName(f.month).slice(0, 3)}${distantYear}`;
+		return `by end of ${shortMonthName(f.month)}${distantYear}`;
 	}
 	if (f.year !== null) {
 		return `by end of ${f.year}`;

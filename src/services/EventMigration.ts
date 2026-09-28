@@ -3,8 +3,16 @@ import type FriendTracker from "@/main";
 import type { EventFields } from "@/services/EventOperations";
 import { eventTypeOf } from "@/services/EventOperations";
 import { REMINDERS_BASENAME } from "@/constants";
-import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
+import {
+	asArray,
+	fieldOf,
+	fieldText,
+	isRecord,
+	textIfSet,
+	toText,
+} from "@/utils/fm";
 import { nameWithoutLeadingEmoji } from "@/utils/emoji";
+import { formatCount } from "@/utils/text";
 
 /**
  * An `events`/`interactions` value in the shape the old embedded store used:
@@ -60,9 +68,10 @@ export class EventMigration {
 			moved += await this.migrateLegacyStore();
 			if (moved > 0) {
 				new Notice(
-					`📦 Callander moved ${moved} event${
-						moved === 1 ? "" : "s"
-					} into ${this.ops.getEventsFolderPath()}`
+					`📦 Callander moved ${formatCount(
+						moved,
+						"event"
+					)} into ${this.ops.getEventsFolderPath()}`
 				);
 				this.plugin.refreshDashboards();
 			}
@@ -110,16 +119,15 @@ export class EventMigration {
 		if (!isRecord(raw)) return null;
 		const name = toText(raw.text ?? "").trim();
 		if (!name) return null;
-		const str = (v: unknown) => (v ? toText(v) : "");
 		return {
 			name,
-			date: str(raw.date) || undefined,
-			type: eventTypeOf(str(raw.type)),
+			date: textIfSet(raw.date) || undefined,
+			type: eventTypeOf(textIfSet(raw.type)),
 			people: [`[[${personBasename}]]`],
-			location: str(raw.location) || undefined,
-			link: str(raw.link) || undefined,
-			description: str(raw.description) || undefined,
-			source: str(raw.source) || undefined,
+			location: textIfSet(raw.location) || undefined,
+			link: textIfSet(raw.link) || undefined,
+			description: textIfSet(raw.description) || undefined,
+			source: textIfSet(raw.source) || undefined,
 			// These lived inside a person's frontmatter, so every one of
 			// them is a record of that person by definition — never a
 			// calendar entry of your own.
@@ -200,10 +208,7 @@ export class EventMigration {
 		let moved = 0;
 		for (const file of files) {
 			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-			const str = (key: string) => {
-				const v = fieldOf(fm, key);
-				return v ? toText(v) : "";
-			};
+			const str = (key: string) => fieldText(fm, key);
 			const fields: EventFields = {
 				name: str("name") || file.basename,
 				date: str("date") || undefined,
@@ -336,23 +341,22 @@ export class EventMigration {
 		const rows = asArray(store).filter(isRecord);
 		let moved = 0;
 		for (const row of rows) {
-			const str = (v: unknown) => (v ? toText(v) : "");
-			const name = str(row.name).trim();
+			const name = textIfSet(row.name).trim();
 			if (!name) continue;
 			const created = await this.ops.createEvent(
 				{
 					name,
-					date: str(row.date) || undefined,
-					time: str(row.time) || undefined,
-					type: eventTypeOf(str(row.type)),
-					people: this.peopleTextToLinks(str(row.people)),
-					location: str(row.location) || undefined,
-					link: str(row.link) || undefined,
-					description: str(row.notes) || undefined,
+					date: textIfSet(row.date) || undefined,
+					time: textIfSet(row.time) || undefined,
+					type: eventTypeOf(textIfSet(row.type)),
+					people: this.peopleTextToLinks(textIfSet(row.people)),
+					location: textIfSet(row.location) || undefined,
+					link: textIfSet(row.link) || undefined,
+					description: textIfSet(row.notes) || undefined,
 				},
 				{ refreshSections: false }
 			);
-			if (str(row.status) === "done") {
+			if (textIfSet(row.status) === "done") {
 				await this.ops.setStatus(created, "done");
 			}
 			moved++;

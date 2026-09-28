@@ -14,6 +14,7 @@ import { displayZone } from "@/utils/timezone";
 import { normalizeUrl } from "@/utils/url";
 import { closeColorPopover, openColorPopover } from "@/components/colorPicker";
 import { categoryColor, categoryColors } from "@/utils/categoryColor";
+import { linkpathOf } from "@/utils/linkField";
 
 /**
  * A read view of an event with Edit / Done / Hide / Delete — mirrors
@@ -154,10 +155,7 @@ export class EventViewModal extends Modal {
 	 * same way a plan's members are. Dead links fall back to their text. */
 	private peopleNames(): string[] {
 		const names = this.event.people.map((raw) => {
-			const linktext = raw
-				.replace(/^\[\[|\]\]$/g, "")
-				.split("|")[0]
-				.trim();
+			const linktext = linkpathOf(raw);
 			const dest = this.app.metadataCache.getFirstLinkpathDest(
 				linktext,
 				this.event.file.path

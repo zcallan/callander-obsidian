@@ -1,7 +1,7 @@
 import type { PlanIdeaCategory } from "@/constants";
 import { PLAN_IDEA_CATEGORIES } from "@/constants";
 import type { PlanItem } from "@/types";
-import { parseFlexDate } from "@/utils/flexdate";
+import { isExactFlexDate, parseFlexDate } from "@/utils/flexdate";
 
 /**
  * What an event becomes when a plan grows out of it.
@@ -91,8 +91,7 @@ export function eventPlanSeed(
 	const prefillDate = flex && flex.month !== null ? event.date : "";
 	// A timeline entry only shows on the plan's schedule with a real day —
 	// anything vaguer sits in the list without pretending to a slot.
-	const dayPrecise =
-		flex && flex.year !== null && flex.month !== null && flex.day !== null;
+	const dayPrecise = isExactFlexDate(flex);
 
 	return {
 		prefill: { name: event.name, date: prefillDate },

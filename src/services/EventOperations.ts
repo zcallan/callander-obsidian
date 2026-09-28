@@ -4,7 +4,7 @@ import type FriendTracker from "@/main";
 import type { EventInfo } from "@/types";
 import type { EventType } from "@/constants";
 import { EVENT_TYPES } from "@/constants";
-import { asArray, fieldOf, toText } from "@/utils/fm";
+import { asArray, fieldOf, fieldText, toText } from "@/utils/fm";
 import { GENERATED_KEY, isGenerated } from "@/utils/generated";
 import { parseFlexDate, flexSortKey, todayISO } from "@/utils/flexdate";
 import { metadataSettled } from "@/utils/metadataSettled";
@@ -16,6 +16,7 @@ import {
 } from "@/utils/markdownSection";
 import { EVENTS_SECTION, ownsEventLine } from "@/utils/eventsSection";
 import { displayZone, resolveToZone } from "@/utils/timezone";
+import { linkpathOf } from "@/utils/linkField";
 
 /** The editable fields of an event — used for both create and update. */
 export interface EventFields {
@@ -133,10 +134,7 @@ export class EventOperations {
 	private toInfo(file: TFile): EventInfo {
 		const fm: unknown =
 			this.app.metadataCache.getFileCache(file)?.frontmatter;
-		const str = (key: string): string => {
-			const v = fieldOf(fm, key);
-			return v ? toText(v) : "";
-		};
+		const str = (key: string) => fieldText(fm, key);
 		// Events carrying a zone are converted here, once, rather than at
 		// each of the twenty-odd places that read a date — a calendar cell,
 		// a week heading, a sort, an upcoming filter. Converting a time can
@@ -228,10 +226,7 @@ export class EventOperations {
 	peoplePaths(event: { people: string[]; file: { path: string } }): string[] {
 		return event.people
 			.map((raw) => {
-				const linktext = raw
-					.replace(/^\[\[|\]\]$/g, "")
-					.split("|")[0]
-					.trim();
+				const linktext = linkpathOf(raw);
 				const dest = this.app.metadataCache.getFirstLinkpathDest(
 					linktext,
 					event.file.path

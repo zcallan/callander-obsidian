@@ -4,7 +4,7 @@ import { FormModal } from "@/modals/FormModal";
 import { renderCategoryChips } from "@/components/categoryChips";
 import type { AccommodationType, BookingState, TravelType } from "@/constants";
 import { ACCOMMODATION_TYPES, BOOKING_STATES } from "@/constants";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
 import {
 	appendPeopleField,
 	appendScheduleFields,
@@ -17,6 +17,7 @@ import {
 } from "@/modals/scheduleFields";
 import { stayRange } from "@/utils/planFormat";
 import { wholeDaysBetween } from "@/utils/dates";
+import { truncate } from "@/utils/text";
 
 export interface PlanSimpleItemValue {
 	text: string;
@@ -477,9 +478,7 @@ export class PlanSimpleItemModal extends FormModal {
 			});
 			deleteButton.addEventListener("click", () => {
 				const preview =
-					this.initial!.text.length > 80
-						? this.initial!.text.slice(0, 80) + "…"
-						: this.initial!.text;
+					truncate(this.initial!.text, CONFIRM_PREVIEW_CHARS);
 				new ConfirmModal(
 					this.app,
 					"Delete item",

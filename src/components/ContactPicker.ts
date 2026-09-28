@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import type { ContactWithCountdown } from "@/types";
 import { compareByFirstName } from "@/utils/nameFormat";
+import { linkpathOf } from "@/utils/linkField";
 
 export interface ContactPickerHandle {
 	/**
@@ -89,10 +90,7 @@ export function appendContactPicker(
 		);
 
 	for (const raw of initial) {
-		const linktext = raw
-			.replace(/^\[\[|\]\]$/g, "")
-			.split("|")[0]
-			.trim();
+		const linktext = linkpathOf(raw);
 		if (!linktext) continue;
 		const dest = app.metadataCache.getFirstLinkpathDest(
 			linktext,

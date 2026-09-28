@@ -1,5 +1,11 @@
 import { EVENT_TYPES } from "@/constants";
-import { parseFlexDate, formatFlexDate, formatShortWeekdayDate } from "@/utils/flexdate";
+import {
+	flexToLocalDate,
+	formatFlexDate,
+	formatShortWeekdayDate,
+	isExactFlexDate,
+	parseFlexDate,
+} from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { formatEventTime } from "@/utils/eventRow";
 import { zonedWallTimeToInstant } from "@/utils/timezone";
@@ -47,8 +53,8 @@ export function buildEventShareText(e: ShareableEvent): string {
 
 	const flex = parseFlexDate(e.date);
 	const dateText = flex
-		? flex.year !== null && flex.month !== null && flex.day !== null
-			? formatShortWeekdayDate(new Date(flex.year, flex.month - 1, flex.day))
+		? isExactFlexDate(flex)
+			? formatShortWeekdayDate(flexToLocalDate(flex))
 			: formatFlexDate(flex)
 		: "";
 	const timeText = e.time ? formatEventTime(e.time, { long: true }) : "";

@@ -11,7 +11,7 @@ import { expensesOf } from "@/utils/expenseMath";
 import type { IdeaCategory } from "@/constants";
 import { parseFlexDate, todayISO } from "@/utils/flexdate";
 import { nextBirthdayOccurrence } from "@/utils/friendTimeline";
-import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
+import { asArray, fieldOf, fieldText, isRecord, toText } from "@/utils/fm";
 import { generatedField } from "@/utils/generated";
 import {
 	joinFrontmatter,
@@ -30,6 +30,8 @@ import {
 	type LedgerDraft,
 } from "@/utils/draftsMarkdown";
 import { wholeDaysBetween } from "@/utils/dates";
+import { capitalize, formatCount } from "@/utils/text";
+import { linkpathOf } from "@/utils/linkField";
 
 /** Where the inbox lived before it became the dashboard file's properties. */
 const LEGACY_INBOX_BASENAME = "Idea Inbox";
@@ -458,10 +460,9 @@ export class ContactOperations {
 	 * this codebase already uses this simpler form.
 	 */
 	static groupName(value: string): string {
-		const inner = value.trim().replace(/^\[\[|\]\]$/g, "");
 		// An aliased link points at the note on the left; the label is only
 		// for display and would be the wrong thing to match on.
-		return inner.split("|")[0].trim().toLowerCase();
+		return linkpathOf(value.trim()).toLowerCase();
 	}
 
 	/**
@@ -483,7 +484,7 @@ export class ContactOperations {
 		// it still worked, but it read like a typo and would break the day
 		// anything compared link text to a file name.
 		const label =
-			display?.trim() || `${bare.charAt(0).toUpperCase()}${bare.slice(1)}`;
+			display?.trim() || capitalize(bare);
 		return `[[${label}]]`;
 	}
 
@@ -567,7 +568,7 @@ export class ContactOperations {
 	}
 
 	prettyGroupName(name: string): string {
-		return name.charAt(0).toUpperCase() + name.slice(1);
+		return capitalize(name);
 	}
 
 	/**
@@ -759,7 +760,7 @@ export class ContactOperations {
 		}
 		const existing = this.groupPageOf(name);
 		if (existing) return existing;
-		const pretty = name.charAt(0).toUpperCase() + name.slice(1);
+		const pretty = capitalize(name);
 		const path = normalizePath(`${folderPath}/${pretty}.md`);
 		return await this.app.vault.create(
 			path,
@@ -950,10 +951,7 @@ export class ContactOperations {
 					this.app.metadataCache.getFileCache(file)?.frontmatter;
 
 				if (isRecord(metadata)) {
-					const str = (key: string): string => {
-						const v = metadata[key];
-						return v ? toText(v) : "";
-					};
+					const str = (key: string) => fieldText(metadata, key);
 
 					const events = eventsByPerson.get(file.path) ?? [];
 
@@ -1073,10 +1071,10 @@ export class ContactOperations {
 
 		const parts = [];
 		if (years > 0) {
-			parts.push(`${years} ${years === 1 ? "year" : "years"}`);
+			parts.push(formatCount(years, "year"));
 		}
 		if (months > 0) {
-			parts.push(`${months} ${months === 1 ? "month" : "months"}`);
+			parts.push(formatCount(months, "month"));
 		}
 		if (parts.length === 0) return "0 months old";
 		return parts.join(" ") + " old";

@@ -14,7 +14,7 @@ import {
 	somedayType,
 } from "@/constants";
 import type { SomedayInfo, SomedaySubIdea } from "@/types";
-import { asArray, fieldOf, toText } from "@/utils/fm";
+import { asArray, fieldOf, fieldText } from "@/utils/fm";
 import { GENERATED_KEY, isGenerated } from "@/utils/generated";
 import { todayISO } from "@/utils/flexdate";
 import { metadataSettled } from "@/utils/metadataSettled";
@@ -173,10 +173,7 @@ export class SomedayOperations {
 	private toInfo(file: TFile): SomedayInfo {
 		const fm: unknown =
 			this.app.metadataCache.getFileCache(file)?.frontmatter;
-		const str = (key: string): string => {
-			const v = fieldOf(fm, key);
-			return v ? toText(v) : "";
-		};
+		const str = (key: string) => fieldText(fm, key);
 		const company = fieldOf(fm, "company");
 		return {
 			file,

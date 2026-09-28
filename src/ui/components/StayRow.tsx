@@ -1,6 +1,7 @@
 import { ACCOMMODATION_EMOJI, BOOKING_STATES } from "@/constants";
-import { formatStayHours, nightsLabel, startsWithEmoji } from "@/utils/planFormat";
+import { formatStayHours, nightsLabel } from "@/utils/planFormat";
 import type { PlanSimpleItem } from "@/types";
+import { startsWithEmoji } from "@/utils/emoji";
 
 /**
  * One accommodation row: name • nights, then hours • booking, with the

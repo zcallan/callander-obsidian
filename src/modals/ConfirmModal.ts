@@ -1,6 +1,9 @@
 import { App, Modal } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 
+/** How much of an item's text a delete confirmation quotes. */
+export const CONFIRM_PREVIEW_CHARS = 80;
+
 /** Small generic confirmation dialog for destructive actions. */
 export class ConfirmModal extends Modal {
 	constructor(

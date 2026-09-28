@@ -5,6 +5,7 @@ import { formatFlexDate, parseFlexDate } from "@/utils/flexdate";
 import { summarisePeople } from "@/utils/nameFormat";
 import { resolvePeopleInfo } from "@/utils/people";
 import { upcomingWhen } from "@/utils/upcomingWhen";
+import { formatCount } from "@/utils/text";
 
 /**
  * A plan at a glance, from the dashboard's Upcoming list or the Events page.
@@ -128,7 +129,7 @@ export class PlanGlanceModal extends Modal {
 		const stays = PlanOperations.simpleListOf(data, "accommodation").length;
 		const bring = PlanOperations.bringOf(data).length;
 		if (timeline > 0) bits.push(`${timeline} on the timeline`);
-		if (stays > 0) bits.push(`${stays} ${stays === 1 ? "stay" : "stays"}`);
+		if (stays > 0) bits.push(formatCount(stays, "stay"));
 		if (bring > 0) bits.push(`${bring} to bring`);
 		return bits.join(" · ");
 	}

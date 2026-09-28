@@ -7,6 +7,7 @@ import { parseFlexDate } from "@/utils/flexdate";
 import { normalizeTimezone } from "@/utils/timezone";
 import { formatDurationLabel, parseDurationMinutes } from "@/utils/planFormat";
 import { hhmm, isoDateOf, pad2 } from "@/utils/dates";
+import { formatCount } from "@/utils/text";
 
 /**
  * Bulk event import: CSV in, events out.
@@ -388,7 +389,7 @@ export function parseEventImport(text: string): {
 
 /** "1 problem to fix" / "3 problems to fix" — the box's own heading. */
 export function problemsHeading(count: number): string {
-	return count === 1 ? "1 problem to fix" : `${count} problems to fix`;
+	return `${formatCount(count, "problem")} to fix`;
 }
 
 /** One problem as a line: "Line 4: …", or bare when it has no row. */

@@ -5,12 +5,12 @@ import {
 	formatItemCost,
 	formatItemTime,
 	formatQuickIdeaDates,
-	startsWithEmoji,
 } from "@/utils/planFormat";
 import type { PlanQuickIdea } from "@/types";
 import { Icon } from "@/ui/components/Icon";
 import { GeneratedBadge } from "@/ui/components/GeneratedBadge";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
+import { startsWithEmoji } from "@/utils/emoji";
 
 /** One parked idea: type emoji, text, then the days it could happen on. */
 function QuickIdeaRow({

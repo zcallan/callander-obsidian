@@ -45,6 +45,7 @@ import { buildUpcomingRow } from "@/components/UpcomingRow";
 import { planHiddenFrom, planRowFields } from "@/utils/planRow";
 import { conversationalLabel } from "@/utils/upcomingWhen";
 import { isoDay, wholeDaysBetween } from "@/utils/dates";
+import { formatCount } from "@/utils/text";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -880,9 +881,10 @@ export class DashboardView extends ItemView {
 			row.createSpan({ text: hit.text });
 			row.createSpan({
 				cls: "dashboard-row-meta",
-				text: `${hit.yearsAgo} year${
-					hit.yearsAgo === 1 ? "" : "s"
-				} ago · ${hit.contact.displayName}`,
+				text: `${formatCount(
+					hit.yearsAgo,
+					"year"
+				)} ago · ${hit.contact.displayName}`,
 			});
 			row.addEventListener("click", () =>
 				void this.openContact(hit.contact.file)
@@ -1180,7 +1182,7 @@ export class DashboardView extends ItemView {
 			label.createSpan({ text: ops.labelOf(info) });
 			label.createSpan({
 				cls: "dashboard-row-date",
-				text: ` · ${count} member${count === 1 ? "" : "s"}`,
+				text: ` · ${formatCount(count, "member")}`,
 			});
 			const handleOpenGroup = async () => {
 				const file =
@@ -1296,11 +1298,11 @@ export class DashboardView extends ItemView {
 				name: c.displayName,
 				suffix:
 					giftCount > 0
-						? `${giftCount} gift idea${giftCount > 1 ? "s" : ""}`
+						? formatCount(giftCount, "gift idea")
 						: "no gift ideas yet",
 				// The date label already says "Tomorrow", so the count goes
 				// here rather than repeating it.
-				relative: isToday ? "" : days === 1 ? "in 1 day" : `in ${days} days`,
+				relative: isToday ? "" : `in ${formatCount(days, "day")}`,
 				// This list is upcoming-only — never a past day — so soon is
 				// the only tone that applies here.
 				tone: days <= 1 ? "soon" : undefined,

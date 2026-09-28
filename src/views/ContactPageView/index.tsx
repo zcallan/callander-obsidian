@@ -81,7 +81,7 @@ import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { EventModal } from "@/modals/EventModal";
 import { ResurfaceModal } from "@/modals/ResurfaceModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
 import { PlanShareModal } from "@/modals/PlanShareModal";
 import { PlanQuickIdeaModal } from "@/modals/PlanQuickIdeaModal";
 import { PlanQuickIdeaViewModal } from "@/modals/PlanQuickIdeaViewModal";
@@ -156,10 +156,11 @@ import { FunFactsModal } from "@/modals/FunFactsModal";
 import { QuoteModal } from "@/modals/QuoteModal";
 import { InsideJokeModal } from "@/modals/InsideJokeModal";
 import {
-	parseFlexDate,
 	formatFlexDate,
 	formatTimeSince,
+	isExactFlexDate,
 	monthName,
+	parseFlexDate,
 	todayISO,
 } from "@/utils/flexdate";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
@@ -194,6 +195,7 @@ import {
 	upsertNotesSection,
 } from "@/utils/notesMarkdown";
 import { isoDateOf, isoDay, wholeDaysBetween } from "@/utils/dates";
+import { formatCount, truncate } from "@/utils/text";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -1529,10 +1531,10 @@ export class ContactPageView extends ItemView {
 					daysSince <= 30
 				) {
 					relativeText =
-						daysSince === 1 ? "1 day ago" : `${daysSince} days ago`;
+						`${formatCount(daysSince, "day")} ago`;
 				} else if (daysUntil !== null) {
 					relativeText =
-						daysUntil === 1 ? "in 1 day" : `in ${daysUntil} days`;
+						`in ${formatCount(daysUntil, "day")}`;
 				}
 			}
 
@@ -3496,8 +3498,7 @@ export class ContactPageView extends ItemView {
 	}
 
 	private confirmDeleteTimelineEntry(entry: PlanTimelineEntry) {
-		const preview =
-			entry.text.length > 80 ? entry.text.slice(0, 80) + "…" : entry.text;
+		const preview = truncate(entry.text, CONFIRM_PREVIEW_CHARS);
 		new ConfirmModal(
 			this.app,
 			"Delete from plan",
@@ -3510,7 +3511,7 @@ export class ContactPageView extends ItemView {
 	/** Exact YYYY-MM-DD for a plan flex date, or null if not day-precise. */
 	private exactPlanDay(value: string | number | undefined): string | null {
 		const p = parseFlexDate(value);
-		if (p && p.year !== null && p.month !== null && p.day !== null) {
+		if (isExactFlexDate(p)) {
 			return isoDateOf(p.year, p.month, p.day);
 		}
 		return null;

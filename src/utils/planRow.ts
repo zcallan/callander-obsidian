@@ -1,5 +1,10 @@
 import type { PlanInfo, PlanList } from "@/types";
-import { monthName, parseFlexDate } from "@/utils/flexdate";
+import {
+	flexToLocalDate,
+	isExactFlexDate,
+	parseFlexDate,
+	shortMonthName,
+} from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { relativeFromDays, upcomingWhen } from "@/utils/upcomingWhen";
 import type { EventRowFields } from "@/utils/eventRow";
@@ -51,8 +56,7 @@ export function planRowFields(
 		const endYear = endFlex.year ?? startFlex?.year ?? now.getFullYear();
 		endDay = new Date(endYear, endFlex.month - 1, endFlex.day);
 		if (when) {
-			// Self-built short month — see the note in upcomingWhen.
-			when += ` - ${endFlex.day} ${monthName(endFlex.month).slice(0, 3)}`;
+			when += ` - ${endFlex.day} ${shortMonthName(endFlex.month)}`;
 		}
 	}
 
@@ -62,18 +66,8 @@ export function planRowFields(
 	// yesterday should say "1 day ago", not "4".
 	let relativeText = relative;
 	let relativeTone = tone;
-	if (
-		endDay &&
-		startFlex &&
-		startFlex.year !== null &&
-		startFlex.month !== null &&
-		startFlex.day !== null
-	) {
-		const startDay = new Date(
-			startFlex.year,
-			startFlex.month - 1,
-			startFlex.day
-		);
+	if (endDay && isExactFlexDate(startFlex)) {
+		const startDay = flexToLocalDate(startFlex);
 		if (today >= startDay && today <= endDay) {
 			relativeText = "today";
 			relativeTone = "soon";

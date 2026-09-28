@@ -1,4 +1,5 @@
 import type FriendTracker from "@/main";
+import { capitalize } from "@/utils/text";
 
 export function createRelationshipInput(
 	container: HTMLElement,
@@ -37,7 +38,7 @@ export function createRelationshipInput(
 			.filter((type) => !filter || type.includes(filter.toLowerCase()))
 			.forEach((type) => {
 				const option = datalist.createEl("option");
-				option.text = type.charAt(0).toUpperCase() + type.slice(1);
+				option.text = capitalize(type);
 			});
 	};
 

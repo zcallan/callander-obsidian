@@ -4,10 +4,10 @@ import {
 	formatItemTime,
 	formatStayHours,
 	nightsSummary,
-	startsWithEmoji,
 } from "@/utils/planFormat";
 import type { PlanTimelineEntry } from "@/types";
 import { Icon } from "@/ui/components/Icon";
+import { startsWithEmoji } from "@/utils/emoji";
 
 /**
  * One dated row of the itinerary — an idea, a travel leg or a stay.

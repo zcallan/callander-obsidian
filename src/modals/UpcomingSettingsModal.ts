@@ -2,6 +2,7 @@ import { App, Modal } from "obsidian";
 import type FriendTracker from "@/main";
 import { categoryShown, setCategoryShown } from "@/utils/eventCategories";
 import { EVENT_TYPES } from "@/constants";
+import { formatCount } from "@/utils/text";
 
 /**
  * What the dashboard's Upcoming shows: events, plans, and which event
@@ -57,7 +58,7 @@ export class UpcomingSettingsModal extends Modal {
 				).length;
 				this.row(
 					category,
-					`${n} event${n === 1 ? "" : "s"}`,
+					formatCount(n, "event"),
 					categoryShown(settings.upcomingHiddenCategories, category),
 					(on) => {
 						settings.upcomingHiddenCategories = setCategoryShown(
@@ -81,7 +82,7 @@ export class UpcomingSettingsModal extends Modal {
 				const n = events.filter((e) => e.type === type.id).length;
 				this.row(
 					`${type.emoji} ${type.label}`,
-					`${n} event${n === 1 ? "" : "s"}`,
+					formatCount(n, "event"),
 					!settings.upcomingHiddenTypes.includes(type.id),
 					(on) => {
 						const others = settings.upcomingHiddenTypes.filter(

@@ -1,9 +1,11 @@
 import type { EventInfo, PlanInfo } from "@/types";
 import {
-	parseFlexDate,
-	flexSortKey,
-	isFlexUpcoming,
 	type FlexDate,
+	flexSortKey,
+	flexToLocalDate,
+	isExactFlexDate,
+	isFlexUpcoming,
+	parseFlexDate,
 } from "@/utils/flexdate";
 import { daysUntilFlex } from "@/utils/upcomingWhen";
 import { parseDurationMinutes } from "@/utils/planFormat";
@@ -19,12 +21,10 @@ import { parseDurationMinutes } from "@/utils/planFormat";
  * start time says when something begins, not how long it runs.
  */
 function hasEndedToday(event: EventInfo, date: FlexDate, now: Date): boolean {
-	if (date.year === null || date.month === null || date.day === null) {
-		return false;
-	}
+	if (!isExactFlexDate(date)) return false;
 	const today = new Date(now);
 	today.setHours(0, 0, 0, 0);
-	const target = new Date(date.year, date.month - 1, date.day);
+	const target = flexToLocalDate(date);
 	target.setHours(0, 0, 0, 0);
 	if (target.getTime() !== today.getTime()) return false;
 

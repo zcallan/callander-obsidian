@@ -9,6 +9,7 @@
 
 import { formatDate } from "@/utils/dateFormat";
 import { isoDateOf, isoDay, pad2, wholeDaysBetween } from "@/utils/dates";
+import { formatCount } from "@/utils/text";
 
 export interface FlexDate {
 	year: number | null;
@@ -84,6 +85,36 @@ export function monthName(month: number): string {
 	return MONTH_NAMES[month - 1] ?? "";
 }
 
+/**
+ * "Jul": the month abbreviated by hand rather than through Intl, since
+ * en-AU's "short" month renders "July" in full — the locale can't be
+ * trusted to actually shorten it.
+ */
+export function shortMonthName(month: number): string {
+	return monthName(month).slice(0, 3);
+}
+
+/** A FlexDate known to the day. */
+export interface ExactFlexDate extends FlexDate {
+	year: number;
+	month: number;
+	day: number;
+}
+
+/** True when year, month and day are all known. */
+export function isExactFlexDate(
+	date: FlexDate | null | undefined
+): date is ExactFlexDate {
+	return (
+		!!date && date.year !== null && date.month !== null && date.day !== null
+	);
+}
+
+/** The local Date an exact FlexDate names, at midnight. */
+export function flexToLocalDate(date: ExactFlexDate): Date {
+	return new Date(date.year, date.month - 1, date.day);
+}
+
 export function flexPrecision(date: FlexDate): FlexPrecision {
 	if (date.day !== null) return "day";
 	if (date.month !== null) return "month";
@@ -106,29 +137,25 @@ export function formatFlexDate(date: FlexDate): string {
 	if (date.month === null) {
 		return date.year !== null ? String(date.year) : "";
 	}
-	const monthName = MONTH_NAMES[date.month - 1];
+	const month = monthName(date.month);
 	if (date.day === null) {
-		return date.year !== null ? `${monthName} ${date.year}` : monthName;
+		return date.year !== null ? `${month} ${date.year}` : month;
 	}
 	if (date.year === null) {
-		return `${monthName} ${date.day}`;
+		return `${month} ${date.day}`;
 	}
-	return `${monthName} ${date.day}, ${date.year}`;
+	return `${month} ${date.day}, ${date.year}`;
 }
 
 /**
  * Compact, day-first display at the recorded precision: "28 Nov 1997" |
  * "28 Nov" | "Nov 1997" | "Nov" | "1997".
- *
- * The month is abbreviated by hand rather than through Intl — en-AU's
- * "short" month renders "July" in full, so the locale can't be trusted
- * to actually shorten it.
  */
 export function formatShortFlexDate(date: FlexDate): string {
 	if (date.month === null) {
 		return date.year !== null ? String(date.year) : "";
 	}
-	const month = MONTH_NAMES[date.month - 1].slice(0, 3);
+	const month = shortMonthName(date.month);
 	const parts = [
 		date.day !== null ? String(date.day) : "",
 		month,
@@ -139,15 +166,14 @@ export function formatShortFlexDate(date: FlexDate): string {
 
 /**
  * "Thu 30 Jul" — a real calendar Date (not a FlexDate: this is for the
- * exact-day case only), weekday from the locale, month abbreviated by
- * hand for the same reason as formatShortFlexDate above. No year — this
+ * exact-day case only), weekday from the locale, month from
+ * shortMonthName. No year — this
  * is for a compact share/copy line, not a record meant to survive years
  * of scrollback.
  */
 export function formatShortWeekdayDate(d: Date): string {
-	return `${formatDate(d, { weekday: "short" })} ${d.getDate()} ${monthName(
-		d.getMonth() + 1
-	).slice(0, 3)}`;
+	const weekday = formatDate(d, { weekday: "short" });
+	return `${weekday} ${d.getDate()} ${shortMonthName(d.getMonth() + 1)}`;
 }
 
 /**
@@ -217,10 +243,7 @@ export function resolveSpan(
 	end: FlexDate | null,
 	now = new Date()
 ): { date: FlexDate; past: boolean; underway: boolean } {
-	const exactEnd =
-		end && end.year !== null && end.month !== null && end.day !== null
-			? end
-			: null;
+	const exactEnd = isExactFlexDate(end) ? end : null;
 	const started = !isFlexUpcoming(start, now);
 	const past = exactEnd ? !isFlexUpcoming(exactEnd, now) : started;
 	return {
@@ -243,20 +266,16 @@ export function formatRelativeFlex(date: FlexDate, now = new Date()): string {
 	if (date.year === null) return "";
 
 	const phrase = (n: number, unit: string) => {
-		const size = Math.abs(n);
-		const plural = `${size} ${unit}${size === 1 ? "" : "s"}`;
-		return n < 0 ? `${plural} ago` : `in ${plural}`;
+		const counted = formatCount(Math.abs(n), unit);
+		return n < 0 ? `${counted} ago` : `in ${counted}`;
 	};
 	// Math.round breaks .5 towards +Infinity, so rounding the magnitude
 	// keeps a date 45 days back and one 45 days ahead the same distance.
 	const scale = (n: number, per: number) =>
 		Math.sign(n) * Math.round(Math.abs(n) / per);
 
-	if (date.month !== null && date.day !== null) {
-		const days = wholeDaysBetween(
-			now,
-			new Date(date.year, date.month - 1, date.day)
-		);
+	if (isExactFlexDate(date)) {
+		const days = wholeDaysBetween(now, flexToLocalDate(date));
 		if (days === 0) return "today";
 		if (days === 1) return "tomorrow";
 		if (days === -1) return "yesterday";
@@ -291,16 +310,16 @@ export function formatTimeSince(date: FlexDate, now = new Date()): string {
 	if (date.month === null) {
 		const years = nowYear - date.year;
 		if (years <= 0) return "this year";
-		return years === 1 ? "1 year ago" : `${years} years ago`;
+		return `${formatCount(years, "year")} ago`;
 	}
 
 	const months = (nowYear - date.year) * 12 + (nowMonth - date.month);
 	if (months < 1) return "this month";
 	if (months < 12) {
-		return months === 1 ? "1 month ago" : `${months} months ago`;
+		return `${formatCount(months, "month")} ago`;
 	}
 	const years = Math.floor(months / 12);
-	return years === 1 ? "1 year ago" : `${years} years ago`;
+	return `${formatCount(years, "year")} ago`;
 }
 
 /** Today as a local YYYY-MM-DD stamp (for created/updated fields). */

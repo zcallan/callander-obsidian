@@ -2,9 +2,11 @@ import type { PlanTimelineEntry } from "@/types";
 import { ACCOMMODATION_EMOJI, TRAVEL_TYPE_EMOJI } from "@/constants";
 import { PlanOperations } from "@/services/PlanOperations";
 import {
-	parseFlexDate,
+	flexToLocalDate,
 	formatFlexDate,
 	formatShortWeekdayDate,
+	isExactFlexDate,
+	parseFlexDate,
 } from "@/utils/flexdate";
 import { toText } from "@/utils/fm";
 import {
@@ -14,10 +16,9 @@ import {
 	formatTimelineDay,
 	nightsLabel,
 	nightsSummary,
-	startsWithEmoji,
 } from "@/utils/planFormat";
 import { shortenMemberNames, shortenPeopleList } from "@/utils/nameFormat";
-import { nameWithoutLeadingEmoji } from "@/utils/emoji";
+import { nameWithoutLeadingEmoji, startsWithEmoji } from "@/utils/emoji";
 import { isoDay, pad2 } from "@/utils/dates";
 
 /**
@@ -159,9 +160,7 @@ export function formatPlanDateRange(
 		month: number | null;
 		day: number | null;
 	}) =>
-		d.year !== null && d.month !== null && d.day !== null
-			? new Date(d.year, d.month - 1, d.day)
-			: null;
+		isExactFlexDate(d) ? flexToLocalDate(d) : null;
 
 	const startDate = exact(start);
 	const endDay = end ? exact(end) : null;

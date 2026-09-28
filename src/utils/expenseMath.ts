@@ -1,5 +1,6 @@
 import type { Expense, Credit } from "@/types";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
+import { formatCount } from "@/utils/text";
 
 /**
  * Reading and dividing shared expenses. Pure functions over frontmatter and
@@ -316,7 +317,7 @@ export function breakdownFor(
 		let descriptor: string;
 		if (cost.split.mode === "shares") {
 			const w = shares[person] ?? 1;
-			descriptor = `${w} ${w === 1 ? "share" : "shares"}`;
+			descriptor = formatCount(w, "share");
 		} else if (cost.split.mode === "percent") {
 			descriptor = `${shares[person] ?? 0}%`;
 		} else {

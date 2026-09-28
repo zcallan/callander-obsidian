@@ -30,3 +30,19 @@ export function toText(value: unknown): string {
 	}
 	return "";
 }
+
+/**
+ * toText, except any falsy value — 0 and false as well as "" and null —
+ * reads as unset (""). The rule every service reader has always applied.
+ */
+export function textIfSet(value: unknown): string {
+	return value ? toText(value) : "";
+}
+
+/**
+ * A frontmatter field under textIfSet's rule, as in
+ * `fieldText(fm, "name") || file.basename`.
+ */
+export function fieldText(fm: unknown, key: string): string {
+	return textIfSet(fieldOf(fm, key));
+}

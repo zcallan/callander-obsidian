@@ -5,6 +5,7 @@ import type FriendTracker from "@/main";
 import type { ContactWithCountdown } from "@/types";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { todayISO } from "@/utils/flexdate";
+import { capitalize } from "@/utils/text";
 
 /**
  * Log one event onto several friends' timelines at once —
@@ -41,7 +42,7 @@ export class GroupEventModal extends FormModal {
 			groupNames.forEach((g) =>
 				select.createEl("option", {
 					value: g,
-					text: g.charAt(0).toUpperCase() + g.slice(1),
+					text: capitalize(g),
 				})
 			);
 			select.addEventListener("change", () => {

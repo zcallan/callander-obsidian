@@ -1,3 +1,5 @@
+import { toText } from "@/utils/fm";
+
 /**
  * Reading and writing the fields whose entries name other notes — parents,
  * siblings, children, friends, related files.
@@ -23,27 +25,11 @@
  */
 export function parseLinkField(value: unknown): string[] {
 	const raw = Array.isArray(value)
-		? value.map(scalarText)
+		? value.map(toText)
 		: typeof value === "string"
 		? splitOutsideBrackets(value)
-		: [scalarText(value)];
+		: [toText(value)];
 	return raw.map((s) => s.trim()).filter(Boolean);
-}
-
-/**
- * A YAML scalar as text, and anything else as nothing.
- *
- * Hand-edited frontmatter can put a map or a nested list here. Coercing one
- * with `String()` would render "[object Object]" into the field and then save
- * it back on the next edit, so an unusable value is dropped instead — the
- * field shows one fewer entry rather than a line of noise.
- */
-function scalarText(value: unknown): string {
-	if (typeof value === "string") return value;
-	if (typeof value === "number" || typeof value === "boolean") {
-		return String(value);
-	}
-	return "";
 }
 
 function splitOutsideBrackets(text: string): string[] {
@@ -109,6 +95,15 @@ export function linkTarget(entry: string): string | null {
 	if (inner === null) return null;
 	const target = inner.split("|")[0].trim();
 	return target || null;
+}
+
+/**
+ * The note a stored entry points at, leniently: outer `[[`/`]]` off wherever
+ * they are, the alias dropped, and plain text passed through for
+ * getFirstLinkpathDest to resolve. Unlike linkTarget it never returns null.
+ */
+export function linkpathOf(entry: string): string {
+	return entry.replace(/^\[\[|\]\]$/g, "").split("|")[0].trim();
 }
 
 /** What an entry reads as: a link's alias if it has one, else its target. */

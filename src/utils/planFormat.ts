@@ -2,6 +2,7 @@ import { ANY_TIME, roughTime } from "@/constants";
 import { formatDate, ordinalDay } from "@/utils/dateFormat";
 import { formatShortWeekdayDate } from "@/utils/flexdate";
 import { wholeDaysBetween } from "@/utils/dates";
+import { formatCount } from "@/utils/text";
 
 /**
  * Display helpers shared by the plan timeline and its read view, so a stay
@@ -192,10 +193,5 @@ export function nightsSummary(dateISO: string, nights: number): string {
 
 /** "2 nights" / "1 night" — the stay-length phrase used in both views. */
 export function nightsLabel(nights: number): string {
-	return nights === 1 ? "1 night" : `${nights} nights`;
-}
-
-/** True when the text already leads with an emoji/pictograph. */
-export function startsWithEmoji(text: string): boolean {
-	return /^\p{Extended_Pictographic}/u.test(text.trim());
+	return formatCount(nights, "night");
 }

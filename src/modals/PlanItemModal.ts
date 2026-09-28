@@ -13,7 +13,8 @@ import {
 	appendScheduleFields,
 	ScheduleFieldOptions,
 } from "@/modals/scheduleFields";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
+import { truncate } from "@/utils/text";
 
 export interface PlanItemValue {
 	category: PlanIdeaCategory;
@@ -267,9 +268,7 @@ export class PlanItemModal extends FormModal {
 			});
 			deleteButton.addEventListener("click", () => {
 				const preview =
-					this.initial!.text.length > 80
-						? this.initial!.text.slice(0, 80) + "…"
-						: this.initial!.text;
+					truncate(this.initial!.text, CONFIRM_PREVIEW_CHARS);
 				new ConfirmModal(
 					this.app,
 					"Delete item",

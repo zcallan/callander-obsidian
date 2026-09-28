@@ -70,6 +70,7 @@ import { PlanModal } from "@/modals/PlanModal";
 import { EventModal } from "@/modals/EventModal";
 import { parseFlexDate, todayISO } from "@/utils/flexdate";
 import { MS_PER_HOUR, pad2 } from "@/utils/dates";
+import { capitalize, formatCount } from "@/utils/text";
 
 /**
  * The markdown-view intercept: contact/someday notes navigated to as
@@ -956,7 +957,7 @@ export default class FriendTracker extends Plugin {
 			...this.contactOperations.getGroupNames(contacts).map(
 				(g): CaptureTarget => ({
 					kind: "group",
-					label: g.charAt(0).toUpperCase() + g.slice(1),
+					label: capitalize(g),
 					getFile: () => this.contactOperations.ensureGroupFile(g),
 				})
 			),
@@ -1478,7 +1479,7 @@ export default class FriendTracker extends Plugin {
 			totalEvents += count;
 			if (count > 0) {
 				lines.push(
-					`- [[${c.name}]] — ${count} event${count > 1 ? "s" : ""}`
+					`- [[${c.name}]] — ${formatCount(count, "event")}`
 				);
 			}
 		}
@@ -1493,9 +1494,10 @@ export default class FriendTracker extends Plugin {
 		).length;
 		lines.push(
 			"",
-			`**${totalEvents} events across everyone** — ${hangouts} hangout${
-				hangouts === 1 ? "" : "s"
-			}, ${lifeMoments} of their life moments witnessed.`,
+			`**${totalEvents} events across everyone** — ${formatCount(
+				hangouts,
+				"hangout"
+			)}, ${lifeMoments} of their life moments witnessed.`,
 			""
 		);
 
@@ -1506,7 +1508,7 @@ export default class FriendTracker extends Plugin {
 		const ideasOpen = contacts.reduce((n, c) => n + c.openIdeas, 0);
 		lines.push(
 			`## Ideas`,
-			`- ${ideasDone} idea${ideasDone === 1 ? "" : "s"} checked off all-time`,
+			`- ${formatCount(ideasDone, "idea")} checked off all-time`,
 			`- ${ideasOpen} still open — fuel for next year`,
 			""
 		);
@@ -1754,9 +1756,10 @@ export default class FriendTracker extends Plugin {
 				const years = now.getFullYear() - met.year;
 				if (years > 0) {
 					new Notice(
-						`🤝 ${years} year${
-							years > 1 ? "s" : ""
-						} since you met ${c.displayName} today!`,
+						`🤝 ${formatCount(
+							years,
+							"year"
+						)} since you met ${c.displayName} today!`,
 						8000
 					);
 				}

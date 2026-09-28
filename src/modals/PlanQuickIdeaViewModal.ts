@@ -1,6 +1,6 @@
 import { App, Modal, setIcon } from "obsidian";
 import { PLAN_IDEA_CATEGORIES } from "@/constants";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
 import {
 	formatItemCost,
 	formatItemTime,
@@ -8,6 +8,7 @@ import {
 } from "@/utils/planFormat";
 import { shortenPeopleList } from "@/utils/nameFormat";
 import type { PlanQuickIdea } from "@/types";
+import { truncate } from "@/utils/text";
 
 /**
  * A read view of one quick idea, with the route onto the timeline.
@@ -123,8 +124,7 @@ export class PlanQuickIdeaViewModal extends Modal {
 		});
 		setIcon(del, "trash-2");
 		del.addEventListener("click", () => {
-			const preview =
-				i.text.length > 80 ? i.text.slice(0, 80) + "…" : i.text;
+			const preview = truncate(i.text, CONFIRM_PREVIEW_CHARS);
 			new ConfirmModal(
 				this.app,
 				"Delete idea",

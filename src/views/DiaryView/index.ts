@@ -5,8 +5,12 @@ import type { DiaryEntry } from "@/types";
 import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
 import { DeleteDiaryEntryModal } from "@/modals/DeleteDiaryEntryModal";
 import { formatDate } from "@/utils/dateFormat";
+import { truncate } from "@/utils/text";
 
 export const VIEW_TYPE_DIARY = "callander-diary-view";
+
+/** How much of an entry's body its card shows. */
+const SNIPPET_CHARS = 120;
 
 export class DiaryView extends ItemView {
 	private entries: DiaryEntry[] = [];
@@ -195,7 +199,7 @@ export class DiaryView extends ItemView {
 			.replace(/[#>*_`[\]!-]/g, "")
 			.replace(/\s+/g, " ")
 			.trim();
-		return plain.length > 120 ? plain.slice(0, 120) + "…" : plain;
+		return truncate(plain, SNIPPET_CHARS);
 	}
 
 	private async renderReadingView(container: HTMLElement, entry: DiaryEntry) {

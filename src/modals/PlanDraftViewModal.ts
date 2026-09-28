@@ -5,6 +5,10 @@ import {
 	appendScheduleFields,
 	type ScheduleFieldOptions,
 } from "@/modals/scheduleFields";
+import { truncate } from "@/utils/text";
+
+/** How much of a draft its confirmations quote: shorter than other deletes'. */
+const DRAFT_PREVIEW_CHARS = 60;
 
 /**
  * A dated draft, opened from the plan timeline.
@@ -80,10 +84,7 @@ export class PlanDraftViewModal extends Modal {
 		kind: "idea" | "travel",
 		run: (text: string) => Promise<void>
 	) {
-		const preview =
-			this.pending.trim().length > 60
-				? this.pending.trim().slice(0, 60) + "…"
-				: this.pending.trim();
+		const preview = truncate(this.pending.trim(), DRAFT_PREVIEW_CHARS);
 		new ConfirmModal(
 			this.app,
 			`Make ${kind}`,
@@ -161,10 +162,7 @@ export class PlanDraftViewModal extends Modal {
 		});
 		setIcon(del, "trash");
 		del.addEventListener("click", () => {
-			const preview =
-				this.pending.trim().length > 60
-					? this.pending.trim().slice(0, 60) + "…"
-					: this.pending.trim();
+			const preview = truncate(this.pending.trim(), DRAFT_PREVIEW_CHARS);
 			new ConfirmModal(
 				this.app,
 				"Discard draft",
