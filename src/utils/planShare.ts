@@ -19,7 +19,7 @@ import {
 } from "@/utils/planFormat";
 import { shortenMemberNames, shortenPeopleList } from "@/utils/nameFormat";
 import { nameWithoutLeadingEmoji, startsWithEmoji } from "@/utils/emoji";
-import { isoDay, pad2 } from "@/utils/dates";
+import { isoDay, MAX_DAY_WALK, pad2 } from "@/utils/dates";
 
 /**
  * The plan as a plain-text message you can paste to the group chat.
@@ -196,7 +196,7 @@ function planDays(data: Record<string, unknown>): string[] {
 	const days: string[] = [];
 	const cursor = new Date(start);
 	let guard = 0;
-	while (cursor <= end && guard++ < 400) {
+	while (cursor <= end && guard++ < MAX_DAY_WALK) {
 		days.push(
 			isoDay(cursor)
 		);

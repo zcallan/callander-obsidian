@@ -9,6 +9,11 @@ import { formatCount } from "@/utils/text";
  * same maths serves a trip's members and a one-off split alike.
  */
 
+/** One cent: a split within this of its total is balanced. */
+export const CENT = 0.01;
+/** Half a cent: a balance smaller than this rounds to zero, so it's square. */
+const HALF_CENT = 0.005;
+
 /**
  * A figure as it appears anywhere money is shown here.
  *
@@ -466,7 +471,7 @@ export function planOwedSummary(
 
 	const rows = participants.map((person): OwedRow => {
 		const net = (owedTotals[person] ?? 0) - creditTotalFor(person, credits);
-		const square = Math.abs(net) < 0.005;
+		const square = Math.abs(net) < HALF_CENT;
 		return {
 			person,
 			net,

@@ -7,7 +7,7 @@ import { ConfirmModal } from "@/modals/ConfirmModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
-import { EVENT_TYPES } from "@/constants";
+import { AUTOSAVE_DELAY_MS, EVENT_TYPES } from "@/constants";
 import { buildEventShareText, buildGoogleCalendarUrl } from "@/utils/eventShare";
 import { eventTimeOrigin, formatEventTime } from "@/utils/eventRow";
 import { displayZone } from "@/utils/timezone";
@@ -15,6 +15,9 @@ import { normalizeUrl } from "@/utils/url";
 import { closeColorPopover, openColorPopover } from "@/components/colorPicker";
 import { categoryColor, categoryColors } from "@/utils/categoryColor";
 import { linkpathOf } from "@/utils/linkField";
+
+/** A colour is saved this long after the picker stops moving. */
+const COLOR_SAVE_DELAY_MS = 250;
 
 /**
  * A read view of an event with Edit / Done / Hide / Delete — mirrors
@@ -109,7 +112,10 @@ export class EventViewModal extends Modal {
 	private queueColor(value: string) {
 		this.pendingColor = value;
 		if (this.colorTimer !== null) window.clearTimeout(this.colorTimer);
-		this.colorTimer = window.setTimeout(() => void this.flushColor(), 250);
+		this.colorTimer = window.setTimeout(
+			() => void this.flushColor(),
+			COLOR_SAVE_DELAY_MS
+		);
 	}
 
 	private async flushColor() {
@@ -183,7 +189,7 @@ export class EventViewModal extends Modal {
 		}
 		this.descSaveTimer = window.setTimeout(
 			() => void this.flushDescription(),
-			600
+			AUTOSAVE_DELAY_MS
 		);
 	}
 

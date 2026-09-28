@@ -9,6 +9,9 @@ export const MS_PER_HOUR = 60 * MS_PER_MINUTE;
 // bug. Count days with wholeDaysBetween, and move by days with setDate.
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 
+/** A safety cap on walking a day range one day at a time: over a year. */
+export const MAX_DAY_WALK = 400;
+
 /** 7 → "07". */
 export function pad2(n: number): string {
 	return String(n).padStart(2, "0");

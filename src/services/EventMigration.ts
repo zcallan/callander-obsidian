@@ -11,8 +11,13 @@ import {
 	textIfSet,
 	toText,
 } from "@/utils/fm";
-import { nameWithoutLeadingEmoji } from "@/utils/emoji";
 import { formatCount } from "@/utils/text";
+import {
+	ensureFolder,
+	markdownFilesIn,
+	uniqueNotePath,
+} from "@/services/vaultFiles";
+import { eventSlug } from "@/utils/fileName";
 
 /**
  * An `events`/`interactions` value in the shape the old embedded store used:
@@ -83,13 +88,7 @@ export class EventMigration {
 	// ---- 1. Events embedded in person/group frontmatter ----
 
 	private mdFilesIn(folderPath: string): TFile[] {
-		const folder = this.app.vault.getFolderByPath(
-			normalizePath(folderPath)
-		);
-		if (!folder) return [];
-		return folder.children.filter(
-			(f): f is TFile => f instanceof TFile && f.extension === "md"
-		);
+		return markdownFilesIn(this.app, folderPath);
 	}
 
 	private filesWithEmbeddedEvents(): TFile[] {
@@ -223,10 +222,7 @@ export class EventMigration {
 			// Transform in place (kind, fields, people as links), sweep the
 			// retired keys, then move the file into Events/ under its slug.
 			await this.writeAsEvent(file, fields);
-			const eventsFolder = this.ops.getEventsFolderPath();
-			if (!this.app.vault.getAbstractFileByPath(eventsFolder)) {
-				await this.app.vault.createFolder(eventsFolder);
-			}
+			await ensureFolder(this.app, this.ops.getEventsFolderPath());
 			await this.app.fileManager.renameFile(
 				file,
 				this.freeEventPath(fields)
@@ -294,34 +290,15 @@ export class EventMigration {
 		);
 	}
 
-	/** freePath, reachable without exposing EventOperations internals. */
+	/** freePath, reachable without exposing EventOperations internals.
+	 * People read as their link's target here, not its alias. */
 	private freeEventPath(fields: EventFields): string {
-		const folder = this.ops.getEventsFolderPath();
-		const sanitize = (s: string) =>
-			s.replace(/[\\/:*?"<>|#^[\]]/g, "-").trim();
-		const name =
-			sanitize(nameWithoutLeadingEmoji(fields.name)).slice(0, 60).trim() ||
-			"Event";
-		const people = (fields.people ?? []).map((p) =>
-			sanitize(p.replace(/^\[\[|\]\]$/g, "").split("|")[0])
+		const slug = eventSlug(fields, (p) =>
+			p.replace(/^\[\[|\]\]$/g, "").split("|")[0]
 		);
-		const who =
-			people.length >= 1 && people.length <= 2
-				? people.join(" & ")
-				: "";
-		const date = (fields.date ?? "").trim();
-		const prefix = [date, who].filter(Boolean).join(" ");
-		const slug = !prefix
-			? name
-			: who
-			? `${prefix} • ${name}`
-			: `${prefix} ${name}`;
-		let path = normalizePath(`${folder}/${slug}.md`);
-		let counter = 1;
-		while (this.app.vault.getAbstractFileByPath(path)) {
-			path = normalizePath(`${folder}/${slug}-${counter++}.md`);
-		}
-		return path;
+		return uniqueNotePath(this.app, this.ops.getEventsFolderPath(), slug, {
+			separator: "-",
+		});
 	}
 
 	// ---- 3. Rows still in the legacy Reminders.md store ----

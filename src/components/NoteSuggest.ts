@@ -1,6 +1,9 @@
 import { AbstractInputSuggest, App, TFile } from "obsidian";
 import { asWikilink, replaceEntryAt } from "@/utils/linkField";
 
+/** How many matching notes the dropdown offers. */
+const MAX_NOTE_SUGGESTIONS = 20;
+
 /**
  * Note-name autocomplete for the linkable fields (parents, siblings,
  * children, friends, related files).
@@ -43,7 +46,7 @@ export class NoteSuggest extends AbstractInputSuggest<TFile> {
 		// "Alex" and "Alex Thompson's birthday" exist.
 		return matches
 			.sort((a, b) => a.basename.length - b.basename.length)
-			.slice(0, 20);
+			.slice(0, MAX_NOTE_SUGGESTIONS);
 	}
 
 	renderSuggestion(file: TFile, el: HTMLElement): void {

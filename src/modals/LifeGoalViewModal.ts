@@ -3,6 +3,7 @@ import { reportFailure } from "@/components/guardedAction";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { formatDate } from "@/utils/dateFormat";
 import type { LifeGoal } from "@/types";
+import { AUTOSAVE_DELAY_MS } from "@/constants";
 
 /**
  * Read view for a life goal: what it is, how it's going, and the ways it
@@ -44,7 +45,7 @@ export class LifeGoalViewModal extends Modal {
 		}
 		this.notesSaveTimer = window.setTimeout(
 			() => void this.flushNotes(),
-			600
+			AUTOSAVE_DELAY_MS
 		);
 	}
 

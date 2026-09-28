@@ -3,6 +3,7 @@ import { reportFailure } from "@/components/guardedAction";
 import type { PlanTimelineEntry } from "@/types";
 import {
 	ACCOMMODATION_TYPES,
+	AUTOSAVE_DELAY_MS,
 	BOOKING_STATES,
 	PLAN_IDEA_CATEGORIES,
 	PLAN_PRIORITIES,
@@ -126,7 +127,7 @@ export class PlanTimelineViewModal extends Modal {
 		}
 		this.notesSaveTimer = window.setTimeout(
 			() => void this.flushNotes(),
-			600
+			AUTOSAVE_DELAY_MS
 		);
 	}
 

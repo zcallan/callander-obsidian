@@ -51,6 +51,9 @@ const TABS: Array<{ id: FriendListTab; label: string }> = [
 	{ id: "calendar", label: "B'day Calendar" },
 ];
 
+/** Birthdays a calendar cell names before the rest become "+N". */
+const MAX_CELL_BIRTHDAYS = 3;
+
 /**
  * The All friends page: search, group-pill filtering and a remembered sort
  * over three presentations of the same people — a two-line list in the
@@ -504,13 +507,13 @@ export class TableView {
 			const birthdays = day.inMonth
 				? byDay.get(dayKeyOf(day.date)) ?? []
 				: [];
-			for (const person of birthdays.slice(0, 3)) {
+			for (const person of birthdays.slice(0, MAX_CELL_BIRTHDAYS)) {
 				this.appendCalBirthday(cell, person, day.date);
 			}
-			if (birthdays.length > 3) {
+			if (birthdays.length > MAX_CELL_BIRTHDAYS) {
 				cell.createDiv({
 					cls: "cal-more",
-					text: `+${birthdays.length - 3} more`,
+					text: `+${birthdays.length - MAX_CELL_BIRTHDAYS} more`,
 				});
 			}
 			if (birthdays.length > 0) {

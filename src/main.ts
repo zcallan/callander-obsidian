@@ -72,6 +72,29 @@ import { parseFlexDate, todayISO } from "@/utils/flexdate";
 import { MS_PER_HOUR, pad2 } from "@/utils/dates";
 import { capitalize, formatCount } from "@/utils/text";
 
+/** Mobile keyboard handling, for when the OS won't say how tall it is. */
+const KEYBOARD_FALLBACK_HEIGHT_RATIO = 0.42;
+const fallbackKeyboardInset = () =>
+	Math.round(window.innerHeight * KEYBOARD_FALLBACK_HEIGHT_RATIO);
+/** An inset below this means the keyboard isn't really accounted for. */
+const MIN_KEYBOARD_INSET_PX = 30;
+/** Re-checks after focus, once the OS's own resizing has settled. */
+const KEYBOARD_ASSIST_DELAYS_MS = [350, 900] as const;
+/** How long focus gets to land somewhere new before the inset drops. */
+const FOCUS_SETTLE_MS = 150;
+
+/** How long "open as markdown" bypasses the view intercept: one navigation. */
+const MARKDOWN_BYPASS_TTL_MS = 1000;
+/** A logged diary entry re-syncs its timeline events this long after its
+ * last edit. */
+const DIARY_SYNC_DEBOUNCE_MS = 1500;
+/** Birthdays are re-checked this often while Obsidian stays open. */
+const BIRTHDAY_CHECK_INTERVAL_MS = MS_PER_HOUR;
+/** Birthday and anniversary reminders stay up long enough to read. */
+const REMINDER_NOTICE_MS = 8000;
+/** The export notice carries instructions, so it stays longest. */
+const EXPORT_NOTICE_MS = 15000;
+
 /**
  * The markdown-view intercept: contact/someday notes navigated to as
  * markdown (file explorer, quick switcher, links, graph) open in their
@@ -430,7 +453,7 @@ export default class FriendTracker extends Plugin {
 			this.registerInterval(
 				window.setInterval(
 					() => void this.checkBirthdays(),
-					MS_PER_HOUR
+					BIRTHDAY_CHECK_INTERVAL_MS
 				)
 			);
 			this.registerDomEvent(window, "focus", () =>
@@ -573,7 +596,7 @@ export default class FriendTracker extends Plugin {
 			setInset(
 				Number.isFinite(height) && height > 0
 					? height
-					: Math.round(window.innerHeight * 0.42)
+					: fallbackKeyboardInset()
 			);
 		};
 		const onHide = () => {
@@ -627,10 +650,8 @@ export default class FriendTracker extends Plugin {
 				const assist = (delay: number, scroll: boolean) =>
 					window.setTimeout(() => {
 						if (document.activeElement !== target) return;
-						if (currentInset() < 30) {
-							setInset(
-								Math.round(window.innerHeight * 0.42)
-							);
+						if (currentInset() < MIN_KEYBOARD_INSET_PX) {
+							setInset(fallbackKeyboardInset());
 						}
 						// Not the colour picker's hex field: the picker is
 						// position: fixed and moves itself clear of the
@@ -646,8 +667,9 @@ export default class FriendTracker extends Plugin {
 							});
 						}
 					}, delay);
-				assist(350, true);
-				assist(900, false);
+				const [first, second] = KEYBOARD_ASSIST_DELAYS_MS;
+				assist(first, true);
+				assist(second, false);
 			}
 		});
 
@@ -655,8 +677,11 @@ export default class FriendTracker extends Plugin {
 		// event churn zeroed it while typing
 		this.registerDomEvent(document, "input", (event) => {
 			const target = event.target as HTMLElement | null;
-			if (summonsKeyboard(target) && currentInset() < 30) {
-				setInset(Math.round(window.innerHeight * 0.42));
+			if (
+				summonsKeyboard(target) &&
+				currentInset() < MIN_KEYBOARD_INSET_PX
+			) {
+				setInset(fallbackKeyboardInset());
 			}
 		});
 
@@ -666,7 +691,7 @@ export default class FriendTracker extends Plugin {
 			window.setTimeout(() => {
 				const active = document.activeElement as HTMLElement | null;
 				if (!summonsKeyboard(active)) setInset(0);
-			}, 150);
+			}, FOCUS_SETTLE_MS);
 		});
 	}
 
@@ -730,7 +755,10 @@ export default class FriendTracker extends Plugin {
 		if (!path) return;
 		this.markdownBypass.add(path);
 		// The bypass is per-navigation, not permanent
-		window.setTimeout(() => this.markdownBypass.delete(path), 1000);
+		window.setTimeout(
+			() => this.markdownBypass.delete(path),
+			MARKDOWN_BYPASS_TTL_MS
+		);
 		void this.app.workspace.openLinkText(path, "", true);
 	}
 
@@ -1201,7 +1229,7 @@ export default class FriendTracker extends Plugin {
 			window.setTimeout(() => {
 				this.diarySyncTimers.delete(file.path);
 				void this.syncLoggedDiaryEntry(file);
-			}, 1500)
+			}, DIARY_SYNC_DEBOUNCE_MS)
 		);
 	}
 
@@ -1443,7 +1471,7 @@ export default class FriendTracker extends Plugin {
 		await this.app.vault.adapter.write(path, lines.join("\r\n"));
 		new Notice(
 			`📅 Saved "${path}" to your vault root (${eventCount} events — everyone's next birthday).\n\nOpen it in Finder and double-click to add to Apple Calendar — pick an iCloud calendar to get iPhone alerts too. Re-run and re-import yearly to top up.`,
-			15000
+			EXPORT_NOTICE_MS
 		);
 	}
 
@@ -1706,7 +1734,10 @@ export default class FriendTracker extends Plugin {
 				names.length > 0
 					? names.join(", ") + " and " + lastPerson
 					: lastPerson;
-			new Notice(`🎂 It's ${nameList}'s birthday today!`, 8000);
+			new Notice(
+				`🎂 It's ${nameList}'s birthday today!`,
+				REMINDER_NOTICE_MS
+			);
 
 			// Real macOS notification too (Obsidian is Electron) — reaches
 			// Notification Center even when Obsidian isn't focused
@@ -1741,7 +1772,10 @@ export default class FriendTracker extends Plugin {
 					? `${c.displayName} tomorrow`
 					: `${c.displayName} in ${c.daysUntilBirthday} days`
 			);
-			new Notice(`🎈 Upcoming birthdays: ${parts.join(" · ")}`, 8000);
+			new Notice(
+				`🎈 Upcoming birthdays: ${parts.join(" · ")}`,
+				REMINDER_NOTICE_MS
+			);
 		}
 
 		// Met-anniversaries, at recorded precision (exact-day mets only)
@@ -1760,7 +1794,7 @@ export default class FriendTracker extends Plugin {
 							years,
 							"year"
 						)} since you met ${c.displayName} today!`,
-						8000
+						REMINDER_NOTICE_MS
 					);
 				}
 			}

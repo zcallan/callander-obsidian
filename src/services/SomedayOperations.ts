@@ -18,6 +18,12 @@ import { asArray, fieldOf, fieldText } from "@/utils/fm";
 import { GENERATED_KEY, isGenerated } from "@/utils/generated";
 import { todayISO } from "@/utils/flexdate";
 import { metadataSettled } from "@/utils/metadataSettled";
+import {
+	ensureFolder,
+	markdownFilesIn,
+	uniqueNotePath,
+} from "@/services/vaultFiles";
+import { safeFileName } from "@/utils/fileName";
 
 /** The editable fields of a Someday — used for both create and update. */
 export interface SomedayFields {
@@ -198,29 +204,19 @@ export class SomedayOperations {
 
 	/** All somedays, straight from the metadata cache — zero file I/O. */
 	getSomedays(): SomedayInfo[] {
-		const folder = this.app.vault.getFolderByPath(
-			this.getSomedaysFolderPath()
-		);
-		if (!folder) return [];
-		return folder.children
-			.filter(
-				(f): f is TFile => f instanceof TFile && f.extension === "md"
-			)
+		return markdownFilesIn(this.app, this.getSomedaysFolderPath())
 			.map((file) => this.toInfo(file));
 	}
 
 	async createSomeday(fields: SomedayFields): Promise<TFile> {
 		const folderPath = this.getSomedaysFolderPath();
-		if (!this.app.vault.getAbstractFileByPath(folderPath)) {
-			await this.app.vault.createFolder(folderPath);
-		}
-		const safeName =
-			fields.name.replace(/[\\/:*?"<>|#^[\]]/g, "-").trim() || "Someday";
-		let path = normalizePath(`${folderPath}/${safeName}.md`);
-		let counter = 1;
-		while (this.app.vault.getAbstractFileByPath(path)) {
-			path = normalizePath(`${folderPath}/${safeName} ${counter++}.md`);
-		}
+		await ensureFolder(this.app, folderPath);
+		const path = uniqueNotePath(
+			this.app,
+			folderPath,
+			safeFileName(fields.name, "Someday"),
+			{ separator: " " }
+		);
 		const created = todayISO();
 		const file = await this.app.vault.create(
 			path,

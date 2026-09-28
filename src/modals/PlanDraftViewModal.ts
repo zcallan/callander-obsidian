@@ -6,6 +6,7 @@ import {
 	type ScheduleFieldOptions,
 } from "@/modals/scheduleFields";
 import { truncate } from "@/utils/text";
+import { AUTOSAVE_DELAY_MS } from "@/constants";
 
 /** How much of a draft its confirmations quote: shorter than other deletes'. */
 const DRAFT_PREVIEW_CHARS = 60;
@@ -49,7 +50,10 @@ export class PlanDraftViewModal extends Modal {
 		this.pending = value;
 		this.dirty = true;
 		if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
-		this.saveTimer = window.setTimeout(() => void this.flush(), 600);
+		this.saveTimer = window.setTimeout(
+			() => void this.flush(),
+			AUTOSAVE_DELAY_MS
+		);
 	}
 
 	/** Write whatever's pending — on blur and on close, so a quick

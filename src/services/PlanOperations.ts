@@ -20,6 +20,12 @@ import { asArray, fieldOf, fieldText, toText } from "@/utils/fm";
 import { generatedField } from "@/utils/generated";
 import { ContactOperations } from "@/services/ContactOperations";
 import { todayISO } from "@/utils/flexdate";
+import {
+	ensureFolder,
+	markdownFilesIn,
+	uniqueNotePath,
+} from "@/services/vaultFiles";
+import { safeFileName } from "@/utils/fileName";
 
 /** The named field when it's a non-empty string, else undefined. */
 function strFieldOf(value: unknown, key: string): string | undefined {
@@ -460,14 +466,7 @@ export class PlanOperations {
 
 	/** All plans, straight from the metadata cache — zero file I/O */
 	getPlans(): PlanInfo[] {
-		const folder = this.app.vault.getFolderByPath(
-			this.getPlansFolderPath()
-		);
-		if (!folder) return [];
-		return folder.children
-			.filter(
-				(f): f is TFile => f instanceof TFile && f.extension === "md"
-			)
+		return markdownFilesIn(this.app, this.getPlansFolderPath())
 			.map((file) => {
 				const fm: unknown =
 					this.app.metadataCache.getFileCache(file)?.frontmatter;
@@ -502,13 +501,7 @@ export class PlanOperations {
 	 * while the file still exists.
 	 */
 	async removePersonFromPlans(file: TFile): Promise<void> {
-		const folder = this.app.vault.getFolderByPath(
-			this.getPlansFolderPath()
-		);
-		if (!folder) return;
-		const plans = folder.children.filter(
-			(f): f is TFile => f instanceof TFile && f.extension === "md"
-		);
+		const plans = markdownFilesIn(this.app, this.getPlansFolderPath());
 		for (const plan of plans) {
 			const resolves = (raw: unknown) =>
 				this.app.metadataCache.getFirstLinkpathDest(
@@ -539,15 +532,10 @@ export class PlanOperations {
 		endDate = ""
 	): Promise<TFile> {
 		const folderPath = this.getPlansFolderPath();
-		if (!this.app.vault.getAbstractFileByPath(folderPath)) {
-			await this.app.vault.createFolder(folderPath);
-		}
-		const safeName = name.replace(/[\\/:*?"<>|#^[\]]/g, "-").trim();
-		let path = normalizePath(`${folderPath}/${safeName}.md`);
-		let counter = 1;
-		while (this.app.vault.getAbstractFileByPath(path)) {
-			path = normalizePath(`${folderPath}/${safeName} ${counter++}.md`);
-		}
+		await ensureFolder(this.app, folderPath);
+		const path = uniqueNotePath(this.app, folderPath, safeFileName(name), {
+			separator: " ",
+		});
 		const loc = location.trim()
 			? `location: ${JSON.stringify(location.trim())}\n`
 			: "";

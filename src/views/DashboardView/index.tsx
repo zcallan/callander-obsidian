@@ -49,6 +49,9 @@ import { formatCount } from "@/utils/text";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
+/** How many recent diary entries the dashboard shows. */
+const DASHBOARD_DIARY_ENTRIES = 3;
+
 export class DashboardView extends ItemView {
 	private contacts: ContactWithCountdown[] = [];
 	/** Widened for this view only, until it closes. */
@@ -1073,7 +1076,7 @@ export class DashboardView extends ItemView {
 
 		const entries = this.plugin.diaryOperations
 			.getEntriesMeta()
-			.slice(0, 3);
+			.slice(0, DASHBOARD_DIARY_ENTRIES);
 		if (entries.length === 0) {
 			section.createDiv({
 				cls: "section-helper-text",

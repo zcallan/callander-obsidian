@@ -1,5 +1,10 @@
 import type { App } from "obsidian";
 
+/** How long to wait for the cache before carrying on regardless. */
+const SETTLE_TIMEOUT_MS = 2000;
+/** How often the cache is re-checked meanwhile. */
+const SETTLE_POLL_MS = 25;
+
 /**
  * Resolves once the metadata cache has caught up with a write.
  *
@@ -31,7 +36,7 @@ export function metadataSettled(
 		timeoutMs?: number;
 	} = {}
 ): Promise<void> {
-	const { until, timeoutMs = 2000 } = options;
+	const { until, timeoutMs = SETTLE_TIMEOUT_MS } = options;
 
 	return new Promise<void>((resolve) => {
 		let done = false;
@@ -59,7 +64,7 @@ export function metadataSettled(
 		if (until) {
 			poll = window.setInterval(() => {
 				if (satisfied()) finish();
-			}, 25);
+			}, SETTLE_POLL_MS);
 		}
 
 		const ref = app.metadataCache.on("changed", (file) => {

@@ -3,6 +3,8 @@ import type FriendTracker from "@/main";
 import type { DiaryEntry } from "@/types";
 import { fieldText, isRecord } from "@/utils/fm";
 import { todayISO } from "@/utils/flexdate";
+import { ILLEGAL_FILENAME_CHARS } from "@/utils/fileName";
+import { markdownFilesIn, uniqueNotePath } from "@/services/vaultFiles";
 
 export class DiaryOperations {
 	constructor(private plugin: FriendTracker) {}
@@ -35,14 +37,7 @@ export class DiaryOperations {
 	}
 
 	async getEntries(): Promise<DiaryEntry[]> {
-		const folder = this.app.vault.getFolderByPath(
-			this.getDiaryFolderPath()
-		);
-		if (!folder) return [];
-
-		const files = folder.children.filter(
-			(f): f is TFile => f instanceof TFile && f.extension === "md"
-		);
+		const files = markdownFilesIn(this.app, this.getDiaryFolderPath());
 
 		const entries: DiaryEntry[] = [];
 		for (const file of files) {
@@ -77,14 +72,7 @@ export class DiaryOperations {
 	 * Use this when bodies aren't needed (e.g. diary-mention lookups).
 	 */
 	getEntriesMeta(): Array<{ file: TFile; title: string; date: string }> {
-		const folder = this.app.vault.getFolderByPath(
-			this.getDiaryFolderPath()
-		);
-		if (!folder) return [];
-		return folder.children
-			.filter(
-				(f): f is TFile => f instanceof TFile && f.extension === "md"
-			)
+		return markdownFilesIn(this.app, this.getDiaryFolderPath())
 			.map((file) => {
 				const fm: unknown =
 					this.app.metadataCache.getFileCache(file)?.frontmatter;
@@ -152,7 +140,7 @@ export class DiaryOperations {
 	private sanitizeTitle(title: string): string {
 		return (
 			title
-				.replace(/[\\/:*?"<>|#^[\]]/g, "-")
+				.replace(ILLEGAL_FILENAME_CHARS, "-")
 				.replace(/\s+/g, " ")
 				.trim() || "Untitled"
 		);
@@ -165,15 +153,9 @@ export class DiaryOperations {
 	): Promise<string> {
 		const folder = this.getDiaryFolderPath();
 		const base = `${date} ${this.sanitizeTitle(title)}`;
-		let candidate = normalizePath(`${folder}/${base}.md`);
-		let counter = 1;
-		while (
-			candidate !== currentPath &&
-			this.app.vault.getAbstractFileByPath(candidate)
-		) {
-			candidate = normalizePath(`${folder}/${base} ${counter}.md`);
-			counter++;
-		}
-		return candidate;
+		return uniqueNotePath(this.app, folder, base, {
+			separator: " ",
+			ignorePath: currentPath,
+		});
 	}
 }

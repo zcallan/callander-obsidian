@@ -62,6 +62,12 @@ function renderPreview(parent: HTMLElement, events: ImportedEvent[]) {
 	}
 }
 
+/** How long a copy button says "Copied" before going back. */
+const COPIED_FEEDBACK_MS = 1500;
+
+/** Problems listed one by one before the rest collapse into "…and N more". */
+const MAX_PROBLEMS_SHOWN = 20;
+
 /**
  * Step one of a bulk import: the format to follow, and somewhere to paste.
  *
@@ -121,7 +127,7 @@ export class EventImportModal extends FormModal {
 				window.setTimeout(() => {
 					copyHint.setText("Click to copy");
 					copyBox.removeClass("is-copied");
-				}, 1500);
+				}, COPIED_FEEDBACK_MS);
 			});
 		});
 
@@ -143,7 +149,10 @@ export class EventImportModal extends FormModal {
 		promptBtn.addEventListener("click", () => {
 			void navigator.clipboard.writeText(importPrompt()).then(() => {
 				promptLabel.setText("Copied");
-				window.setTimeout(() => promptLabel.setText("Copy prompt"), 1500);
+				window.setTimeout(
+					() => promptLabel.setText("Copy prompt"),
+					COPIED_FEEDBACK_MS
+				);
 			});
 		});
 
@@ -178,12 +187,14 @@ export class EventImportModal extends FormModal {
 					text: problemsHeading(parsed.errors.length),
 				});
 				const list = box.createEl("ul");
-				for (const err of parsed.errors.slice(0, 20)) {
+				for (const err of parsed.errors.slice(0, MAX_PROBLEMS_SHOWN)) {
 					list.createEl("li", { text: problemLine(err) });
 				}
-				if (parsed.errors.length > 20) {
+				if (parsed.errors.length > MAX_PROBLEMS_SHOWN) {
 					list.createEl("li", {
-						text: `…and ${parsed.errors.length - 20} more.`,
+						text: `…and ${
+							parsed.errors.length - MAX_PROBLEMS_SHOWN
+						} more.`,
 					});
 				}
 				// Under the list, where the eye finishes reading. Copies all
@@ -198,7 +209,10 @@ export class EventImportModal extends FormModal {
 				copy.addEventListener("click", () => {
 					void navigator.clipboard.writeText(text).then(() => {
 						copyLabel.setText("Copied");
-						window.setTimeout(() => copyLabel.setText("Copy"), 1500);
+						window.setTimeout(
+							() => copyLabel.setText("Copy"),
+							COPIED_FEEDBACK_MS
+						);
 					});
 				});
 			} else if (events.length > 0) {

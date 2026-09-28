@@ -32,6 +32,7 @@ import {
 import { wholeDaysBetween } from "@/utils/dates";
 import { capitalize, formatCount } from "@/utils/text";
 import { linkpathOf } from "@/utils/linkField";
+import { ensureFolder } from "@/services/vaultFiles";
 
 /** Where the inbox lived before it became the dashboard file's properties. */
 const LEGACY_INBOX_BASENAME = "Idea Inbox";
@@ -755,9 +756,7 @@ export class ContactOperations {
 
 	async ensureGroupFile(name: string): Promise<TFile> {
 		const folderPath = this.getGroupsFolderPath();
-		if (!this.app.vault.getAbstractFileByPath(folderPath)) {
-			await this.app.vault.createFolder(folderPath);
-		}
+		await ensureFolder(this.app, folderPath);
 		const existing = this.groupPageOf(name);
 		if (existing) return existing;
 		const pretty = capitalize(name);

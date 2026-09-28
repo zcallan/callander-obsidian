@@ -194,8 +194,9 @@ import {
 	rescueDraftsFromNotes,
 	upsertNotesSection,
 } from "@/utils/notesMarkdown";
-import { isoDateOf, isoDay, wholeDaysBetween } from "@/utils/dates";
+import { isoDateOf, isoDay, MAX_DAY_WALK, wholeDaysBetween } from "@/utils/dates";
 import { formatCount, truncate } from "@/utils/text";
+import { safeFileName } from "@/utils/fileName";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -270,6 +271,18 @@ function toContactFrontmatter(parsed: unknown): ContactFrontmatter {
 	}
 	return data;
 }
+
+/** How long the page ignores modify events after its own write, so it
+ * doesn't reload on top of itself. The frontmatter save waits longer:
+ * processFrontMatter's write lands later than a plain one. */
+const OWN_WRITE_GRACE_MS = 1000;
+const FRONTMATTER_WRITE_GRACE_MS = 1500;
+
+/** The notes box saves this long after the last keystroke. */
+const NOTES_AUTOSAVE_MS = 800;
+
+/** A notice with a button in it stays up long enough to reach the button. */
+const ACTION_NOTICE_MS = 8000;
 
 export class ContactPageView extends ItemView {
 	private _file: TFile | null = null;
@@ -371,7 +384,7 @@ export class ContactPageView extends ItemView {
 	private async writeIdeasToBody(ideas: Idea[]): Promise<void> {
 		const file = this._file;
 		if (!file) return;
-		this.writingUntil = Date.now() + 1000;
+		this.writingUntil = Date.now() + OWN_WRITE_GRACE_MS;
 		await this.app.vault.process(file, (content) => {
 			const { frontmatter, body } = splitFrontmatter(content);
 			return joinFrontmatter(
@@ -390,7 +403,7 @@ export class ContactPageView extends ItemView {
 		file: TFile | null = this._file
 	): Promise<void> {
 		if (!file) return;
-		this.writingUntil = Date.now() + 1000;
+		this.writingUntil = Date.now() + OWN_WRITE_GRACE_MS;
 		await this.app.vault.process(file, (content) => {
 			const { frontmatter, body } = splitFrontmatter(content);
 			return joinFrontmatter(frontmatter, upsertNotesSection(body, notes));
@@ -425,7 +438,7 @@ export class ContactPageView extends ItemView {
 				? ""
 				: toText(this.contactData.notes);
 		if (adoptNotes(body, older) !== body) {
-			this.writingUntil = Date.now() + 1000;
+			this.writingUntil = Date.now() + OWN_WRITE_GRACE_MS;
 			let notes: string | null = null;
 			await this.app.vault.process(file, (content) => {
 				const split = splitFrontmatter(content);
@@ -2321,7 +2334,7 @@ export class ContactPageView extends ItemView {
 			text: "Log on timeline",
 		});
 
-		const notice = new Notice(fragment, 8000);
+		const notice = new Notice(fragment, ACTION_NOTICE_MS);
 		const logIdeaAsEvent = async () => {
 			notice.hide();
 			const today = todayISO();
@@ -2429,7 +2442,10 @@ export class ContactPageView extends ItemView {
 		this.notesDraft = {
 			file,
 			text,
-			timer: window.setTimeout(() => void this.flushNotesDraft(), 800),
+			timer: window.setTimeout(
+				() => void this.flushNotesDraft(),
+				NOTES_AUTOSAVE_MS
+			),
 		};
 	}
 
@@ -2693,10 +2709,7 @@ export class ContactPageView extends ItemView {
 				// Keep the filename in step with the name (same sanitizing
 				// as plan creation)
 				if (renamed && this._file?.parent) {
-					const safeName =
-						details.name
-							.replace(/[\\/:*?"<>|#^[\]]/g, "-")
-							.trim() || "Plan";
+					const safeName = safeFileName(details.name, "Plan");
 					const newPath = `${this._file.parent.path}/${safeName}.md`;
 					if (newPath !== this._file.path) {
 						try {
@@ -2993,7 +3006,7 @@ export class ContactPageView extends ItemView {
 	private async writeDraftsToBody(drafts: LedgerDraft[]): Promise<void> {
 		const file = this._file;
 		if (!file) return;
-		this.writingUntil = Date.now() + 1000;
+		this.writingUntil = Date.now() + OWN_WRITE_GRACE_MS;
 		await this.app.vault.process(file, (content) => {
 			const { frontmatter, body } = splitFrontmatter(content);
 			return joinFrontmatter(
@@ -3012,7 +3025,7 @@ export class ContactPageView extends ItemView {
 	 * from what setFile read, so nothing written in between is lost.
 	 */
 	private async rescuePlanDrafts(file: TFile): Promise<string> {
-		this.writingUntil = Date.now() + 1000;
+		this.writingUntil = Date.now() + OWN_WRITE_GRACE_MS;
 		let rescued = "";
 		await this.app.vault.process(file, (content) => {
 			const { frontmatter, body } = splitFrontmatter(content);
@@ -3524,7 +3537,7 @@ export class ContactPageView extends ItemView {
 		const end = new Date(`${endISO}T00:00:00`);
 		if (isNaN(d.getTime()) || isNaN(end.getTime()) || end < d) return days;
 		let guard = 0;
-		while (d <= end && guard++ < 400) {
+		while (d <= end && guard++ < MAX_DAY_WALK) {
 			days.push(
 				isoDay(d)
 			);
@@ -4540,7 +4553,7 @@ export class ContactPageView extends ItemView {
 	private async writeQuotesToBody(quotes: Quote[]): Promise<void> {
 		const file = this._file;
 		if (!file) return;
-		this.writingUntil = Date.now() + 1000;
+		this.writingUntil = Date.now() + OWN_WRITE_GRACE_MS;
 		await this.app.vault.process(file, (content) => {
 			const { frontmatter, body } = splitFrontmatter(content);
 			return joinFrontmatter(
@@ -4826,7 +4839,7 @@ export class ContactPageView extends ItemView {
 		if (stampUpdated || !isEmptyPatch(patch)) {
 			// Our own write will fire a modify event — ignore it briefly so
 			// we don't reload on top of ourselves
-			this.writingUntil = Date.now() + 1500;
+			this.writingUntil = Date.now() + FRONTMATTER_WRITE_GRACE_MS;
 			await this.app.fileManager.processFrontMatter(
 				file,
 				(frontmatter: Record<string, unknown>) => {

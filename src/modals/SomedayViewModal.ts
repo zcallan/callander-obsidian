@@ -10,6 +10,7 @@ import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
 import {
+	AUTOSAVE_DELAY_MS,
 	formatSomedayDays,
 	formatSomedaySeasons,
 	formatSomedayTimes,
@@ -234,7 +235,7 @@ export class SomedayViewModal extends Modal {
 		}
 		this.notesSaveTimer = window.setTimeout(
 			() => void this.flushNotes(),
-			600
+			AUTOSAVE_DELAY_MS
 		);
 	}
 

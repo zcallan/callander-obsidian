@@ -3,7 +3,7 @@ import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { guardedAction } from "@/components/guardedAction";
 import type { ContactWithCountdown, Expense } from "@/types";
-import { owedFor, payersOf, percentFromInput } from "@/utils/expenseMath";
+import { CENT, owedFor, payersOf, percentFromInput } from "@/utils/expenseMath";
 import { evaluateAmount } from "@/utils/calc";
 import {
 	appendContactPicker,
@@ -471,7 +471,7 @@ export class ExpenseModal extends FormModal {
 					);
 					const assigned = Math.round(sum * 100) / 100;
 					const gap = Math.round((amount - assigned) * 100) / 100;
-					const balanced = Math.abs(gap) < 0.01;
+					const balanced = Math.abs(gap) < CENT;
 					// Nothing to measure against until there's a total
 					const pending = amount <= 0;
 					totalEl.setText(

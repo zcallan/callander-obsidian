@@ -1,6 +1,9 @@
 import type { EventRef } from "obsidian";
 import type FriendTracker from "@/main";
 
+/** How long events are gathered before one refresh answers them all. */
+const REFRESH_COALESCE_MS = 50;
+
 /** A view (or any Component) that can own subscriptions for its lifetime. */
 interface Registrar {
 	registerEvent(ref: EventRef): void;
@@ -33,7 +36,10 @@ export function registerVaultRefresh(
 	view: Registrar,
 	plugin: FriendTracker,
 	refresh: () => void,
-	{ delay = 50, scope }: { delay?: number; scope?: (path: string) => boolean } = {}
+	{
+		delay = REFRESH_COALESCE_MS,
+		scope,
+	}: { delay?: number; scope?: (path: string) => boolean } = {}
 ): void {
 	const inScope =
 		scope ??

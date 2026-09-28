@@ -60,3 +60,8 @@ export function timeSortValue(time: string | undefined | null): string {
 	if (!time) return "99:99";
 	return roughTime(time)?.sort ?? time;
 }
+
+/** How long a view modal waits after the last keystroke before saving
+ * its notes: long enough to not write per letter, short enough that
+ * closing straight after typing rarely races it. */
+export const AUTOSAVE_DELAY_MS = 600;

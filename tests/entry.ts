@@ -55,6 +55,7 @@ export * from "@/utils/fm";
 export * from "@/utils/metadataSettled";
 export * from "@/utils/dates";
 export * from "@/utils/text";
+export * from "@/utils/fileName";
 export {
 	formatSomedayDays,
 	formatSomedaySeasons,

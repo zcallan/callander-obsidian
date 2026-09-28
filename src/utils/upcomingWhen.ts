@@ -30,6 +30,9 @@ export function daysUntilFlex(
 	return wholeDaysBetween(now, new Date(p.year, (p.month ?? 1) - 1, p.day ?? 1));
 }
 
+/** Up to this many days away, a count reads in days; past it, in months. */
+const DAY_COUNT_HORIZON = 90;
+
 /** "today" / "4 days ago" / "in 12 days" (etc.) and its tone, from an
  * exact day offset — the piece day-precision dates and a plan's end date
  * both need. */
@@ -42,7 +45,7 @@ export function relativeFromDays(days: number): {
 	else if (days === 1) relative = "tomorrow";
 	else if (days === -1) relative = "yesterday";
 	else if (days < 0) relative = `${-days} days ago`;
-	else if (days <= 90) relative = `in ${days} days`;
+	else if (days <= DAY_COUNT_HORIZON) relative = `in ${days} days`;
 	else relative = `in ${Math.round(days / 30)} months`;
 	const tone: RowTone | undefined =
 		days < 0 ? "past" : days <= 1 ? "soon" : undefined;

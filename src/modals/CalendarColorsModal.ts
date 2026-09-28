@@ -11,6 +11,9 @@ import {
 	type GroupColors,
 } from "@/utils/categoryColor";
 
+/** Settings are saved this long after the last colour change. */
+const SETTINGS_SAVE_DELAY_MS = 200;
+
 /**
  * Colours picked by hand for the Calendar page, one of three sets: "kinds"
  * is "Color by group"'s plans, birthdays and events; "categories" is each
@@ -166,7 +169,7 @@ export class CalendarColorsModal extends FormModal {
 		this.saveTimer = window.setTimeout(() => {
 			this.saveTimer = null;
 			void this.plugin.saveSettings();
-		}, 200);
+		}, SETTINGS_SAVE_DELAY_MS);
 	}
 
 	onClose() {

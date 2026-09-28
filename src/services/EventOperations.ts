@@ -8,7 +8,6 @@ import { asArray, fieldOf, fieldText, toText } from "@/utils/fm";
 import { GENERATED_KEY, isGenerated } from "@/utils/generated";
 import { parseFlexDate, flexSortKey, todayISO } from "@/utils/flexdate";
 import { metadataSettled } from "@/utils/metadataSettled";
-import { nameWithoutLeadingEmoji } from "@/utils/emoji";
 import {
 	upsertSection,
 	splitFrontmatter,
@@ -17,6 +16,12 @@ import {
 import { EVENTS_SECTION, ownsEventLine } from "@/utils/eventsSection";
 import { displayZone, resolveToZone } from "@/utils/timezone";
 import { linkpathOf } from "@/utils/linkField";
+import {
+	ensureFolder,
+	markdownFilesIn,
+	uniqueNotePath,
+} from "@/services/vaultFiles";
+import { eventSlug } from "@/utils/fileName";
 
 /** The editable fields of an event — used for both create and update. */
 export interface EventFields {
@@ -201,14 +206,7 @@ export class EventOperations {
 
 	/** All events, straight from the metadata cache — zero file I/O. */
 	getEvents(): EventInfo[] {
-		const folder = this.app.vault.getFolderByPath(
-			this.getEventsFolderPath()
-		);
-		if (!folder) return [];
-		return folder.children
-			.filter(
-				(f): f is TFile => f instanceof TFile && f.extension === "md"
-			)
+		return markdownFilesIn(this.app, this.getEventsFolderPath())
 			.map((file) => this.toInfo(file));
 	}
 
@@ -268,46 +266,17 @@ export class EventOperations {
 
 	// ---- File naming ----
 
-	/**
-	 * The file's name is a generated slug — "2026-08-06 Austin • Concert"
-	 * — from the date, up to two people, and the event name. Frontmatter
-	 * `name` stays the event's only real name (emoji and all); the slug
-	 * just makes the quick switcher and file explorer readable, so a
-	 * leading emoji is dropped there rather than repeated in the filename.
-	 * Three or more people would sprawl, so they stay out of the slug
-	 * entirely.
-	 */
+	/** The file's name: see eventSlug. People read as their link's alias. */
 	private slugFor(fields: EventFields): string {
-		const sanitize = (s: string) =>
-			s.replace(/[\\/:*?"<>|#^[\]]/g, "-").trim();
-		const name =
-			sanitize(nameWithoutLeadingEmoji(fields.name)).slice(0, 60).trim() ||
-			"Event";
-		const people = (fields.people ?? []).map((p) =>
-			sanitize(this.linkName(p))
-		);
-		const who =
-			people.length >= 1 && people.length <= 2
-				? people.join(" & ")
-				: "";
-		const date = (fields.date ?? "").trim();
-		const prefix = [date, who].filter(Boolean).join(" ");
-		if (!prefix) return name;
-		// People get a "•" so the slug reads "who • what"; a bare date
-		// runs straight into the name.
-		return who ? `${prefix} • ${name}` : `${prefix} ${name}`;
+		return eventSlug(fields, (p) => this.linkName(p));
 	}
 
 	/** A free path for this slug — dupes get "-1", "-2", … appended. */
 	private freePath(slug: string, ignore?: TFile): string {
-		const folder = this.getEventsFolderPath();
-		let path = normalizePath(`${folder}/${slug}.md`);
-		let counter = 1;
-		while (true) {
-			const existing = this.app.vault.getAbstractFileByPath(path);
-			if (!existing || existing === ignore) return path;
-			path = normalizePath(`${folder}/${slug}-${counter++}.md`);
-		}
+		return uniqueNotePath(this.app, this.getEventsFolderPath(), slug, {
+			separator: "-",
+			ignorePath: ignore?.path,
+		});
 	}
 
 	// ---- Writes ----
@@ -387,10 +356,7 @@ export class EventOperations {
 		fields: EventFields,
 		opts: { refreshSections?: boolean } = {}
 	): Promise<TFile> {
-		const folderPath = this.getEventsFolderPath();
-		if (!this.app.vault.getAbstractFileByPath(folderPath)) {
-			await this.app.vault.createFolder(folderPath);
-		}
+		await ensureFolder(this.app, this.getEventsFolderPath());
 		const path = this.freePath(this.slugFor(fields));
 		const file = await this.app.vault.create(
 			path,

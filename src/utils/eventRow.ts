@@ -108,6 +108,9 @@ export function formatEventTime(
 	return withOrigin(`${hr}:${pad2(m || 0)} ${period}`);
 }
 
+/** A same-day event starting at or after this hour reads as "tonight". */
+const TONIGHT_FROM_HOUR = 18;
+
 /**
  * How an event reads as a row — shared by the dashboard's Upcoming
  * section and the Events page, so the same event looks the same in both.
@@ -145,7 +148,9 @@ export function eventRowFields(
 	// A same-day event starting at or after 6pm reads better as "tonight"
 	// — "today" undersells something you're about to walk out the door for.
 	const isTonight =
-		relative === "today" && !!e.time && Number(e.time.split(":")[0]) >= 18;
+		relative === "today" &&
+		!!e.time &&
+		Number(e.time.split(":")[0]) >= TONIGHT_FROM_HOUR;
 
 	// Only when the row knows which zone it's being read in, and only for
 	// an event that actually came from another one.

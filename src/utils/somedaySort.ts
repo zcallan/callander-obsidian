@@ -264,10 +264,15 @@ function recommendedKey(
  * list doesn't jump around as you type in the search box or flip a
  * filter. A fresh seed per page load is what re-shuffles it.
  */
+// FNV-1a over the path, the seed mixed in with the golden-ratio constant
+// so nearby seeds still land far apart.
+const GOLDEN_RATIO_32 = 0x9e3779b9;
+const FNV_PRIME_32 = 0x01000193;
+
 function randomKey(path: string, seed: number): number {
-	let h = (seed ^ 0x9e3779b9) >>> 0;
+	let h = (seed ^ GOLDEN_RATIO_32) >>> 0;
 	for (let i = 0; i < path.length; i++) {
-		h = Math.imul(h ^ path.charCodeAt(i), 0x01000193) >>> 0;
+		h = Math.imul(h ^ path.charCodeAt(i), FNV_PRIME_32) >>> 0;
 	}
 	return h >>> 0;
 }
