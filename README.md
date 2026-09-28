@@ -4,11 +4,11 @@
 
 We all want to be better friends than our memory allows. You forget a birthday. You lose track of a great conversation that got interrupted. You see the perfect gift for someone, think "Bob would love this," and a day later you've completely forgotten it — let alone 7 months later when it's December or their birthday rolls around and you're looking for a gift.
 
-Callander is a quiet, personal space where you jot down the little things that help you show up well for the people you care about — and it helps resurfaces them when they matter.
+Callander is a quiet, personal space where you jot down the little things that help you show up well for the people you care about — and it helps resurface them when they matter.
 
 What this plugin holds:
 
-- **Birthdays.** A countdown that also tells you whether you have a gift idea ready, and holds the birthdays you've missed until mark them as done (sending that belated birthday message or a box of chocolates).
+- **Birthdays.** A countdown that also tells you whether you have a gift idea ready, and holds the birthdays you've missed until you mark them as done (sending that belated birthday message or a box of chocolates).
 - **Friends.** A dedicated page for each friend with everything you'd want in front of you before you saw them — ideas for conversations, interests, and a timeline of the two of you going back to the day you met.
 - **Events.** Anything with a date on it — a dinner, a movie, a gig, a booking, or a plain task with nobody attached. Displayable as a timeline, a list, or a calendar.
 - **Plans.** The bigger things: several days, several people, an itinerary, a packing list and shared money.
@@ -32,7 +32,7 @@ What this plugin holds:
 
 1. In Obsidian, open **Settings → Community plugins → Browse**, search for **Callander**, then install and enable it.
 2. Open the dashboard — the Callander icon in the left ribbon, or **Callander: Open dashboard** from the command palette.
-3. That first open creates a `Friends` folder with one example friend in it, so the page isn't blank while you find your feet. **Add friend** starts a real one; a first name is all it asks for.
+3. That first open creates a `Friends` folder, and a Getting started checklist on the dashboard walks you through the first few things. **Add friend** starts a real one; a first name is all it asks for.
 
 Everything lives in that folder as ordinary Markdown, and you can point it somewhere else in the plugin's settings whenever you like.
 
@@ -128,7 +128,7 @@ For the full walkthrough — groups, events, the diary, quick notes, the plugin'
 
 ## Plugin Notes
 
-**No network requests.** Everything runs off local files, and the plugin ships with zero runtime dependencies — no telemetry, no accounts, nothing phoning home. It works happily alongside Obsidian Sync, or an external sync like iCloud (which is what I use) or Google Drive. The only things that reach the internet are links you tap yourself, like an address opening in Maps for a link you added yourself.
+**No network requests.** Everything runs off local files. Its only dependencies, Preact and a colour picker, are bundled into the plugin itself — no telemetry, no accounts, nothing phoning home. It works happily alongside Obsidian Sync, or an external sync like iCloud (which is what I use) or Google Drive. The only things that reach the internet are links you tap yourself, like an address opening in Maps for a link you added yourself.
 
 **Custom interfaces are relied on heavily.** Rather than a Markdown-first editing approach, most features are used through modals, dashboards and listing pages. That makes it feel less like using Obsidian the way you normally might, and more like an abstraction layer sitting on top of it — built to make data entry and browsing easier than raw notes allow. The notes underneath stay plain Markdown with Frontmatter, so nothing is locked in. I'm progressively trying to make more data stored in Markdown markup so it's easier to read outside of plugin interfaces, and improve long-term note keeping if you ever move off Obsidian.
 
@@ -142,10 +142,14 @@ Either way, the plugin will never try to delete data across versions. If you eve
 
 ## Development
 
+Node 24 (see `.nvmrc`; 20.11 at least).
+
 ```bash
-npm install
-npm run dev   # esbuild watch mode
+npm ci
+npm run dev
 ```
+
+`npm run dev` is esbuild in watch mode. `npm run lint` and `npm test` (tiers 1 and 2, about a second) are what CI runs on every push and pull request; `npm run test:e2e` drives a real Obsidian and needs the desktop app on macOS. [tests/README.md](tests/README.md) explains the three tiers.
 
 Put the absolute path of a vault plugin folder (e.g. `<vault>/.obsidian/plugins/callander`) in a `.vault-plugin-path` file at the repo root (gitignored) — dev builds then output `main.js` there and copy `manifest.json`/`styles.css` along, which works with iCloud-synced vaults where symlinks won't sync. Pair with the [Hot Reload](https://github.com/pjeby/hot-reload) plugin for instant reload on rebuild (a `.hotreload` marker is written automatically). Without `.vault-plugin-path`, dev builds land in the repo root like the standard template.
 

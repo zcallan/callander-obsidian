@@ -15,7 +15,7 @@ No test framework, no watch mode, no config. `npm test` bundles `src/` with a fa
 **Tests never touch a real vault.** There are two layers of guarantee:
 
 - The fake vault (`stubs/obsidian.mjs`) is entirely in memory — it has no filesystem access at all, so there is nothing for it to reach.
-- The only files read from disk are the checked-in fixtures in `fixtures/notes/`, and they are read-only.
+- The only files read from disk are checked-in ones, read-only: the fixtures in `fixtures/notes/`, the example vault in `examples/example-vault/`, and `src/` itself for the stylesheet guard.
 
 ## Layout
 
@@ -37,9 +37,9 @@ Both the stub and the code under test come from **one** bundle on purpose: the s
 
 ## The two tiers
 
-**Pure logic** — `calc`, `quotes-markdown`, `ideas-markdown`, `plan-costs`. Parsers, serializers and money maths. Fast and total.
+**Pure logic** — `calc`, `quotes-markdown`, `ideas-markdown`, `expenses` and most of the rest. Parsers, serializers, date and money maths. Fast and total.
 
-**Service layer** — `contact-operations`, `note-surgery`. The real `ContactOperations` against the in-memory vault, plus byte-level file surgery over fixtures. This is where "did it actually persist?" is checked, and historically where the worst bugs lived: a value looking right on screen while never reaching the file.
+**Service layer** — `contact-operations`, `event-operations`, `plan-operations`, `someday-operations`, `diary-operations`, `create-paths`, `note-surgery` and the others that take a `createTestVault()`. The real `ContactOperations` against the in-memory vault, plus byte-level file surgery over fixtures. This is where "did it actually persist?" is checked, and historically where the worst bugs lived: a value looking right on screen while never reaching the file.
 
 ## Adding a module
 

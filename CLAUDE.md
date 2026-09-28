@@ -18,8 +18,8 @@ npm run preview    # renders component fixtures in a browser against the real CS
 | --- | --- |
 | `src/main.ts` | Plugin class, view registration, commands, migrations |
 | `src/views/` | One `ItemView` per page |
-| `src/modals/` | ~40 modals. Anything with editable fields extends `FormModal` |
-| `src/services/` | Vault reads/writes (`*Operations`) — the only layer that touches files |
+| `src/modals/` | ~50 modals. Anything with editable fields extends `FormModal` |
+| `src/services/` | Vault reads/writes (`*Operations`) — the layer meant to touch files. `main.ts`, `ContactPageView` and `AddContactModal` still write directly; move those writes here rather than adding more |
 | `src/utils/` | Pure logic: parsing, formatting, date maths. Where tests live heaviest |
 | `src/ui/` | React layer: hooks, context, ported sections |
 | `src/components/` | Imperative DOM builders shared between views |
@@ -75,11 +75,11 @@ A view that never subscribed to the cache cannot answer that, whatever the timin
 
 ## React on top of Obsidian
 
-React 19, `jsx: "react-jsx"`. The migration is partial and deliberately incremental — most views are still imperative.
+Preact 10 through `preact/compat`, aliased as `react`/`react-dom` in tsconfig `paths` and esbuild `alias`, so write React imports as usual. `jsx: "react-jsx"` with `jsxImportSource: "preact"`. The migration is partial and deliberately incremental — most views are still imperative.
 
 **Islands, created once.** A view's `render()` rebuilds imperative DOM on every vault event. React roots must *not* be rebuilt alongside it — create the host and `createRoot` once, keep them for the life of the view, and have `render()` re-append the same host. A root recreated per render unmounts and resubscribes a beat later, and anything arriving in that gap is lost. Unmount in `onClose`, deferred by a `setTimeout(…, 0)` so teardown never lands inside a render pass.
 
-**StrictMode is off, on purpose.** It double-invokes effects, and effects here reach disk — a debounced autosave firing twice writes twice. Don't switch it on without auditing every write path.
+**StrictMode is off, on purpose.** Under `preact/compat` it's a plain Fragment, but real React's double-invokes effects, and effects here reach disk — a debounced autosave firing twice writes twice. Don't switch it on, or move to React, without auditing every write path.
 
 **No router.** Obsidian's workspace *is* the router: `registerView(type)`, `leaf.setViewState({ type })`, `navigation = true` for back/forward. A React router fights leaf history and workspace serialisation.
 
@@ -87,7 +87,7 @@ React 19, `jsx: "react-jsx"`. The migration is partial and deliberately incremen
 
 **`setIcon` is imperative.** Use the `<Icon>` wrapper in `src/ui/components/`; calling `setIcon` directly from JSX silently renders nothing.
 
-**Skip the React Compiler.** It's a Babel plugin, and wiring Babel into esbuild slows the rebuild loop the vault watcher depends on. These trees are small.
+**Skip the React Compiler.** It targets React, not Preact, and it's a Babel plugin: wiring Babel into esbuild would slow the rebuild loop the vault watcher depends on. These trees are small.
 
 ## Icons: `setIcon` fails silently
 
@@ -153,7 +153,7 @@ E2E gotchas, each learned the hard way:
 
 ## Builds: `npm run build` does not reach the vault
 
-Only `npm run dev` writes into the vault plugin folder, via the gitignored `.vault-plugin-path`. Production builds output to the repo root as the release artifact — and `npm test`, `npm run test:e2e` and `npm run preflight` all build in production mode.
+Only `npm run dev` writes into the vault plugin folder, via the gitignored `.vault-plugin-path`. Production builds output to the repo root as the release artifact — and `npm run preflight` builds in production mode, `npm test` builds its own Node bundle, and `npm run test:e2e` installs whatever production build is already there. None of them touch the vault.
 
 So a whole session of green runs can coexist with a vault that has received nothing since the watcher last ran. **Before diagnosing any bug reported from the real vault, confirm the vault actually has the code:**
 
@@ -178,4 +178,4 @@ So after editing `base.css`, confirm it actually arrived:
 diff <(tail -5 styles.css) <(tail -5 "$(cat .vault-plugin-path)/styles.css")
 ```
 
-Restarting `npm run dev` fixes both. `copyStatics()` also runs on every JS build, so a later `src/` edit will carry the CSS across too — which makes this intermittent and easy to misread as "the CSS is wrong" rather than "the CSS never shipped".
+Restarting `npm run dev` fixes both. `buildStyles()` also runs on every JS build, so a later `src/` edit will carry the CSS across too — which makes this intermittent and easy to misread as "the CSS is wrong" rather than "the CSS never shipped".

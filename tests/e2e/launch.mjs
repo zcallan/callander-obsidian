@@ -6,7 +6,8 @@
  *
  *   --user-data-dir  a fresh Obsidian config, so the real install's vault
  *                    list, settings and plugins are invisible to it
- *   the vault path   a directory created under .tmp/ for this run only
+ *   the vault path   a directory under the OS temp dir (mkdtemp), for this
+ *                    run only
  *
  * Nothing here can reach a real vault: the test instance has never been
  * told one exists.

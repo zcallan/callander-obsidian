@@ -9,7 +9,7 @@ import { createSuite } from "../harness.mjs";
  * metadata cache catching up between writes. A migration that round-trips
  * perfectly through a stub can still mangle real YAML.
  *
- * Runs after seeding.e2e.mjs, so the vault already has its folders.
+ * Runs after 02-seeding.e2e.mjs, so the vault already has its folders.
  */
 export async function run({ cdp }) {
 	const { eq, ok, result } = createSuite("crud (real Obsidian)");

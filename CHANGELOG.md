@@ -153,6 +153,10 @@ Fixes from a review of the whole plugin, most of them ways an edit could be lost
 - Deleting a friend now takes them off every plan's Who's in, instead of leaving their name there with nothing behind it.
 - A friend whose display name was cleared shows their name again instead of a blank chip.
 
+## 1.10.1 — 2026-09-21 *(tag only)*
+
+- Internal: cleared the review bot's CSS and Obsidian-API lint warnings. Hovering a calendar cell no longer re-tests every cell on the board on each pointer move, and an unneeded `!important` is gone. No visible change.
+
 ## 1.10.0 — 2026-09-21
 
 ### Calendar
@@ -249,7 +253,7 @@ Fixes from a review of the whole plugin, most of them ways an edit could be lost
 
 - **A Quick action turned off no longer comes back.** Hiding a ribbon icon removed its element but left Obsidian's own ribbon entry pointing at it, and the ribbon rebuilds itself from those entries on every change — so turning one action off and another on brought the first one back. Icons are now hidden rather than detached, and an action left off since install is never registered at all, which keeps it out of the ribbon popup on phones too.
 
-### Documentation
+### Docs
 
 - The README leads with what the plugin holds rather than five paragraphs of preamble, and gains a **How to Get Started** section.
 - **FEATURES gains a Plugin settings section**, and its Expenses and Plans sections are rewritten around the ledger.
@@ -314,13 +318,13 @@ Fixes from a review of the whole plugin, most of them ways an edit could be lost
 
 - A **🥾 Activity** event type.
 
-### Fixed
+### Fixes
 
 - **New dates were recorded on the UTC day, not yours.** From an evening in the US that stamped tomorrow; from a morning in Australia, yesterday. It reached a new diary entry's date (which also names its file), the prefilled date on a group event, the date stamped when an idea is logged as an event, and the once-a-day guard on the birthday digest. Birthdays and "met" dates were never affected — they're plain text, parsed without going through a timezone.
 
 ## 1.7.1 — 2026-08-20
 
-### Fixed
+### Fixes
 
 - **Groups could silently vanish from an event.** Opening and saving an event that named a group (rather than a person) dropped the group — it wasn't recognised as a valid participant, so it disappeared from the event on save, taking the event off that group's timeline for good, even after re-creating it. Events already affected by this need to be recreated once from the group's page; new ones are unaffected going forward.
 - Editing an event from a person's page no longer lets you accidentally remove that person from it — the same protection Add already had.
@@ -328,7 +332,7 @@ Fixes from a review of the whole plugin, most of them ways an edit could be lost
 
 ## 1.7.0 — 2026-08-19
 
-### Fixed
+### Fixes
 
 - **Plugin review blocker resolved.** React DOM 19's bundled preload machinery tripped Obsidian's static scanner ("Found 3 dynamic `<script>` element creations"), even though nothing in Callander reaches that code path. The renderer is now Preact via `preact/compat`, which contains no such code — and the bundle shrinks by roughly 45% as a side effect.
 
@@ -369,7 +373,7 @@ Fixes from a review of the whole plugin, most of them ways an edit could be lost
 - Event **time** is now hour + minute dropdowns, with an optional **Duration** below it, both feeding the calendar entry's length. Travel and ideas without a duration default to an hour; a stay with no check-in/out becomes an all-day entry across its nights.
 - Calendar entries append **"with \<names\>"** to the event name.
 
-### Fixed
+### Fixes
 
 - **Views no longer show stale data.** Cancelling an event could leave it on the dashboard until you switched tabs or reloaded — writes reach disk slightly before Obsidian reindexes them, and views were only listening for the write. Every view now also listens for the reindex.
 
@@ -452,7 +456,7 @@ Fixes from a review of the whole plugin, most of them ways an edit could be lost
 - Reorganised into Files and folders, Dashboard, Friends, and Cost breakdown.
 - Removed the Relationship types editor.
 
-### Fixed
+### Fixes
 
 - Idea and Credit deletions persist correctly.
 - Belated-birthday and upcoming-window settings apply.

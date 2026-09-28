@@ -20,7 +20,7 @@ Callander has no database of its own. Everything you see in the plugin is read l
 ## At a glance
 
 - No database, no hidden format — every page in the plugin is one Markdown file, or a folder of them.
-- No network requests of any kind; the plugin ships with zero runtime dependencies.
+- No network requests of its own: the only ones are those you trigger, like an address opening in Maps (see below). Its dependencies are bundled into the plugin.
 - A person, event, plan, group or someday is a note under your base folder (default: `Friends`).
 - Structured data (a category, a done flag, a resurface date) is stored as *readable* markdown wherever practical, not buried in frontmatter you'd need the plugin to decode.
 - The plugin never deletes data across a version update — a format change either migrates itself automatically, or tells you exactly what to do by hand.

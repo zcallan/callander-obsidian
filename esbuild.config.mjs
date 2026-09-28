@@ -151,10 +151,9 @@ const context = await esbuild.context({
 		__CALLANDER_BUILD__: JSON.stringify(
 			prod ? releaseVersion() : DEV_STAMP_SENTINEL
 		),
-		// React ships two builds behind this flag and picks at runtime. Left
-		// undefined, the bundler keeps the development one — every warning
-		// path, every dev-only invariant, and a much slower renderer. Setting
-		// it lets the whole dev half tree-shake out of a release.
+		// Libraries branch on this flag for development-only checks and
+		// warnings. Left undefined, the bundler keeps those paths; setting it
+		// lets them tree-shake out of a release.
 		"process.env.NODE_ENV": JSON.stringify(
 			prod ? "production" : "development"
 		),
