@@ -43,8 +43,10 @@ export async function run({ cdp }) {
 		);
 		return { path };
 	});
-	await cacheReady(created.path);
-	ok("friend file created", true);
+	// cacheReady throws when it times out; caught, so that shows as this
+	// failing rather than as the whole file stopping here.
+	const indexed = await cacheReady(created.path).catch(() => false);
+	ok("friend file created", indexed, `${created.path} was never indexed`);
 
 	// ---------- add ideas through the real service ----------
 	const added = await cdp.evaluate(async () => {

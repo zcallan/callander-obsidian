@@ -21,13 +21,13 @@ No test framework, no watch mode, no config. `npm test` bundles `src/` with a fa
 
 | File | What it is |
 | --- | --- |
-| `run.mjs` | Discovers `*.test.mjs`, rebuilds the bundle, aggregates results |
+| `run.mjs` | Discovers `*.test.mjs`, rebuilds the bundle, aggregates results. A file that throws or never finishes fails on its own, the rest still run, and an assertion made after `result()` (a missing `await`) is reported |
 | `build.mjs` | esbuild step: `src/` → `.build/callander.mjs`, `obsidian` aliased to the stub |
 | `entry.mjs` | Bundle entry — re-exports the source under test *and* the stub |
 | `entry.ts` | The source modules being exported (type-checked by `tsc`) |
 | `stubs/obsidian.mjs` | Fake `obsidian`: in-memory Vault, MetadataCache, FileManager |
 | `vault.mjs` | `createTestVault()` — a throwaway vault wired to real services |
-| `harness.mjs` | `createSuite()` — `eq` / `ok` / `throws` |
+| `harness.mjs` | `createSuite()` — `eq` compares by JSON shape, telling `NaN`, `±Infinity`, `Map` and `Set` apart; `ok(label, condition, detail?)` |
 | `fixtures/notes/` | Real `.md` files covering the awkward shapes |
 
 A test file exports `run()` and returns `suite.result()`.
@@ -68,5 +68,5 @@ Tests run assertions *inside* the app via `cdp.evaluate`, against the real `app.
 ## What this cannot catch
 
 - **UI wiring** — modals, click handlers, rendering are barely touched. Tier 3 reaches the plugin's API, not its buttons.
-- **Metadata-cache races, in tiers 1–2.** The real cache is filled by an async indexing pass; the fake updates synchronously. This is exactly why `02-seeding` exists — removing the `waitForMetadata` call in `seedStarterVault` makes it fail, and makes nothing else fail.
+- **Metadata-cache races, in tiers 1–2.** The real cache is filled by an async indexing pass; the fake updates synchronously. Tier 3 is where those races can show: the CRUD tests wait on the real cache between writes, and `05-live-refresh` checks that a view answers a cache event with no write behind it.
 - **Anything iOS.** Obsidian for iOS is a closed-source App Store app and cannot be installed on the iOS Simulator — no amount of Xcode setup changes that. Touch, keyboard and scroll behaviour stay a manual check on a real device before release.

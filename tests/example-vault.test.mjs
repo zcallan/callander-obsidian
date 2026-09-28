@@ -8,7 +8,18 @@ import {
 	parseNotesSection,
 	parseQuotesSection,
 	splitFrontmatter,
+	upsertDraftsSection,
+	upsertIdeasSection,
+	upsertNotesSection,
+	upsertQuotesSection,
 } from "./.build/callander.mjs";
+
+/** Each body section a person's note can hold, as the plugin reads and writes it. */
+const SECTIONS = [
+	["ideas", parseIdeasSection, upsertIdeasSection],
+	["quotes", parseQuotesSection, upsertQuotesSection],
+	["notes", parseNotesSection, upsertNotesSection],
+];
 
 /**
  * The example vault is what the README's screenshots are taken from and
@@ -36,11 +47,14 @@ export function run() {
 	for (const file of people) {
 		const { frontmatter, body } = splitFrontmatter(read(`People/${file}`));
 		eq(`${file}: nothing kept in frontmatter that lives in the body`, LEGACY.test(frontmatter ?? ""), false);
-		// Whatever sections it has must parse — a heading with lines the
-		// reader can't make sense of would be dropped on the next save.
-		for (const parse of [parseIdeasSection, parseQuotesSection, parseNotesSection]) {
+		// Whatever sections it has must come through a save unchanged. A line
+		// the reader can't make sense of would be dropped from the rewrite,
+		// and this is where that shows.
+		for (const [kind, parse, upsert] of SECTIONS) {
 			const found = parse(body);
-			if (found !== null) withSections++;
+			if (found === null) continue;
+			withSections++;
+			eq(`${file}: its ${kind} come through a save unchanged`, upsert(body, found), body);
 		}
 	}
 	ok("at least some notes actually use the body sections", withSections > 0);
@@ -51,6 +65,11 @@ export function run() {
 	eq("the dashboard keeps no drafts in frontmatter", LEGACY.test(dash.frontmatter ?? ""), false);
 	const drafts = parseDraftsSection(dash.body);
 	ok("it has a Drafts checklist", drafts !== null && drafts.length > 0);
+	eq(
+		"…which comes through a save unchanged",
+		upsertDraftsSection(dash.body, drafts ?? []),
+		dash.body
+	);
 	for (const draft of drafts ?? []) {
 		if (!draft.person) continue;
 		const name = draft.person.split("|")[0].trim();

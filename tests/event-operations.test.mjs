@@ -153,6 +153,10 @@ export async function run() {
 			"deleting the last event removes the section",
 			!t.bodyOf(ada).includes("## Events")
 		);
+		ok(
+			"…and the event's note goes to the trash, not deleted outright",
+			t.app.fileManager.trashed.includes(e.path)
+		);
 	}
 
 	// ---------- editing renames the file ----------
@@ -403,10 +407,13 @@ export async function run() {
 			events.find((e) => e.name === "Done thing").status,
 			"done"
 		);
-		eq(
-			"the store went to the trash",
-			t.vault.getAbstractFileByPath("Friends/Reminders.md"),
-			null
+		ok(
+			"the store is gone from where it was",
+			t.vault.getAbstractFileByPath("Friends/Reminders.md") === null
+		);
+		ok(
+			"…into the trash, not deleted outright",
+			t.app.fileManager.trashed.includes("Friends/Reminders.md")
 		);
 	}
 

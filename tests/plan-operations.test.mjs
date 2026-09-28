@@ -52,7 +52,7 @@ export async function run() {
 		// this also guards against writing to every plan on every delete.
 		const t = await createTestVault();
 		const person = await t.addPerson("Sam Rivera");
-		const other = await t.addPerson("Jess Okafor");
+		await t.addPerson("Jess Okafor");
 		const plan = await t.addPlan("Cabin trip", {
 			date: "2026-08-06",
 			members: ["[[Jess Okafor]]"],
@@ -65,7 +65,13 @@ export async function run() {
 			t.frontmatterOf(plan).members,
 			["[[Jess Okafor]]"]
 		);
-		eq("the other person still resolves", !!other, true);
+		eq(
+			"…and the plan isn't rewritten at all",
+			t.vault.writeLog.filter(
+				(w) => w.op === "modify" && w.path === plan.path
+			).length,
+			0
+		);
 	}
 
 	{

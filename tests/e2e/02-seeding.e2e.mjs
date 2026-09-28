@@ -1,15 +1,12 @@
 import { createSuite } from "../harness.mjs";
 
 /**
- * First-run seeding, against a genuinely empty vault.
+ * First run, against a genuinely empty vault: opening the dashboard creates
+ * the base folder and the folders inside it, writes no placeholder friend,
+ * and renders nothing, and running the setup again changes nothing.
  *
- * This is the one case Tier 2 cannot reach. `getContacts()` reads
- * frontmatter from the metadata cache rather than the file, and that cache
- * is filled by an async indexing pass — so a note written a moment ago may
- * not be in it yet. The fake vault updates synchronously and would report
- * success either way. Only a real Obsidian can prove the seeded friend is
- * actually visible on the *first* dashboard render rather than after a
- * close and reopen.
+ * The setup (`seedStarterVault`) lives on the plugin class, which tiers 1
+ * and 2 never construct, so this is the only place it runs at all.
  *
  * ORDERING: this needs a pristine vault, so it must run before anything
  * that creates the base folder. Hence the numeric filename prefixes — the

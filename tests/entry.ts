@@ -68,3 +68,6 @@ export { PlanOperations } from "@/services/PlanOperations";
 export { ContactOperations } from "@/services/ContactOperations";
 export { EventOperations } from "@/services/EventOperations";
 export { EventMigration } from "@/services/EventMigration";
+export { SomedayOperations } from "@/services/SomedayOperations";
+export { DiaryOperations } from "@/services/DiaryOperations";
+export { DEFAULT_SETTINGS } from "@/types";

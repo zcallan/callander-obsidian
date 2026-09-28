@@ -1,9 +1,6 @@
 import { createSuite } from "./harness.mjs";
 import { registerVaultRefresh } from "./.build/callander.mjs";
 
-// The helper schedules through window timers, as Obsidian code does.
-if (typeof globalThis.window === "undefined") globalThis.window = globalThis;
-
 /**
  * Every view renders from the metadata cache but used to listen only to
  * `vault.on("modify")` — which fires *before* the cache reindexes. A refresh
@@ -15,7 +12,7 @@ if (typeof globalThis.window === "undefined") globalThis.window = globalThis;
  * it's invisible until someone actually writes to disk and watches.
  */
 export function run() {
-	const { eq, ok, result } = createSuite("vault refresh");
+	const { eq, result } = createSuite("vault refresh");
 
 	const harness = ({ scope } = {}) => {
 		const bags = { vault: new Map(), cache: new Map() };
@@ -87,15 +84,42 @@ export function run() {
 		}
 
 		// ...and the coalesced refresh must land *after* the cache event, or
-		// it re-reads stale frontmatter — the whole point of the fix.
+		// it re-reads stale frontmatter — the whole point of the fix. So each
+		// event restarts the timer: one fixed from the write would redraw
+		// from the old cache whenever the reindex came late in the delay.
+		// On a hand-driven clock, since real timers can't place an event
+		// mid-delay reliably.
 		{
-			const h = harness();
-			let sawCacheFirst = false;
-			h.vault("modify", file("Friends/Events/Dinner.md"));
-			h.cache("changed", file("Friends/Events/Dinner.md"));
-			sawCacheFirst = h.count() === 0;
-			await h.settle();
-			ok("no refresh runs before the reindex is heard", sawCacheFirst);
+			const real = { set: window.setTimeout, clear: window.clearTimeout };
+			const timers = new Map();
+			let now = 0;
+			let nextId = 1;
+			window.setTimeout = (cb, ms) => {
+				timers.set(nextId, { at: now + ms, cb });
+				return nextId++;
+			};
+			window.clearTimeout = (id) => timers.delete(id);
+			const advance = (ms) => {
+				now += ms;
+				for (const [id, t] of [...timers]) {
+					if (t.at > now) continue;
+					timers.delete(id);
+					t.cb();
+				}
+			};
+			try {
+				const h = harness(); // a 5 ms delay
+				h.vault("modify", file("Friends/Events/Dinner.md"));
+				advance(4);
+				h.cache("changed", file("Friends/Events/Dinner.md"));
+				advance(4);
+				eq("no refresh until the delay has passed since the reindex", h.count(), 0);
+				advance(1);
+				eq("…and then exactly one", h.count(), 1);
+			} finally {
+				window.setTimeout = real.set;
+				window.clearTimeout = real.clear;
+			}
 		}
 
 		// --- scoping ---

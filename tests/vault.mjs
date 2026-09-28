@@ -9,30 +9,28 @@
 // `instanceof TFile` holds across the boundary. Importing the stub
 // directly here would create a second copy and silently break it.
 import {
+	DEFAULT_SETTINGS,
 	FakeApp,
+	Notice,
 	stringifyYaml,
 	normalizePath,
 	ContactOperations,
+	DiaryOperations,
 	EventOperations,
 	EventMigration,
 	PlanOperations,
+	SomedayOperations,
 } from "./.build/callander.mjs";
 
-// EventOperations waits on the metadata cache via window timers; Node has
-// the same timer functions on globalThis, so alias it once for the bundle.
-if (typeof globalThis.window === "undefined") {
-	globalThis.window = globalThis;
-}
-
-const DEFAULT_SETTINGS = {
-	baseFolder: "Friends",
+/**
+ * Where tests part from the plugin's real defaults, on purpose: they write
+ * diary notes under `Diary/`, and a known name and relationship list keep
+ * expectations short. Everything else is the real default, so a setting a
+ * service reads is never an undefined no real vault would have.
+ */
+const TEST_OVERRIDES = {
 	diaryFolder: "Diary",
-	dashboardFileName: "Dashboard",
 	yourName: "Callan",
-	belatedBirthdayDays: 14,
-	birthdayReminderDays: 7,
-	receiptTaxPercent: 6.25,
-	receiptTipPercent: 20,
 	relationshipTypes: ["friend", "family"],
 };
 
@@ -40,7 +38,13 @@ const DEFAULT_SETTINGS = {
 class FakePlugin {
 	constructor(app, settings) {
 		this.app = app;
-		this.settings = { ...DEFAULT_SETTINGS, ...settings };
+		// A copy per vault, so one test's edit to a list can't leak into
+		// the next test's defaults.
+		this.settings = {
+			...structuredClone(DEFAULT_SETTINGS),
+			...TEST_OVERRIDES,
+			...settings,
+		};
 		this.saved = 0;
 	}
 	async saveSettings() {
@@ -49,16 +53,22 @@ class FakePlugin {
 }
 
 export async function createTestVault(settings = {}) {
+	// Notices are recorded for the whole process; each vault starts clean.
+	Notice.all.length = 0;
 	const app = new FakeApp();
 	const plugin = new FakePlugin(app, settings);
 	const contacts = new ContactOperations(plugin);
 	const events = new EventOperations(plugin);
 	const migration = new EventMigration(plugin);
 	const plans = new PlanOperations(plugin);
+	const somedays = new SomedayOperations(plugin);
+	const diary = new DiaryOperations(plugin);
 	// The services reach each other through the plugin, same as production.
 	plugin.contactOperations = contacts;
 	plugin.eventOperations = events;
 	plugin.planOperations = plans;
+	plugin.somedayOperations = somedays;
+	plugin.diaryOperations = diary;
 	plugin.refreshDashboards = () => {};
 
 	const base = normalizePath(plugin.settings.baseFolder);
@@ -73,6 +83,8 @@ export async function createTestVault(settings = {}) {
 		events,
 		migration,
 		plans,
+		somedays,
+		diary,
 		vault: app.vault,
 
 		/** Write a person note from plain frontmatter data. */
