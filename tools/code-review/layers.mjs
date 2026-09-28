@@ -36,7 +36,7 @@ const layerOf = (f) => {
 	const r = rel(f);
 	if (r === "src/main.ts") return "main";
 	if (r === "src/types.ts" || r.startsWith("src/types/")) return "types";
-	if (r === "src/constants.ts") return "constants";
+	if (r === "src/constants.ts" || r.startsWith("src/constants/")) return "constants";
 	const m = r.match(/^src\/([^/]+)\//);
 	return m ? m[1] : "other";
 };
