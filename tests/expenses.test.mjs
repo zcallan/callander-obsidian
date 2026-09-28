@@ -2,6 +2,7 @@ import { createSuite } from "./harness.mjs";
 import {
 	breakdownFor,
 	formatMoney,
+	creditsOf,
 	creditTotalFor,
 	expensesOf,
 	isFullyPaid,
@@ -16,6 +17,7 @@ import {
 	sameExpense,
 	setPaidOn,
 	settleAllFor,
+	splitModeLabel,
 } from "./.build/callander.mjs";
 
 export function run() {
@@ -617,6 +619,45 @@ export function run() {
 			true
 		);
 	}
+
+	// ---------- credits ----------
+	eq(
+		"credits read: amounts as numbers, a note only when there is one",
+		creditsOf({
+			credits: [
+				{ person: "Riley", amount: 20, note: "Venmo" },
+				{ person: "Sam", amount: "15", note: "" },
+				{ person: 7, amount: 5 },
+			],
+		}),
+		[
+			{ person: "Riley", amount: 20, note: "Venmo" },
+			{ person: "Sam", amount: 15 },
+			{ person: "7", amount: 5 },
+		]
+	);
+	eq(
+		"…nobody, nothing, a negative amount or junk is dropped",
+		creditsOf({
+			credits: [
+				{ person: "", amount: 5 },
+				{ person: "Jo", amount: 0 },
+				{ person: "Al", amount: -3 },
+				{ person: "Kim", amount: "lots" },
+				"junk",
+			],
+		}),
+		[]
+	);
+	eq("…and no credits key is no credits", creditsOf({}), []);
+
+	// ---------- how a split is labelled ----------
+	eq(
+		"each split mode's label",
+		["even", "shares", "percent", "value", "receipt"].map(splitModeLabel),
+		["Split evenly", "By shares", "By percent", "By value", "By receipt"]
+	);
+	eq("…and an unknown one reads as even", splitModeLabel("halves"), "Split evenly");
 
 	// ---------- finding the expense a modal opened ----------
 	// The list can change while a modal is open, so a save finds its

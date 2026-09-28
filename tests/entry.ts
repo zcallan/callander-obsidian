@@ -51,6 +51,8 @@ export * from "@/utils/emoji";
 export * from "@/utils/frontmatterPatch";
 export * from "@/components/guardedAction";
 export * from "@/utils/clock";
+export * from "@/utils/fm";
+export * from "@/utils/metadataSettled";
 export {
 	formatSomedayDays,
 	formatSomedaySeasons,

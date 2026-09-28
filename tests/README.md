@@ -28,6 +28,7 @@ No test framework, no watch mode, no config. `npm test` bundles `src/` with a fa
 | `stubs/obsidian.mjs` | Fake `obsidian`: in-memory Vault, MetadataCache, FileManager |
 | `vault.mjs` | `createTestVault()` — a throwaway vault wired to real services |
 | `harness.mjs` | `createSuite()` — `eq` compares by JSON shape, telling `NaN`, `±Infinity`, `Map` and `Set` apart; `ok(label, condition, detail?)` |
+| `fixed-date.mjs` | `atFixedDate()` — runs code that reads the clock itself, starting from a chosen moment |
 | `fixtures/notes/` | Real `.md` files covering the awkward shapes |
 
 A test file exports `run()` and returns `suite.result()`.
