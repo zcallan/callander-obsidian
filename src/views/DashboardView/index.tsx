@@ -29,11 +29,7 @@ import {
 import { GroupModal } from "@/modals/GroupModal";
 import { EventModal } from "@/modals/EventModal";
 import { EventImportModal } from "@/modals/EventImportModal";
-import {
-	parseFlexDate,
-	flexSortKey,
-	monthName,
-} from "@/utils/flexdate";
+import { flexSortKey, parseFlexDate, shortMonthName } from "@/utils/flexdate";
 import { PlanModal } from "@/modals/PlanModal";
 import { DraftEditModal } from "@/modals/DraftEditModal";
 import { formatDate } from "@/utils/dateFormat";
@@ -44,8 +40,14 @@ import { buildSomedayRow } from "@/components/SomedayRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
 import { planHiddenFrom, planRowFields } from "@/utils/planRow";
 import { conversationalLabel } from "@/utils/upcomingWhen";
-import { isoDay, wholeDaysBetween } from "@/utils/dates";
+import { wholeDaysBetween } from "@/utils/dates";
 import { formatCount } from "@/utils/text";
+import {
+	lastOccurrenceDate,
+	missedBirthdays,
+	UPCOMING_BIRTHDAY_DAYS,
+	upcomingBirthdays,
+} from "@/utils/birthdayLists";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -1208,22 +1210,8 @@ export class DashboardView extends ItemView {
 	}
 
 	private renderUpcomingBirthdays(container: HTMLElement) {
-		const HORIZON = 30;
-
-		const upcoming = this.contacts
-			.filter(
-				(c) =>
-					c.daysUntilBirthday !== null &&
-					c.daysUntilBirthday <= HORIZON &&
-					// A same-day birthday ticked Done drops out for the rest
-					// of today, exactly like a missed one — but the mark is
-					// this year's date, so next year's birthday isn't done.
-					!(
-						c.daysUntilBirthday === 0 &&
-						c.birthdayWished === this.lastOccurrenceDate(0)
-					)
-			)
-			.sort((a, b) => a.daysUntilBirthday! - b.daysUntilBirthday!);
+		const HORIZON = UPCOMING_BIRTHDAY_DAYS;
+		const upcoming = upcomingBirthdays(this.contacts, HORIZON, new Date());
 
 		const wrap = container.createDiv({
 			cls: "dashboard-section plan-accordion dashboard-birthdays-accordion",
@@ -1270,8 +1258,7 @@ export class DashboardView extends ItemView {
 			return;
 		}
 
-		for (const c of upcoming) {
-			const days = c.daysUntilBirthday!;
+		for (const { contact: c, days } of upcoming) {
 			const giftCount = c.ideas.filter(
 				(i) => !i.done && i.category === "gift"
 			).length;
@@ -1337,21 +1324,13 @@ export class DashboardView extends ItemView {
 		// section reads by, so the two lists agree.
 		const near = conversationalLabel(d, offsetDays);
 		if (near) return near;
-		// Self-built short month — Intl's en-AU "short" doesn't actually
-		// abbreviate (renders "August" in full). See upcomingWhen's note.
 		const weekday = formatDate(d, { weekday: "long" });
-		return `${weekday} ${d.getDate()} ${monthName(d.getMonth() + 1).slice(
-			0,
-			3
-		)}`;
+		return `${weekday} ${d.getDate()} ${shortMonthName(d.getMonth() + 1)}`;
 	}
 
 	/** The date (YYYY-MM-DD, local) of this contact's most recent birthday */
 	private lastOccurrenceDate(daysSince: number): string {
-		const d = new Date();
-		d.setHours(0, 0, 0, 0);
-		d.setDate(d.getDate() - daysSince);
-		return isoDay(d);
+		return lastOccurrenceDate(daysSince, new Date());
 	}
 
 	private renderMissedBirthdays(container: HTMLElement) {
@@ -1360,16 +1339,7 @@ export class DashboardView extends ItemView {
 		const horizon = this.plugin.settings.belatedBirthdayDays;
 
 		// Missed = passed within the window and not yet marked as wished
-		const missed = this.contacts
-			.filter(
-				(c) =>
-					c.daysSinceBirthday !== null &&
-					c.daysSinceBirthday > 0 &&
-					c.daysSinceBirthday <= horizon &&
-					c.birthdayWished !==
-						this.lastOccurrenceDate(c.daysSinceBirthday)
-			)
-			.sort((a, b) => a.daysSinceBirthday! - b.daysSinceBirthday!);
+		const missed = missedBirthdays(this.contacts, horizon, new Date());
 
 		if (missed.length === 0) return;
 
@@ -1378,8 +1348,7 @@ export class DashboardView extends ItemView {
 		});
 		section.createEl("h3", { text: "🕯️ Missed birthdays" });
 
-		for (const c of missed) {
-			const daysSince = c.daysSinceBirthday!;
+		for (const { contact: c, daysSince } of missed) {
 			const handleWished = async (e: MouseEvent) => {
 				// Don't also open the contact page behind the modal
 				e.stopPropagation();

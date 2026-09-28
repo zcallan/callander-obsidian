@@ -194,9 +194,20 @@ import {
 	rescueDraftsFromNotes,
 	upsertNotesSection,
 } from "@/utils/notesMarkdown";
-import { isoDateOf, isoDay, MAX_DAY_WALK, wholeDaysBetween } from "@/utils/dates";
+import {
+	isoDateOf,
+	isoDay,
+	MAX_DAY_WALK,
+	wholeDaysBetween,
+} from "@/utils/dates";
 import { formatCount, truncate } from "@/utils/text";
 import { safeFileName } from "@/utils/fileName";
+import {
+	birthFlower,
+	birthstone,
+	chineseZodiac,
+	zodiacSign,
+} from "@/utils/birthTrivia";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -1585,25 +1596,25 @@ export class ContactPageView extends ItemView {
 			const s = this.plugin.settings;
 			if (day !== null && s.showStarSign) {
 				nameDisplay.createSpan({
-					text: `Star sign: ${this.getZodiacSign(month, day)}`,
+					text: `Star sign: ${zodiacSign(month, day)}`,
 					cls: "contact-age-display",
 				});
 			}
 			if (year !== null && s.showChineseZodiac) {
 				nameDisplay.createSpan({
-					text: `Zodiac: ${this.getChineseZodiac(year)}`,
+					text: `Zodiac: ${chineseZodiac(year)}`,
 					cls: "contact-age-display",
 				});
 			}
 			if (s.showBirthstone) {
 				nameDisplay.createSpan({
-					text: `Birthstone: ${this.getBirthstone(month)}`,
+					text: `Birthstone: ${birthstone(month)}`,
 					cls: "contact-age-display",
 				});
 			}
 			if (s.showBirthFlower) {
 				nameDisplay.createSpan({
-					text: `Birth flower: ${this.getBirthFlower(month)}`,
+					text: `Birth flower: ${birthFlower(month)}`,
 					cls: "contact-age-display",
 				});
 			}
@@ -1700,86 +1711,6 @@ export class ContactPageView extends ItemView {
 		return this.plugin.contactOperations.calculateDaysUntilBirthday(
 			birthday
 		);
-	}
-
-	private getZodiacSign(month: number, day: number): string {
-		if ((month === 3 && day >= 21) || (month === 4 && day <= 19))
-			return "Aries";
-		if ((month === 4 && day >= 20) || (month === 5 && day <= 20))
-			return "Taurus";
-		if ((month === 5 && day >= 21) || (month === 6 && day <= 20))
-			return "Gemini";
-		if ((month === 6 && day >= 21) || (month === 7 && day <= 22))
-			return "Cancer";
-		if ((month === 7 && day >= 23) || (month === 8 && day <= 22))
-			return "Leo";
-		if ((month === 8 && day >= 23) || (month === 9 && day <= 22))
-			return "Virgo";
-		if ((month === 9 && day >= 23) || (month === 10 && day <= 22))
-			return "Libra";
-		if ((month === 10 && day >= 23) || (month === 11 && day <= 21))
-			return "Scorpio";
-		if ((month === 11 && day >= 22) || (month === 12 && day <= 21))
-			return "Sagittarius";
-		if ((month === 12 && day >= 22) || (month === 1 && day <= 19))
-			return "Capricorn";
-		if ((month === 1 && day >= 20) || (month === 2 && day <= 18))
-			return "Aquarius";
-		return "Pisces";
-	}
-
-	private getChineseZodiac(year: number): string {
-		const animals = [
-			"Rat",
-			"Ox",
-			"Tiger",
-			"Rabbit",
-			"Dragon",
-			"Snake",
-			"Horse",
-			"Goat",
-			"Monkey",
-			"Rooster",
-			"Dog",
-			"Pig",
-		];
-		return `Year of the ${animals[(year - 4) % 12]}`;
-	}
-
-	private getBirthFlower(month: number): string {
-		const flowers = [
-			"Carnation",
-			"Violet",
-			"Daffodil",
-			"Daisy",
-			"Lily of the valley",
-			"Rose",
-			"Larkspur",
-			"Gladiolus",
-			"Aster",
-			"Marigold",
-			"Chrysanthemum",
-			"Narcissus",
-		];
-		return flowers[month - 1] ?? "Unknown";
-	}
-
-	private getBirthstone(month: number): string {
-		const stones: Record<number, string> = {
-			1: "Garnet",
-			2: "Amethyst",
-			3: "Aquamarine",
-			4: "Diamond",
-			5: "Emerald",
-			6: "Pearl",
-			7: "Ruby",
-			8: "Peridot",
-			9: "Sapphire",
-			10: "Opal",
-			11: "Topaz",
-			12: "Turquoise",
-		};
-		return stones[month] || "Unknown";
 	}
 
 	private renderInfoSection(container: HTMLElement) {

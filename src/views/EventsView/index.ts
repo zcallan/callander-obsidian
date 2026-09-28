@@ -20,13 +20,11 @@ import { displayZone } from "@/utils/timezone";
 import {
 	EVENT_SORTS,
 	EVENT_WHEN_FILTERS,
-	applyEventSort,
 	eventRowFields,
 	eventSortOf,
 	matchesEventWhen,
 	type EventSort,
 	type EventWhen,
-	type SortableEvent,
 } from "@/utils/eventRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
 import { registerVaultRefresh } from "@/utils/vaultRefresh";
@@ -53,18 +51,19 @@ import {
 import {
 	categoryShown,
 	filterableCategories,
-	hasCategory,
 	setCategoryShown,
 	shownByCategory,
 	visibleCategoryCount,
 } from "@/utils/eventCategories";
 import { PlanGlanceModal } from "@/modals/PlanGlanceModal";
 import { appendTimezoneBanner } from "@/components/timezoneBanner";
+import { planRowFields, plansForEventsPage } from "@/utils/planRow";
 import {
-	planRowFields,
-	planWhenDate,
-	plansForEventsPage,
-} from "@/utils/planRow";
+	type EventPageItem,
+	eventPageItem,
+	eventPipeline,
+	planPageItem,
+} from "@/utils/eventList";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
 
@@ -77,70 +76,6 @@ export const VIEW_TYPE_EVENTS = "callander-events";
 const WEEK_VIEW = false;
 
 /**
- * One row on the page — an event, or a plan shown among them.
- *
- * Carries the fields applyEventSort reads, so the two sort as one list by
- * whichever sort is picked rather than as two lists stapled together. A
- * plan's type is "plan", which no type chip matches: picking a type narrows
- * to events of that type, and a plan isn't one.
- */
-type PageItem = SortableEvent & {
-	time: string;
-	location: string;
-	/** Wikilinks — an event's people, a plan's members. */
-	people: string[];
-	description: string;
-	/** An event's categories. A plan has none, so a category filter drops
-	 * it — the same way a type chip does. */
-	categories: string[];
-	/** What Upcoming / Past judges it by — see planWhenDate. */
-	whenDate: string;
-} & ({ kind: "event"; event: EventInfo } | { kind: "plan"; plan: PlanInfo });
-
-function eventItem(event: EventInfo): PageItem {
-	return {
-		kind: "event",
-		event,
-		file: event.file,
-		name: event.name,
-		date: event.date,
-		type: event.type,
-		status: event.status,
-		created: event.created,
-		updated: event.updated,
-		time: event.time,
-		location: event.location,
-		people: event.people,
-		description: event.description,
-		categories: event.categories,
-		whenDate: event.date,
-	};
-}
-
-function planItem(plan: PlanInfo): PageItem {
-	return {
-		kind: "plan",
-		plan,
-		file: plan.file,
-		name: plan.name,
-		date: plan.date,
-		type: "plan",
-		status: plan.status,
-		// Read as unstamped, though plans do carry created and updated,
-		// so Oldest and Last updated sink them to the end — the same place
-		// an unstamped event goes.
-		created: "",
-		updated: "",
-		time: "",
-		location: plan.location,
-		people: plan.members,
-		description: "",
-		categories: [],
-		whenDate: planWhenDate(plan),
-	};
-}
-
-/**
  * The full page of Events — everything on the calendar, past and future.
  * Each event is a plain row; clicking one opens its view modal.
  *
@@ -150,7 +85,7 @@ function planItem(plan: PlanInfo): PageItem {
  * worth narrowing by is what kind of thing it was and who was there.
  */
 export class EventsView extends ItemView {
-	private items: PageItem[] = [];
+	private items: EventPageItem[] = [];
 	/** Fetched alongside the events, to turn people wikilinks into names. */
 	private contacts: ContactWithCountdown[] = [];
 	private searchQuery = "";
@@ -278,13 +213,13 @@ export class EventsView extends ItemView {
 		const events = this.plugin.eventOperations
 			.getEvents()
 			.filter((e) => e.variant !== "timeline")
-			.map(eventItem);
+			.map(eventPageItem);
 		// Plans sit among the events for the same reason they do in the
 		// dashboard's Upcoming: a trip is the biggest thing on the calendar.
 		// Off by setting, or one plan at a time from its glance.
 		const plans = this.plugin.settings.eventsShowPlans
 			? plansForEventsPage(this.plugin.planOperations.getPlans()).map(
-					planItem
+					planPageItem
 			  )
 			: [];
 		this.items = [...events, ...plans];
@@ -295,7 +230,7 @@ export class EventsView extends ItemView {
 	// ---- People ----
 
 	/** An event's people links resolved to vault paths (dead links drop). */
-	private peoplePaths(e: PageItem): string[] {
+	private peoplePaths(e: EventPageItem): string[] {
 		return this.plugin.eventOperations.peoplePaths(e);
 	}
 
@@ -314,7 +249,7 @@ export class EventsView extends ItemView {
 	 * somebody has to find them on a busy event too, and a roster that
 	 * ended in "+3 more" would quietly stop matching the three.
 	 */
-	private peopleNames(e: PageItem): string {
+	private peopleNames(e: EventPageItem): string {
 		return this.peoplePaths(e)
 			.map((p) => this.displayName(p))
 			.join(", ");
@@ -326,7 +261,7 @@ export class EventsView extends ItemView {
 	 * this, and an event with the whole book club on it would otherwise
 	 * push its own name off the end.
 	 */
-	private peopleSummary(e: PageItem): string {
+	private peopleSummary(e: EventPageItem): string {
 		return summarisePeople(
 			this.peoplePaths(e).map((path) => {
 				const match = this.contacts.find((c) => c.file.path === path);
@@ -346,7 +281,9 @@ export class EventsView extends ItemView {
 	 * rather than the friends list, so it never offers a name that would
 	 * return nothing.
 	 */
-	private personRoster(scope: PageItem[]): { path: string; label: string }[] {
+	private personRoster(
+		scope: EventPageItem[]
+	): { path: string; label: string }[] {
 		const seen = new Map<string, string>();
 		for (const e of scope) {
 			for (const path of this.peoplePaths(e)) {
@@ -359,38 +296,6 @@ export class EventsView extends ItemView {
 	}
 
 	// ---- Filtering ----
-
-	/**
-	 * Does an event pass the active filters? `over` swaps a single facet
-	 * for a hypothetical value while the others stay live — which is how
-	 * each chip prices itself: "picked, how many rows would you see?"
-	 */
-	private matchesFilters(
-		e: PageItem,
-		over: { type?: EventType; category?: string; personPath?: string } = {}
-	): boolean {
-		const type = over.type ?? this.type;
-		if (type && e.type !== type) return false;
-
-		const category = over.category ?? this.category;
-		if (category && !hasCategory(e.categories, category)) return false;
-
-		const personPath = over.personPath ?? this.personPath;
-		if (personPath && !this.peoplePaths(e).includes(personPath)) {
-			return false;
-		}
-		return true;
-	}
-
-	private matchesSearch(e: PageItem, q: string): boolean {
-		if (!q) return true;
-		return (
-			e.name.toLowerCase().includes(q) ||
-			e.description.toLowerCase().includes(q) ||
-			e.location.toLowerCase().includes(q) ||
-			this.peopleNames(e).toLowerCase().includes(q)
-		);
-	}
 
 	/**
 	 * List size with one facet swapped out — what a chip advertises.
@@ -407,7 +312,7 @@ export class EventsView extends ItemView {
 		return this.pipeline(over).length;
 	}
 
-	private sorted(): PageItem[] {
+	private sorted(): EventPageItem[] {
 		return this.pipeline({});
 	}
 
@@ -421,7 +326,7 @@ export class EventsView extends ItemView {
 	 * vanishing because of a filter you just applied (possibly the chip
 	 * next to it) is disorienting, and would strand you with no way back.
 	 */
-	private inScope(): PageItem[] {
+	private inScope(): EventPageItem[] {
 		return this.items.filter((e) =>
 			matchesEventWhen(e.whenDate, this.when, new Date())
 		);
@@ -440,21 +345,24 @@ export class EventsView extends ItemView {
 		 * are its own, and a "when" on top of them would blank out half
 		 * the month being looked at. */
 		anyWhen?: boolean;
-	}): PageItem[] {
-		const q = this.searchQuery.trim().toLowerCase();
-		const now = new Date();
-		const matches = this.items.filter(
-			(e) =>
-				(over.anyWhen || matchesEventWhen(e.whenDate, this.when, now)) &&
-				this.matchesFilters(e, over) &&
-				this.matchesSearch(e, q)
+	}): EventPageItem[] {
+		return eventPipeline(
+			this.items,
+			{
+				when: this.when,
+				anyWhen: over.anyWhen,
+				type: over.type ?? this.type,
+				category: over.category ?? this.category,
+				personPath: over.personPath ?? this.personPath,
+				query: this.searchQuery,
+			},
+			this.plugin.settings.eventSort,
+			{
+				paths: (e) => this.peoplePaths(e),
+				names: (e) => this.peopleNames(e),
+			},
+			new Date()
 		);
-		// Looking back, the natural order runs the other way: the most
-		// recent thing is the near end of the list, the way the next thing
-		// is when looking forward.
-		return applyEventSort(matches, this.plugin.settings.eventSort, {
-			recentFirst: this.when === "past",
-		});
 	}
 
 	// ---- Rendering ----
@@ -1198,7 +1106,7 @@ export class EventsView extends ItemView {
 
 	private renderRow(
 		container: HTMLElement,
-		event: PageItem,
+		event: EventPageItem,
 		/** In the calendar's day list, under a heading that already names
 		 * the day — an event's date there would only repeat it. A plan
 		 * keeps its own: it may have started days before the one picked. */
@@ -1232,7 +1140,7 @@ export class EventsView extends ItemView {
 		if (event.status === "cancelled") row.addClass("is-cancelled-row");
 	}
 
-	private openItem(item: PageItem) {
+	private openItem(item: EventPageItem) {
 		if (item.kind === "plan") this.openPlanGlance(item.plan);
 		else this.openViewModal(item.event);
 	}

@@ -7,21 +7,19 @@ import type {
 } from "@/types";
 import {
 	parseFlexDate,
-	flexSortKey,
 	formatShortFlexDate,
 	formatShortWeekdayDate,
 	monthName,
 } from "@/utils/flexdate";
 import {
 	birthdayMonths,
-	calendarBirthdayKey,
 	dayKeyOf,
 	indexBirthdays,
-	nextBirthdayOccurrence,
 	turnsLabel,
 } from "@/utils/friendTimeline";
 import { monthGrid, monthLabel } from "@/utils/calendarGrid";
 import { GlanceModal } from "@/modals/GlanceModal";
+import { sortFriends } from "@/utils/friendListSort";
 
 const SORT_OPTIONS: Array<{ id: FriendListSort; label: string }> = [
 	// "Next" rather than plain "Birthday": the two calendar orderings below
@@ -261,77 +259,11 @@ export class TableView {
 	}
 
 	private sortedFiltered(): ContactWithCountdown[] {
-		const list = this.filtered();
-
-		// Unknown sorts past December in either direction.
-		const calendarRank = (c: ContactWithCountdown): number =>
-			calendarBirthdayKey(c.birthday) ?? 99_99;
-
-		const lastEventKey = (c: ContactWithCountdown): number => {
-			let max = -1;
-			for (const e of c.events) {
-				const parsed = parseFlexDate(e.date);
-				if (parsed) max = Math.max(max, flexSortKey(parsed));
-			}
-			return max;
-		};
-
-		// Days to the next birthday, counting a month-only one as the 1st of
-		// that month so it sorts with its month rather than falling to the
-		// bottom with the people who have no birthday at all. The dashboard
-		// countdown deliberately doesn't do this — see OccurrenceOptions.
-		const now = new Date();
-		const untilBirthday = (c: ContactWithCountdown): number =>
-			nextBirthdayOccurrence(c.birthday, now, {
-				assumeFirstOfMonth: true,
-			})?.days ?? 9999;
-
-		switch (this.view.settings.friendListSort) {
-			case "newest":
-				list.sort((a, b) => b.file.stat.ctime - a.file.stat.ctime);
-				break;
-			case "oldest":
-				list.sort((a, b) => a.file.stat.ctime - b.file.stat.ctime);
-				break;
-			case "birthday":
-				list.sort((a, b) => untilBirthday(a) - untilBirthday(b));
-				break;
-			// Calendar position, not proximity: January first whatever the
-			// date is today. Anyone with no month recorded has no place in
-			// that order and goes last in both directions, rather than
-			// leading the reverse.
-			case "birthdayJanDec":
-				list.sort((a, b) => calendarRank(a) - calendarRank(b));
-				break;
-			case "birthdayDecJan":
-				list.sort((a, b) => {
-					const ka = calendarBirthdayKey(a.birthday);
-					const kb = calendarBirthdayKey(b.birthday);
-					if (ka === null || kb === null) {
-						return calendarRank(a) - calendarRank(b);
-					}
-					return kb - ka;
-				});
-				break;
-			case "lastEvent":
-				list.sort((a, b) => lastEventKey(b) - lastEventKey(a));
-				break;
-			case "youngest":
-				list.sort((a, b) => (a.age ?? 999) - (b.age ?? 999));
-				break;
-			case "eldest":
-				list.sort((a, b) => (b.age ?? -1) - (a.age ?? -1));
-				break;
-			case "modified":
-				list.sort((a, b) => b.file.stat.mtime - a.file.stat.mtime);
-				break;
-			case "alphabeticalDesc":
-				list.sort((a, b) => b.displayName.localeCompare(a.displayName));
-				break;
-			default:
-				list.sort((a, b) => a.displayName.localeCompare(b.displayName));
-		}
-		return list;
+		return sortFriends(
+			this.filtered(),
+			this.view.settings.friendListSort,
+			new Date()
+		);
 	}
 
 	/** "Nothing here" — which of the two depends on why. */
