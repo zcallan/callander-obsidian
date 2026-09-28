@@ -1673,7 +1673,7 @@ export class ContactPageView extends ItemView {
 							}
 						}
 					} catch (error) {
-						new Notice(`Error updating file name: ${error}`);
+						new Notice(`Error updating file name: ${String(error)}`);
 					}
 				}
 			}
@@ -2713,7 +2713,7 @@ export class ContactPageView extends ItemView {
 								newPath
 							);
 						} catch (error) {
-							new Notice(`Error renaming plan: ${error}`);
+							new Notice(`Error renaming plan: ${String(error)}`);
 						}
 					}
 				}

@@ -161,13 +161,14 @@ export interface NavOptions {
 }
 
 export default class FriendTracker extends Plugin {
-	settings: FriendTrackerSettings;
-	public contactOperations: ContactOperations;
-	public diaryOperations: DiaryOperations;
-	public planOperations: PlanOperations;
-	public somedayOperations: SomedayOperations;
-	public eventOperations: EventOperations;
-	private eventMigration: EventMigration;
+	// Assigned in onload, before anything can reach them.
+	settings!: FriendTrackerSettings;
+	public contactOperations!: ContactOperations;
+	public diaryOperations!: DiaryOperations;
+	public planOperations!: PlanOperations;
+	public somedayOperations!: SomedayOperations;
+	public eventOperations!: EventOperations;
+	private eventMigration!: EventMigration;
 	public lastQuickIdeaCategory: IdeaCategory = "gift";
 	private statusBarEl: HTMLElement | null = null;
 	/** Every ribbon icon this plugin owns, keyed by its settings key. Added

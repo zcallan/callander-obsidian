@@ -6,7 +6,8 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"typecheck": "tsc",
+		"build": "npm run typecheck && node esbuild.config.mjs production",
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix",
 		"test": "node tests/run.mjs",
@@ -27,12 +28,10 @@
 	"devDependencies": {
 		"@eslint/js": "^9.39.5",
 		"@eslint/json": "0.14.0",
-		"@types/node": "^16.11.6",
 		"esbuild": "^0.28.2",
 		"eslint": "^9.39.5",
 		"eslint-plugin-obsidianmd": "^0.4.1",
 		"obsidian": "1.13.1",
-		"tslib": "2.4.0",
 		"typescript": "~5.9.3",
 		"typescript-eslint": "^8.65.0",
 		"ws": "^8.21.2",

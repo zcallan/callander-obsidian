@@ -1,36 +1,35 @@
 {
 	"compilerOptions": {
-		"baseUrl": ".",
-		"paths": {
-			"react": ["./node_modules/preact/compat/"],
-			"react-dom": ["./node_modules/preact/compat/"],
-			"react-dom/client": ["./node_modules/preact/compat/client"],
-			"@/*": ["src/*"],
-			"@/components/*": ["src/components/*"],
-			"@/pages/*": ["src/pages/*"],
-			"@/types/*": ["src/types/*"],
-			"@/utils/*": ["src/utils/*"],
-			"@/hooks/*": ["src/hooks/*"],
-			"@/contexts/*": ["src/contexts/*"],
-			"@/services/*": ["src/services/*"],
-			"@/styles/*": ["src/styles/*"],
-			"@/assets/*": ["src/assets/*"]
-		},
-		"inlineSourceMap": true,
-		"inlineSources": true,
+		// Type-checking only: esbuild does the emitting, so a bare `tsc` must
+		// never write .js files beside the sources.
+		"noEmit": true,
 		"module": "ESNext",
+		"moduleResolution": "bundler",
+		// ES2018 syntax (esbuild's target too) with ES2020 runtime APIs, both
+		// fine for every Obsidian this supports. esbuild derives class-field
+		// semantics from `target`, so this pins today's rather than letting a
+		// later target change switch them.
 		"target": "ES2018",
-		"allowJs": true,
-		"noImplicitAny": true,
-		"moduleResolution": "node",
-		"importHelpers": true,
+		"useDefineForClassFields": false,
+		"lib": ["DOM", "DOM.Iterable", "ES2020"],
+		// No @types/* loaded implicitly: src runs in Obsidian, not Node.
+		"types": [],
 		"isolatedModules": true,
+		"skipLibCheck": true,
 		"jsx": "react-jsx",
 		"jsxImportSource": "preact",
-		"strictNullChecks": true,
-		"strictBindCallApply": true,
-		"skipLibCheck": true,
-		"lib": ["DOM", "DOM.Iterable", "ES2020"]
+		"strict": true,
+		// Off despite `strict`: esbuild reads it and would add "use strict"
+		// to the bundle, switching its runtime mode. That's a deliberate
+		// change of its own, with a smoke test, not a side effect of this.
+		"alwaysStrict": false,
+		"noFallthroughCasesInSwitch": true,
+		"paths": {
+			"@/*": ["./src/*"],
+			"react": ["./node_modules/preact/compat/"],
+			"react-dom": ["./node_modules/preact/compat/"],
+			"react-dom/client": ["./node_modules/preact/compat/client"]
+		}
 	},
-	"include": ["**/*.ts", "**/*.tsx"]
+	"include": ["src/**/*.ts", "src/**/*.tsx", "tests/entry.ts"]
 }

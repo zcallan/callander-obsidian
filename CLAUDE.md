@@ -6,6 +6,7 @@ An Obsidian plugin for keeping up with people: friends, events, plans, expenses.
 
 ```bash
 npm run dev        # esbuild watcher → writes into the vault (see "Builds" below)
+npm run typecheck  # tsc, strict; no emit
 npm test           # tiers 1+2, fake vault, ~1s — run these freely
 npm run test:e2e   # tier 3, launches a real Obsidian — see "Testing"
 npm run preflight  # lint + build + test + e2e — the release gate
