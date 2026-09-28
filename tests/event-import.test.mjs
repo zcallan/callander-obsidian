@@ -58,6 +58,21 @@ export function run() {
 		parseCsv("a,b\r\n\r\nc,d\r\n").map((r) => r.cells),
 		[["a", "b"], ["c", "d"]]
 	);
+	eq(
+		"a quote inside a cell is just a character, and the rows stay apart",
+		parseCsv('Pizza,2026-10-02,12" oven\nOther,2026-10-03,Place').map(
+			(r) => r.cells
+		),
+		[
+			["Pizza", "2026-10-02", '12" oven'],
+			["Other", "2026-10-03", "Place"],
+		]
+	);
+	eq(
+		"…while one after spaces still opens a quoted cell",
+		parseCsv('a, "b, c",d').map((r) => r.cells),
+		[["a", " b, c", "d"]]
+	);
 
 	// ---------- times ----------
 	eq("24-hour stays", normalizeTime("19:30"), "19:30");

@@ -1,5 +1,6 @@
 import { App, Modal, setIcon } from "obsidian";
 import { ConfirmModal } from "@/modals/ConfirmModal";
+import { reportFailure } from "@/components/guardedAction";
 import {
 	appendScheduleFields,
 	type ScheduleFieldOptions,
@@ -47,8 +48,8 @@ export class PlanDraftViewModal extends Modal {
 		this.saveTimer = window.setTimeout(() => void this.flush(), 600);
 	}
 
-	/** Write whatever's pending — on blur, before an action, and on close,
-	 * so a quick edit-then-dismiss never loses the last few keystrokes. */
+	/** Write whatever's pending — on blur and on close, so a quick
+	 * edit-then-dismiss never loses the last few keystrokes. */
 	private async flush() {
 		if (this.saveTimer !== null) {
 			window.clearTimeout(this.saveTimer);
@@ -56,7 +57,18 @@ export class PlanDraftViewModal extends Modal {
 		}
 		if (!this.dirty) return;
 		this.dirty = false;
-		await this.onSaveText(this.pending.trim());
+		const text = this.pending.trim();
+		// Never written empty. A draft is found by its place among the
+		// drafts that have text, so an emptied one would drop out of that
+		// list and every later save would land on the draft after it. It
+		// keeps what it last said instead; Discard is how one goes.
+		if (!text) return;
+		try {
+			await this.onSaveText(text);
+		} catch (error) {
+			this.dirty = true; // still unsaved, so closing tries again
+			reportFailure("Couldn't save the draft", error);
+		}
 	}
 
 	/**

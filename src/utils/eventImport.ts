@@ -115,6 +115,11 @@ export function importTemplate(): string {
  * holds commas, quotes or line breaks, and "" inside a quoted cell is a
  * quote. Wholly blank lines are skipped — a pasted block often ends with
  * one, and a gap between groups of rows is easy to leave by accident.
+ *
+ * A quote only opens a quoted cell at the start of one (spaces before it
+ * allowed). Anywhere else it's just a character — `12" pizza` — which
+ * otherwise opened a quoted cell that ran on into the rows after it,
+ * silently folding them into this row's last cell.
  */
 export function parseCsv(text: string): { line: number; cells: string[] }[] {
 	const rows: { line: number; cells: string[] }[] = [];
@@ -149,7 +154,7 @@ export function parseCsv(text: string): { line: number; cells: string[] }[] {
 			}
 			continue;
 		}
-		if (ch === '"') {
+		if (ch === '"' && cell.trim() === "") {
 			quoted = true;
 		} else if (ch === ",") {
 			cells.push(cell);

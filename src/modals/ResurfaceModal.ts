@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 
@@ -48,19 +49,25 @@ export class ResurfaceModal extends FormModal {
 			text: "Clear",
 			cls: "callander-modal-button",
 		});
-		const handleClear = async () => {
-			await this.onSubmit("");
-			this.close();
-		};
+		const handleClear = guardedAction(
+			async () => {
+				await this.onSubmit("");
+				this.close();
+			},
+			{ buttons: [clearButton], failure: "Couldn't clear" }
+		);
 		clearButton.addEventListener("click", () => void handleClear());
 		const saveButton = buttons.createEl("button", {
 			text: "Save",
 			cls: "callander-modal-button mod-cta",
 		});
-		const handleSave = async () => {
-			await this.onSubmit(value);
-			this.close();
-		};
+		const handleSave = guardedAction(
+			async () => {
+				await this.onSubmit(value);
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void handleSave());
 	}
 

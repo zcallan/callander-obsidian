@@ -1,5 +1,6 @@
 import { App, setIcon } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import { guardedAction } from "@/components/guardedAction";
 import {
 	PLAN_IDEA_CATEGORIES,
 	PLAN_PRIORITIES,
@@ -282,33 +283,40 @@ export class PlanItemModal extends FormModal {
 			});
 		}
 
-		buttonRow.createEl("button", {
+		const saveButton = buttonRow.createEl("button", {
 			text: this.initial ? "Save" : "Add",
 			cls: "callander-modal-button mod-cta",
 			attr: { type: "submit" },
 		});
 
+		const save = guardedAction(
+			async () => {
+				const text = textInput.value.trim();
+				if (!text) return;
+				const cost = Number(costInput.value);
+				const location = locationInput.value.trim();
+				const notes = notesInput.value.trim();
+				const peopleValue = people.value();
+				const durationValue = duration.value();
+				await this.onSubmit({
+					category: this.category,
+					priority: this.priority,
+					text,
+					...schedule.values(),
+					...(durationValue && { duration: durationValue }),
+					...(peopleValue && { people: peopleValue }),
+					...(location && { location }),
+					...(Number.isFinite(cost) && cost > 0 && { cost }),
+					...(notes && { notes }),
+				});
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		// Enter in any field submits via the form, like Add friend
 		form.addEventListener("submit", (e) => {
 			e.preventDefault();
-			const text = textInput.value.trim();
-			if (!text) return;
-			const cost = Number(costInput.value);
-			const location = locationInput.value.trim();
-			const notes = notesInput.value.trim();
-			const peopleValue = people.value();
-			const durationValue = duration.value();
-			void this.onSubmit({
-				category: this.category,
-				priority: this.priority,
-				text,
-				...schedule.values(),
-				...(durationValue && { duration: durationValue }),
-				...(peopleValue && { people: peopleValue }),
-				...(location && { location }),
-				...(Number.isFinite(cost) && cost > 0 && { cost }),
-				...(notes && { notes }),
-			}).then(() => this.close());
+			void save();
 		});
 	}
 

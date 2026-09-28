@@ -1,5 +1,6 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import { guardedAction } from "@/components/guardedAction";
 import type { ContactWithCountdown } from "@/types";
 
 interface GroupOption {
@@ -82,15 +83,15 @@ export class AddPlanMemberModal extends FormModal {
 		const colorOf = new Map(this.groups.map((g) => [g.name, g.color]));
 		const labelOf = new Map(this.groups.map((g) => [g.name, g.label]));
 
-		const add = async (
-			contact: ContactWithCountdown | null,
-			name: string
-		) => {
-			const trimmed = name.trim();
-			if (!trimmed) return;
-			await this.onSubmit({ contact, name: trimmed }, checkbox.checked);
-			this.close();
-		};
+		// Guarded: a double tap on a row would otherwise add them twice.
+		const add = guardedAction(
+			async (contact: ContactWithCountdown | null, name: string) => {
+				const trimmed = name.trim();
+				if (!trimmed) return;
+				await this.onSubmit({ contact, name: trimmed }, checkbox.checked);
+				this.close();
+			}
+		);
 
 		// Newest-modified first, filtered by search + group
 		const filtered = (q: string) =>

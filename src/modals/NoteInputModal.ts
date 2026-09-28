@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import {
 	appendScheduleFields,
@@ -66,12 +67,15 @@ export class NoteInputModal extends FormModal {
 			text: editing ? "Save" : "Save draft",
 			cls: "callander-modal-button mod-cta",
 		});
-		const submit = async () => {
-			const text = input.value.trim();
-			if (!text) return;
-			await this.onSubmit(text, schedule?.values().date);
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const text = input.value.trim();
+				if (!text) return;
+				await this.onSubmit(text, schedule?.values().date);
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void submit());
 		// Cmd/Ctrl+Enter saves; plain Enter makes a newline
 		input.addEventListener("keydown", (e) => {

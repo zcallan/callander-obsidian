@@ -17,6 +17,7 @@ import {
 	formatHourLabel,
 	parseDurationMinutes,
 } from "@/utils/planFormat";
+import { exactTimeChoices } from "@/utils/clock";
 
 /**
  * Shared Date / Time / People fields for plan-item modals (ideas, travel,
@@ -159,7 +160,7 @@ export function appendScheduleFields(
 	// Skipped entirely for stays, which have no clock time of their own.
 	const initialTime = initial.time ?? "";
 	const isExact = /^\d{1,2}:\d{2}$/.test(initialTime);
-	const [initHour, initMinute] = isExact ? initialTime.split(":") : ["", ""];
+	const exact = exactTimeChoices(isExact ? initialTime : undefined);
 	let precision: "rough" | "exact" = isExact ? "exact" : "rough";
 
 	let precisionSelect: HTMLSelectElement | null = null;
@@ -233,16 +234,15 @@ export function appendScheduleFields(
 			// Value stays 24h ("00".."23") for storage/sorting; label is 12h.
 			const label = `${h % 12 || 12}${h < 12 ? "am" : "pm"}`;
 			const opt = hourSelect.createEl("option", { value: v, text: label });
-			if (v === (initHour || "12")) opt.selected = true;
+			if (v === exact.hour) opt.selected = true;
 		}
 		selects.createSpan({ cls: "plan-time-colon", text: ":" });
 		minuteSelect = selects.createEl("select", {
 			cls: "quick-idea-input plan-time-select",
 		});
-		for (let m = 0; m < 60; m += 5) {
-			const v = String(m).padStart(2, "0");
+		for (const v of exact.minutes) {
 			const opt = minuteSelect.createEl("option", { value: v, text: v });
-			if (v === (initMinute || "00")) opt.selected = true;
+			if (v === exact.minute) opt.selected = true;
 		}
 	};
 

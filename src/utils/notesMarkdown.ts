@@ -8,6 +8,16 @@ import {
 import { IDEAS_SECTION, isIdeaLine } from "@/utils/ideasMarkdown";
 import { QUOTES_SECTION, isQuoteLine } from "@/utils/quotesMarkdown";
 import { EVENTS_SECTION, ownsEventLine } from "@/utils/eventsSection";
+import {
+	DRAFTS_SECTION,
+	PAGE_DRAFTS_SECTION,
+	isDraftLine,
+	mergeLegacyDrafts,
+	parseDraftLine,
+	parseDraftsSection,
+	upsertDraftsSection,
+	type LedgerDraft,
+} from "@/utils/draftsMarkdown";
 
 /**
  * A page's Notes: ordinary markdown under a `## Notes` heading, the last
@@ -142,6 +152,9 @@ const GENERATED: ReadonlyArray<{
 	{ spec: IDEAS_SECTION, owns: isIdeaLine },
 	{ spec: QUOTES_SECTION, owns: isQuoteLine },
 	{ spec: EVENTS_SECTION, owns: ownsEventLine },
+	// A plan's own checklist. Without it here, adopting a plan's loose prose
+	// took the whole Drafts section for notes and moved it under `## Notes`.
+	{ spec: PAGE_DRAFTS_SECTION, owns: isDraftLine },
 ];
 
 /**
@@ -201,4 +214,85 @@ export function adoptNotes(body: string, older: string): string {
 	const { prose, rest } = splitLooseProse(body);
 	const folded = foldFrontmatterNotes(older, prose);
 	return folded ? upsertNotesSection(rest, folded) : body;
+}
+
+/** Blank lines off the end of a run of lines. */
+function trimTrailingBlanks(lines: string[]): string[] {
+	let end = lines.length;
+	while (end > 0 && lines[end - 1].trim() === "") end--;
+	return lines.slice(0, end);
+}
+
+/** Blank lines off both ends of a run of lines. */
+function trimBlankEnds(lines: string[]): string[] {
+	const trimmed = trimTrailingBlanks(lines);
+	let start = 0;
+	while (start < trimmed.length && trimmed[start].trim() === "") start++;
+	return trimmed.slice(start);
+}
+
+/**
+ * A plan's body with its drafts moved back above `## Notes`, where 1.10.2 to
+ * 1.10.6 could leave them inside.
+ *
+ * Those releases wrote a plan's `## Drafts` without knowing it belonged above
+ * the Notes (see PAGE_DRAFTS_SECTION), so a first draft landed after them —
+ * and Notes run to the end of the file, so the checklist read as notes. One
+ * notes save later it was gone. Opening a plan with no Notes did the same the
+ * other way round, by adopting the checklist as loose prose. This finds a
+ * Drafts heading below the Notes heading and carries its task lines up into
+ * the plan's real Drafts section, merged with any already there.
+ *
+ * Only task lines move: anything else under that heading is the person's own
+ * writing and stays in their notes, and a Drafts heading with no tasks under
+ * it at all is taken to be theirs and left alone. A Notes section that held
+ * nothing but the checklist is removed, as an emptied one always is.
+ *
+ * Idempotent, like every migration: once nothing sits below the Notes
+ * heading, the body comes back exactly as it was.
+ */
+export function rescueDraftsFromNotes(body: string): string {
+	const lines = body.split("\n");
+	const notesAt = lines.findIndex((l) => NOTES_SECTION.matches.test(l.trim()));
+	if (notesAt === -1) return body;
+	const headAt = lines.findIndex(
+		(l, i) => i > notesAt && DRAFTS_SECTION.matches.test(l.trim())
+	);
+	if (headAt === -1) return body;
+	let end = lines.length;
+	for (let i = headAt + 1; i < lines.length; i++) {
+		if (DRAFTS_SECTION.closes.test(lines[i])) {
+			end = i;
+			break;
+		}
+	}
+
+	const rescued: LedgerDraft[] = [];
+	const kept: string[] = [];
+	for (const line of lines.slice(headAt + 1, end)) {
+		const draft = parseDraftLine(line);
+		if (draft) rescued.push(draft);
+		else kept.push(line);
+	}
+	if (rescued.length === 0) return body;
+
+	const before = trimTrailingBlanks(lines.slice(0, headAt));
+	const middle = trimBlankEnds(kept);
+	const after = lines.slice(end);
+	const remaining = [
+		...before,
+		...(middle.length > 0 ? ["", ...middle] : []),
+		...(after.length > 0 ? ["", ...after] : []),
+	].join("\n");
+	const withTrailing = body.endsWith("\n") ? `${remaining}\n` : remaining;
+
+	const existing = parseDraftsSection(withTrailing, PAGE_DRAFTS_SECTION) ?? [];
+	const rescuedBody = upsertDraftsSection(
+		withTrailing,
+		mergeLegacyDrafts(existing, rescued),
+		PAGE_DRAFTS_SECTION
+	);
+	return parseNotesSection(rescuedBody) === ""
+		? upsertNotesSection(rescuedBody, "")
+		: rescuedBody;
 }

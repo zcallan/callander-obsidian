@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import type { LifeGoal } from "@/types";
@@ -72,22 +73,25 @@ export class LifeGoalModal extends FormModal {
 			attr: { type: "button" },
 		});
 
-		const submit = async () => {
-			const text = textInput.value.trim();
-			if (!text) return;
-			const notes = notesInput.value.trim();
-			await this.onSubmit({
-				text,
-				...(notes && { notes }),
-				// Completion is carried through untouched — editing the
-				// wording of a goal you've already done shouldn't reopen it.
-				...(this.initial?.done && { done: true }),
-				...(this.initial?.completed && {
-					completed: this.initial.completed,
-				}),
-			});
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const text = textInput.value.trim();
+				if (!text) return;
+				const notes = notesInput.value.trim();
+				await this.onSubmit({
+					text,
+					...(notes && { notes }),
+					// Completion is carried through untouched — editing the
+					// wording of a goal you've already done shouldn't reopen it.
+					...(this.initial?.done && { done: true }),
+					...(this.initial?.completed && {
+						completed: this.initial.completed,
+					}),
+				});
+				this.close();
+			},
+			{ buttons: [save] }
+		);
 		save.addEventListener("click", () => void submit());
 		textInput.addEventListener("keydown", (e) => {
 			if (e.key !== "Enter") return;

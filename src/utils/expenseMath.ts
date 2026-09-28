@@ -39,6 +39,42 @@ export function splitModeLabel(
 	}
 }
 
+/** A value with its object keys in a fixed order, for comparing by content. */
+function canonical(value: unknown): unknown {
+	if (Array.isArray(value)) return value.map(canonical);
+	if (!isRecord(value)) return value;
+	return Object.fromEntries(
+		Object.keys(value)
+			.sort()
+			.map((key) => [key, canonical(value[key])])
+	);
+}
+
+/**
+ * The same expense, whatever order its fields were written in. A field set
+ * to undefined counts as absent, as JSON.stringify leaves it out.
+ */
+export function sameExpense(a: Expense, b: Expense): boolean {
+	return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+}
+
+/**
+ * Where an expense opened for editing sits now: `index` if that place still
+ * holds the same expense, otherwise wherever it has moved to, or -1 once it's
+ * gone. The list can change under an open modal — a sync, another window —
+ * and writing by position alone would change or delete whichever expense had
+ * moved into that place. The same rule findDraft uses for drafts.
+ */
+export function locateExpense(
+	list: readonly Expense[],
+	index: number,
+	expected: Expense
+): number {
+	const at = list[index];
+	if (at && sameExpense(at, expected)) return index;
+	return list.findIndex((e) => sameExpense(e, expected));
+}
+
 export function expensesOf(metadata: unknown, key = "costs"): Expense[] {
 	return asArray(fieldOf(metadata, key))
 		.map((c): Expense => {

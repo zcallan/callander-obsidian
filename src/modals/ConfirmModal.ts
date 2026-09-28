@@ -1,4 +1,5 @@
 import { App, Modal } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 
 /** Small generic confirmation dialog for destructive actions. */
 export class ConfirmModal extends Modal {
@@ -38,10 +39,21 @@ export class ConfirmModal extends Modal {
 					? "callander-modal-button callander-modal-button-danger"
 					: "callander-modal-button mod-cta",
 		});
-		const handleConfirm = async () => {
-			await this.onConfirm();
-			this.close();
-		};
+		// Once only: most confirmations here delete by position, so a second
+		// click would delete whatever had moved into that place.
+		const handleConfirm = guardedAction(
+			async () => {
+				await this.onConfirm();
+				this.close();
+			},
+			{
+				buttons: [confirm],
+				// "Delete event" → "Couldn't delete event: …"
+				failure: `Couldn't ${this.title
+					.replace(/\?$/, "")
+					.replace(/^./, (first) => first.toLowerCase())}`,
+			}
+		);
 		confirm.addEventListener("click", () => void handleConfirm());
 	}
 

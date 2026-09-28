@@ -1,4 +1,5 @@
 import { App, Modal, setIcon } from "obsidian";
+import { reportFailure } from "@/components/guardedAction";
 import type { PlanTimelineEntry } from "@/types";
 import {
 	ACCOMMODATION_TYPES,
@@ -129,15 +130,23 @@ export class PlanTimelineViewModal extends Modal {
 	}
 
 	/** Write whatever's pending now — called on blur, before Edit/Delete,
-	 * and on close, so a quick edit-then-dismiss never loses keystrokes. */
-	private async flushNotes() {
+	 * and on close, so a quick edit-then-dismiss never loses keystrokes.
+	 * False if the write failed, which has been reported already. */
+	private async flushNotes(): Promise<boolean> {
 		if (this.notesSaveTimer !== null) {
 			window.clearTimeout(this.notesSaveTimer);
 			this.notesSaveTimer = null;
 		}
-		if (!this.notesDirty) return;
+		if (!this.notesDirty) return true;
 		this.notesDirty = false;
-		await this.onSaveNotes(this.pendingNotes);
+		try {
+			await this.onSaveNotes(this.pendingNotes);
+			return true;
+		} catch (error) {
+			this.notesDirty = true; // still unsaved, so closing tries again
+			reportFailure("Couldn't save the notes", error);
+			return false;
+		}
 	}
 
 	onOpen() {
@@ -299,7 +308,7 @@ export class PlanTimelineViewModal extends Modal {
 	/** Flush first: the edit form reads the item straight off frontmatter,
 	 * so a pending note has to land before it opens or it'd read stale. */
 	private async handleEdit() {
-		await this.flushNotes();
+		if (!(await this.flushNotes())) return;
 		this.close();
 		this.onEdit();
 	}
@@ -307,12 +316,13 @@ export class PlanTimelineViewModal extends Modal {
 	/** Same flush-then-hand-off as Edit: the expense form is prefilled from
 	 * this item, so a pending note has to land before it reads it. */
 	private async handleCreateExpense() {
-		await this.flushNotes();
+		if (!(await this.flushNotes())) return;
 		this.close();
 		this.onCreateExpense?.();
 	}
 
 	private async handleDelete() {
+		// Not stopped by a note that didn't save: it's about to go anyway.
 		await this.flushNotes();
 		const e = this.entry;
 		const preview =

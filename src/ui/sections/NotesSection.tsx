@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Keymap, Platform } from "obsidian";
 import { Icon } from "@/ui/components/Icon";
+import { reportFailure } from "@/components/guardedAction";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
 import { normalizeNotes } from "@/utils/notesMarkdown";
 import { linkSplice, toggleWrap, type TextSplice } from "@/utils/textFormat";
@@ -87,16 +88,28 @@ export function NotesSection({
 		el.setSelectionRange(el.value.length, el.value.length);
 	}, [editing]);
 
-	/** Write it if it changed — leaving without editing isn't an edit, and
-	 * shouldn't rewrite the file or bump the last-updated stamp. */
-	const save = async () => {
+	/**
+	 * Write it if it changed — leaving without editing isn't an edit, and
+	 * shouldn't rewrite the file or bump the last-updated stamp.
+	 *
+	 * False if the write failed, which it reports. The editor then stays
+	 * open: closing it would unmount the textarea, and what was typed in it
+	 * with it.
+	 */
+	const save = async (): Promise<boolean> => {
 		const el = textRef.current;
-		if (el && normalizeNotes(el.value) !== stored) await onSave(el.value);
+		if (!el || normalizeNotes(el.value) === stored) return true;
+		try {
+			await onSave(el.value);
+			return true;
+		} catch (error) {
+			reportFailure("Couldn't save the notes", error);
+			return false;
+		}
 	};
 
-	const finish = () => {
-		void save();
-		setEditing(false);
+	const finish = async () => {
+		if (await save()) setEditing(false);
 	};
 
 	/**
@@ -106,7 +119,7 @@ export function NotesSection({
 	 */
 	const openEditor = async () => {
 		if (editing) {
-			await save();
+			if (!(await save())) return;
 			setEditing(false);
 		}
 		onOpenEditor();
@@ -117,9 +130,10 @@ export function NotesSection({
 	 * somewhere else on the page. Switching to another app to copy
 	 * something shouldn't snap you out of what you were writing.
 	 */
-	const onBlur = () => {
-		void save();
-		if (textRef.current?.ownerDocument.hasFocus()) setEditing(false);
+	const onBlur = async () => {
+		// Asked now, not after the save: where focus went is what decides.
+		const stayedOnPage = !!textRef.current?.ownerDocument.hasFocus();
+		if ((await save()) && stayedOnPage) setEditing(false);
 	};
 
 	/**
@@ -167,7 +181,7 @@ export function NotesSection({
 	const onKeyDown = (e: KeyboardEvent) => {
 		if (e.key === "Escape") {
 			e.preventDefault();
-			finish();
+			void finish();
 			return;
 		}
 		// Preact hands over the native event (react is aliased to
@@ -190,7 +204,7 @@ export function NotesSection({
 				: null;
 		if (!action) return;
 		e.preventDefault();
-		if (action === "done") finish();
+		if (action === "done") void finish();
 		else format(action);
 	};
 
@@ -244,7 +258,7 @@ export function NotesSection({
 						defaultValue={stored}
 						onInput={fit}
 						onKeyDown={onKeyDown}
-						onBlur={onBlur}
+						onBlur={() => void onBlur()}
 					/>
 				</>
 			) : hasNotes ? (
@@ -265,7 +279,7 @@ export function NotesSection({
 						type="button"
 						className="callander-button"
 						onMouseDown={(e) => e.preventDefault()}
-						onClick={finish}
+						onClick={() => void finish()}
 					>
 						<Icon name="check" />
 						<span>Done</span>

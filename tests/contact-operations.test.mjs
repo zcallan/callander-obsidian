@@ -490,5 +490,133 @@ export async function run() {
 		["climbing", "uni friends"]
 	);
 
+	// ---------- adding an idea when a read fails ----------
+	// addIdea used to read the list and write it back separately. A read
+	// that failed came back as no ideas, and the write then replaced every
+	// idea the friend had with the new one.
+	{
+		const t = await createTestVault();
+		const ada = await t.addPerson("Ada");
+		await t.contacts.addIdea(ada, "gift", "Tea caddy");
+		const cachedRead = t.vault.cachedRead;
+		t.vault.cachedRead = async () => {
+			throw new Error("busy");
+		};
+		try {
+			await t.contacts.addIdea(ada, "gift", "Climbing shoes");
+		} finally {
+			t.vault.cachedRead = cachedRead;
+		}
+		eq(
+			"the ideas already there survive a failed read",
+			(await t.contacts.readIdeas(ada)).map((i) => i.text),
+			["Tea caddy", "Climbing shoes"]
+		);
+	}
+
+	// ---------- filing an inbox idea onto a friend ----------
+	{
+		const inbox =
+			"---\nkind: dashboard\nideas:\n  - category: gift\n    text: Tea caddy\n    done: false\n---\n";
+		const t = await createTestVault();
+		const ada = await t.addPerson("Ada");
+		await t.vault.create(t.contacts.getDashboardFilePath(), inbox);
+		const moved = await t.contacts.moveInboxIdea(0, ada);
+		eq("filing returns the idea", moved?.text, "Tea caddy");
+		eq(
+			"...it lands on the friend",
+			(await t.contacts.readIdeas(ada)).map((i) => i.text),
+			["Tea caddy"]
+		);
+		eq("...and leaves the inbox", (await t.contacts.getInboxIdeas()).length, 0);
+
+		// Loss-ordered: added to the friend first, taken out of the inbox
+		// only after — so a write that fails leaves it where it was.
+		const u = await createTestVault();
+		const bo = await u.addPerson("Bo");
+		await u.vault.create(u.contacts.getDashboardFilePath(), inbox);
+		const process = u.vault.process;
+		u.vault.process = async function (file, fn) {
+			if (file.path === bo.path) throw new Error("locked");
+			return process.call(this, file, fn);
+		};
+		let failed = false;
+		try {
+			await u.contacts.moveInboxIdea(0, bo);
+		} catch {
+			failed = true;
+		} finally {
+			u.vault.process = process;
+		}
+		ok("a friend's note that can't be written fails the move", failed);
+		eq(
+			"...and the idea is still in the inbox",
+			(await u.contacts.getInboxIdeas()).map((i) => i.text),
+			["Tea caddy"]
+		);
+	}
+
+	// ---------- managing a group whose page isn't simply capitalised ----------
+	// A group is keyed by its page's basename lowercased, so "BJJ.md" is the
+	// group "bjj". Rebuilding the page's path from that key only ever guessed
+	// "Bjj.md" — and missed the real page every time.
+	{
+		const t = await createTestVault();
+		const page = await t.vault.create(
+			"Friends/Groups/BJJ.md",
+			"---\nname: BJJ\n---\n"
+		);
+		const ada = await t.addPerson("Ada", { groups: ["[[BJJ]]"] });
+		const cy = await t.addPerson("Cy", { groups: ["[[Book club]]"] });
+		const cyBefore = t.read(cy);
+
+		await t.contacts.setGroupColor("bjj", "#ff0000");
+		eq("a colour lands on the page that exists", t.frontmatterOf(page).color, "#ff0000");
+		ok(
+			"...and no second page is made beside it",
+			t.vault.getAbstractFileByPath("Friends/Groups/Bjj.md") === null
+		);
+		ok("ensuring the page finds it too", (await t.contacts.ensureGroupFile("bjj")) === page);
+
+		await t.contacts.renameGroup("bjj", "judo");
+		ok(
+			"renaming moves the page itself",
+			t.vault.getAbstractFileByPath("Friends/Groups/Judo.md") !== null &&
+				t.vault.getAbstractFileByPath("Friends/Groups/BJJ.md") === null
+		);
+		eq("...its members follow", ContactOperations.groupsOf(t.frontmatterOf(ada)), ["judo"]);
+		eq("...and a friend who isn't in it isn't rewritten", t.read(cy), cyBefore);
+
+		await t.contacts.deleteGroup("judo");
+		ok(
+			"deleting trashes the page",
+			t.vault.getAbstractFileByPath("Friends/Groups/Judo.md") === null
+		);
+		eq("...takes it off its members", "groups" in t.frontmatterOf(ada), false);
+		eq("...and still leaves everyone else alone", t.read(cy), cyBefore);
+	}
+
+	// ---------- renaming onto a name another group already has ----------
+	{
+		const t = await createTestVault();
+		await t.vault.create("Friends/Groups/Run club.md", "---\nname: Run club\n---\n");
+		await t.vault.create("Friends/Groups/Climbing.md", "---\nname: Climbing\n---\n");
+		const ada = await t.addPerson("Ada", { groups: ["[[Run club]]"] });
+		const adaBefore = t.read(ada);
+		let refused = false;
+		try {
+			await t.contacts.renameGroup("run club", "climbing");
+		} catch {
+			refused = true;
+		}
+		ok("is refused", refused);
+		eq("...before any member is touched", t.read(ada), adaBefore);
+		ok(
+			"...and both pages are still there",
+			t.vault.getAbstractFileByPath("Friends/Groups/Run club.md") !== null &&
+				t.vault.getAbstractFileByPath("Friends/Groups/Climbing.md") !== null
+		);
+	}
+
 	return result();
 }

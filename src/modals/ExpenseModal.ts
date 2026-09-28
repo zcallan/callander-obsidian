@@ -1,5 +1,7 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import { ConfirmModal } from "@/modals/ConfirmModal";
+import { guardedAction } from "@/components/guardedAction";
 import type { ContactWithCountdown, Expense } from "@/types";
 import { owedFor, payersOf, percentFromInput } from "@/utils/expenseMath";
 import { evaluateAmount } from "@/utils/calc";
@@ -833,46 +835,60 @@ export class ExpenseModal extends FormModal {
 		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
-		if (this.initial && this.onDelete) {
+		const onDelete = this.onDelete;
+		if (this.initial && onDelete) {
+			const label = this.initial.label;
 			const del = buttons.createEl("button", {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
-			const handleDelete = async () => {
-				await this.onDelete!();
-				this.close();
-			};
-			del.addEventListener("click", () => void handleDelete());
+			// Asks first, like every other edit form. An expense is an entry
+			// in a note's frontmatter, so nothing lands in the trash.
+			del.addEventListener("click", () => {
+				new ConfirmModal(
+					this.app,
+					"Delete expense",
+					`Delete "${label}"?`,
+					"Delete",
+					async () => {
+						await onDelete();
+						this.close();
+					}
+				).open();
+			});
 		}
 		const saveButton = buttons.createEl("button", {
 			text: this.initial ? "Save" : "Add",
 			cls: "callander-modal-button mod-cta",
 		});
-		const handleSave = async () => {
-			const label = labelInput.value.trim();
-			const isReceipt = this.mode === "receipt";
-			// A receipt's total is the sum of its lines, not a typed figure
-			const amount = isReceipt
-				? Math.round(this.receiptTotal() * 100) / 100
-				: Number(amountInput.value);
-			if (!label || !Number.isFinite(amount) || amount <= 0) return;
-			const shares = this.buildShares();
-			const exprs = this.buildExprs();
-			const people = this.peopleHandle?.wikilinks();
-			await this.onSubmit({
-				label,
-				amount,
-				...(people && { people }),
-				split: {
-					mode: this.mode,
-					...(shares && { shares }),
-					...(exprs && { exprs }),
-					...(isReceipt && this.tax !== null && { tax: this.tax }),
-					...(isReceipt && this.tip !== null && { tip: this.tip }),
-				},
-			});
-			this.close();
-		};
+		const handleSave = guardedAction(
+			async () => {
+				const label = labelInput.value.trim();
+				const isReceipt = this.mode === "receipt";
+				// A receipt's total is the sum of its lines, not a typed figure
+				const amount = isReceipt
+					? Math.round(this.receiptTotal() * 100) / 100
+					: Number(amountInput.value);
+				if (!label || !Number.isFinite(amount) || amount <= 0) return;
+				const shares = this.buildShares();
+				const exprs = this.buildExprs();
+				const people = this.peopleHandle?.wikilinks();
+				await this.onSubmit({
+					label,
+					amount,
+					...(people && { people }),
+					split: {
+						mode: this.mode,
+						...(shares && { shares }),
+						...(exprs && { exprs }),
+						...(isReceipt && this.tax !== null && { tax: this.tax }),
+						...(isReceipt && this.tip !== null && { tip: this.tip }),
+					},
+				});
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void handleSave());
 
 		// Fields that arrive already filled shouldn't grab focus — the same

@@ -1,6 +1,8 @@
 import { useCallback } from "react";
+import { Notice } from "obsidian";
 import type { Expense } from "@/types";
-import { partitionExpenses } from "@/utils/expenseMath";
+import type { ContactOperations } from "@/services/ContactOperations";
+import { locateExpense, partitionExpenses } from "@/utils/expenseMath";
 import { resolvePeopleNames } from "@/utils/people";
 import { shortNameOverrides } from "@/utils/nameFormat";
 import { ExpenseModal } from "@/modals/ExpenseModal";
@@ -12,6 +14,70 @@ import { ExpenseRow } from "@/ui/components/ExpenseRow";
 import styles from "./ExpensesSection.module.css";
 
 const EMPTY: Expense[] = [];
+
+/**
+ * Writes to one expense for as long as a modal has it open. It's found by
+ * what it held as well as where it sat (locateExpense): the list can change
+ * under an open modal — a sync, another window — and writing by position
+ * alone would change or delete whichever expense had moved into that place.
+ * If it has changed or gone, nothing is written.
+ *
+ * Keeps its own copy, updated after each write, because the view modal edits
+ * the object it was given in place before it saves.
+ *
+ * Nothing re-renders by hand after these: the write fires a vault event,
+ * which bumps the version, which re-renders whatever is subscribed.
+ */
+function expenseEditor(
+	ops: ContactOperations,
+	index: number,
+	opened: Expense
+) {
+	let known = structuredClone(opened);
+	const write = async (
+		change: (list: Expense[], at: number) => Expense | null
+	) => {
+		let found = true;
+		await ops.writeExpenses((list) => {
+			const at = locateExpense(list, index, known);
+			if (at === -1) {
+				found = false;
+				return;
+			}
+			const next = change(list, at);
+			if (next) known = structuredClone(next);
+		});
+		if (!found) {
+			new Notice(
+				"That expense changed or was removed since you opened it, so nothing was saved."
+			);
+		}
+	};
+	return {
+		/** The expense as last written here. */
+		current: () => structuredClone(known),
+		save: (updated: Expense) =>
+			write((list, at) => {
+				list[at] = updated;
+				return updated;
+			}),
+		remove: () =>
+			write((list, at) => {
+				list.splice(at, 1);
+				return null;
+			}),
+		setPaid: ({ paid, settled }: { paid: string[]; settled: boolean }) =>
+			write((list, at) => {
+				const current = list[at];
+				current.paid = paid;
+				if (settled) current.settled = true;
+				else delete current.settled;
+				return current;
+			}),
+	};
+}
+
+type ExpenseEditor = ReturnType<typeof expenseEditor>;
 
 /**
  * Ad-hoc expenses, at the foot of the dashboard.
@@ -58,25 +124,14 @@ export function ExpensesSection() {
 		[plugin.app, sourcePath, yourName]
 	);
 
-	// No `await this.refresh()` after these: the write fires a vault event,
-	// which bumps the version, which re-renders whatever is subscribed.
-	const saveAt = (index: number, updated: Expense) =>
-		ops.writeExpenses((list) => {
-			list[index] = updated;
-		});
-
-	const deleteAt = (index: number) =>
-		ops.writeExpenses((list) => {
-			list.splice(index, 1);
-		});
-
-	const edit = (index: number, expense: Expense) => {
+	const edit = (editor: ExpenseEditor) => {
+		const expense = editor.current();
 		new ExpenseModal(
 			plugin.app,
 			participantsFor(expense),
 			expense,
-			(updated) => saveAt(index, updated),
-			() => deleteAt(index),
+			(updated) => editor.save(updated),
+			() => editor.remove(),
 			yourName,
 			(plugin.settings.receiptTaxEnabled ? plugin.settings.receiptTaxPercent : null),
 			(plugin.settings.receiptTipEnabled ? plugin.settings.receiptTipPercent : null),
@@ -85,22 +140,17 @@ export function ExpensesSection() {
 	};
 
 	const openView = (index: number, expense: Expense) => {
+		const editor = expenseEditor(ops, index, expense);
 		new ExpenseViewModal(
 			plugin.app,
 			expense,
 			participantsFor(expense),
-			() => edit(index, expense),
-			() => deleteAt(index),
+			// The same editor, so a save after ticking boxes here finds the
+			// expense as those ticks left it.
+			() => edit(editor),
+			() => editor.remove(),
 			yourName,
-			async ({ paid, settled }) => {
-				await ops.writeExpenses((list) => {
-					const current = list[index];
-					if (!current) return;
-					current.paid = paid;
-					if (settled) current.settled = true;
-					else delete current.settled;
-				});
-			},
+			(changes) => editor.setPaid(changes),
 			shortNames
 		).open();
 	};

@@ -1,4 +1,5 @@
 import { App, setIcon } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { renderCategoryChips } from "@/components/categoryChips";
 import type { AccommodationType, BookingState, TravelType } from "@/constants";
@@ -497,41 +498,44 @@ export class PlanSimpleItemModal extends FormModal {
 			text: this.initial ? "Save" : "Add",
 			cls: "callander-modal-button mod-cta",
 		});
-		const submit = async () => {
-			const text = textInput.value.trim();
-			if (!text) return;
-			const durationValue = duration?.value() ?? "";
-			const stayHours = hours?.values();
-			const address = addressInput?.value.trim() ?? "";
-			const notes = notesInput?.value.trim() ?? "";
-			// Blank stays unknown; an explicit 0 is kept as "free".
-			const costStr = costInput.value.trim();
-			const costNum = Number(costStr);
-			const cost =
-				costStr !== "" && Number.isFinite(costNum) && costNum >= 0
-					? costNum
-					: undefined;
-			await this.onSubmit({
-				text,
-				...(this.type && !this.stay && { type: this.type }),
-				...(this.stay && this.stayType && { stay: this.stayType }),
-				...(schedule?.values() ?? {}),
-				...(people?.value() && { people: people.value() }),
-				...(durationValue && { duration: durationValue }),
-				...(this.stay && { nights: this.nights }),
-				...(stayHours?.from && { checkIn: stayHours.from }),
-				...(stayHours?.to && { checkOut: stayHours.to }),
-				...(address && { address }),
-				...(this.stay &&
-					this.categories.length > 0 && {
-						categories: [...this.categories],
-					}),
-				...(this.booked && { booked: this.booked }),
-				...(notes && { notes }),
-				...(cost !== undefined && { cost }),
-			});
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const text = textInput.value.trim();
+				if (!text) return;
+				const durationValue = duration?.value() ?? "";
+				const stayHours = hours?.values();
+				const address = addressInput?.value.trim() ?? "";
+				const notes = notesInput?.value.trim() ?? "";
+				// Blank stays unknown; an explicit 0 is kept as "free".
+				const costStr = costInput.value.trim();
+				const costNum = Number(costStr);
+				const cost =
+					costStr !== "" && Number.isFinite(costNum) && costNum >= 0
+						? costNum
+						: undefined;
+				await this.onSubmit({
+					text,
+					...(this.type && !this.stay && { type: this.type }),
+					...(this.stay && this.stayType && { stay: this.stayType }),
+					...(schedule?.values() ?? {}),
+					...(people?.value() && { people: people.value() }),
+					...(durationValue && { duration: durationValue }),
+					...(this.stay && { nights: this.nights }),
+					...(stayHours?.from && { checkIn: stayHours.from }),
+					...(stayHours?.to && { checkOut: stayHours.to }),
+					...(address && { address }),
+					...(this.stay &&
+						this.categories.length > 0 && {
+							categories: [...this.categories],
+						}),
+					...(this.booked && { booked: this.booked }),
+					...(notes && { notes }),
+					...(cost !== undefined && { cost }),
+				});
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void submit());
 		const inputs: HTMLElement[] = [textInput, costInput];
 

@@ -1,4 +1,5 @@
 import {
+	NOTES_HEADING,
 	readSection,
 	upsertSection,
 	type SectionSpec,
@@ -34,6 +35,22 @@ export const DRAFTS_SECTION: SectionSpec = {
 	// No sub-structure of its own, but a `###` a person adds by hand should
 	// stay inside rather than end the list.
 	closes: /^#{1,2}\s/,
+};
+
+/**
+ * The same checklist in a plan's own note, where it shares the body with the
+ * plan's `## Notes`. Like every generated section there it sits above that
+ * heading, and is only looked for above it (SectionSpec.above) — otherwise a
+ * first draft is appended after the Notes, which run to the end of the file,
+ * and the checklist reads as part of them: shown in the Notes box, and gone
+ * the next time the notes are saved.
+ *
+ * The dashboard note has no Notes section, so it keeps DRAFTS_SECTION, and
+ * finds its checklist wherever it sits.
+ */
+export const PAGE_DRAFTS_SECTION: SectionSpec = {
+	...DRAFTS_SECTION,
+	above: NOTES_HEADING,
 };
 
 /** One draft in the checklist. */
@@ -159,9 +176,15 @@ export function serializeDraftLine(draft: LedgerDraft): string {
 	return `- ${box} ${text}${person}${date}${flag}${created}${done}`;
 }
 
-/** The section's drafts in file order, or null when there's no `## Drafts`. */
-export function parseDraftsSection(body: string): LedgerDraft[] | null {
-	const lines = readSection(body, DRAFTS_SECTION);
+/**
+ * The section's drafts in file order, or null when there's no `## Drafts`.
+ * A plan's own note passes PAGE_DRAFTS_SECTION.
+ */
+export function parseDraftsSection(
+	body: string,
+	spec: SectionSpec = DRAFTS_SECTION
+): LedgerDraft[] | null {
+	const lines = readSection(body, spec);
 	if (lines === null) return null;
 	const drafts: LedgerDraft[] = [];
 	for (const line of lines) {
@@ -178,14 +201,10 @@ export function renderDraftLines(drafts: readonly LedgerDraft[]): string[] {
 
 export function upsertDraftsSection(
 	body: string,
-	drafts: readonly LedgerDraft[]
+	drafts: readonly LedgerDraft[],
+	spec: SectionSpec = DRAFTS_SECTION
 ): string {
-	return upsertSection(
-		body,
-		DRAFTS_SECTION,
-		renderDraftLines(drafts),
-		isDraftLine
-	);
+	return upsertSection(body, spec, renderDraftLines(drafts), isDraftLine);
 }
 
 /**

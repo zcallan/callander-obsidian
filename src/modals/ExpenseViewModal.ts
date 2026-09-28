@@ -126,9 +126,15 @@ export class ExpenseViewModal extends Modal {
 				check.checked = paid.includes(p);
 				check.addEventListener("click", (e) => e.stopPropagation());
 				check.addEventListener("change", () => {
-					const next = check.checked
-						? [...paid, p]
-						: paid.filter((x) => x !== p);
+					// From the expense as it stands, not as it was drawn: a
+					// tick a moment ago may still be saving, and one built
+					// on the drawn state would write over it.
+					const others = paidStateOf(
+						this.cost,
+						paying,
+						this.yourName
+					).filter((x) => x !== p);
+					const next = check.checked ? [...others, p] : others;
 					void this.commit(next, isFullyPaid(next, paying));
 				});
 

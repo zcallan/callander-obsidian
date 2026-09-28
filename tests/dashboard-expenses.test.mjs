@@ -1,5 +1,6 @@
 import { createSuite } from "./harness.mjs";
 import { createTestVault } from "./vault.mjs";
+import { sameExpense } from "./.build/callander.mjs";
 
 /**
  * Ad-hoc expenses persisting to the dashboard file's frontmatter. This is
@@ -138,6 +139,36 @@ export async function run() {
 			false
 		);
 		eq("...and reads back as empty", await t.contacts.getExpenses(), []);
+	}
+
+	// ---------- what was written is still the one opened ----------
+	// A modal's save finds its expense by content (locateExpense), so what
+	// a save writes has to read back as the same expense. Otherwise the
+	// modal's next save would decide it had gone, and refuse.
+	{
+		const t = await createTestVault();
+		const written = expense({
+			people: ["[[Riley Sorensen]]"],
+			paid: [],
+			split: {
+				mode: "receipt",
+				shares: { Callan: 20, Riley: 40 },
+				exprs: { Callan: "10+10" },
+				tax: 6.25,
+			},
+		});
+		await t.contacts.writeExpenses((list) => list.push(written));
+		const [read] = await t.contacts.getExpenses();
+		ok("an expense reads back as the one written", sameExpense(read, written));
+		await t.contacts.writeExpenses((list) => {
+			list[0].paid = ["Callan", "Riley"];
+			list[0].settled = true;
+		});
+		const [ticked] = await t.contacts.getExpenses();
+		ok(
+			"…and again once ticks have settled it",
+			sameExpense(ticked, { ...written, paid: ["Callan", "Riley"], settled: true })
+		);
 	}
 
 	// ---------- kept apart from a plan's own costs ----------

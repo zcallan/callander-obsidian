@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import type { ContactWithCountdown } from "@/types";
 
@@ -62,20 +63,23 @@ export class DraftEditModal extends FormModal {
 			cls: "callander-modal-button mod-cta",
 		});
 
-		const submit = async () => {
-			const text = textInput.value.trim();
-			if (!text) return;
-			const query = friendInput.value.trim().toLowerCase();
-			const contact = query
-				? this.contacts.find(
-						(c) =>
-							c.displayName.toLowerCase() === query ||
-							c.name.toLowerCase() === query
-				  ) ?? null
-				: null;
-			await this.onSubmit(text, contact);
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const text = textInput.value.trim();
+				if (!text) return;
+				const query = friendInput.value.trim().toLowerCase();
+				const contact = query
+					? this.contacts.find(
+							(c) =>
+								c.displayName.toLowerCase() === query ||
+								c.name.toLowerCase() === query
+					  ) ?? null
+					: null;
+				await this.onSubmit(text, contact);
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 
 		saveButton.addEventListener("click", () => void submit());
 		textInput.addEventListener("keydown", (event) => {

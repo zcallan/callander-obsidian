@@ -575,6 +575,10 @@ export class EventOperations {
 				description: existing.description || undefined,
 				source,
 				variant: existing.variant,
+				// Every field updateEvent isn't given is cleared, and an
+				// event you'd kept off people's timelines would reappear on
+				// them the next time its diary entry was edited.
+				showOnTimelines: existing.showOnTimelines,
 			});
 			return;
 		}

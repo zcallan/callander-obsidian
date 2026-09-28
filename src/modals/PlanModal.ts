@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import { createFlexDateInput } from "@/components/FlexDateInput";
@@ -85,18 +86,21 @@ export class PlanModal extends FormModal {
 			cls: "callander-modal-button mod-cta",
 		});
 
-		const submit = async () => {
-			const name = nameInput.value.trim();
-			if (!name) return;
-			const file = await this.plugin.planOperations.createPlan(
-				name,
-				dateValue,
-				locationInput.value,
-				endDateValue
-			);
-			this.close();
-			this.onCreated(file);
-		};
+		const submit = guardedAction(
+			async () => {
+				const name = nameInput.value.trim();
+				if (!name) return;
+				const file = await this.plugin.planOperations.createPlan(
+					name,
+					dateValue,
+					locationInput.value,
+					endDateValue
+				);
+				this.close();
+				this.onCreated(file);
+			},
+			{ buttons: [createButton] }
+		);
 		createButton.addEventListener("click", () => void submit());
 		nameInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {

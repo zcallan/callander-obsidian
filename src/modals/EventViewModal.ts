@@ -1,4 +1,5 @@
 import { App, Modal, Notice, setIcon } from "obsidian";
+import { reportFailure } from "@/components/guardedAction";
 import type FriendTracker from "@/main";
 import type { ContactWithCountdown, EventInfo } from "@/types";
 import { EventModal } from "@/modals/EventModal";
@@ -116,7 +117,12 @@ export class EventViewModal extends Modal {
 		const value = this.pendingColor;
 		if (value === null) return;
 		this.pendingColor = null;
-		await this.plugin.eventOperations.setColor(this.event.file, value);
+		try {
+			await this.plugin.eventOperations.setColor(this.event.file, value);
+		} catch (error) {
+			this.pendingColor ??= value; // unless a newer pick replaced it
+			reportFailure("Couldn't save the colour", error);
+		}
 	}
 
 
@@ -184,19 +190,27 @@ export class EventViewModal extends Modal {
 	}
 
 	/** Write whatever's pending now — called on blur and on close, so a
-	 * quick edit-then-dismiss never loses the last few keystrokes. */
-	private async flushDescription() {
+	 * quick edit-then-dismiss never loses the last few keystrokes. False if
+	 * the write failed, which has been reported already. */
+	private async flushDescription(): Promise<boolean> {
 		if (this.descSaveTimer !== null) {
 			window.clearTimeout(this.descSaveTimer);
 			this.descSaveTimer = null;
 		}
-		if (!this.descDirty) return;
+		if (!this.descDirty) return true;
 		this.descDirty = false;
-		await this.plugin.eventOperations.setDescription(
-			this.event.file,
-			this.description.trim()
-		);
+		try {
+			await this.plugin.eventOperations.setDescription(
+				this.event.file,
+				this.description.trim()
+			);
+		} catch (error) {
+			this.descDirty = true; // still unsaved, so closing tries again
+			reportFailure("Couldn't save the description", error);
+			return false;
+		}
 		await this.onChange();
+		return true;
 	}
 
 	async onOpen() {
@@ -310,7 +324,7 @@ export class EventViewModal extends Modal {
 
 		const editRow = contentEl.createDiv({ cls: "someday-view-actions" });
 		button(editRow, "pencil", "Edit details", async () => {
-			await this.flushDescription();
+			if (!(await this.flushDescription())) return;
 			this.close();
 			new EventModal(this.app, this.plugin, e, this.onChange).open();
 		});
@@ -323,7 +337,7 @@ export class EventViewModal extends Modal {
 			isCancelled ? "rotate-ccw" : "circle-slash",
 			isCancelled ? "Restore" : "Cancel",
 			async () => {
-				await this.flushDescription();
+				if (!(await this.flushDescription())) return;
 				await this.plugin.eventOperations.setStatus(
 					e.file,
 					isCancelled ? "open" : "cancelled"
@@ -371,7 +385,7 @@ export class EventViewModal extends Modal {
 				isTimeline ? "eye" : "eye-off",
 				isTimeline ? "Show on dashboard" : "Hide from dashboard",
 				async () => {
-					await this.flushDescription();
+					if (!(await this.flushDescription())) return;
 					await this.plugin.eventOperations.setVariant(
 						e.file,
 						isTimeline ? "reminder" : "timeline"
@@ -450,7 +464,7 @@ export class EventViewModal extends Modal {
 				isDone ? "rotate-ccw" : "check",
 				isDone ? "Reopen" : "Done",
 				async () => {
-					await this.flushDescription();
+					if (!(await this.flushDescription())) return;
 					await this.plugin.eventOperations.setStatus(
 						e.file,
 						isDone ? "open" : "done"
@@ -480,7 +494,7 @@ export class EventViewModal extends Modal {
 			// Awaited, like Done above: the description's debounce may still
 			// be pending, and the event should be written before its plan
 			// starts existing alongside it.
-			await this.flushDescription();
+			if (!(await this.flushDescription())) return;
 			this.close();
 			this.plugin.convertEventToPlan(
 				{ ...e, description: this.description },

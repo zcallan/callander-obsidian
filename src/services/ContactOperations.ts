@@ -107,6 +107,33 @@ export class ContactOperations {
 	}
 
 	/**
+	 * Add one idea to the end of a file's list, reading that list inside the
+	 * same `vault.process` that writes it — so it's the file as it stands at
+	 * that moment. Reading first (readIdeas) and writing after lost ideas two
+	 * ways: a read that failed came back as no ideas at all, so the write
+	 * replaced every idea the friend had with this one, and an idea saved in
+	 * between (their open page autosaving) was written over.
+	 *
+	 * A note with no `## Ideas` yet falls back to its frontmatter list, as
+	 * readIdeas does, so none of those are dropped: the stale key is cleared
+	 * by the next migrateIdeasToBody, once the body holds them.
+	 */
+	private async appendIdea(file: TFile, idea: Idea): Promise<void> {
+		await this.app.vault.process(file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			const ideas =
+				parseIdeasSection(body) ??
+				ContactOperations.ideasOf(
+					this.app.metadataCache.getFileCache(file)?.frontmatter
+				);
+			return joinFrontmatter(
+				frontmatter,
+				upsertIdeasSection(body, [...ideas, idea])
+			);
+		});
+	}
+
+	/**
 	 * Move a file's ideas out of frontmatter and into the body, once.
 	 *
 	 * Ordered so a failure is always recoverable: the body is written
@@ -586,10 +613,44 @@ export class ContactOperations {
 		return file;
 	}
 
-	/** Rename a group everywhere: its page and every member's frontmatter */
+	/**
+	 * A group's own page, found by its key — the page's basename lowercased,
+	 * the rule getGroupInfos files pages under. Not rebuilt as a path from
+	 * the key: the key is lowercase, so that could only guess the page's
+	 * capitalisation, and "BJJ.md" or "Run n' Chug.md" was never found.
+	 */
+	groupPageOf(name: string): TFile | null {
+		const key = ContactOperations.groupName(name);
+		const folder = this.app.vault.getFolderByPath(this.getGroupsFolderPath());
+		if (!folder) return null;
+		for (const f of folder.children) {
+			if (
+				f instanceof TFile &&
+				f.extension === "md" &&
+				f.basename.toLowerCase() === key
+			) {
+				return f;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Rename a group everywhere: its page and every member's frontmatter.
+	 *
+	 * Refuses a name another group's page already has, before touching
+	 * anything — members would otherwise be moved across and then the page
+	 * rename fail on the taken name, leaving the job half done.
+	 */
 	async renameGroup(oldName: string, newName: string): Promise<void> {
 		const normalized = newName.trim().toLowerCase();
 		if (!normalized || normalized === oldName) return;
+
+		const oldFile = this.groupPageOf(oldName);
+		const taken = this.groupPageOf(normalized);
+		if (taken && taken !== oldFile) {
+			throw new Error(`A group called "${taken.basename}" already exists`);
+		}
 
 		// Built once, outside the per-file loop — each call walks the
 		// Groups folder. The renamed group's page hasn't moved yet, so its
@@ -597,30 +658,18 @@ export class ContactOperations {
 		const display = this.groupDisplayNames();
 		display.set(normalized, newName.trim());
 
-		await this.forEachContactFile((file, fm) => {
-			const groups = ContactOperations.groupsOf(fm);
-			if (groups.includes(oldName)) {
-				fm.groups = [
-					...new Set(
-						groups.map((g) => (g === oldName ? normalized : g))
-					),
-				].map((g) => ContactOperations.groupLink(g, display.get(g)));
-			}
+		await this.editMembersOf(oldName, (fm, groups) => {
+			fm.groups = [
+				...new Set(groups.map((g) => (g === oldName ? normalized : g))),
+			].map((g) => ContactOperations.groupLink(g, display.get(g)));
 		});
 
-		const oldFile = this.app.vault.getAbstractFileByPath(
-			normalizePath(
-				`${this.getGroupsFolderPath()}/${this.prettyGroupName(
-					oldName
-				)}.md`
-			)
-		);
 		const newPath = normalizePath(
 			`${this.getGroupsFolderPath()}/${this.prettyGroupName(
 				normalized
 			)}.md`
 		);
-		if (oldFile instanceof TFile) {
+		if (oldFile) {
 			await this.writeFrontMatter(oldFile, (fm) => {
 					fm.name = this.prettyGroupName(normalized);
 				}
@@ -634,27 +683,16 @@ export class ContactOperations {
 	/** Remove the group from every member and trash its page */
 	async deleteGroup(name: string): Promise<void> {
 		const display = this.groupDisplayNames();
-		await this.forEachContactFile((file, fm) => {
-			const groups = ContactOperations.groupsOf(fm);
-			if (groups.includes(name)) {
-				const kept = groups.filter((g) => g !== name);
-				if (kept.length > 0) {
-					fm.groups = kept.map((g) =>
-						ContactOperations.groupLink(g, display.get(g))
-					);
-				} else delete fm.groups;
-			}
+		await this.editMembersOf(name, (fm, groups) => {
+			const kept = groups.filter((g) => g !== name);
+			if (kept.length > 0) {
+				fm.groups = kept.map((g) =>
+					ContactOperations.groupLink(g, display.get(g))
+				);
+			} else delete fm.groups;
 		});
-		const file = this.app.vault.getAbstractFileByPath(
-			normalizePath(
-				`${this.getGroupsFolderPath()}/${this.prettyGroupName(
-					name
-				)}.md`
-			)
-		);
-		if (file instanceof TFile) {
-			await this.app.fileManager.trashFile(file);
-		}
+		const file = this.groupPageOf(name);
+		if (file) await this.app.fileManager.trashFile(file);
 	}
 
 	async addFriendToGroup(file: TFile, group: string): Promise<void> {
@@ -685,8 +723,18 @@ export class ContactOperations {
 		);
 	}
 
-	private async forEachContactFile(
-		fn: (file: TFile, frontmatter: Record<string, unknown>) => void
+	/**
+	 * Edit the frontmatter of each person in `group`, and no one else.
+	 *
+	 * Members are picked from the metadata cache first: writing every friend's
+	 * file stamped them all as updated today and made a sync re-upload the
+	 * whole People folder, just to rename one group. The edit is still only
+	 * applied if the file, as written, lists the group. A note the cache
+	 * hasn't indexed yet can't be ruled out, so it's left to that check.
+	 */
+	private async editMembersOf(
+		group: string,
+		edit: (frontmatter: Record<string, unknown>, groups: string[]) => void
 	): Promise<void> {
 		const folder = this.app.vault.getFolderByPath(
 			this.getPeopleFolderPath()
@@ -694,10 +742,17 @@ export class ContactOperations {
 		if (!folder) return;
 		for (const file of folder.children) {
 			if (!(file instanceof TFile) || file.extension !== "md") continue;
+			const cache = this.app.metadataCache.getFileCache(file);
+			if (
+				cache &&
+				!ContactOperations.groupsOf(cache.frontmatter).includes(group)
+			) {
+				continue;
+			}
 			await this.writeFrontMatter(file, (fm) => {
-					fn(file, fm);
-				}
-			);
+				const groups = ContactOperations.groupsOf(fm);
+				if (groups.includes(group)) edit(fm, groups);
+			});
 		}
 	}
 
@@ -706,10 +761,10 @@ export class ContactOperations {
 		if (!this.app.vault.getAbstractFileByPath(folderPath)) {
 			await this.app.vault.createFolder(folderPath);
 		}
+		const existing = this.groupPageOf(name);
+		if (existing) return existing;
 		const pretty = name.charAt(0).toUpperCase() + name.slice(1);
 		const path = normalizePath(`${folderPath}/${pretty}.md`);
-		const existing = this.app.vault.getAbstractFileByPath(path);
-		if (existing instanceof TFile) return existing;
 		return await this.app.vault.create(
 			path,
 			`---\nname: ${JSON.stringify(pretty)}\n---\n`
@@ -803,30 +858,43 @@ export class ContactOperations {
 		});
 	}
 
-	/** Move an inbox idea onto a friend (or group) file */
+	/**
+	 * File an inbox idea onto a friend.
+	 *
+	 * Loss-ordered, like every move here: the idea is added to the friend
+	 * first and only then taken out of the inbox, so a write that fails in
+	 * between leaves it in both places — visible, and fixable — rather than
+	 * in neither. The inbox copy is matched by content as well as position,
+	 * in case the list moved while the friend's note was being written.
+	 */
 	async moveInboxIdea(index: number, target: TFile): Promise<Idea | null> {
 		const inbox = this.app.vault.getAbstractFileByPath(this.getDashboardFilePath());
 		if (!(inbox instanceof TFile)) return null;
-		let moved: Idea | null = null;
+		const idea = ContactOperations.ideasOf(
+			this.app.metadataCache.getFileCache(inbox)?.frontmatter
+		)[index];
+		if (!idea) return null;
+
+		// The inbox itself stays in the dashboard's frontmatter — it's a
+		// queue, not a person's record — but the friend it lands on keeps
+		// its ideas in the body like any other.
+		await this.migrateIdeasToBody(target);
+		await this.appendIdea(target, idea);
+		await this.writeFrontMatter(target, () => undefined);
+
+		const same = (i: Idea) => JSON.stringify(i) === JSON.stringify(idea);
 		await this.writeFrontMatter(inbox, (fm) => {
 				const ideas = ContactOperations.ideasOf(fm);
-				if (index >= 0 && index < ideas.length) {
-					moved = ideas.splice(index, 1)[0];
-				}
+				const at =
+					ideas[index] && same(ideas[index])
+						? index
+						: ideas.findIndex(same);
+				if (at !== -1) ideas.splice(at, 1);
 				delete fm.giftIdeas;
 				fm.ideas = ideas;
 			}
 		);
-		if (moved) {
-			// The inbox itself stays in the dashboard's frontmatter — it's a
-			// queue, not a person's record — but the friend it lands on
-			// keeps its ideas in the body like any other.
-			await this.migrateIdeasToBody(target);
-			const ideas = await this.readIdeas(target);
-			await this.writeIdeas(target, [...ideas, moved]);
-			await this.writeFrontMatter(target, () => undefined);
-		}
-		return moved;
+		return idea;
 	}
 
 	/** Record that this year's birthday wish was sent (dashboard "Missed") */
@@ -849,8 +917,7 @@ export class ContactOperations {
 		text: string
 	): Promise<void> {
 		await this.migrateIdeasToBody(file);
-		const ideas = await this.readIdeas(file);
-		await this.writeIdeas(file, [...ideas, { category, text, done: false }]);
+		await this.appendIdea(file, { category, text, done: false });
 		// The body write doesn't touch frontmatter, so the person's
 		// last-updated stamp has to be set on its own.
 		await this.writeFrontMatter(file, () => undefined);

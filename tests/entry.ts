@@ -48,6 +48,9 @@ export * from "@/utils/draftsMarkdown";
 export * from "@/utils/timezoneBanner";
 export * from "@/utils/dashboardOrder";
 export * from "@/utils/emoji";
+export * from "@/utils/frontmatterPatch";
+export * from "@/components/guardedAction";
+export * from "@/utils/clock";
 export {
 	formatSomedayDays,
 	formatSomedaySeasons,

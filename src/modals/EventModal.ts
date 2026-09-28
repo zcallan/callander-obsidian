@@ -1,4 +1,5 @@
 import { App, Notice, setIcon } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
@@ -420,76 +421,79 @@ export class EventModal extends FormModal {
 			cls: "callander-modal-button mod-cta",
 		});
 
-		const submit = async () => {
-			const name = nameInput.value.trim();
-			if (!name) {
-				nameInput.focus();
-				return;
-			}
-			// An event is a thing with a date on it; without one it's a
-			// someday, which has its own page and its own shape. Enforced
-			// here rather than in EventOperations, because the migration
-			// from the old reminders still has to be able to carry an
-			// undated one across rather than drop it.
-			if (!dateValue.trim()) {
-				new Notice("An event needs a date — add one, or make it a someday.");
-				dateField
-					.querySelector<HTMLElement>("input, select")
-					?.focus();
-				return;
-			}
-			const picked = people.wikilinks();
-			// Hiding an event only makes sense when someone's timeline can
-			// still show it. With nobody on it there's nowhere for it to
-			// go, so it stays on the calendar however the tick was left —
-			// the alternative is a note you can't reach from anywhere.
-			const wanted: EventFields["variant"] = showBox
-				? showBox.checked
-					? "reminder"
-					: "timeline"
-				: this.existing?.variant ?? "reminder";
-			const fields: EventFields = {
-				name,
-				date: dateValue.trim() || undefined,
-				time: time.value() || undefined,
-				timezone: time.timezone() || undefined,
-				duration: duration.value() || undefined,
-				type: this.type,
-				people: picked,
-				location: locInput.value.trim() || undefined,
-				link: linkInput.value.trim() || undefined,
-				description: descInput.value.trim() || undefined,
-				categories,
-				// Flags the form doesn't edit carry over unchanged.
-				source: this.existing?.source || this.prefill?.source,
-				// Only the calendar-side form asks this. From a person's page
-				// the answer is already yes — that's where it's being added
-				// or edited — and with nobody on it there's no timeline
-				// either way, so the default (absent, meaning yes) is the
-				// honest record. An edit reached from a person's page can
-				// only be an event already showing there, so keeping
-				// `this.existing?.showOnTimelines` rather than forcing it
-				// comes out the same either way, without a special case here.
-				showOnTimelines: timelineBox
-					? picked.length > 0
-						? timelineBox.checked
-						: undefined
-					: this.existing?.showOnTimelines,
-				// Without the tick, an edit keeps whatever it already had —
-				// forcing a default here would silently un-hide an event
-				// you'd deliberately hidden. A new one is a calendar entry,
-				// which is what asking from the dashboard already implies.
-				variant: picked.length === 0 ? "reminder" : wanted,
-			};
-			const ops = this.plugin.eventOperations;
-			if (this.existing) {
-				await ops.updateEvent(this.existing.file, fields);
-			} else {
-				await ops.createEvent(fields);
-			}
-			await this.onChange();
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const name = nameInput.value.trim();
+				if (!name) {
+					nameInput.focus();
+					return;
+				}
+				// An event is a thing with a date on it; without one it's a
+				// someday, which has its own page and its own shape. Enforced
+				// here rather than in EventOperations, because the migration
+				// from the old reminders still has to be able to carry an
+				// undated one across rather than drop it.
+				if (!dateValue.trim()) {
+					new Notice("An event needs a date — add one, or make it a someday.");
+					dateField
+						.querySelector<HTMLElement>("input, select")
+						?.focus();
+					return;
+				}
+				const picked = people.wikilinks();
+				// Hiding an event only makes sense when someone's timeline can
+				// still show it. With nobody on it there's nowhere for it to
+				// go, so it stays on the calendar however the tick was left —
+				// the alternative is a note you can't reach from anywhere.
+				const wanted: EventFields["variant"] = showBox
+					? showBox.checked
+						? "reminder"
+						: "timeline"
+					: this.existing?.variant ?? "reminder";
+				const fields: EventFields = {
+					name,
+					date: dateValue.trim() || undefined,
+					time: time.value() || undefined,
+					timezone: time.timezone() || undefined,
+					duration: duration.value() || undefined,
+					type: this.type,
+					people: picked,
+					location: locInput.value.trim() || undefined,
+					link: linkInput.value.trim() || undefined,
+					description: descInput.value.trim() || undefined,
+					categories,
+					// Flags the form doesn't edit carry over unchanged.
+					source: this.existing?.source || this.prefill?.source,
+					// Only the calendar-side form asks this. From a person's page
+					// the answer is already yes — that's where it's being added
+					// or edited — and with nobody on it there's no timeline
+					// either way, so the default (absent, meaning yes) is the
+					// honest record. An edit reached from a person's page can
+					// only be an event already showing there, so keeping
+					// `this.existing?.showOnTimelines` rather than forcing it
+					// comes out the same either way, without a special case here.
+					showOnTimelines: timelineBox
+						? picked.length > 0
+							? timelineBox.checked
+							: undefined
+						: this.existing?.showOnTimelines,
+					// Without the tick, an edit keeps whatever it already had —
+					// forcing a default here would silently un-hide an event
+					// you'd deliberately hidden. A new one is a calendar entry,
+					// which is what asking from the dashboard already implies.
+					variant: picked.length === 0 ? "reminder" : wanted,
+				};
+				const ops = this.plugin.eventOperations;
+				if (this.existing) {
+					await ops.updateEvent(this.existing.file, fields);
+				} else {
+					await ops.createEvent(fields);
+				}
+				await this.onChange();
+				this.close();
+			},
+			{ buttons: [saveBtn] }
+		);
 		saveBtn.addEventListener("click", () => void submit());
 		const onEnter = (e: KeyboardEvent) => {
 			if (e.key === "Enter") {

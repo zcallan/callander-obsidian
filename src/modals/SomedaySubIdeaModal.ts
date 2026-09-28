@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 
 /** One text field — add a sub-idea to a Someday (a bakery on the Maine trip). */
@@ -31,12 +32,15 @@ export class SomedaySubIdeaModal extends FormModal {
 			text: "Add",
 			cls: "callander-modal-button mod-cta",
 		});
-		const submit = async () => {
-			const text = input.value.trim();
-			if (!text) return;
-			await this.onSubmit(text);
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const text = input.value.trim();
+				if (!text) return;
+				await this.onSubmit(text);
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void submit());
 		input.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {

@@ -12,6 +12,10 @@ import {
 	upsertIdeasSection,
 	parseQuotesSection,
 	upsertQuotesSection,
+	PAGE_DRAFTS_SECTION,
+	parseDraftsSection,
+	upsertDraftsSection,
+	rescueDraftsFromNotes,
 } from "./.build/callander.mjs";
 
 /** The three generated sections, exactly as their writers lay them out. */
@@ -250,6 +254,115 @@ export function run() {
 		foldFrontmatterNotes("   \n ", "Body."),
 		"Body."
 	);
+
+	// ---------- a plan's drafts beside its notes ----------
+	// A plan keeps its own `## Drafts` checklist in the same body as its
+	// Notes. Before PAGE_DRAFTS_SECTION the checklist could land after the
+	// Notes — which run to the end of the file — and be read, and then saved
+	// away, as notes.
+	{
+		const draft = { text: "Book flights", created: "2026-09-01", done: false };
+		const LINE = "- [ ] Book flights ➕ 2026-09-01";
+
+		const added = upsertDraftsSection(
+			"## Notes\n\nBring sunscreen\n",
+			[draft],
+			PAGE_DRAFTS_SECTION
+		);
+		eq(
+			"a plan's first draft goes above its notes",
+			added,
+			`## Drafts\n\n${LINE}\n\n## Notes\n\nBring sunscreen\n`
+		);
+		eq("...so the notes don't read the checklist", parseNotesSection(added), "Bring sunscreen");
+		eq(
+			"...and saving the notes keeps the drafts",
+			parseDraftsSection(
+				upsertNotesSection(added, "Bring sunscreen and hats"),
+				PAGE_DRAFTS_SECTION
+			),
+			[draft]
+		);
+
+		const draftsOnly = `## Drafts\n\n${LINE}\n`;
+		eq(
+			"adopting notes doesn't take a plan's drafts for loose prose",
+			adoptNotes(draftsOnly, ""),
+			draftsOnly
+		);
+		eq(
+			"...and an older frontmatter note lands below them",
+			adoptNotes(draftsOnly, "From fm."),
+			`## Drafts\n\n${LINE}\n\n## Notes\n\nFrom fm.\n`
+		);
+
+		const dashboardish = `## Notes\n\nx\n\n## Drafts\n\n${LINE}\n`;
+		eq(
+			"the dashboard's spec still finds a checklist below a Notes heading",
+			parseDraftsSection(dashboardish),
+			[draft]
+		);
+		eq(
+			"...while a plan's only looks above it",
+			parseDraftsSection(dashboardish, PAGE_DRAFTS_SECTION),
+			null
+		);
+
+		// ---------- rescuing drafts an older release left inside the notes ----------
+		const appended = `## Notes\n\nBring sunscreen\n\n## Drafts\n\n${LINE}\n`;
+		eq(
+			"a checklist appended after the notes moves back above them",
+			rescueDraftsFromNotes(appended),
+			`## Drafts\n\n${LINE}\n\n## Notes\n\nBring sunscreen\n`
+		);
+		eq(
+			"rescuing twice changes nothing more",
+			rescueDraftsFromNotes(rescueDraftsFromNotes(appended)),
+			rescueDraftsFromNotes(appended)
+		);
+		eq(
+			"a checklist adopted as notes comes back out, and the empty notes go",
+			rescueDraftsFromNotes(`## Notes\n\n## Drafts\n\n${LINE}\n`),
+			`## Drafts\n\n${LINE}\n`
+		);
+		const healthy = `## Drafts\n\n${LINE}\n\n## Notes\n\nBring sunscreen\n`;
+		eq("a healthy plan is left byte for byte", rescueDraftsFromNotes(healthy), healthy);
+		eq(
+			"no Notes heading, nothing to rescue",
+			rescueDraftsFromNotes(draftsOnly),
+			draftsOnly
+		);
+		const ownHeading = "## Notes\n\n## Drafts\n\nSpeech outline, second pass\n";
+		eq(
+			"a Drafts heading of the person's own, with no tasks under it, stays theirs",
+			rescueDraftsFromNotes(ownHeading),
+			ownHeading
+		);
+		eq(
+			"prose written under the stray heading stays in the notes",
+			parseNotesSection(
+				rescueDraftsFromNotes(
+					`## Notes\n\nBring sunscreen\n\n## Drafts\n\n${LINE}\nAnd hats\n`
+				)
+			),
+			"Bring sunscreen\n\nAnd hats"
+		);
+		const both =
+			"## Drafts\n\n- [ ] Pack ➕ 2026-08-30\n\n## Notes\n\nBring sunscreen\n\n" +
+			`## Drafts\n\n${LINE}\n- [ ] Pack ➕ 2026-08-30\n`;
+		eq(
+			"rescued drafts join the real section without doubling one already there",
+			parseDraftsSection(rescueDraftsFromNotes(both), PAGE_DRAFTS_SECTION)?.map(
+				(d) => d.text
+			),
+			["Pack", "Book flights"]
+		);
+		eq(
+			"...and none are left behind in the notes",
+			parseNotesSection(rescueDraftsFromNotes(both)),
+			"Bring sunscreen"
+		);
+	}
 
 	return result();
 }

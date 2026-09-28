@@ -10,6 +10,7 @@ import { createFlexDateInput } from "@/components/FlexDateInput";
 import { todayISO } from "@/utils/flexdate";
 import { ContactOperations } from "@/services/ContactOperations";
 import { GroupModal } from "@/modals/GroupModal";
+import { errorText, guardedAction } from "@/components/guardedAction";
 
 export class AddContactModal extends FormModal {
 	constructor(
@@ -179,63 +180,71 @@ export class AddContactModal extends FormModal {
 		// Submit button — same wrapper and classes as every other add/edit
 		// modal's primary action, so it floats and sizes the same way.
 		const buttons = form.createDiv({ cls: "callander-modal-buttons" });
-		buttons.createEl("button", {
+		const addButton = buttons.createEl("button", {
 			text: "Add friend",
 			attr: { type: "submit" },
 			cls: "callander-modal-button mod-cta",
 		});
 
+		const addFriend = guardedAction(
+			async () => {
+				const data: Record<string, string | string[]> = {
+					name: nameInput.value,
+				};
+
+				if (displayInput.value.trim()) {
+					data.displayName = displayInput.value.trim();
+				}
+				if (shortInput.value.trim()) {
+					data.shortName = shortInput.value.trim();
+				}
+				if (birthdayValue) data.birthday = birthdayValue;
+				if (metValue) data.met = metValue;
+				if (member.size > 0) {
+					// Stored as links to the group pages — see groupsOf.
+					data.groups = [...member]
+						.sort()
+						.map((g) =>
+							ContactOperations.groupLink(g, displayOf.get(g)),
+						);
+				}
+				if (relationshipInput.value) {
+					const relationship = relationshipInput.value.toLowerCase();
+					data.relationship = relationshipInput.value.toLowerCase();
+					// Add new relationship type to settings if it doesn't exist
+					if (
+						!this.plugin.settings.relationshipTypes.includes(
+							relationship,
+						)
+					) {
+						// Remove any duplicates (case-insensitive) before adding
+						this.plugin.settings.relationshipTypes = [
+							...new Set(
+								this.plugin.settings.relationshipTypes.filter(
+									(type) => type.toLowerCase() !== relationship,
+								),
+							),
+							relationship,
+						];
+						void this.plugin.saveSettings();
+					}
+				}
+
+				if (data.name) await this.onSubmit(data);
+			},
+			{ buttons: [addButton], failure: "Couldn't add friend" }
+		);
 		form.addEventListener("submit", (e) => {
 			e.preventDefault();
-			const data: Record<string, string | string[]> = {
-				name: nameInput.value,
-			};
-
-			if (displayInput.value.trim()) {
-				data.displayName = displayInput.value.trim();
-			}
-			if (shortInput.value.trim()) {
-				data.shortName = shortInput.value.trim();
-			}
-			if (birthdayValue) data.birthday = birthdayValue;
-			if (metValue) data.met = metValue;
-			if (member.size > 0) {
-				// Stored as links to the group pages — see groupsOf.
-				data.groups = [...member]
-					.sort()
-					.map((g) =>
-						ContactOperations.groupLink(g, displayOf.get(g)),
-					);
-			}
-			if (relationshipInput.value) {
-				const relationship = relationshipInput.value.toLowerCase();
-				data.relationship = relationshipInput.value.toLowerCase();
-				// Add new relationship type to settings if it doesn't exist
-				if (
-					!this.plugin.settings.relationshipTypes.includes(
-						relationship,
-					)
-				) {
-					// Remove any duplicates (case-insensitive) before adding
-					this.plugin.settings.relationshipTypes = [
-						...new Set(
-							this.plugin.settings.relationshipTypes.filter(
-								(type) => type.toLowerCase() !== relationship,
-							),
-						),
-						relationship,
-					];
-					void this.plugin.saveSettings();
-				}
-			}
-
-			if (data.name) {
-				void this.onSubmit(data);
-				this.close();
-			}
+			void addFriend();
 		});
 	}
 
+	/**
+	 * Creates their note, and only then closes the form: a create that
+	 * fails (a name that's taken, say) throws with the form still open and
+	 * everything in it, for addFriend's guard to report.
+	 */
 	private async onSubmit(data: Record<string, string | string[]>) {
 		const ops = this.plugin.contactOperations;
 		data.created = todayISO();
@@ -250,9 +259,10 @@ export class AddContactModal extends FormModal {
 		const yaml = stringifyYaml(data);
 		const fileContent = `---\n${yaml}\n---\n`;
 
-		try {
-			const file = await this.app.vault.create(filePath, fileContent);
+		const file = await this.app.vault.create(filePath, fileContent);
+		this.close();
 
+		try {
 			// Wait a moment for the file to be indexed
 			await new Promise((resolve) => window.setTimeout(resolve, 300));
 
@@ -273,7 +283,9 @@ export class AddContactModal extends FormModal {
 			// Straight to their page
 			await this.plugin.openContactPage(file);
 		} catch (error) {
-			new Notice(`Error adding friend: ${error}`);
+			new Notice(
+				`Added ${String(data.name)}, but couldn't open their page: ${errorText(error)}`
+			);
 		}
 	}
 

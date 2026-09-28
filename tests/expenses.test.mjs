@@ -6,18 +6,20 @@ import {
 	expensesOf,
 	isFullyPaid,
 	isPaidBy,
+	locateExpense,
 	owedFor,
 	paidStateOf,
 	partitionExpenses,
 	payersOf,
 	percentFromInput,
 	planOwedSummary,
+	sameExpense,
 	setPaidOn,
 	settleAllFor,
 } from "./.build/callander.mjs";
 
 export function run() {
-	const { eq, result } = createSuite("expenses & settling");
+	const { eq, ok, result } = createSuite("expenses & settling");
 
 	const participants = ["Callan", "Riley", "Laura"];
 	/** What the breakdown modal totals — settled lines are shown but excluded. */
@@ -614,6 +616,47 @@ export function run() {
 			).square,
 			true
 		);
+	}
+
+	// ---------- finding the expense a modal opened ----------
+	// The list can change while a modal is open, so a save finds its
+	// expense by what it held rather than trusting the position alone.
+	{
+		const dinner = { label: "Dinner", amount: 60, split: { mode: "even", shares: { A: 1, B: 2 } } };
+		const taxi = { label: "Taxi", amount: 20, split: { mode: "even" } };
+		const cabin = { label: "Cabin", amount: 300, split: { mode: "even" } };
+		ok(
+			"the same expense whatever order its fields are in",
+			sameExpense(dinner, {
+				split: { shares: { B: 2, A: 1 }, mode: "even" },
+				amount: 60,
+				label: "Dinner",
+			})
+		);
+		ok(
+			"…and a field set to undefined is one that isn't there",
+			sameExpense(taxi, { ...taxi, settled: undefined })
+		);
+		ok(
+			"a tick makes it a different expense",
+			!sameExpense(taxi, { ...taxi, paid: ["A"] })
+		);
+		eq("still where it was", locateExpense([dinner, taxi], 1, taxi), 1);
+		eq(
+			"moved down by one added above it",
+			locateExpense([cabin, dinner, taxi], 1, taxi),
+			2
+		);
+		eq("removed since", locateExpense([dinner, cabin], 1, taxi), -1);
+		eq(
+			"changed since, so not the one opened",
+			locateExpense([dinner, { ...taxi, amount: 25 }], 1, taxi),
+			-1
+		);
+		eq("past the end of a list that shrank", locateExpense([taxi], 3, taxi), 0);
+		// Two identical expenses are interchangeable, but the one in place
+		// is the one that was opened, so that's the one to touch.
+		eq("of two the same, the one in place", locateExpense([taxi, taxi], 1, taxi), 1);
 	}
 
 	return result();

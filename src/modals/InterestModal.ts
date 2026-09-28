@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { INTEREST_CATEGORIES, InterestCategory } from "@/constants";
@@ -171,23 +172,26 @@ export class InterestModal extends FormModal {
 			cls: "callander-modal-button mod-cta",
 		});
 
-		const submit = async () => {
-			const text = textInput.value.trim();
-			if (!text) return;
-			// A field hidden by the type isn't asked, so isn't saved —
-			// switching Book → Hobby shouldn't carry a stray author across.
-			const cat = current();
-			const detail = detailOf(cat) ? detailInput.value.trim() : "";
-			const detail2 = detail2Of(cat) ? detail2Input.value.trim() : "";
-			await this.onSubmit(
-				this.category,
-				text,
-				detail,
-				detail2,
-				notesInput.value.trim()
-			);
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const text = textInput.value.trim();
+				if (!text) return;
+				// A field hidden by the type isn't asked, so isn't saved —
+				// switching Book → Hobby shouldn't carry a stray author across.
+				const cat = current();
+				const detail = detailOf(cat) ? detailInput.value.trim() : "";
+				const detail2 = detail2Of(cat) ? detail2Input.value.trim() : "";
+				await this.onSubmit(
+					this.category,
+					text,
+					detail,
+					detail2,
+					notesInput.value.trim()
+				);
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 
 		saveButton.addEventListener("click", () => void submit());
 		const onEnter = (event: KeyboardEvent) => {

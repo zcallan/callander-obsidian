@@ -1,8 +1,10 @@
 import { App, TFile, setIcon } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
+import { appendContactPicker } from "@/components/ContactPicker";
 import type FriendTracker from "@/main";
-import type { ContactWithCountdown, SomedayInfo } from "@/types";
+import type { SomedayInfo } from "@/types";
 import type { SomedayFields } from "@/services/SomedayOperations";
 import {
 	SOMEDAY_DAYS,
@@ -524,78 +526,17 @@ export class SomedayModal extends FormModal {
 			cls: "callander-modal-field",
 		});
 		peopleWrap.createEl("label", { text: "Suggested people (optional)" });
-		const peoplePicker = peopleWrap.createDiv({
-			cls: "people-field",
-		});
-		const peopleSelect = peoplePicker.createEl("select", {
-			cls: "quick-idea-input people-select",
-		});
-		const peoplePills = peoplePicker.createDiv({
-			cls: "people-pills",
-		});
-
-		// Seeded by resolving the existing wikilinks back to real contacts —
-		// a link to a since-renamed or deleted file is silently dropped
-		// rather than shown as a dead entry with nothing to display.
-		const selectedPeople: ContactWithCountdown[] = [];
-		if (this.existing) {
-			for (const raw of this.existing.people) {
-				const linktext = raw.replace(/^\[\[|\]\]$/g, "");
-				const dest = this.app.metadataCache.getFirstLinkpathDest(
-					linktext,
-					this.existing.file.path
-				);
-				const match = dest
-					? contacts.find((c) => c.file.path === dest.path)
-					: undefined;
-				if (match) selectedPeople.push(match);
-			}
-		}
-
-		const renderPeopleSelect = () => {
-			peopleSelect.empty();
-			peopleSelect.createEl("option", { value: "", text: "Add a person…" });
-			for (const c of contacts) {
-				if (!selectedPeople.some((p) => p.file.path === c.file.path)) {
-					peopleSelect.createEl("option", {
-						value: c.file.path,
-						text: c.displayName,
-					});
-				}
-			}
-			peopleSelect.value = "";
-		};
-		const renderPeoplePills = () => {
-			peoplePills.empty();
-			selectedPeople.forEach((c, i) => {
-				const pill = peoplePills.createSpan({ cls: "people-pill" });
-				pill.createSpan({ text: c.displayName });
-				const x = pill.createEl("button", {
-					cls: "people-pill-x",
-					attr: {
-						type: "button",
-						"aria-label": `Remove ${c.displayName}`,
-					},
-				});
-				x.setText("✕");
-				x.addEventListener("click", (e) => {
-					e.preventDefault();
-					selectedPeople.splice(i, 1);
-					renderPeoplePills();
-					renderPeopleSelect();
-				});
-			});
-		};
-		peopleSelect.addEventListener("change", () => {
-			const path = peopleSelect.value;
-			if (!path) return;
-			const match = contacts.find((c) => c.file.path === path);
-			if (match) selectedPeople.push(match);
-			renderPeoplePills();
-			renderPeopleSelect();
-		});
-		renderPeopleSelect();
-		renderPeoplePills();
+		// The shared picker, which keeps an aliased link ("[[Name|Alias]]")
+		// and a group page's link. This form's own copy of it resolved
+		// neither, so opening a someday dropped them and saving it wrote
+		// them out of `people`. Unresolved links are still dropped.
+		const peoplePicker = appendContactPicker(
+			peopleWrap,
+			this.app,
+			contacts,
+			this.existing?.people ?? [],
+			this.existing?.file.path ?? ""
+		);
 
 		updatePeopleVisibility = () => {
 			peopleWrap.style.display = company === "solo" ? "none" : "";
@@ -665,69 +606,72 @@ export class SomedayModal extends FormModal {
 			cls: "callander-modal-button mod-cta",
 		});
 
-		const submit = async () => {
-			const name = nameInput.value.trim();
-			if (!name) {
-				nameInput.focus();
-				return;
-			}
-			const rawCost = costInput.value.trim();
-			const parsedCost = rawCost === "" ? null : Number(rawCost);
-			const cost =
-				parsedCost !== null && Number.isFinite(parsedCost)
-					? parsedCost
-					: null;
-			const fields: SomedayFields = {
-				name,
-				date:
-					whenMode === "year" ||
-					whenMode === "month" ||
-					whenMode === "day"
-						? dateValue
-						: "",
-				seasons:
-					whenMode === "season"
-						? SOMEDAY_SEASONS.filter((s) => seasons.has(s.id)).map(
-								(s) => s.id
-						  )
-						: [],
-				days: SOMEDAY_DAYS.filter((d) => days.has(d.id)).map(
-					(d) => d.id
-				),
-				// "Any" persists as every window, so a later filter can ask
-				// "does this suit the evening?" with a plain includes().
-				times: anyTime
-					? SOMEDAY_TIMES.map((t) => t.id)
-					: SOMEDAY_TIMES.filter((t) => times.has(t.id)).map(
-							(t) => t.id
-					  ),
-				fromDate: whenMode === "within" ? fromValue : "",
-				untilDate: whenMode === "within" ? untilValue : "",
-				cost,
-				notes: notesInput.value.trim(),
-				company,
-				// Saved in SOMEDAY_TYPES' natural order, so types[0] is
-				// always the lead wherever it's shown.
-				types: SOMEDAY_TYPES.filter((t) => types.has(t.id)).map(
-					(t) => t.id
-				),
-				// A solo activity never persists suggested people, even if
-				// some were picked before switching to Solo — toggling
-				// company back and forth mid-edit shouldn't lose them
-				// in-session, but the saved data stays consistent.
-				people:
-					company === "solo"
-						? []
-						: selectedPeople.map((c) => `[[${c.file.basename}]]`),
-			};
-			const ops = this.plugin.somedayOperations;
-			const file = this.existing
-				? (await ops.updateSomeday(this.existing.file, fields),
-				  this.existing.file)
-				: await ops.createSomeday(fields);
-			await this.onSaved(file);
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const name = nameInput.value.trim();
+				if (!name) {
+					nameInput.focus();
+					return;
+				}
+				const rawCost = costInput.value.trim();
+				const parsedCost = rawCost === "" ? null : Number(rawCost);
+				const cost =
+					parsedCost !== null && Number.isFinite(parsedCost)
+						? parsedCost
+						: null;
+				const fields: SomedayFields = {
+					name,
+					date:
+						whenMode === "year" ||
+						whenMode === "month" ||
+						whenMode === "day"
+							? dateValue
+							: "",
+					seasons:
+						whenMode === "season"
+							? SOMEDAY_SEASONS.filter((s) => seasons.has(s.id)).map(
+									(s) => s.id
+							  )
+							: [],
+					days: SOMEDAY_DAYS.filter((d) => days.has(d.id)).map(
+						(d) => d.id
+					),
+					// "Any" persists as every window, so a later filter can ask
+					// "does this suit the evening?" with a plain includes().
+					times: anyTime
+						? SOMEDAY_TIMES.map((t) => t.id)
+						: SOMEDAY_TIMES.filter((t) => times.has(t.id)).map(
+								(t) => t.id
+						  ),
+					fromDate: whenMode === "within" ? fromValue : "",
+					untilDate: whenMode === "within" ? untilValue : "",
+					cost,
+					notes: notesInput.value.trim(),
+					company,
+					// Saved in SOMEDAY_TYPES' natural order, so types[0] is
+					// always the lead wherever it's shown.
+					types: SOMEDAY_TYPES.filter((t) => types.has(t.id)).map(
+						(t) => t.id
+					),
+					// A solo activity never persists suggested people, even if
+					// some were picked before switching to Solo — toggling
+					// company back and forth mid-edit shouldn't lose them
+					// in-session, but the saved data stays consistent.
+					people:
+						company === "solo"
+							? []
+							: peoplePicker.wikilinks(),
+				};
+				const ops = this.plugin.somedayOperations;
+				const file = this.existing
+					? (await ops.updateSomeday(this.existing.file, fields),
+					  this.existing.file)
+					: await ops.createSomeday(fields);
+				await this.onSaved(file);
+				this.close();
+			},
+			{ buttons: [saveBtn] }
+		);
 		saveBtn.addEventListener("click", () => void submit());
 		nameInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {

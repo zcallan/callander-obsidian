@@ -3,6 +3,7 @@ import type FriendTracker from "@/main";
 import type { ContactWithCountdown, SomedayInfo, SomedaySubIdea } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
+import { guardedAction, reportFailure } from "@/components/guardedAction";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { EventModal } from "@/modals/EventModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
@@ -166,6 +167,16 @@ export class SomedayViewModal extends Modal {
 			cls: "someday-view-subideas",
 		});
 
+		// One write at a time across the whole list, with every row's
+		// controls disabled until it lands. Rows act by position, so a second
+		// tick or remove mid-write (a double click, say) would land on
+		// whichever sub-idea the first had moved into that place.
+		const controls: { disabled: boolean }[] = [];
+		const act = guardedAction(
+			(write: () => Promise<void>) => write(),
+			{ buttons: controls }
+		);
+
 		this.subIdeas.forEach((sub, index) => {
 			const row = wrap.createDiv({
 				cls: `someday-subidea${sub.done ? " done" : ""}`,
@@ -180,7 +191,7 @@ export class SomedayViewModal extends Modal {
 				await ops.toggleSubIdea(this.someday.file, index);
 				await this.onChange();
 			};
-			box.addEventListener("change", () => void handleToggle());
+			box.addEventListener("change", () => void act(handleToggle));
 			row.createSpan({ cls: "someday-subidea-text", text: sub.text });
 			const del = row.createEl("button", {
 				cls: "callander-button button-icon button-danger",
@@ -193,7 +204,8 @@ export class SomedayViewModal extends Modal {
 				await this.onChange();
 				this.render();
 			};
-			del.addEventListener("click", () => void handleRemove());
+			del.addEventListener("click", () => void act(handleRemove));
+			controls.push(box, del);
 		});
 
 		// Description — edits live here rather than only in the full Edit
@@ -235,9 +247,16 @@ export class SomedayViewModal extends Modal {
 		}
 		if (!this.notesDirty) return;
 		this.notesDirty = false;
-		await this.plugin.somedayOperations.updateSomeday(this.someday.file, {
-			notes: this.someday.notes,
-		});
+		try {
+			await this.plugin.somedayOperations.updateSomeday(
+				this.someday.file,
+				{ notes: this.someday.notes }
+			);
+		} catch (error) {
+			this.notesDirty = true; // still unsaved, so closing tries again
+			reportFailure("Couldn't save the notes", error);
+			return;
+		}
 		await this.onChange();
 	}
 

@@ -1,4 +1,5 @@
 import { App, Modal, TFile } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 
 export class DeleteContactModal extends Modal {
 	constructor(
@@ -33,10 +34,13 @@ export class DeleteContactModal extends Modal {
 			text: "Delete",
 			cls: "callander-modal-button callander-modal-button-danger",
 		});
-		const handleDelete = async () => {
-			await this.onDelete();
-			this.close();
-		};
+		const handleDelete = guardedAction(
+			async () => {
+				await this.onDelete();
+				this.close();
+			},
+			{ buttons: [deleteButton], failure: "Couldn't delete" }
+		);
 		deleteButton.addEventListener("click", () => void handleDelete());
 	}
 

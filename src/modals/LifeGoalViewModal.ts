@@ -1,4 +1,5 @@
 import { App, Modal, setIcon } from "obsidian";
+import { reportFailure } from "@/components/guardedAction";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { formatDate } from "@/utils/dateFormat";
 import type { LifeGoal } from "@/types";
@@ -48,15 +49,23 @@ export class LifeGoalViewModal extends Modal {
 	}
 
 	/** Write whatever's pending now — on blur, before any action, and on
-	 * close, so a quick note-then-dismiss never loses keystrokes. */
-	private async flushNotes() {
+	 * close, so a quick note-then-dismiss never loses keystrokes. False if
+	 * the write failed, which has been reported already. */
+	private async flushNotes(): Promise<boolean> {
 		if (this.notesSaveTimer !== null) {
 			window.clearTimeout(this.notesSaveTimer);
 			this.notesSaveTimer = null;
 		}
-		if (!this.notesDirty) return;
+		if (!this.notesDirty) return true;
 		this.notesDirty = false;
-		await this.onSaveNotes(this.pendingNotes);
+		try {
+			await this.onSaveNotes(this.pendingNotes);
+			return true;
+		} catch (error) {
+			this.notesDirty = true; // still unsaved, so closing tries again
+			reportFailure("Couldn't save the notes", error);
+			return false;
+		}
 	}
 
 	onOpen() {
@@ -112,7 +121,7 @@ export class LifeGoalViewModal extends Modal {
 			button.createSpan({ text: label });
 			button.addEventListener("click", () => {
 				void (async () => {
-					await this.flushNotes();
+					if (!(await this.flushNotes())) return;
 					await onClick();
 				})();
 			});

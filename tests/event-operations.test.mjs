@@ -211,6 +211,30 @@ export async function run() {
 		);
 	}
 
+	// ---------- a diary event kept off timelines stays off them ----------
+	// Editing a logged diary entry re-syncs its event; the sync used to leave
+	// out the opt-out, and updateEvent clears whatever it isn't given.
+	{
+		const t = await createTestVault();
+		await t.addPerson("Ada");
+		await t.events.syncDiaryEvent("Diary/2026-06-01.md", "2026-06-01", "Lake day", [
+			"[[Ada]]",
+		]);
+		const logged = t.events.findBySource("Diary/2026-06-01.md");
+		await t.app.fileManager.processFrontMatter(logged.file, (fm) => {
+			fm.showOnTimelines = false;
+		});
+		await t.events.syncDiaryEvent(
+			"Diary/2026-06-01.md",
+			"2026-06-01",
+			"Lake day (edited)",
+			["[[Ada]]"]
+		);
+		const resynced = t.events.findBySource("Diary/2026-06-01.md");
+		eq("the re-sync took the entry's new title", resynced.name, "Lake day (edited)");
+		eq("...and kept the event off people's timelines", resynced.showOnTimelines, false);
+	}
+
 	// ---------- migration: embedded person events ----------
 	{
 		const t = await createTestVault();
@@ -384,6 +408,42 @@ export async function run() {
 			t.vault.getAbstractFileByPath("Friends/Reminders.md"),
 			null
 		);
+	}
+
+	// ---------- migration: only its own old stores ----------
+	// Detection runs on every cache settle, so anything it mistakes for an
+	// old store is trashed or rewritten within seconds of being created.
+	{
+		const t = await createTestVault();
+		await t.vault.create(
+			"Friends/Reminders.md",
+			["---", "tags: [todo]", "---", "", "- Call mum"].join("\n")
+		);
+		await t.migration.run();
+		ok(
+			"a note of your own called Reminders isn't trashed",
+			t.vault.getAbstractFileByPath("Friends/Reminders.md") !== null
+		);
+	}
+	{
+		const t = await createTestVault();
+		await t.vault.createFolder("Friends/Reminders");
+		await t.migration.run();
+		ok(
+			"an empty Reminders folder of your own isn't trashed",
+			t.vault.getAbstractFileByPath("Friends/Reminders") !== null
+		);
+	}
+	{
+		const t = await createTestVault();
+		const bo = await t.addPerson("Bo", { events: "see the diary" });
+		await t.migration.run();
+		eq(
+			"a person's own events field that isn't a list is left alone",
+			t.frontmatterOf(bo).events,
+			"see the diary"
+		);
+		eq("...and nothing is migrated from it", t.events.getEvents().length, 0);
 	}
 
 	// ---------- keeping an event off someone's timeline ----------

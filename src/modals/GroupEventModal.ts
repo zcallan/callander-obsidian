@@ -1,4 +1,5 @@
 import { App, Notice } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import type { ContactWithCountdown } from "@/types";
@@ -100,28 +101,31 @@ export class GroupEventModal extends FormModal {
 			text: "Log for selected",
 			cls: "callander-modal-button mod-cta",
 		});
-		const handleSave = async () => {
-			const text = textInput.value.trim();
-			if (!text || !dateValue || checked.size === 0) {
-				new Notice("Pick at least one friend and write what happened");
-				return;
-			}
-			const targets = this.contacts.filter((c) =>
-				checked.has(c.file.path)
-			);
-			// One shared event, everyone linked — not a copy per person.
-			await this.plugin.eventOperations.createEvent({
-				name: text,
-				date: dateValue,
-				type: "hangout",
-				people: targets.map((c) => `[[${c.file.basename}]]`),
-			});
-			for (const c of targets) {
-				await this.plugin.refreshOpenContactPages(c.file);
-			}
-			new Notice(`Logged for ${targets.length} friend(s)`);
-			this.close();
-		};
+		const handleSave = guardedAction(
+			async () => {
+				const text = textInput.value.trim();
+				if (!text || !dateValue || checked.size === 0) {
+					new Notice("Pick at least one friend and write what happened");
+					return;
+				}
+				const targets = this.contacts.filter((c) =>
+					checked.has(c.file.path)
+				);
+				// One shared event, everyone linked — not a copy per person.
+				await this.plugin.eventOperations.createEvent({
+					name: text,
+					date: dateValue,
+					type: "hangout",
+					people: targets.map((c) => `[[${c.file.basename}]]`),
+				});
+				for (const c of targets) {
+					await this.plugin.refreshOpenContactPages(c.file);
+				}
+				new Notice(`Logged for ${targets.length} friend(s)`);
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void handleSave());
 	}
 

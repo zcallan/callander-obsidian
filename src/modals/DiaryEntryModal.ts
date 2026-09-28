@@ -1,4 +1,5 @@
 import { App, Setting } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { todayISO } from "@/utils/flexdate";
 interface DiaryEntryModalValues {
@@ -66,13 +67,16 @@ export class DiaryEntryModal extends FormModal {
 			text: "Save",
 			cls: "callander-modal-button mod-cta",
 		});
-		saveButton.addEventListener("click", () => void this.submit());
+		const submit = guardedAction(() => this.submit(), {
+			buttons: [saveButton],
+		});
+		saveButton.addEventListener("click", () => void submit());
 
 		// Ten-second capture: Enter in the title field submits
 		titleInput!.addEventListener("keydown", (event) => {
 			if (event.key === "Enter") {
 				event.preventDefault();
-				void this.submit();
+				void submit();
 			}
 		});
 		if (this.values.title) this.blurInitialFocus();

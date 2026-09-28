@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import type { Credit } from "@/types";
 
@@ -65,10 +66,13 @@ export class CreditModal extends FormModal {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
-			const handleDelete = async () => {
-				await this.onDelete!();
-				this.close();
-			};
+			const handleDelete = guardedAction(
+				async () => {
+					await this.onDelete!();
+					this.close();
+				},
+				{ buttons: [del], failure: "Couldn't delete" }
+			);
 			del.addEventListener("click", () => void handleDelete());
 		}
 		const saveButton = buttons.createEl("button", {
@@ -76,14 +80,17 @@ export class CreditModal extends FormModal {
 			cls: "callander-modal-button mod-cta",
 		});
 
-		const submit = async () => {
-			const person = personSelect.value;
-			const amount = Number(amountInput.value);
-			if (!person || !Number.isFinite(amount) || amount <= 0) return;
-			const note = noteInput.value.trim();
-			await this.onSubmit({ person, amount, ...(note && { note }) });
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const person = personSelect.value;
+				const amount = Number(amountInput.value);
+				if (!person || !Number.isFinite(amount) || amount <= 0) return;
+				const note = noteInput.value.trim();
+				await this.onSubmit({ person, amount, ...(note && { note }) });
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void submit());
 		for (const input of [amountInput, noteInput]) {
 			input.addEventListener("keydown", (e) => {

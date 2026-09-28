@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import type FriendTracker from "@/main";
@@ -94,25 +95,28 @@ export class EventCategoryEditModal extends FormModal {
 			text: "Save",
 			cls: "callander-modal-button mod-cta",
 		});
-		const handleSave = async () => {
-			const name = nameInput.value.trim();
-			if (!name) return;
-			const renamed = name.toLowerCase() !== this.categoryName.toLowerCase();
-			if (renamed) {
-				await this.plugin.eventOperations.renameCategory(
-					this.categoryName,
-					name
-				);
-				delete colors.categories[this.categoryName.toLowerCase()];
-			}
-			const picked = swatches.getColor();
-			const newKey = name.toLowerCase();
-			if (picked) colors.categories[newKey] = picked;
-			else delete colors.categories[newKey];
-			await this.plugin.saveSettings();
-			this.onDone({ deleted: false, name });
-			this.close();
-		};
+		const handleSave = guardedAction(
+			async () => {
+				const name = nameInput.value.trim();
+				if (!name) return;
+				const renamed = name.toLowerCase() !== this.categoryName.toLowerCase();
+				if (renamed) {
+					await this.plugin.eventOperations.renameCategory(
+						this.categoryName,
+						name
+					);
+					delete colors.categories[this.categoryName.toLowerCase()];
+				}
+				const picked = swatches.getColor();
+				const newKey = name.toLowerCase();
+				if (picked) colors.categories[newKey] = picked;
+				else delete colors.categories[newKey];
+				await this.plugin.saveSettings();
+				this.onDone({ deleted: false, name });
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void handleSave());
 		this.blurInitialFocus();
 	}

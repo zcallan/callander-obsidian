@@ -1,5 +1,6 @@
 import { App, setIcon } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import { guardedAction } from "@/components/guardedAction";
 import { renderCategoryChips } from "@/components/categoryChips";
 import { PLAN_IDEA_CATEGORIES, PlanIdeaCategory } from "@/constants";
 import {
@@ -203,35 +204,42 @@ export class PlanQuickIdeaModal extends FormModal {
 			});
 		}
 
-		buttonRow.createEl("button", {
+		const saveButton = buttonRow.createEl("button", {
 			text: this.initial ? "Save" : "Add",
 			cls: "callander-modal-button mod-cta",
 			attr: { type: "submit" },
 		});
 
+		const save = guardedAction(
+			async () => {
+				const text = textInput.value.trim();
+				if (!text) return;
+				const cost = Number(costInput.value);
+				const notes = notesInput.value.trim();
+				const { time } = schedule.values();
+				const peopleValue = people.value();
+				const durationValue = duration.value();
+				await this.onSubmit({
+					text,
+					type: this.type,
+					...(this.categories.length > 0 && {
+						categories: [...this.categories],
+					}),
+					...(this.dates.length > 0 && { dates: [...this.dates] }),
+					...(time && { time }),
+					...(durationValue && { duration: durationValue }),
+					...(peopleValue && { people: peopleValue }),
+					...(Number.isFinite(cost) && cost > 0 && { cost }),
+					...(notes && { notes }),
+					...(this.initial?.created && { created: this.initial.created }),
+				});
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		form.addEventListener("submit", (e) => {
 			e.preventDefault();
-			const text = textInput.value.trim();
-			if (!text) return;
-			const cost = Number(costInput.value);
-			const notes = notesInput.value.trim();
-			const { time } = schedule.values();
-			const peopleValue = people.value();
-			const durationValue = duration.value();
-			void this.onSubmit({
-				text,
-				type: this.type,
-				...(this.categories.length > 0 && {
-					categories: [...this.categories],
-				}),
-				...(this.dates.length > 0 && { dates: [...this.dates] }),
-				...(time && { time }),
-				...(durationValue && { duration: durationValue }),
-				...(peopleValue && { people: peopleValue }),
-				...(Number.isFinite(cost) && cost > 0 && { cost }),
-				...(notes && { notes }),
-				...(this.initial?.created && { created: this.initial.created }),
-			}).then(() => this.close());
+			void save();
 		});
 	}
 

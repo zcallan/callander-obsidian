@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 
@@ -105,15 +106,18 @@ export class PlanDetailsModal extends FormModal {
 			text: "Save",
 			cls: "callander-modal-button mod-cta",
 		});
-		const handleSave = async () => {
-			await this.onSubmit({
-				...details,
-				// A cleared name isn't a rename — keep the current one
-				name: details.name.trim() || this.current.name,
-				location: details.location.trim(),
-			});
-			this.close();
-		};
+		const handleSave = guardedAction(
+			async () => {
+				await this.onSubmit({
+					...details,
+					// A cleared name isn't a rename — keep the current one
+					name: details.name.trim() || this.current.name,
+					location: details.location.trim(),
+				});
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void handleSave());
 
 		// Always an edit — every field arrives filled, so none deserves focus.

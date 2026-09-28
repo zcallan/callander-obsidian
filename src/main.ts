@@ -1645,6 +1645,27 @@ export default class FriendTracker extends Plugin {
 	}
 
 	/**
+	 * One file's write in a startup migration, kept from stopping the rest.
+	 * A note whose YAML doesn't parse makes processFrontMatter throw, and
+	 * a throw from a migration aborts the rest of startup: one broken note
+	 * turned off birthday reminders and the status bar on every launch.
+	 * The file is left as it is, to be tried again next start.
+	 */
+	private async migrateFile(
+		file: TFile,
+		edit: (frontmatter: Record<string, unknown>) => void
+	) {
+		try {
+			await this.app.fileManager.processFrontMatter(file, edit);
+		} catch (error) {
+			console.warn(
+				`Callander: couldn't migrate ${file.path}, so it's unchanged.`,
+				error
+			);
+		}
+	}
+
+	/**
 	 * Existing "birthplace" values were really hometowns — move them to
 	 * the new hometown field. Only touches files that need it; birthplace
 	 * stays available as a field for genuine birthplaces.
@@ -1661,18 +1682,12 @@ export default class FriendTracker extends Plugin {
 			const fm: unknown =
 				this.app.metadataCache.getFileCache(child)?.frontmatter;
 			if (fieldOf(fm, "birthplace") && !fieldOf(fm, "hometown")) {
-				await this.app.fileManager.processFrontMatter(
-					child,
-					(frontmatter: Record<string, unknown>) => {
-						if (
-							frontmatter.birthplace &&
-							!frontmatter.hometown
-						) {
-							frontmatter.hometown = frontmatter.birthplace;
-							delete frontmatter.birthplace;
-						}
+				await this.migrateFile(child, (frontmatter) => {
+					if (frontmatter.birthplace && !frontmatter.hometown) {
+						frontmatter.hometown = frontmatter.birthplace;
+						delete frontmatter.birthplace;
 					}
-				);
+				});
 			}
 		}
 	}
@@ -1708,17 +1723,14 @@ export default class FriendTracker extends Plugin {
 				this.app.metadataCache.getFileCache(child)?.frontmatter;
 			const current = fieldOf(fm, "type");
 			if (typeof current !== "string" || !(current in REMAP)) continue;
-			await this.app.fileManager.processFrontMatter(
-				child,
-				(frontmatter: Record<string, unknown>) => {
-					// Re-check against the live value — it may have changed
-					// between the read above and this write actually landing.
-					if (frontmatter.type !== current) return;
-					const next = REMAP[current];
-					if (next) frontmatter.type = next;
-					else delete frontmatter.type;
-				}
-			);
+			await this.migrateFile(child, (frontmatter) => {
+				// Re-check against the live value — it may have changed
+				// between the read above and this write actually landing.
+				if (frontmatter.type !== current) return;
+				const next = REMAP[current];
+				if (next) frontmatter.type = next;
+				else delete frontmatter.type;
+			});
 		}
 	}
 
@@ -1754,16 +1766,13 @@ export default class FriendTracker extends Plugin {
 				},
 				now
 			);
-			await this.app.fileManager.processFrontMatter(
-				child,
-				(frontmatter: Record<string, unknown>) => {
-					// Re-check the live value — another device may have
-					// classified it between the read above and this write.
-					if (frontmatter.variant !== undefined) return;
-					frontmatter.variant = variant;
-					delete frontmatter.hideFromDashboard;
-				}
-			);
+			await this.migrateFile(child, (frontmatter) => {
+				// Re-check the live value — another device may have
+				// classified it between the read above and this write.
+				if (frontmatter.variant !== undefined) return;
+				frontmatter.variant = variant;
+				delete frontmatter.hideFromDashboard;
+			});
 		}
 	}
 

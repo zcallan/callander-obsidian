@@ -1,4 +1,5 @@
 import { App, FuzzySuggestModal, TFile } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { appendGeneratedBadge } from "@/components/generatedBadge";
@@ -195,12 +196,15 @@ export class QuickIdeaModal extends FormModal {
 			cls: "callander-modal-button mod-cta",
 		});
 
-		const submit = async () => {
-			const text = textInput.value.trim();
-			if (!text) return;
-			await this.onSubmit(this.category, text, this.generated);
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const text = textInput.value.trim();
+				if (!text) return;
+				await this.onSubmit(this.category, text, this.generated);
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 
 		saveButton.addEventListener("click", () => void submit());
 		textInput.addEventListener("keydown", (event) => {

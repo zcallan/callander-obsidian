@@ -4,6 +4,60 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
+## 1.10.7 — unreleased
+
+Fixes from a review of the whole plugin, most of them ways an edit could be lost.
+
+### Plans
+
+- **A plan's drafts no longer slide into its Notes.** Reopening a plan could move its Drafts section inside Notes, where an ordinary edit to the notes would delete the drafts. Drafts now stay above Notes, and a plan already affected has its drafts moved back when it's opened.
+- Emptying a draft's text no longer makes later edits land on the next draft. An emptied draft keeps what it last said; Discard is how one goes.
+- Discarding, converting or deleting a dated draft acts on that draft, not a neighbour, when an earlier draft has no text.
+- Saving a plan item keeps its exact time. A time like 9:30 no longer saves as 12:30am, and one between the five-minute steps, like 7:07pm, no longer becomes 7pm.
+- Editing a life goal from its view keeps the notes you'd just typed there.
+
+### Friends and plans
+
+- A friend or plan page saves only the fields you changed, not its whole copy of the note, so it no longer writes over a change that synced in while the page was open.
+- Removing a person's last group or a plan's last idea category now saves. Before, the page looked right but the note kept them. Removing a plan's last stay category no longer leaves an empty list in the note.
+- Opening another note in the same tab while a save was still running could write one note's details into the other. It no longer can.
+- Notes on a person, group or plan stay in the editor if they can't be saved, rather than closing and taking what you typed with them.
+
+### Groups
+
+- A group whose page has capitals in its name, like `BJJ.md`, is found again: deleting the group removes its page, and changing its colour no longer fails with "File already exists".
+- Renaming or deleting a group only touches the people in it. Before, it rewrote every friend's note and marked them all as updated today.
+- Renaming a group to a name another group already has is refused before anything changes, and a new group with an existing group's name says so instead of recolouring that group.
+
+### Ideas
+
+- Adding an idea to a friend can no longer replace all their ideas with the new one if their note can't be read at that moment.
+- Filing an inbox idea onto a friend adds it to them before taking it out of the inbox, so a failed save leaves it in both places rather than neither.
+
+### Expenses
+
+- Editing, ticking off or deleting a dashboard expense acts on that expense even if the list changed while it was open, from a sync or another window. If it has gone, nothing is saved and a notice says so.
+- Deleting an expense from its edit form asks first, like everywhere else.
+- Two quick ticks in an expense no longer lose the first.
+
+### Events
+
+- The move from reminders to events no longer deletes a note of your own called `Reminders.md`, or an empty `Reminders` folder, in your Callander folder.
+- Editing a logged diary entry keeps its event off people's timelines if you'd taken it off.
+- A stray quote in a CSV import, as in `12" pizza`, no longer merges the rows after it into one event.
+- A note in Events whose properties can't be read no longer turns off birthday reminders and the status bar on every start. It's skipped and left as it is.
+
+### Somedays
+
+- Saving a someday keeps people linked with an alias (`[[Name|Alias]]`) or through a group page.
+- A double click on a sub-idea's remove button removes one sub-idea, not two.
+
+### Forms
+
+- Save, Add and Delete can't run twice from a double click or a second Enter, so there are no more duplicate notes, and no second entry deleted along with the first.
+- A save that fails says so, and the form stays open with what you entered. Before, most failed silently. Adding a friend under a name that's taken is one case.
+- Notes typed into a view (an event, someday, plan item, life goal or draft) that can't be saved as it closes now say so too.
+
 ## 1.10.6 — 2026-09-27
 
 ### Dashboard

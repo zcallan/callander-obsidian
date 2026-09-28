@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 
@@ -61,12 +62,15 @@ export class FunFactsModal extends FormModal {
 			text: this.initial ? "Save" : "Add",
 			cls: "callander-modal-button mod-cta",
 		});
-		const submit = async () => {
-			const fact = input.value.trim();
-			if (!fact) return;
-			await this.onSubmit(fact);
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const fact = input.value.trim();
+				if (!fact) return;
+				await this.onSubmit(fact);
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void submit());
 		input.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {

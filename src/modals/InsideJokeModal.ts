@@ -1,4 +1,5 @@
 import { App } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import type { InsideJoke } from "@/types";
@@ -70,13 +71,16 @@ export class InsideJokeModal extends FormModal {
 			cls: "callander-modal-button mod-cta",
 		});
 
-		const submit = async () => {
-			const text = textInput.value.trim();
-			if (!text) return;
-			const context = contextInput.value.trim();
-			await this.onSubmit({ text, ...(context && { context }) });
-			this.close();
-		};
+		const submit = guardedAction(
+			async () => {
+				const text = textInput.value.trim();
+				if (!text) return;
+				const context = contextInput.value.trim();
+				await this.onSubmit({ text, ...(context && { context }) });
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void submit());
 		contextInput.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {

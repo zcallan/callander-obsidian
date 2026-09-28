@@ -1,4 +1,5 @@
 import { App, Notice } from "obsidian";
+import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
 import type { GroupInfo } from "@/types";
@@ -66,21 +67,24 @@ export class GroupModal extends FormModal {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
-			const handleDelete = async () => {
-				if (!this.deleteArmed) {
-					this.deleteArmed = true;
-					deleteButton.setText("Really delete?");
-					return;
-				}
-				await ops.deleteGroup(this.existing!.name);
-				new Notice(
-					`Removed group "${ops.prettyGroupName(
-						this.existing!.name
-					)}" from everyone`
-				);
-				await this.onDone();
-				this.close();
-			};
+			const handleDelete = guardedAction(
+				async () => {
+					if (!this.deleteArmed) {
+						this.deleteArmed = true;
+						deleteButton.setText("Really delete?");
+						return;
+					}
+					await ops.deleteGroup(this.existing!.name);
+					new Notice(
+						`Removed group "${ops.prettyGroupName(
+							this.existing!.name
+						)}" from everyone`
+					);
+					await this.onDone();
+					this.close();
+				},
+				{ buttons: [deleteButton], failure: "Couldn't delete" }
+			);
 			deleteButton.addEventListener("click", () => void handleDelete());
 		}
 
@@ -88,16 +92,35 @@ export class GroupModal extends FormModal {
 			text: this.existing ? "Save" : "Create",
 			cls: "callander-modal-button mod-cta",
 		});
-		const handleSave = async () => {
-			const name = nameInput.value.trim().toLowerCase();
-			if (!name) return;
-			if (this.existing && name !== this.existing.name) {
-				await ops.renameGroup(this.existing.name, name);
-			}
-			await ops.setGroupColor(name, swatches.getColor());
-			await this.onDone(name);
-			this.close();
-		};
+		const handleSave = guardedAction(
+			async () => {
+				const name = nameInput.value.trim().toLowerCase();
+				if (!name) return;
+				// A new group under a name another group's page already has
+				// would only recolour that group, silently.
+				const taken = this.existing ? null : ops.groupPageOf(name);
+				if (taken) {
+					new Notice(`A group called "${taken.basename}" already exists`);
+					return;
+				}
+				if (this.existing && name !== this.existing.name) {
+					try {
+						await ops.renameGroup(this.existing.name, name);
+					} catch (error) {
+						// renameGroup refuses a name that's taken, before
+						// changing anything; say so and leave the form open.
+						new Notice(
+							error instanceof Error ? error.message : String(error)
+						);
+						return;
+					}
+				}
+				await ops.setGroupColor(name, swatches.getColor());
+				await this.onDone(name);
+				this.close();
+			},
+			{ buttons: [saveButton] }
+		);
 		saveButton.addEventListener("click", () => void handleSave());
 
 		if (this.existing) this.blurInitialFocus();

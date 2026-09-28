@@ -7,6 +7,20 @@ import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import { nameWithoutLeadingEmoji } from "@/utils/emoji";
 
 /**
+ * An `events`/`interactions` value in the shape the old embedded store used:
+ * a list of rows, or the empty key it could leave behind. Anything else under
+ * that name — a string, a map — is the person's own field, not ours to move.
+ */
+function isLegacyRowList(value: unknown): boolean {
+	return Array.isArray(value) || value === null;
+}
+
+/** An old embedded store with nothing left in it. */
+function isEmptyLegacyRowList(value: unknown): boolean {
+	return value === null || (Array.isArray(value) && value.length === 0);
+}
+
+/**
  * The one-time (per datum) reshuffle behind the reminders→events merge:
  *
  *   1. events embedded in person/group frontmatter → one file each under
@@ -82,8 +96,8 @@ export class EventMigration {
 			const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
 			return (
 				!!fm &&
-				(fieldOf(fm, "events") !== undefined ||
-					fieldOf(fm, "interactions") !== undefined)
+				(isLegacyRowList(fieldOf(fm, "events")) ||
+					isLegacyRowList(fieldOf(fm, "interactions")))
 			);
 		});
 	}
@@ -158,12 +172,14 @@ export class EventMigration {
 			await this.removeEmbedded(file, raw);
 		}
 		// Keys that are present but empty still count as old-shape — clear
-		// them so detection stops firing for this file.
+		// them so detection stops firing for this file. Only empty ones: a
+		// key of the same name holding anything but a list is the person's
+		// own, not an old event store.
 		await this.app.fileManager.processFrontMatter(
 			file,
 			(fm2: Record<string, unknown>) => {
-				if (asArray(fm2.events).length === 0) delete fm2.events;
-				if (asArray(fm2.interactions).length === 0) {
+				if (isEmptyLegacyRowList(fm2.events)) delete fm2.events;
+				if (isEmptyLegacyRowList(fm2.interactions)) {
 					delete fm2.interactions;
 				}
 			}
@@ -213,9 +229,14 @@ export class EventMigration {
 			);
 			moved++;
 		}
-		// The folder's job is done once it's empty.
+		// The folder's job is done once this run has emptied it — not merely
+		// because an empty folder of that name exists, which may be yours.
 		const folder = this.app.vault.getAbstractFileByPath(folderPath);
-		if (folder instanceof TFolder && folder.children.length === 0) {
+		if (
+			moved > 0 &&
+			folder instanceof TFolder &&
+			folder.children.length === 0
+		) {
 			try {
 				await this.app.fileManager.trashFile(folder);
 			} catch {
@@ -307,7 +328,12 @@ export class EventMigration {
 		const file = this.app.vault.getAbstractFileByPath(path);
 		if (!(file instanceof TFile)) return 0;
 		const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
-		const rows = asArray(fieldOf(fm, "reminders")).filter(isRecord);
+		// Only the old store itself: a note of your own that happens to be
+		// called Reminders has no `reminders` list, and isn't ours to trash.
+		// (Nor is one that isn't indexed yet — the next cache settle retries.)
+		const store = fieldOf(fm, "reminders");
+		if (store === undefined) return 0;
+		const rows = asArray(store).filter(isRecord);
 		let moved = 0;
 		for (const row of rows) {
 			const str = (v: unknown) => (v ? toText(v) : "");

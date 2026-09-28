@@ -165,6 +165,12 @@ import {
 } from "@/utils/flexdate";
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import {
+	applyFrontmatterPatch,
+	frontmatterPatch,
+	isEmptyPatch,
+	snapshotFrontmatter,
+} from "@/utils/frontmatterPatch";
+import {
 	joinFrontmatter,
 	parseQuotesSection,
 	splitFrontmatter,
@@ -175,6 +181,7 @@ import {
 	upsertIdeasSection,
 } from "@/utils/ideasMarkdown";
 import {
+	PAGE_DRAFTS_SECTION,
 	findDraft,
 	parseDraftsSection,
 	upsertDraftsSection,
@@ -184,6 +191,7 @@ import {
 	adoptNotes,
 	normalizeNotes,
 	parseNotesSection,
+	rescueDraftsFromNotes,
 	upsertNotesSection,
 } from "@/utils/notesMarkdown";
 
@@ -248,59 +256,6 @@ interface ContactFrontmatter {
 	[key: string]: unknown;
 }
 
-/**
- * Keys this page can clear outright — emptying a list (deleting the last
- * idea, credit, member…) or blanking an optional scalar drops the key from
- * `contactData` entirely.
- *
- * They need naming because the save is an `Object.assign` onto the existing
- * frontmatter, which can only add or overwrite: a key removed in memory
- * would otherwise survive on disk, so the delete would look like it worked
- * until the note was reopened. Anything listed here gets removed from the
- * frontmatter too when it's absent in memory.
- *
- * Deliberately an allowlist rather than "delete whatever isn't in
- * contactData" — that would drop keys written by another device or plugin
- * between load and save, and would wipe the note entirely if a read had
- * failed and left contactData empty.
- */
-const CLEARABLE_FIELDS = [
-	// Optional plan scalars
-	"endDate",
-	"location",
-	// Plan lists
-	"items",
-	"quickIdeas",
-	"travel",
-	"accommodation",
-	"bring",
-	"costs",
-	"credits",
-	"costsPaid",
-	"members",
-	"unconfirmedMembers",
-	// Person lists
-	"drafts",
-	"interests",
-	"funFacts",
-	"insideJokes",
-	"lifeGoals",
-	// Moved into the note body; the key has to be removable to migrate out
-	"quotes",
-	"ideas",
-	// Note-naming lists — clearing one has to drop the key rather than
-	// leaving an empty array behind in the frontmatter.
-	"pronouns",
-	"parents",
-	"siblings",
-	"children",
-	"friends",
-	"relatedFiles",
-	// Legacy keys: migrated into ideas/events on load, then dropped
-	"giftIdeas",
-	"interactions",
-] as const;
-
 /** YAML-shaped unknown → ContactFrontmatter, coercing bound scalars once. */
 function toContactFrontmatter(parsed: unknown): ContactFrontmatter {
 	if (!isRecord(parsed)) return {};
@@ -317,6 +272,17 @@ function toContactFrontmatter(parsed: unknown): ContactFrontmatter {
 export class ContactPageView extends ItemView {
 	private _file: TFile | null = null;
 	private contactData: ContactFrontmatter = {};
+	/**
+	 * The note `contactData` was read from. `_file` moves to the next note
+	 * as soon as navigation starts, before that note has been read — a save
+	 * in between would otherwise write one note's data into the other.
+	 */
+	private dataFile: TFile | null = null;
+	/** The frontmatter as this page last read or wrote it — what a save
+	 * diffs against (see saveContactData). */
+	private savedFrontmatter: Record<string, unknown> = {};
+	/** Saves run one at a time, so each diffs against the one before. */
+	private saveQueue: Promise<void> = Promise.resolve();
 	/** Widened for this view only, until it closes. */
 	private pageWide = false;
 	private contactFields: ContactFields;
@@ -408,16 +374,18 @@ export class ContactPageView extends ItemView {
 	/** Rewrite just the Ideas section, leaving the rest of the note —
 	 * frontmatter included — exactly as it was. */
 	private async writeIdeasToBody(ideas: Idea[]): Promise<void> {
-		if (!this._file) return;
+		const file = this._file;
+		if (!file) return;
 		this.writingUntil = Date.now() + 1000;
-		await this.app.vault.process(this._file, (content) => {
+		await this.app.vault.process(file, (content) => {
 			const { frontmatter, body } = splitFrontmatter(content);
 			return joinFrontmatter(
 				frontmatter,
 				upsertIdeasSection(body, ideas)
 			);
 		});
-		this.bodyIdeas = ideas;
+		// Only if the page is still on that note — see writeNotesToBody.
+		if (this._file === file) this.bodyIdeas = ideas;
 	}
 
 	/** Rewrite just the notes, leaving the generated sections — and the
@@ -559,6 +527,20 @@ export class ContactPageView extends ItemView {
 		list.splice(index, 1);
 		if (list.length === 0) delete this.contactData[key];
 		else this.contactData[key] = list;
+	}
+
+	/**
+	 * Remove one of the plan's frontmatter drafts, addressed by its place in
+	 * draftsOf's list — the list every draft index here is counted in.
+	 * draftsOf leaves out drafts with no text, so splicing the raw list at
+	 * the same index could remove a different draft; this writes back the
+	 * list the index came from, as editing one (writeDraft) does.
+	 */
+	private removeDraft(index: number) {
+		const list = ContactOperations.draftsOf(this.contactData);
+		list.splice(index, 1);
+		if (list.length > 0) this.contactData.drafts = list;
+		else delete this.contactData.drafts;
 	}
 
 	public async addRelationshipType(
@@ -733,18 +715,36 @@ export class ContactPageView extends ItemView {
 			const yamlMatch = content.match(/^---\n([\s\S]*?)\n---/);
 			const parsed: unknown = yamlMatch ? parseYaml(yamlMatch[1]) : {};
 			this.contactData = toContactFrontmatter(parsed);
+			// Before the in-memory migrations below, so what they change
+			// counts as a change and reaches disk with the next save.
+			this.dataFile = file;
+			this.savedFrontmatter = snapshotFrontmatter(this.contactData);
 			// Quotes live in the body; the same read serves both, so this
 			// costs no extra I/O.
-			const body = splitFrontmatter(content).body;
+			let body = splitFrontmatter(content).body;
+			if (this.isPlanFile() && rescueDraftsFromNotes(body) !== body) {
+				body = await this.rescuePlanDrafts(file);
+				if (this._file?.path !== currentFilePath) return;
+			}
 			this.bodyQuotes = parseQuotesSection(body);
 			this.bodyIdeas = parseIdeasSection(body);
 			this.bodyNotes = parseNotesSection(body);
-			this.bodyDrafts = this.isPlanFile() ? parseDraftsSection(body) : null;
+			this.bodyDrafts = this.isPlanFile()
+				? parseDraftsSection(body, PAGE_DRAFTS_SECTION)
+				: null;
 			this.migrateLegacyGiftIdeas();
 			this.migratePlanStructure();
+			// Each step works on this page's current note and data, so the
+			// chain stops as soon as the page has moved on to another note —
+			// the next step would otherwise carry this note's ideas, quotes or
+			// drafts into that one.
+			const stillHere = () => this._file === file;
 			await this.migrateQuotesToBody();
+			if (!stillHere()) return;
 			await this.migrateIdeasToBody();
+			if (!stillHere()) return;
 			await this.migrateNotesToBody(body);
+			if (!stillHere()) return;
 			if (this.isPlanFile()) {
 				await this.migratePlanDraftsToBody();
 			} else if (this.contactData.drafts !== undefined) {
@@ -753,10 +753,14 @@ export class ContactPageView extends ItemView {
 				// from there.
 				await this.plugin.contactOperations.migrateDraftsToDashboard();
 			}
+			if (!stillHere()) return;
 			await this.loadAboutDrafts();
 		} catch (error) {
 			console.error(`Error reading contact file ${file.path}:`, error);
 			this.contactData = {};
+			// Nothing was read, so nothing can be saved over the note.
+			this.dataFile = null;
+			this.savedFrontmatter = {};
 			this.bodyQuotes = null;
 			this.bodyIdeas = null;
 			this.bodyNotes = null;
@@ -2339,6 +2343,9 @@ export class ContactPageView extends ItemView {
 		};
 		const verb = verbs[this.normalizeCategory(idea)];
 		const eventText = verb ? `${verb}: ${idea.text}` : idea.text;
+		// The person whose idea it was: the notice outlives the page, which
+		// may be showing someone else by the time the button is clicked.
+		const file = this._file;
 
 		const fragment = createFragment();
 		fragment.createSpan({ text: "Idea done! " });
@@ -2354,7 +2361,7 @@ export class ContactPageView extends ItemView {
 			// Gifts given get their own type; everything else was time spent
 			const type: EventType =
 				this.normalizeCategory(idea) === "gift" ? "given" : "hangout";
-			await this.addEvent(today, eventText, type);
+			await this.addEvent(today, eventText, type, file);
 			new Notice("Added to timeline");
 		};
 		logButton.addEventListener("click", () => void logIdeaAsEvent());
@@ -3023,13 +3030,35 @@ export class ContactPageView extends ItemView {
 	/** Rewrite just the plan's own Drafts section, leaving the rest of the
 	 * note — frontmatter included — exactly as it was. */
 	private async writeDraftsToBody(drafts: LedgerDraft[]): Promise<void> {
-		if (!this._file) return;
+		const file = this._file;
+		if (!file) return;
 		this.writingUntil = Date.now() + 1000;
-		await this.app.vault.process(this._file, (content) => {
+		await this.app.vault.process(file, (content) => {
 			const { frontmatter, body } = splitFrontmatter(content);
-			return joinFrontmatter(frontmatter, upsertDraftsSection(body, drafts));
+			return joinFrontmatter(
+				frontmatter,
+				upsertDraftsSection(body, drafts, PAGE_DRAFTS_SECTION)
+			);
 		});
-		this.bodyDrafts = drafts;
+		// Only if the page is still on that note — see writeNotesToBody.
+		if (this._file === file) this.bodyDrafts = drafts;
+	}
+
+	/**
+	 * Carry drafts that 1.10.2–1.10.6 left inside this plan's Notes back up
+	 * into its Drafts section (rescueDraftsFromNotes), and return the body as
+	 * written. Worked out from the file as it is when the write lands, not
+	 * from what setFile read, so nothing written in between is lost.
+	 */
+	private async rescuePlanDrafts(file: TFile): Promise<string> {
+		this.writingUntil = Date.now() + 1000;
+		let rescued = "";
+		await this.app.vault.process(file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			rescued = rescueDraftsFromNotes(body);
+			return joinFrontmatter(frontmatter, rescued);
+		});
+		return rescued;
 	}
 
 	/**
@@ -3214,7 +3243,7 @@ export class ContactPageView extends ItemView {
 			// from the modal rather than from disk.
 			const date =
 				ContactOperations.draftsOf(this.contactData)[index]?.date;
-			this.removeFromList("drafts", index);
+			this.removeDraft(index);
 			await this.saveContactData();
 			this.render();
 			open(text, date);
@@ -3244,7 +3273,7 @@ export class ContactPageView extends ItemView {
 					})
 				),
 			async () => {
-				this.removeFromList("drafts", index);
+				this.removeDraft(index);
 				await this.saveContactData();
 				this.render();
 			}
@@ -3642,7 +3671,7 @@ export class ContactPageView extends ItemView {
 	/** Remove a timeline row's underlying item from the plan. */
 	private async deleteTimelineEntry(entry: PlanTimelineEntry) {
 		if (entry.source === "draft") {
-			this.removeFromList("drafts", entry.index);
+			this.removeDraft(entry.index);
 			await this.saveContactData();
 			this.render();
 			return;
@@ -3943,12 +3972,14 @@ export class ContactPageView extends ItemView {
 			stay.categories = stay.categories.filter((c) => !matches(c));
 			if (stay.categories.length === 0) delete stay.categories;
 		}
-		this.contactData.accommodationCategories =
-			PlanOperations.stayCategoriesOf({
-				...this.contactData,
-				accommodation: list,
-				accommodationCategories: [],
-			});
+		const known = PlanOperations.stayCategoriesOf({
+			...this.contactData,
+			accommodation: list,
+			accommodationCategories: [],
+		});
+		// An emptied list drops its key, as every other list here does.
+		if (known.length > 0) this.contactData.accommodationCategories = known;
+		else delete this.contactData.accommodationCategories;
 		if (list.length > 0) this.contactData.accommodation = list;
 		await this.saveContactData();
 		this.render();
@@ -4465,7 +4496,10 @@ export class ContactPageView extends ItemView {
 		new LifeGoalViewModal(
 			this.app,
 			goal,
-			() => this.openLifeGoalModal(index, goal),
+			// Read afresh: the view's notes may have been typed and saved
+			// since it opened, and the form opening with the older copy
+			// would write those notes back over them on Save.
+			() => this.openLifeGoalModal(index, this.lifeGoalsOf()[index] ?? goal),
 			async () => {
 				const list = this.lifeGoalsOf();
 				list.splice(index, 1);
@@ -4578,16 +4612,18 @@ export class ContactPageView extends ItemView {
 	/** Rewrite just the Quotes section, leaving the rest of the note —
 	 * frontmatter included — exactly as it was. */
 	private async writeQuotesToBody(quotes: Quote[]): Promise<void> {
-		if (!this._file) return;
+		const file = this._file;
+		if (!file) return;
 		this.writingUntil = Date.now() + 1000;
-		await this.app.vault.process(this._file, (content) => {
+		await this.app.vault.process(file, (content) => {
 			const { frontmatter, body } = splitFrontmatter(content);
 			return joinFrontmatter(
 				frontmatter,
 				upsertQuotesSection(body, quotes)
 			);
 		});
-		this.bodyQuotes = quotes;
+		// Only if the page is still on that note — see writeNotesToBody.
+		if (this._file === file) this.bodyQuotes = quotes;
 	}
 
 
@@ -4832,44 +4868,65 @@ export class ContactPageView extends ItemView {
 	}
 
 	/**
+	 * Write what this page changed in the note's frontmatter since it last
+	 * read or wrote it (frontmatterPatch): changed keys are set, removed keys
+	 * deleted, and every other key left exactly as it is on disk. So clearing
+	 * a list or field always sticks, and a key another device changed since
+	 * the page loaded isn't written over with the page's older copy. A failed
+	 * read leaves nothing to compare against, so it writes nothing.
+	 *
+	 * Saves run one at a time, and only into the note the data was read
+	 * from: one that starts while the page is moving to another note is
+	 * dropped rather than written into it.
+	 *
 	 * @param stamp Whether this counts as a user edit. Migrations pass
 	 * false: moving a field between storage formats shouldn't make every
 	 * friend look like you touched them today.
 	 */
 	async saveContactData(stamp = true) {
-		if (!this._file) return;
+		const file = this._file;
+		if (!file) return;
+		const save = this.saveQueue.then(() =>
+			this.writeContactData(file, stamp)
+		);
+		this.saveQueue = save.catch(() => undefined);
+		await save;
+	}
 
-		// Our own write will fire a modify event — ignore it briefly so we
-		// don't reload on top of ourselves
-		this.writingUntil = Date.now() + 1500;
+	private async writeContactData(file: TFile, stamp: boolean) {
+		if (this._file !== file || this.dataFile !== file) return;
 
+		// A copy taken now, not after the write: an edit made while the
+		// write is in flight belongs to the next save, not to this one.
+		const next = snapshotFrontmatter(this.contactData);
+		const patch = frontmatterPatch(this.savedFrontmatter, next);
 		// People and plans carry a last-updated stamp; group pages don't
-		const path = this._file.path;
 		const stampUpdated =
-			path.startsWith(
+			stamp &&
+			(file.path.startsWith(
 				this.plugin.contactOperations.getPeopleFolderPath() + "/"
 			) ||
-			path.startsWith(
-				this.plugin.planOperations.getPlansFolderPath() + "/"
+				file.path.startsWith(
+					this.plugin.planOperations.getPlansFolderPath() + "/"
+				));
+
+		if (stampUpdated || !isEmptyPatch(patch)) {
+			// Our own write will fire a modify event — ignore it briefly so
+			// we don't reload on top of ourselves
+			this.writingUntil = Date.now() + 1500;
+			await this.app.fileManager.processFrontMatter(
+				file,
+				(frontmatter: Record<string, unknown>) => {
+					applyFrontmatterPatch(frontmatter, patch);
+					if (stampUpdated) frontmatter.updated = todayISO();
+				}
 			);
-		await this.app.fileManager.processFrontMatter(
-			this._file,
-			(frontmatter: Record<string, unknown>) => {
-				Object.assign(frontmatter, this.contactData);
-				// Object.assign can't express a removal, so clearing a list
-				// or field has to be applied to the frontmatter separately.
-				for (const key of CLEARABLE_FIELDS) {
-					if (!(key in this.contactData)) delete frontmatter[key];
-				}
-				if (stampUpdated && stamp) {
-					frontmatter.updated = todayISO();
-				}
-			}
-		);
+			this.savedFrontmatter = next;
+		}
 
 		// `contactData` was mutated before this ran, so the islands are
 		// already behind by the time the write lands. Bumping here rather
-		// than at each of the ~49 call sites means a ported section updates
+		// than at each of the ~55 call sites means a ported section updates
 		// whether or not its caller also redraws the imperative DOM — and
 		// the double bump when one does costs a re-render of a small tree,
 		// not a re-read of the vault.
@@ -4913,8 +4970,12 @@ export class ContactPageView extends ItemView {
 	}
 
 	/** Log a quick event on this page's timeline (idea done → timeline). */
-	public async addEvent(date: string, text: string, type: EventType) {
-		const file = this._file;
+	public async addEvent(
+		date: string,
+		text: string,
+		type: EventType,
+		file: TFile | null = this._file
+	) {
 		if (!file) return;
 		await this.plugin.eventOperations.createEvent({
 			name: text,
