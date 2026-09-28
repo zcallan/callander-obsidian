@@ -18,6 +18,7 @@ import {
 	parseDurationMinutes,
 } from "@/utils/planFormat";
 import { exactTimeChoices } from "@/utils/clock";
+import { hhmm, pad2 } from "@/utils/dates";
 
 /**
  * Shared Date / Time / People fields for plan-item modals (ideas, travel,
@@ -230,7 +231,7 @@ export function appendScheduleFields(
 			cls: "quick-idea-input plan-time-select",
 		});
 		for (let h = 0; h < 24; h++) {
-			const v = String(h).padStart(2, "0");
+			const v = pad2(h);
 			// Value stays 24h ("00".."23") for storage/sorting; label is 12h.
 			const label = `${h % 12 || 12}${h < 12 ? "am" : "pm"}`;
 			const opt = hourSelect.createEl("option", { value: v, text: label });
@@ -467,7 +468,7 @@ export function appendHourRangeField(
 		}
 		const currentHour = /^(\d{1,2}):/.exec(current ?? "")?.[1];
 		for (let h = 0; h <= 23; h++) {
-			const value = `${String(h).padStart(2, "0")}:00`;
+			const value = `${pad2(h)}:00`;
 			const opt = select.createEl("option", {
 				value,
 				text: formatHourLabel(h),
@@ -560,7 +561,7 @@ export function appendClockField(
 	for (let m = 0; m < 60; m += 5) {
 		const opt = minuteSelect.createEl("option", {
 			value: String(m),
-			text: `:${String(m).padStart(2, "0")}`,
+			text: `:${pad2(m)}`,
 		});
 		if (m === initialMinute) opt.selected = true;
 	}
@@ -633,10 +634,7 @@ export function appendClockField(
 			if (specialEventTime(hourSelect.value)) return hourSelect.value;
 			const hour = Number(hourSelect.value);
 			const minute = Number(minuteSelect.value);
-			return `${String(hour).padStart(2, "0")}:${String(minute).padStart(
-				2,
-				"0"
-			)}`;
+			return hhmm(hour, minute);
 		},
 		// Only meaningful with a clock reading to attach it to — a zone
 		// left over from before the time was cleared would otherwise be

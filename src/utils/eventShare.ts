@@ -5,6 +5,7 @@ import { formatEventTime } from "@/utils/eventRow";
 import { zonedWallTimeToInstant } from "@/utils/timezone";
 import { normalizeUrl } from "@/utils/url";
 import { parseDurationMinutes } from "@/utils/planFormat";
+import { pad2 } from "@/utils/dates";
 
 /**
  * An event as a plain-text message you can paste into a text — kept pure
@@ -101,9 +102,8 @@ export function buildGoogleCalendarUrl(
 		return null;
 	}
 	const { year, month, day } = flex;
-	const pad = (n: number) => String(n).padStart(2, "0");
 	const stamp = (d: Date) =>
-		`${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+		`${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
 
 	let dates: string;
 	const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(e.time);
@@ -119,8 +119,8 @@ export function buildGoogleCalendarUrl(
 		);
 		const startStamp = `${stamp(
 			new Date(year, month - 1, day)
-		)}T${pad(hour)}${pad(minute)}00`;
-		const endStamp = `${stamp(end)}T${pad(end.getHours())}${pad(
+		)}T${pad2(hour)}${pad2(minute)}00`;
+		const endStamp = `${stamp(end)}T${pad2(end.getHours())}${pad2(
 			end.getMinutes()
 		)}00`;
 		// An event that names a zone names a real moment, so the link says
@@ -135,9 +135,9 @@ export function buildGoogleCalendarUrl(
 				: null;
 		if (instant) {
 			const utc = (d: Date) =>
-				`${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(
+				`${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(
 					d.getUTCDate()
-				)}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+				)}T${pad2(d.getUTCHours())}${pad2(d.getUTCMinutes())}00Z`;
 			dates = `${utc(instant)}/${utc(
 				new Date(instant.getTime() + minutes * 60000)
 			)}`;

@@ -1,3 +1,5 @@
+import { hhmm, isoDateOf } from "@/utils/dates";
+
 /**
  * Timezones for event times.
  *
@@ -199,9 +201,7 @@ function offsetLabel(ms: number): string {
 	const total = Math.round(ms / 60000);
 	const sign = total < 0 ? "-" : "+";
 	const abs = Math.abs(total);
-	const hours = String(Math.floor(abs / 60)).padStart(2, "0");
-	const minutes = String(abs % 60).padStart(2, "0");
-	return `${sign}${hours}:${minutes}`;
+	return `${sign}${hhmm(Math.floor(abs / 60), abs % 60)}`;
 }
 
 /** One option's text, wherever it came from. */
@@ -391,10 +391,9 @@ export function resolveToZone(
 	if (!instant) return { date, time };
 	const f = fieldsAt(instant, viewerZone);
 	if (!f) return { date, time };
-	const pad = (n: number) => String(n).padStart(2, "0");
 	return {
-		date: `${f.y}-${pad(f.mo)}-${pad(f.d)}`,
-		time: `${pad(f.h)}:${pad(f.mi)}`,
+		date: isoDateOf(f.y, f.mo, f.d),
+		time: hhmm(f.h, f.mi),
 	};
 }
 

@@ -193,6 +193,7 @@ import {
 	rescueDraftsFromNotes,
 	upsertNotesSection,
 } from "@/utils/notesMarkdown";
+import { isoDateOf, isoDay, wholeDaysBetween } from "@/utils/dates";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -1607,13 +1608,7 @@ export class ContactPageView extends ItemView {
 		// Last updated — from the file itself, so edits made anywhere count
 		if (this._file) {
 			const mtime = new Date(this._file.stat.mtime);
-			const today = new Date();
-			today.setHours(0, 0, 0, 0);
-			const mtimeDay = new Date(mtime);
-			mtimeDay.setHours(0, 0, 0, 0);
-			const daysAgo = Math.round(
-				(today.getTime() - mtimeDay.getTime()) / 86400000
-			);
+			const daysAgo = wholeDaysBetween(mtime, new Date());
 			const label =
 				daysAgo === 0
 					? "today"
@@ -2491,7 +2486,6 @@ export class ContactPageView extends ItemView {
 		);
 	}
 
-
 	private renderEventsSection(container: HTMLElement) {
 		const eventsSection = container.createDiv({
 			cls: "contact-events-section",
@@ -2622,11 +2616,7 @@ export class ContactPageView extends ItemView {
 					dateFlex.day
 				);
 				target.setHours(0, 0, 0, 0);
-				const today = new Date();
-				today.setHours(0, 0, 0, 0);
-				const days = Math.round(
-					(target.getTime() - today.getTime()) / 86400000
-				);
+				const days = wholeDaysBetween(new Date(), target);
 				if (days === 0) when += " · today!";
 				else if (days === 1) when += " · tomorrow";
 				else if (days > 1) when += ` · in ${days} days`;
@@ -3399,7 +3389,6 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-
 	/** Context-aware placeholders for the travel / accommodation modal. */
 	private planSimplePlaceholders(key: "travel" | "accommodation") {
 		return key === "travel"
@@ -3522,8 +3511,7 @@ export class ContactPageView extends ItemView {
 	private exactPlanDay(value: string | number | undefined): string | null {
 		const p = parseFlexDate(value);
 		if (p && p.year !== null && p.month !== null && p.day !== null) {
-			const pad = (n: number) => String(n).padStart(2, "0");
-			return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+			return isoDateOf(p.year, p.month, p.day);
 		}
 		return null;
 	}
@@ -3534,13 +3522,10 @@ export class ContactPageView extends ItemView {
 		const d = new Date(`${startISO}T00:00:00`);
 		const end = new Date(`${endISO}T00:00:00`);
 		if (isNaN(d.getTime()) || isNaN(end.getTime()) || end < d) return days;
-		const pad = (n: number) => String(n).padStart(2, "0");
 		let guard = 0;
 		while (d <= end && guard++ < 400) {
 			days.push(
-				`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-					d.getDate()
-				)}`
+				isoDay(d)
 			);
 			d.setDate(d.getDate() + 1);
 		}
@@ -4165,7 +4150,6 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-
 	// Diary entries that [[link]] to this friend — Obsidian-native, via backlinks
 	/** Diary entries linking to this person, from the link index alone. */
 	private diaryMentions(): DiaryMention[] {
@@ -4178,7 +4162,6 @@ export class ContactPageView extends ItemView {
 			.filter((e) => (resolved[e.file.path]?.[file.path] ?? 0) > 0)
 			.map((e) => ({ path: e.file.path, date: e.date, title: e.title }));
 	}
-
 
 	// Migrate legacy giftIdeas -> ideas (category: gift). In-memory on load;
 	// the file itself is rewritten on the next save.
@@ -4282,7 +4265,6 @@ export class ContactPageView extends ItemView {
 		await this.writeIdeasToBody(list);
 		this.render();
 	}
-
 
 	// Capture a raw draft about this friend/plan — appears in the drafts
 	// strip to triage later
@@ -4477,7 +4459,6 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-
 	/** Add (index null) or edit a fun fact; Delete is offered when editing. */
 	private openFunFactModal(index: number | null, fact: string | null) {
 		new FunFactsModal(
@@ -4570,7 +4551,6 @@ export class ContactPageView extends ItemView {
 		if (this._file === file) this.bodyQuotes = quotes;
 	}
 
-
 	/** Normalized inside-joke list (legacy plain strings read as { text }). */
 	private insideJokesOf(): InsideJoke[] {
 		return asArray(this.contactData.insideJokes)
@@ -4584,7 +4564,6 @@ export class ContactPageView extends ItemView {
 			})
 			.filter((j) => j.text.length > 0);
 	}
-
 
 	private openInsideJokeModal(index: number | null, joke: InsideJoke | null) {
 		new InsideJokeModal(
@@ -4703,7 +4682,6 @@ export class ContactPageView extends ItemView {
 			text
 		).open();
 	}
-
 
 	private openAddInterestModal() {
 		new InterestModal(

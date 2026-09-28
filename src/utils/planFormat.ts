@@ -1,6 +1,7 @@
 import { ANY_TIME, roughTime } from "@/constants";
 import { formatDate, ordinalDay } from "@/utils/dateFormat";
 import { formatShortWeekdayDate } from "@/utils/flexdate";
+import { wholeDaysBetween } from "@/utils/dates";
 
 /**
  * Display helpers shared by the plan timeline and its read view, so a stay
@@ -34,7 +35,6 @@ export function formatQuickIdeaDates(dates: string[]): string {
 	}
 	const sorted = [...byIso.values()].sort((a, b) => a.getTime() - b.getTime());
 
-	const ONE_DAY = 86400000;
 	const segments: string[] = [];
 	let runStart: Date | null = null;
 	let runEnd: Date | null = null;
@@ -52,8 +52,7 @@ export function formatQuickIdeaDates(dates: string[]): string {
 		// Rounded, not an exact-ms equality check: a DST transition makes
 		// local midnight to local midnight either 23 or 25 real hours, and
 		// both are still "the next day".
-		const adjacent =
-			runEnd && Math.round((date.getTime() - runEnd.getTime()) / ONE_DAY) === 1;
+		const adjacent = runEnd && wholeDaysBetween(runEnd, date) === 1;
 		if (adjacent) {
 			runEnd = date;
 		} else {

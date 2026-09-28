@@ -69,6 +69,7 @@ import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { PlanModal } from "@/modals/PlanModal";
 import { EventModal } from "@/modals/EventModal";
 import { parseFlexDate, todayISO } from "@/utils/flexdate";
+import { MS_PER_HOUR, pad2 } from "@/utils/dates";
 
 /**
  * The markdown-view intercept: contact/someday notes navigated to as
@@ -428,7 +429,7 @@ export default class FriendTracker extends Plugin {
 			this.registerInterval(
 				window.setInterval(
 					() => void this.checkBirthdays(),
-					60 * 60 * 1000
+					MS_PER_HOUR
 				)
 			);
 			this.registerDomEvent(window, "focus", () =>
@@ -518,7 +519,7 @@ export default class FriendTracker extends Plugin {
 	/**
 	 * iOS: the on-screen keyboard overlays the layout viewport, clipping
 	 * the bottom of open modals. Track the keyboard's height into a CSS
-	 * variable (used to pad modal content) and scroll the focused input
+	 * variable (used to pad2 modal content) and scroll the focused input
 	 * clear once the keyboard has animated in.
 	 */
 	private installKeyboardInsetTracking() {
@@ -1380,7 +1381,6 @@ export default class FriendTracker extends Plugin {
 		const now = new Date();
 		const stamp =
 			now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-		const pad = (n: number) => String(n).padStart(2, "0");
 		const escape = (s: string) =>
 			s.replace(/\\/g, "\\\\").replace(/[,;]/g, (m) => "\\" + m);
 
@@ -1423,7 +1423,7 @@ export default class FriendTracker extends Plugin {
 				"BEGIN:VEVENT",
 				`UID:callander-${uidBase}-${year}@callander`,
 				`DTSTAMP:${stamp}`,
-				`DTSTART;VALUE=DATE:${year}${pad(parsed.month)}${pad(
+				`DTSTART;VALUE=DATE:${year}${pad2(parsed.month)}${pad2(
 					parsed.day
 				)}`,
 				`SUMMARY:${escape(title)}`,

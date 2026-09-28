@@ -1,4 +1,5 @@
 import { monthName, parseFlexDate } from "@/utils/flexdate";
+import { isoDay, pad2, wholeDaysBetween } from "@/utils/dates";
 
 /** When a birthday next comes round. */
 export interface BirthdayOccurrence {
@@ -97,9 +98,7 @@ export function nextBirthdayOccurrence(
 
 	return {
 		date: isoDay(occurrence),
-		days: Math.round(
-			(occurrence.getTime() - today.getTime()) / 86_400_000
-		),
+		days: wholeDaysBetween(today, occurrence),
 	};
 }
 
@@ -193,9 +192,7 @@ export function birthdayMonths<T extends DatedPerson>(
 			person,
 			exact,
 			date: isoDay(occurrence),
-			days: Math.round(
-				(occurrence.getTime() - today.getTime()) / 86_400_000
-			),
+			days: wholeDaysBetween(today, occurrence),
 			// From the years themselves rather than a stored age, which is
 			// "age today" and is already a year out on the morning of the
 			// birthday itself.
@@ -232,14 +229,8 @@ export function calendarBirthdayKey(birthday: string): number | null {
 	return parsed.month * 100 + (parsed.day ?? 0);
 }
 
-/** Local YYYY-MM-DD — never toISOString, which shifts to UTC. */
-function isoDay(d: Date): string {
-	const pad = (n: number) => String(n).padStart(2, "0");
-	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 function monthKey(d: Date): string {
-	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+	return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
 }
 
 /** Birthdays arranged for a calendar month, keyed by where they can be drawn. */
@@ -283,7 +274,7 @@ export function indexBirthdays<T extends DatedPerson>(
 			push(monthOnly, parsed.month, person);
 			continue;
 		}
-		push(byDay, `${pad(parsed.month)}-${pad(parsed.day)}`, person);
+		push(byDay, `${pad2(parsed.month)}-${pad2(parsed.day)}`, person);
 	}
 	return { byDay, monthOnly };
 }
@@ -297,10 +288,6 @@ function push<K, T>(map: Map<K, T[]>, key: K, value: T) {
 	const list = map.get(key);
 	if (list) list.push(value);
 	else map.set(key, [value]);
-}
-
-function pad(n: number): string {
-	return String(n).padStart(2, "0");
 }
 
 /**

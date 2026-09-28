@@ -44,6 +44,7 @@ import { buildSomedayRow } from "@/components/SomedayRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
 import { planHiddenFrom, planRowFields } from "@/utils/planRow";
 import { conversationalLabel } from "@/utils/upcomingWhen";
+import { isoDay, wholeDaysBetween } from "@/utils/dates";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -758,11 +759,7 @@ export class DashboardView extends ItemView {
 		if (!created) return "";
 		const [y, m, d] = created.split("-").map(Number);
 		if (!y || !m || !d) return "";
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-		const days = Math.round(
-			(today.getTime() - new Date(y, m - 1, d).getTime()) / 86400000
-		);
+		const days = wholeDaysBetween(new Date(y, m - 1, d), new Date());
 		if (days <= 0) return " · today";
 		if (days === 1) return " · yesterday";
 		return ` · ${days}d ago`;
@@ -1349,10 +1346,7 @@ export class DashboardView extends ItemView {
 		const d = new Date();
 		d.setHours(0, 0, 0, 0);
 		d.setDate(d.getDate() - daysSince);
-		const pad = (n: number) => String(n).padStart(2, "0");
-		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-			d.getDate()
-		)}`;
+		return isoDay(d);
 	}
 
 	private renderMissedBirthdays(container: HTMLElement) {

@@ -3,6 +3,7 @@ import { monthName, parseFlexDate } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { relativeFromDays, upcomingWhen } from "@/utils/upcomingWhen";
 import type { EventRowFields } from "@/utils/eventRow";
+import { isoDay, wholeDaysBetween } from "@/utils/dates";
 
 /** A plan's icon when its name doesn't lead with an emoji of its own. */
 export const PLAN_ICON = "🗺️";
@@ -79,9 +80,7 @@ export function planRowFields(
 		} else if (today > endDay) {
 			// relativeFromDays takes "target minus today" (negative = past),
 			// the same convention as upcomingWhen's own target date.
-			const daysUntilEnd = Math.round(
-				(endDay.getTime() - today.getTime()) / 86400000
-			);
+			const daysUntilEnd = wholeDaysBetween(today, endDay);
 			({ relative: relativeText, tone: relativeTone } =
 				relativeFromDays(daysUntilEnd));
 		}
@@ -201,8 +200,3 @@ export function planHiddenFrom(
 	};
 }
 
-/** Local YYYY-MM-DD — never toISOString, which shifts to UTC. */
-function isoDay(d: Date): string {
-	const pad = (n: number) => String(n).padStart(2, "0");
-	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}

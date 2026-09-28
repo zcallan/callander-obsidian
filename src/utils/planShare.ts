@@ -18,6 +18,7 @@ import {
 } from "@/utils/planFormat";
 import { shortenMemberNames, shortenPeopleList } from "@/utils/nameFormat";
 import { nameWithoutLeadingEmoji } from "@/utils/emoji";
+import { isoDay, pad2 } from "@/utils/dates";
 
 /**
  * The plan as a plain-text message you can paste to the group chat.
@@ -193,15 +194,12 @@ function planDays(data: Record<string, unknown>): string[] {
 	const end = exact(data.endDate) ?? start;
 	if (end < start) return [];
 
-	const pad = (n: number) => String(n).padStart(2, "0");
 	const days: string[] = [];
 	const cursor = new Date(start);
 	let guard = 0;
 	while (cursor <= end && guard++ < 400) {
 		days.push(
-			`${cursor.getFullYear()}-${pad(cursor.getMonth() + 1)}-${pad(
-				cursor.getDate()
-			)}`
+			isoDay(cursor)
 		);
 		cursor.setDate(cursor.getDate() + 1);
 	}
@@ -428,11 +426,10 @@ export function buildTimelineCalendarUrl(
 	const start = new Date(`${entry.date}T00:00:00`);
 	if (!entry.date || isNaN(start.getTime())) return null;
 
-	const pad = (n: number) => String(n).padStart(2, "0");
 	const day = (d: Date) =>
-		`${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+		`${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
 	const stamp = (d: Date) =>
-		`${day(d)}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+		`${day(d)}T${pad2(d.getHours())}${pad2(d.getMinutes())}00`;
 
 	const isStay = entry.source === "accommodation";
 	// A stay ends after its nights; everything else lands on its own day.

@@ -1,4 +1,5 @@
 import { monthName, parseFlexDate } from "@/utils/flexdate";
+import { isoDay } from "@/utils/dates";
 
 /** One heading on the Events timeline, and what sits under it. */
 export interface EventGroup<T> {
@@ -189,8 +190,3 @@ export function groupEventsByPeriod<T>(
 	return [...undated, ...dated.reverse()];
 }
 
-/** Local YYYY-MM-DD — never toISOString, which shifts to UTC. */
-function isoDay(d: Date): string {
-	const pad = (n: number) => String(n).padStart(2, "0");
-	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}

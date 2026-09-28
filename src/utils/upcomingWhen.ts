@@ -1,5 +1,6 @@
 import { parseFlexDate, formatFlexDate, monthName } from "@/utils/flexdate";
 import { formatDate } from "@/utils/dateFormat";
+import { wholeDaysBetween } from "@/utils/dates";
 
 /** Emphasis for a row's relative-time text: "soon" is today/tomorrow,
  * "past" is anything already gone by. Derived from the day count, never by
@@ -19,11 +20,7 @@ export function daysUntilFlex(
 ): number | null {
 	const p = parseFlexDate(dateStr ?? "");
 	if (!p || p.year === null) return null;
-	const target = new Date(p.year, (p.month ?? 1) - 1, p.day ?? 1);
-	target.setHours(0, 0, 0, 0);
-	const today = new Date(now);
-	today.setHours(0, 0, 0, 0);
-	return Math.round((target.getTime() - today.getTime()) / 86400000);
+	return wholeDaysBetween(now, new Date(p.year, (p.month ?? 1) - 1, p.day ?? 1));
 }
 
 /** "today" / "4 days ago" / "in 12 days" (etc.) and its tone, from an
@@ -140,11 +137,7 @@ export function upcomingWhen(
 	if (p.year !== null && p.month !== null && p.day !== null) {
 		const target = new Date(p.year, p.month - 1, p.day);
 		target.setHours(0, 0, 0, 0);
-		const today = new Date(now);
-		today.setHours(0, 0, 0, 0);
-		const days = Math.round(
-			(target.getTime() - today.getTime()) / 86400000
-		);
+		const days = wholeDaysBetween(now, target);
 		// Close by, the weekday says it better than the calendar does — and
 		// carries its own year, so the suffix below never comes up.
 		const near = options.conversational

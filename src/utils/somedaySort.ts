@@ -7,6 +7,7 @@ import {
 } from "@/constants";
 import { parseFlexDate, monthName } from "@/utils/flexdate";
 import { nameWithoutLeadingEmoji } from "@/utils/emoji";
+import { wholeDaysBetween } from "@/utils/dates";
 
 /**
  * Ordering for the Somedays list, shared by the Somedays page (which picks
@@ -85,11 +86,7 @@ export function daysUntil(iso: string, now: Date): number | null {
 	if (!flex || flex.year === null || flex.month === null || flex.day === null) {
 		return null;
 	}
-	const target = new Date(flex.year, flex.month - 1, flex.day);
-	target.setHours(0, 0, 0, 0);
-	const today = new Date(now);
-	today.setHours(0, 0, 0, 0);
-	return Math.round((target.getTime() - today.getTime()) / 86400000);
+	return wholeDaysBetween(now, new Date(flex.year, flex.month - 1, flex.day));
 }
 
 /**

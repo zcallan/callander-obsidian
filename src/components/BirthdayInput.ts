@@ -3,6 +3,7 @@ import {
 	toFlexString,
 	formatFlexDate,
 } from "@/utils/flexdate";
+import { isoDateOf, pad2 } from "@/utils/dates";
 
 type BirthdayPrecision = "full" | "yearMonth" | "monthDay";
 
@@ -57,8 +58,6 @@ export function createBirthdayPrecisionInput(
 		cls: "contact-bday-inputs",
 	});
 
-	const pad = (n: number) => String(n).padStart(2, "0");
-
 	const renderInputs = () => {
 		inputWrap.empty();
 		const parsed = parseFlexDate(currentValue);
@@ -69,9 +68,7 @@ export function createBirthdayPrecisionInput(
 				attr: { type: "date" },
 			});
 			if (parsed?.year && parsed?.month && parsed?.day) {
-				input.value = `${parsed.year}-${pad(parsed.month)}-${pad(
-					parsed.day
-				)}`;
+				input.value = isoDateOf(parsed.year, parsed.month, parsed.day);
 			}
 			input.addEventListener("change", () => {
 				const parsedInput = parseFlexDate(input.value.trim());
@@ -83,7 +80,7 @@ export function createBirthdayPrecisionInput(
 				attr: { type: "month" },
 			});
 			if (parsed?.year && parsed?.month) {
-				input.value = `${parsed.year}-${pad(parsed.month)}`;
+				input.value = `${parsed.year}-${pad2(parsed.month)}`;
 			}
 			input.addEventListener("change", () => {
 				const parsedInput = parseFlexDate(input.value.trim());

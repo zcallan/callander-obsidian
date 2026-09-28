@@ -16,6 +16,7 @@ import {
 	type HourRangeHandle,
 } from "@/modals/scheduleFields";
 import { stayRange } from "@/utils/planFormat";
+import { wholeDaysBetween } from "@/utils/dates";
 
 export interface PlanSimpleItemValue {
 	text: string;
@@ -222,9 +223,7 @@ export class PlanSimpleItemModal extends FormModal {
 			const from = new Date(`${date}T00:00:00`);
 			const to = new Date(`${lastDay}T00:00:00`);
 			if (isNaN(from.getTime()) || isNaN(to.getTime())) return MAX_NIGHTS;
-			const span = Math.round(
-				(to.getTime() - from.getTime()) / 86400000
-			);
+			const span = wholeDaysBetween(from, to);
 			return Math.max(1, Math.min(MAX_NIGHTS, span));
 		};
 

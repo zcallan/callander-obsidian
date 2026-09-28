@@ -53,6 +53,7 @@ export * from "@/components/guardedAction";
 export * from "@/utils/clock";
 export * from "@/utils/fm";
 export * from "@/utils/metadataSettled";
+export * from "@/utils/dates";
 export {
 	formatSomedayDays,
 	formatSomedaySeasons,

@@ -1,6 +1,7 @@
 import { specialEventTime } from "@/constants";
 import { monthName } from "@/utils/flexdate";
 import { weekStart } from "@/utils/eventGroups";
+import { isoDay, pad2 } from "@/utils/dates";
 
 /** One cell of the calendar. */
 export interface CalendarDay {
@@ -234,7 +235,7 @@ export function shortTime(time: string): string {
 	if (Number.isNaN(h)) return time;
 	const period = h < 12 ? "am" : "pm";
 	const hour = h % 12 || 12;
-	return m ? `${hour}:${String(m).padStart(2, "0")}${period}` : `${hour}${period}`;
+	return m ? `${hour}:${pad2(m)}${period}` : `${hour}${period}`;
 }
 
 function dayOf(d: Date, now: Date, inMonth: boolean): CalendarDay {
@@ -246,8 +247,3 @@ function dayOf(d: Date, now: Date, inMonth: boolean): CalendarDay {
 	};
 }
 
-/** Local YYYY-MM-DD — never toISOString, which shifts to UTC. */
-function isoDay(d: Date): string {
-	const pad = (n: number) => String(n).padStart(2, "0");
-	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}

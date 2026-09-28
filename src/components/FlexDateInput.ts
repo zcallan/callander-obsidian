@@ -4,6 +4,7 @@ import {
 	flexPrecision,
 	FlexPrecision,
 } from "@/utils/flexdate";
+import { isoDateOf, pad2 } from "@/utils/dates";
 
 /**
  * Year-first flexible date input: record just the year ("2019"), the month
@@ -66,8 +67,6 @@ export function createFlexDateInput(
 
 	let input: HTMLInputElement | null = null;
 
-	const pad = (n: number) => String(n).padStart(2, "0");
-
 	const renderInput = () => {
 		input?.remove();
 		input = controls.createEl("input", {
@@ -86,14 +85,12 @@ export function createFlexDateInput(
 		} else if (precision === "month") {
 			input.type = "month";
 			if (parsed?.year && parsed?.month) {
-				input.value = `${parsed.year}-${pad(parsed.month)}`;
+				input.value = `${parsed.year}-${pad2(parsed.month)}`;
 			}
 		} else {
 			input.type = "date";
 			if (parsed?.year && parsed?.month && parsed?.day) {
-				input.value = `${parsed.year}-${pad(parsed.month)}-${pad(
-					parsed.day
-				)}`;
+				input.value = isoDateOf(parsed.year, parsed.month, parsed.day);
 			}
 		}
 

@@ -10,6 +10,7 @@ import {
 	type RowTone,
 } from "@/utils/upcomingWhen";
 import type { EventVariant } from "@/services/EventOperations";
+import { pad2 } from "@/utils/dates";
 
 /**
  * The parts an event row is built from, and the order the Events page
@@ -104,7 +105,7 @@ export function formatEventTime(
 	if (Number.isNaN(h)) return t;
 	const period = h < 12 ? "AM" : "PM";
 	const hr = h % 12 === 0 ? 12 : h % 12;
-	return withOrigin(`${hr}:${String(m || 0).padStart(2, "0")} ${period}`);
+	return withOrigin(`${hr}:${pad2(m || 0)} ${period}`);
 }
 
 /**

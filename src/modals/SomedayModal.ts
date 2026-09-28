@@ -24,6 +24,7 @@ import {
 	flexPrecision,
 	todayISO,
 } from "@/utils/flexdate";
+import { isoDateOf, pad2 } from "@/utils/dates";
 
 type WhenMode = "anytime" | "within" | "year" | "month" | "day" | "season";
 
@@ -151,7 +152,6 @@ export class SomedayModal extends FormModal {
 		const whenSlot = whenControls.createDiv({
 			cls: "someday-when-slot",
 		});
-		const pad = (n: number) => String(n).padStart(2, "0");
 
 		// Each mode owns the slot's state: rendering one zeroes the others',
 		// so whatever is on screen is exactly what a save will store.
@@ -266,14 +266,12 @@ export class SomedayModal extends FormModal {
 				} else if (whenMode === "month") {
 					input.type = "month";
 					if (parsed?.year && parsed?.month) {
-						input.value = `${parsed.year}-${pad(parsed.month)}`;
+						input.value = `${parsed.year}-${pad2(parsed.month)}`;
 					}
 				} else {
 					input.type = "date";
 					if (parsed?.year && parsed?.month && parsed?.day) {
-						input.value = `${parsed.year}-${pad(
-							parsed.month
-						)}-${pad(parsed.day)}`;
+						input.value = isoDateOf(parsed.year, parsed.month, parsed.day);
 					}
 				}
 				input.addEventListener("change", () => {

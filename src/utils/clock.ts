@@ -1,3 +1,5 @@
+import { pad2 } from "@/utils/dates";
+
 /** An exact time as it's stored: "H:MM" or "HH:MM", on a 24-hour clock. */
 const EXACT_TIME = /^(\d{1,2}):(\d{2})$/;
 
@@ -7,8 +9,6 @@ const MINUTE_STEP = 5;
 /** What the picker shows with no exact time stored: noon. */
 const DEFAULT_HOUR = "12";
 const DEFAULT_MINUTE = "00";
-
-const pad = (n: number) => String(n).padStart(2, "0");
 
 export interface ExactTimeChoices {
 	/** The hour to select, "00"–"23". */
@@ -40,12 +40,12 @@ export function exactTimeChoices(stored: string | undefined): ExactTimeChoices {
 		return {
 			hour: DEFAULT_HOUR,
 			minute: DEFAULT_MINUTE,
-			minutes: minutes.map(pad),
+			minutes: minutes.map(pad2),
 		};
 	}
 	if (!minutes.includes(minute)) {
 		minutes.push(minute);
 		minutes.sort((a, b) => a - b);
 	}
-	return { hour: pad(hour), minute: pad(minute), minutes: minutes.map(pad) };
+	return { hour: pad2(hour), minute: pad2(minute), minutes: minutes.map(pad2) };
 }

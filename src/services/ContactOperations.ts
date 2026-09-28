@@ -29,6 +29,7 @@ import {
 	upsertDraftsSection,
 	type LedgerDraft,
 } from "@/utils/draftsMarkdown";
+import { wholeDaysBetween } from "@/utils/dates";
 
 /** Where the inbox lived before it became the dashboard file's properties. */
 const LEGACY_INBOX_BASENAME = "Idea Inbox";
@@ -1117,7 +1118,6 @@ export class ContactOperations {
 			lastBirthday.setFullYear(today.getFullYear() - 1);
 		}
 
-		const diffTime = today.getTime() - lastBirthday.getTime();
-		return Math.round(diffTime / (1000 * 60 * 60 * 24));
+		return wholeDaysBetween(lastBirthday, today);
 	}
 }

@@ -8,6 +8,7 @@
  */
 
 import { formatDate } from "@/utils/dateFormat";
+import { isoDateOf, isoDay, pad2, wholeDaysBetween } from "@/utils/dates";
 
 export interface FlexDate {
 	year: number | null;
@@ -91,14 +92,13 @@ export function flexPrecision(date: FlexDate): FlexPrecision {
 
 /** Canonical storage string: "2019" | "2019-03" | "2019-03-14" | "03-14" */
 export function toFlexString(date: FlexDate): string {
-	const pad = (n: number) => String(n).padStart(2, "0");
 	if (date.year === null) {
 		if (date.month === null || date.day === null) return "";
-		return `${pad(date.month)}-${pad(date.day)}`;
+		return `${pad2(date.month)}-${pad2(date.day)}`;
 	}
 	if (date.month === null) return String(date.year);
-	if (date.day === null) return `${date.year}-${pad(date.month)}`;
-	return `${date.year}-${pad(date.month)}-${pad(date.day)}`;
+	if (date.day === null) return `${date.year}-${pad2(date.month)}`;
+	return isoDateOf(date.year, date.month, date.day);
 }
 
 /** Display at recorded precision: "2019" | "March 2019" | "March 14, 2019" | "March 14" */
@@ -253,12 +253,9 @@ export function formatRelativeFlex(date: FlexDate, now = new Date()): string {
 		Math.sign(n) * Math.round(Math.abs(n) / per);
 
 	if (date.month !== null && date.day !== null) {
-		const target = new Date(date.year, date.month - 1, date.day);
-		target.setHours(0, 0, 0, 0);
-		const today = new Date(now);
-		today.setHours(0, 0, 0, 0);
-		const days = Math.round(
-			(target.getTime() - today.getTime()) / 86400000
+		const days = wholeDaysBetween(
+			now,
+			new Date(date.year, date.month - 1, date.day)
 		);
 		if (days === 0) return "today";
 		if (days === 1) return "tomorrow";
@@ -308,10 +305,6 @@ export function formatTimeSince(date: FlexDate, now = new Date()): string {
 
 /** Today as a local YYYY-MM-DD stamp (for created/updated fields). */
 export function todayISO(): string {
-	return isoStamp(new Date());
+	return isoDay(new Date());
 }
 
-function isoStamp(d: Date): string {
-	const pad = (n: number) => String(n).padStart(2, "0");
-	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}

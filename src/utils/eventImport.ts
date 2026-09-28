@@ -6,6 +6,7 @@ import {
 import { parseFlexDate } from "@/utils/flexdate";
 import { normalizeTimezone } from "@/utils/timezone";
 import { formatDurationLabel, parseDurationMinutes } from "@/utils/planFormat";
+import { hhmm, isoDateOf, pad2 } from "@/utils/dates";
 
 /**
  * Bulk event import: CSV in, events out.
@@ -184,12 +185,11 @@ export function normalizeTime(raw: string): string | null {
 		(t) => t.id === text || t.label.toLowerCase() === text
 	);
 	if (special) return special.id;
-	const pad = (n: number) => String(n).padStart(2, "0");
 	const clock = /^(\d{1,2}):(\d{2})$/.exec(text);
 	if (clock) {
 		const h = Number(clock[1]);
 		const m = Number(clock[2]);
-		return h <= 23 && m <= 59 ? `${pad(h)}:${pad(m)}` : null;
+		return h <= 23 && m <= 59 ? hhmm(h, m) : null;
 	}
 	const twelve = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/.exec(text);
 	if (twelve) {
@@ -197,7 +197,7 @@ export function normalizeTime(raw: string): string | null {
 		const m = twelve[2] ? Number(twelve[2]) : 0;
 		if (h < 1 || h > 12 || m > 59) return null;
 		const hour = (h % 12) + (twelve[3] === "pm" ? 12 : 0);
-		return `${pad(hour)}:${pad(m)}`;
+		return hhmm(hour, m);
 	}
 	return null;
 }
@@ -206,14 +206,13 @@ export function normalizeTime(raw: string): string | null {
 function normalizeDate(raw: string): string | null {
 	const p = parseFlexDate(raw.trim());
 	if (!p || p.year === null) return null;
-	const pad = (n: number) => String(n).padStart(2, "0");
 	if (p.month === null) return String(p.year);
-	if (p.day === null) return `${p.year}-${pad(p.month)}`;
+	if (p.day === null) return `${p.year}-${pad2(p.month)}`;
 	// parseFlexDate takes any day up to 31; a date that doesn't exist — the
 	// 30th of February — is a typo worth catching rather than storing.
 	const d = new Date(p.year, p.month - 1, p.day);
 	if (d.getMonth() !== p.month - 1) return null;
-	return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+	return isoDateOf(p.year, p.month, p.day);
 }
 
 /** An event type by id or label, any case: "sports", "Sports", "Life event". */
@@ -435,7 +434,6 @@ export function duplicateNames(
 			.map(([, c]) => c.name),
 	};
 }
-
 
 /**
  * A prompt to hand an AI along with a description of some events, so what
