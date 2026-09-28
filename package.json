@@ -5,7 +5,7 @@
 	"description": "Callander — a private secondary memory for your friendships, as an Obsidian plugin.",
 	"main": "main.js",
 	"scripts": {
-		"dev": "node esbuild.config.mjs",
+		"dev": "node --watch --watch-preserve-output esbuild.config.mjs",
 		"typecheck": "tsc",
 		"build": "npm run typecheck && node esbuild.config.mjs production",
 		"lint": "eslint . --max-warnings 0 && eslint -c eslint.node.config.mjs . --max-warnings 0",

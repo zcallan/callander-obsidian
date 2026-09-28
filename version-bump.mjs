@@ -1,14 +1,23 @@
 import { readFileSync, writeFileSync } from "fs";
 
-const targetVersion = process.env.npm_package_version;
+// Run by `npm version <x.y.z>`, which sets npm_package_version. Run any
+// other way it has no version to write, and used to drop `version` from
+// manifest.json and add an "undefined" key to versions.json.
+const version = process.env.npm_package_version;
+if (!/^\d+\.\d+\.\d+$/.test(version ?? "")) {
+	console.error("version-bump: run through `npm version <x.y.z>`");
+	process.exit(1);
+}
 
-// read minAppVersion from manifest.json and bump version to target version
-let manifest = JSON.parse(readFileSync("manifest.json", "utf8"));
-const { minAppVersion } = manifest;
-manifest.version = targetVersion;
-writeFileSync("manifest.json", JSON.stringify(manifest, null, "\t"));
+const read = (file) => JSON.parse(readFileSync(file, "utf8"));
+const write = (file, data) =>
+	writeFileSync(file, JSON.stringify(data, null, "\t") + "\n");
 
-// update versions.json with target version and minAppVersion from manifest.json
-let versions = JSON.parse(readFileSync("versions.json", "utf8"));
-versions[targetVersion] = minAppVersion;
-writeFileSync("versions.json", JSON.stringify(versions, null, "\t"));
+const manifest = read("manifest.json");
+if (!manifest.minAppVersion) {
+	console.error("version-bump: manifest.json has no minAppVersion");
+	process.exit(1);
+}
+// Spread, so both files keep their key order.
+write("manifest.json", { ...manifest, version });
+write("versions.json", { ...read("versions.json"), [version]: manifest.minAppVersion });

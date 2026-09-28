@@ -166,12 +166,12 @@ Differing hashes are expected (dev vs production build), so also grep the vault 
 
 The dev build stamps a real timestamp into its startup notice on **every** rebuild, via a sentinel swapped after the write — esbuild's `define` values are evaluated once at `context()` creation, so in watch mode a baked timestamp freezes at whenever the watcher started.
 
-### Two ways the watcher goes stale without saying so
+### Two ways the watcher used to go stale without saying so
 
-Both of these were hit in one day. Neither logs anything.
+Both were hit in one day, and neither logged anything. Both are handled now, but the watcher still has nothing supervising it, so the check at the end stays worth running.
 
-1. **Switching branches does not reload the watcher's config.** It keeps the `esbuild.config.mjs` it started with, so a checkout that changes that file leaves it building with stale logic. Restart it after switching.
-2. **`src/styles/base.css` is watched with `fs.watch`, which follows an inode, not a path.** Appending (`cat >>`) keeps the same file and works. Any tool that *replaces* the file — most editors, including write-then-rename — breaks the watch permanently, and CSS silently stops reaching the vault while JS keeps updating. Symptom: your rule is in the repo's `base.css` but the vault's generated `styles.css` is short and lacks it. (The root `styles.css` esbuild writes is itself generated — editing it directly does nothing on the next build.)
+1. **Switching branches didn't reload the watcher's config.** `npm run dev` now runs under `node --watch`, which restarts it whenever `esbuild.config.mjs` changes, a checkout included. A watcher started some other way (a bare `node esbuild.config.mjs`) still needs restarting by hand.
+2. **`base.css` was watched through its inode.** `fs.watch` on the file ended silently the first time an editor or a checkout replaced it, and CSS stopped reaching the vault while JS kept updating. It now watches the styles folder and matches the filename, and a watcher error is logged rather than killing the process. Symptom, if it ever recurs: your rule is in the repo's `base.css` but the vault's generated `styles.css` lacks it. (The root `styles.css` is itself generated, so editing it directly does nothing on the next build.)
 
 So after editing `base.css`, confirm it actually arrived:
 
@@ -179,4 +179,4 @@ So after editing `base.css`, confirm it actually arrived:
 diff <(tail -5 styles.css) <(tail -5 "$(cat .vault-plugin-path)/styles.css")
 ```
 
-Restarting `npm run dev` fixes both. `buildStyles()` also runs on every JS build, so a later `src/` edit will carry the CSS across too — which makes this intermittent and easy to misread as "the CSS is wrong" rather than "the CSS never shipped".
+`buildStyles()` also runs on every JS build, so a later `src/` edit carries the CSS across too, which makes a missed CSS update intermittent and easy to misread as "the CSS is wrong" rather than "the CSS never shipped".

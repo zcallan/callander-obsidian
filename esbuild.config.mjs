@@ -151,9 +151,9 @@ const context = await esbuild.context({
 		__CALLANDER_BUILD__: JSON.stringify(
 			prod ? releaseVersion() : DEV_STAMP_SENTINEL
 		),
-		// Libraries branch on this flag for development-only checks and
-		// warnings. Left undefined, the bundler keeps those paths; setting it
-		// lets them tree-shake out of a release.
+		// Nothing bundled today reads this, but a dependency that did would
+		// throw on mobile without it (there's no `process` there), and one
+		// that branches on it gets its development paths tree-shaken out.
 		"process.env.NODE_ENV": JSON.stringify(
 			prod ? "production" : "development"
 		),
@@ -218,13 +218,30 @@ if (prod) {
 	// The base stylesheet isn't part of the JS graph — watch it separately
 	// so CSS-only edits reach the vault too. (Module CSS *is* in the graph,
 	// so esbuild rebuilds for those on its own.)
-	fs.watch(BASE_CSS, () => {
-		try {
-			buildStyles();
-			console.log("[watch] styles rebuilt");
-		} catch (e) {
-			console.error("style rebuild failed", e);
-		}
-	});
+	//
+	// The folder rather than the file: fs.watch follows an inode, and an
+	// editor that saves by write-then-rename (or a git checkout) replaces
+	// the file, which silently ended a watch on the file itself. Debounced,
+	// since one save can arrive as several events.
+	let pending;
+	const rebuildStyles = () => {
+		clearTimeout(pending);
+		pending = setTimeout(() => {
+			try {
+				buildStyles();
+				console.log(
+					`[watch] styles rebuilt ${new Date().toLocaleTimeString("en-AU")}`
+				);
+			} catch (e) {
+				console.error("[watch] style rebuild failed", e);
+			}
+		}, 50);
+	};
+	fs.watch(path.dirname(BASE_CSS), (_event, name) => {
+		if (!name || name === path.basename(BASE_CSS)) rebuildStyles();
+	}).on("error", (e) =>
+		// Unhandled, this would kill the whole watcher without a word.
+		console.error("[watch] base.css watcher died — restart npm run dev", e)
+	);
 	await context.watch();
 }
