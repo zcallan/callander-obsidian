@@ -1,0 +1,5 @@
+# LF everywhere, whatever platform the checkout is on. The markdown parsers
+# here expect "\n" (frontmatter has to open with "---\n"), and a Windows
+# checkout would otherwise give the test fixtures and example vault CRLF.
+* text=auto eol=lf
+*.png binary

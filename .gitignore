@@ -19,8 +19,8 @@ styles.css
 # Exclude sourcemaps
 *.map
 
-# obsidian
-data.json
+# obsidian (the plugin's settings, when this folder is the plugin's)
+/data.json
 
 # Exclude macOS Finder (System Explorer) View States
 .DS_Store

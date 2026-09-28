@@ -1,6 +1,7 @@
 {
 	"name": "callander-obsidian",
 	"version": "1.10.6",
+	"private": true,
 	"description": "Callander — a private secondary memory for your friendships, as an Obsidian plugin.",
 	"main": "main.js",
 	"scripts": {
@@ -20,6 +21,9 @@
 	"keywords": [],
 	"author": "zcallan",
 	"license": "MIT",
+	"engines": {
+		"node": ">=20.11"
+	},
 	"devDependencies": {
 		"@eslint/js": "^9.39.5",
 		"@eslint/json": "0.14.0",

@@ -1,0 +1,47 @@
+name: CI
+
+# Lint, type-check and build, then tiers 1 and 2 of the tests, on every push
+# to main and every pull request. The release workflow calls this as well,
+# so nothing is released that doesn't pass it. Tier 3 (tests/e2e) stays a
+# manual step: it drives a desktop Obsidian.
+on:
+    push:
+        branches: [main]
+    pull_request:
+    workflow_call:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            # Actions are pinned to a commit, with the tag it was beside.
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Use Node.js
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version-file: .nvmrc
+                  cache: npm
+
+            - run: npm ci
+
+            - run: npm run lint
+
+            # tsc, then the production bundle
+            - run: npm run build
+
+            - run: npm test
+              env:
+                  # The zone the suite has always run in, so a run here
+                  # can't disagree with a local one about which day it is.
+                  TZ: America/New_York
