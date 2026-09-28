@@ -171,7 +171,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			},
 			{
 				name: "Open friends in Callander view",
-				desc: "Clicking a friend's note anywhere (file explorer, quick switcher, links, graph) opens their Callander page instead of raw markdown. The Markdown tab still gets you to the underlying note.",
+				desc: "Clicking a friend's note anywhere (file explorer, quick switcher, links, graph) opens their Callander page instead of raw Markdown. The Markdown tab still gets you to the underlying note.",
 				control: {
 					type: "toggle",
 					key: "openContactsInCallanderView",
@@ -484,7 +484,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Open friends in Callander view")
 			.setDesc(
-				"Clicking a friend's note anywhere (file explorer, quick switcher, links, graph) opens their Callander page instead of raw markdown. The Markdown tab still gets you to the underlying note."
+				"Clicking a friend's note anywhere (file explorer, quick switcher, links, graph) opens their Callander page instead of raw Markdown. The Markdown tab still gets you to the underlying note."
 			)
 			.addToggle((toggle) => {
 				toggle

@@ -11,7 +11,7 @@ export function createRelationshipInput(
 		attr: {
 			type: "text",
 			value: value || "",
-			placeholder: "Friend, Family, Colleague, etc.",
+			placeholder: "Friend, family, colleague, etc.",
 			list: "relationship-types",
 			autocomplete: "on",
 			role: "combobox",

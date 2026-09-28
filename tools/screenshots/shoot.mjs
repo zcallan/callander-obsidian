@@ -20,7 +20,7 @@
  * it runs. Don't start it and then go and type somewhere else.
  */
 
-import { spawn, execFileSync, execFile } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync, readdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";

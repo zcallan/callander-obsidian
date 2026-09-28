@@ -96,7 +96,8 @@ if (fixtures.length === 0) {
 	process.exit(1);
 }
 
-const panel = (theme) =>
+// The theme comes from the wrapper each panel sits in.
+const panel = () =>
 	fixtures
 		.map((file) => {
 			const html = fs.readFileSync(path.join(fixturesDir, file), "utf8");
@@ -154,11 +155,11 @@ ${vars("light")}
 <div class="pv-panes">
 	<div class="pv-pane theme-dark">
 		<p class="pv-theme">dark</p>
-${panel("dark")}
+${panel()}
 	</div>
 	<div class="pv-pane theme-light">
 		<p class="pv-theme">light</p>
-${panel("light")}
+${panel()}
 	</div>
 </div>
 <script>
