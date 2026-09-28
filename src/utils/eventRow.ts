@@ -9,7 +9,7 @@ import {
 	upcomingWhen,
 	type RowTone,
 } from "@/utils/upcomingWhen";
-import type { EventVariant } from "@/services/EventOperations";
+import type { EventVariant } from "@/types";
 import { pad2 } from "@/utils/dates";
 
 /**

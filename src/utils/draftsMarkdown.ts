@@ -4,7 +4,9 @@ import {
 	upsertSection,
 	type SectionSpec,
 } from "@/utils/markdownSection";
-import { GENERATED_MARKER, isGenerated } from "@/utils/generated";
+import { GENERATED_MARKER, generatedField, isGenerated } from "@/utils/generated";
+import { asArray, fieldOf } from "@/utils/fm";
+import type { Draft } from "@/types";
 
 /**
  * Drafts, kept as a checklist under `## Drafts` in the dashboard note.
@@ -274,4 +276,25 @@ export function mergeLegacyDrafts(
 		else added.push(d);
 	}
 	return [...existing, ...added];
+}
+
+/**
+ * A note's `drafts` frontmatter list as Draft objects: a bare string is a
+ * draft with no date, and one with no text is dropped.
+ */
+export function draftsOf(metadata: unknown): Draft[] {
+	return asArray(fieldOf(metadata, "drafts"))
+		.map((d): Draft => {
+			if (typeof d === "string") return { text: d, created: "" };
+			const text = fieldOf(d, "text");
+			const created = fieldOf(d, "created");
+			const date = fieldOf(d, "date");
+			return {
+				text: typeof text === "string" ? text : "",
+				created: typeof created === "string" ? created : "",
+				...(typeof date === "string" && date ? { date } : {}),
+				...generatedField(d),
+			};
+		})
+		.filter((d) => d.text.length > 0);
 }

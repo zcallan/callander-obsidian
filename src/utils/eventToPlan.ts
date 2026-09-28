@@ -9,6 +9,16 @@ import { isExactFlexDate, parseFlexDate } from "@/utils/flexdate";
  * Structural rather than typed against EventInfo: it needs no TFile, so the
  * unit suite can exercise it against plain objects.
  */
+/**
+ * The date a new plan's form starts with. The form offers month/day
+ * precision only, so a bare-year date starts it blank rather than lying
+ * about which month.
+ */
+export function planPrefillDate(date: string): string {
+	const flex = parseFlexDate(date);
+	return flex && flex.month !== null ? date : "";
+}
+
 export interface PlannableEvent {
 	name: string;
 	date: string;
@@ -86,9 +96,7 @@ export function eventPlanSeed(
 	peopleNames: string[] = []
 ): EventPlanSeed {
 	const flex = parseFlexDate(event.date);
-	// The plan form offers month/day precision only, so a bare-year date
-	// starts the field blank rather than lying about which month.
-	const prefillDate = flex && flex.month !== null ? event.date : "";
+	const prefillDate = planPrefillDate(event.date);
 	// A timeline entry only shows on the plan's schedule with a real day —
 	// anything vaguer sits in the list without pretending to a slot.
 	const dayPrecise = isExactFlexDate(flex);

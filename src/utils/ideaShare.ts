@@ -1,17 +1,17 @@
 import type { PlanQuickIdea } from "@/types";
-import { PlanOperations } from "@/services/PlanOperations";
 import { stripEmoji } from "@/utils/emoji";
 import {
 	formatItemCost,
 	formatItemTime,
 	formatQuickIdeaDates,
 } from "@/utils/planFormat";
+import { groupQuickIdeas } from "@/utils/planTimeline";
 
 /**
  * A plan's ideas as plain text — the shortlist you'd paste into a chat to
  * ask "which of these?".
  *
- * Grouped through PlanOperations.groupQuickIdeas, the same call the section
+ * Grouped through groupQuickIdeas, the same call the section
  * renders from, so the message can't disagree with the screen about which
  * heading something sits under. An idea in two categories appears under
  * both here as well: that's what the field is for.
@@ -64,7 +64,7 @@ export function buildIdeaShareText(
 	shortenPeople: (people: string) => string = (people) => people
 ): string {
 	const blocks: string[] = [];
-	for (const group of PlanOperations.groupQuickIdeas(ideas)) {
+	for (const group of groupQuickIdeas(ideas)) {
 		const lines: string[] = [];
 		// Empty when nothing is categorised — a list where everything sits
 		// in one bucket needs no heading naming it.

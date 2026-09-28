@@ -1,6 +1,31 @@
 import type { TFile } from "obsidian";
 import type { EventType } from "@/constants";
-import type { EventStatus, EventVariant } from "@/services/EventOperations";
+
+/**
+ * What an event note is FOR — the two different things that share this
+ * schema.
+ *
+ * "reminder" is a calendar entry: something you put in the diary for
+ * yourself, past or future. It shows on the dashboard and the Events
+ * page.
+ *
+ * "timeline" is a record of something that happened with someone —
+ * logged from their page or a diary entry. It belongs on their timeline
+ * and nowhere else; the Events page is your calendar, not a memory book.
+ *
+ * Person timelines show both, so nothing is ever hidden from the person
+ * it's about.
+ */
+export type EventVariant = "reminder" | "timeline";
+
+/**
+ * open | done | cancelled.
+ *
+ * Cancelled is a soft delete: the event stays in the record — you did plan
+ * it, and that's worth keeping — but drops off the dashboard, which is for
+ * what's actually happening.
+ */
+export type EventStatus = "open" | "done" | "cancelled";
 
 /**
  * Something on the calendar, past or future: a meetup, a booking, a life

@@ -18,14 +18,10 @@ import {
 import { asArray, fieldOf, isRecord, toText } from "@/utils/fm";
 import { classifyExistingEvent } from "@/utils/eventRow";
 import { eventPlanSeed, type EventPlanSeed } from "@/utils/eventToPlan";
-import { adoptNotes, joinNotes } from "@/utils/notesMarkdown";
+import { adoptNotes } from "@/utils/notesMarkdown";
 import { joinFrontmatter, splitFrontmatter } from "@/utils/markdownSection";
 import {
 	IdeaCategory,
-	formatSomedaySeasons,
-	formatSomedayDays,
-	formatSomedayTimes,
-	somedayType,
 	RIBBON_ACTIONS,
 	type RibbonActionKey,
 } from "@/constants";
@@ -68,9 +64,20 @@ import { SomedayModal } from "@/modals/SomedayModal";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { PlanModal } from "@/modals/PlanModal";
 import { EventModal } from "@/modals/EventModal";
-import { parseFlexDate, todayISO } from "@/utils/flexdate";
-import { MS_PER_HOUR, pad2 } from "@/utils/dates";
-import { capitalize, formatCount } from "@/utils/text";
+import { todayISO } from "@/utils/flexdate";
+import { MS_PER_HOUR } from "@/utils/dates";
+import { capitalize } from "@/utils/text";
+import { BIRTHDAY_ICS_PATH, birthdayCalendar } from "@/utils/ics";
+import { buildYearRecap } from "@/utils/yearRecap";
+import {
+	birthdayNotificationBody,
+	birthdayStatusLabel,
+	birthdaysToday,
+	metAnniversaryNotices,
+	todayBirthdayNotice,
+	upcomingBirthdayDigest,
+} from "@/utils/birthdayReminders";
+import { type SomedayPlanSeed, somedayPlanSeed } from "@/utils/somedayToPlan";
 
 /** Mobile keyboard handling, for when the OS won't say how tall it is. */
 const KEYBOARD_FALLBACK_HEIGHT_RATIO = 0.42;
@@ -1079,17 +1086,13 @@ export default class FriendTracker extends Plugin {
 			"Make a plan from this someday?",
 			someday.name,
 			(markDone) => {
-				const flex = parseFlexDate(someday.date);
+				const seed = somedayPlanSeed(someday);
 				new PlanModal(
 					this.app,
 					this,
-					(plan) => void this.seedPlanFromSomeday(plan, someday, markDone),
-					{
-						name: someday.name,
-						// The plan form offers month/day precision only — a
-						// bare-year someday date starts the field blank.
-						date: flex && flex.month !== null ? someday.date : "",
-					}
+					(plan) =>
+						void this.seedPlanFromSomeday(plan, someday, seed, markDone),
+					seed.prefill
 				).open();
 			}
 		).open();
@@ -1099,53 +1102,18 @@ export default class FriendTracker extends Plugin {
 	private async seedPlanFromSomeday(
 		plan: TFile,
 		someday: SomedayInfo,
+		{ items, members, brief }: SomedayPlanSeed,
 		markDone: boolean
 	) {
 		// Sub-ideas become the plan's idea menu
-		for (const sub of someday.subIdeas) {
-			await this.planOperations.addItem(plan, {
-				text: sub.text,
-				category: "activity",
-				priority: "maybe",
-			});
+		for (const item of items) {
+			await this.planOperations.addItem(plan, item);
 		}
-		// Fuzzy fields (type, timeframe, days, budget, notes) don't fit a
-		// plan's concrete model — seed them into the plan's notes as a
-		// starting brief rather than lose them outright. Suggested people
-		// aren't fuzzy, though — they're already wikilinks, the exact shape
-		// a plan's own members list uses, so they become real members
-		// instead of just a mention in the notes.
-		//
-		// The facts are a bullet list now that notes render as markdown: as
-		// bare lines they'd run together into one paragraph for anyone with
-		// strict line breaks on. The someday's own notes stay prose, below.
-		const seed: string[] = [];
-		const typeLabels = someday.types
-			.map((t) => somedayType(t)?.label)
-			.filter((l): l is NonNullable<typeof l> => !!l);
-		if (typeLabels.length > 0) {
-			seed.push(`Type: ${typeLabels.join(", ")}`);
-		}
-		const seasonLabel = formatSomedaySeasons(someday.seasons);
-		if (seasonLabel) seed.push(`Season: ${seasonLabel}`);
-		const daysLabel = formatSomedayDays(someday.days);
-		if (daysLabel) seed.push(`Good days: ${daysLabel}`);
-		const timesLabel = formatSomedayTimes(someday.times);
-		if (timesLabel) seed.push(`Good time: ${timesLabel}`);
-		if (someday.fromDate) seed.push(`Earliest date: ${someday.fromDate}`);
-		if (someday.untilDate) {
-			seed.push(`Must happen by: ${someday.untilDate}`);
-		}
-		if (someday.cost !== null) seed.push(`Rough budget: ~$${someday.cost}`);
-		const brief = joinNotes(
-			seed.map((line) => `- ${line}`).join("\n"),
-			someday.notes
-		);
-		if (someday.people.length > 0) {
+		if (members) {
 			await this.app.fileManager.processFrontMatter(
 				plan,
 				(fm: Record<string, unknown>) => {
-					fm.members = someday.people;
+					fm.members = members;
 				}
 			);
 		}
@@ -1407,68 +1375,16 @@ export default class FriendTracker extends Plugin {
 	 */
 	private async exportBirthdayCalendar() {
 		const contacts = await this.contactOperations.getContacts();
-		const now = new Date();
-		const stamp =
-			now.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-		const escape = (s: string) =>
-			s.replace(/\\/g, "\\\\").replace(/[,;]/g, (m) => "\\" + m);
-
-		const lines: string[] = [
-			"BEGIN:VCALENDAR",
-			"VERSION:2.0",
-			"PRODID:-//Callander//Birthday Calendar//EN",
-			"CALSCALE:GREGORIAN",
-			"X-WR-CALNAME:Callander Birthdays",
-		];
-
-		let eventCount = 0;
-		for (const c of contacts) {
-			const parsed = parseFlexDate(c.birthday);
-			// A calendar event needs a month and a day
-			if (!parsed || parsed.month === null || parsed.day === null) {
-				continue;
-			}
-			const uidBase = c.file.basename
-				.toLowerCase()
-				.replace(/[^a-z0-9]+/g, "-");
-
-			// The next occurrence only — one year of coverage
-			const today = new Date();
-			today.setHours(0, 0, 0, 0);
-			let year = now.getFullYear();
-			let occurrence = new Date(year, parsed.month - 1, parsed.day);
-			occurrence.setHours(0, 0, 0, 0);
-			if (occurrence < today) {
-				year++;
-				occurrence = new Date(year, parsed.month - 1, parsed.day);
-			}
-
-			const title =
-				parsed.year !== null
-					? `🎂 ${c.displayName} turns ${year - parsed.year}`
-					: `🎂 ${c.displayName}'s birthday`;
-
-			lines.push(
-				"BEGIN:VEVENT",
-				`UID:callander-${uidBase}-${year}@callander`,
-				`DTSTAMP:${stamp}`,
-				`DTSTART;VALUE=DATE:${year}${pad2(parsed.month)}${pad2(
-					parsed.day
-				)}`,
-				`SUMMARY:${escape(title)}`,
-				"BEGIN:VALARM",
-				"ACTION:DISPLAY",
-				`DESCRIPTION:${escape(title)}`,
-				"TRIGGER:PT9H",
-				"END:VALARM",
-				"END:VEVENT"
-			);
-			eventCount++;
-		}
-		lines.push("END:VCALENDAR");
-
-		const path = "Callander Birthdays.ics";
-		await this.app.vault.adapter.write(path, lines.join("\r\n"));
+		const { ics, count: eventCount } = birthdayCalendar(
+			contacts.map((c) => ({
+				basename: c.file.basename,
+				displayName: c.displayName,
+				birthday: c.birthday,
+			})),
+			new Date()
+		);
+		const path = BIRTHDAY_ICS_PATH;
+		await this.app.vault.adapter.write(path, ics);
 		new Notice(
 			`📅 Saved "${path}" to your vault root (${eventCount} events — everyone's next birthday).\n\nOpen it in Finder and double-click to add to Apple Calendar — pick an iCloud calendar to get iPhone alerts too. Re-run and re-import yearly to top up.`,
 			EXPORT_NOTICE_MS
@@ -1481,78 +1397,20 @@ export default class FriendTracker extends Plugin {
 		const year = new Date().getFullYear();
 		const contacts = await this.contactOperations.getContacts();
 		const diaryEntries = await this.diaryOperations.getEntries();
-
-		const lines: string[] = [
-			`# Your friendships in ${year}`,
-			"",
-			`*Generated ${todayISO()}. Counts, not scores — Callander doesn't grade friendships.*`,
-			"",
-		];
-
-		const newFriends = contacts.filter(
-			(c) => parseFlexDate(c.met)?.year === year
-		);
-		if (newFriends.length > 0) {
-			lines.push(`## New this year`);
-			newFriends.forEach((c) => lines.push(`- [[${c.name}]]`));
-			lines.push("");
-		}
-
-		lines.push(`## Moments logged`);
-		let totalEvents = 0;
-		for (const c of contacts) {
-			const count = c.events.filter(
-				(e) => parseFlexDate(e.date)?.year === year
-			).length;
-			totalEvents += count;
-			if (count > 0) {
-				lines.push(
-					`- [[${c.name}]] — ${formatCount(count, "event")}`
-				);
-			}
-		}
-		const yearEvents = contacts.flatMap((c) =>
-			c.events.filter((e) => parseFlexDate(e.date)?.year === year)
-		);
-		const hangouts = yearEvents.filter(
-			(e) => e.type === "hangout"
-		).length;
-		const lifeMoments = yearEvents.filter(
-			(e) => e.type === "life"
-		).length;
-		lines.push(
-			"",
-			`**${totalEvents} events across everyone** — ${formatCount(
-				hangouts,
-				"hangout"
-			)}, ${lifeMoments} of their life moments witnessed.`,
-			""
-		);
-
-		const ideasDone = contacts.reduce(
-			(n, c) => n + c.ideas.filter((i) => i.done).length,
-			0
-		);
-		const ideasOpen = contacts.reduce((n, c) => n + c.openIdeas, 0);
-		lines.push(
-			`## Ideas`,
-			`- ${formatCount(ideasDone, "idea")} checked off all-time`,
-			`- ${ideasOpen} still open — fuel for next year`,
-			""
-		);
-
-		const diaryCount = diaryEntries.filter((e) =>
-			e.date.startsWith(String(year))
-		).length;
-		lines.push(`## Diary`, `- ${diaryCount} entries about ${year}`, "");
+		const text = buildYearRecap({
+			year,
+			generatedOn: todayISO(),
+			contacts,
+			diaryDates: diaryEntries.map((e) => e.date),
+		});
 
 		const path = `${this.settings.baseFolder}/Callander Recap ${year}.md`;
 		const existing = this.app.vault.getAbstractFileByPath(path);
 		if (existing instanceof TFile) {
-			await this.app.vault.modify(existing, lines.join("\n"));
+			await this.app.vault.modify(existing, text);
 			await this.app.workspace.getLeaf(true).openFile(existing);
 		} else {
-			const file = await this.app.vault.create(path, lines.join("\n"));
+			const file = await this.app.vault.create(path, text);
 			await this.app.workspace.getLeaf(true).openFile(file);
 		}
 	}
@@ -1724,31 +1582,17 @@ export default class FriendTracker extends Plugin {
 
 		const contacts = await this.contactOperations.getContacts();
 
-		const todayBirthdays = contacts.filter(
-			(c) => c.daysUntilBirthday === 0
-		);
-		if (todayBirthdays.length > 0) {
-			const names = todayBirthdays.map((c) => c.displayName);
-			const lastPerson = names.pop();
-			const nameList =
-				names.length > 0
-					? names.join(", ") + " and " + lastPerson
-					: lastPerson;
-			new Notice(
-				`🎂 It's ${nameList}'s birthday today!`,
-				REMINDER_NOTICE_MS
-			);
+		const todayNotice = todayBirthdayNotice(contacts);
+		if (todayNotice) {
+			new Notice(todayNotice, REMINDER_NOTICE_MS);
 
 			// Real macOS notification too (Obsidian is Electron) — reaches
 			// Notification Center even when Obsidian isn't focused
 			if (Platform.isDesktopApp && typeof Notification === "function") {
 				try {
-					for (const c of todayBirthdays) {
-						// On the day itself, age is the age they turn
-						const turning =
-							c.age !== null ? ` — turning ${c.age}` : "";
+					for (const c of birthdaysToday(contacts)) {
 						new Notification("Callander", {
-							body: `🎂 It's ${c.displayName}'s birthday today${turning}!`,
+							body: birthdayNotificationBody(c),
 						});
 					}
 				} catch (error) {
@@ -1758,68 +1602,24 @@ export default class FriendTracker extends Plugin {
 		}
 
 		// One digest for everything coming up inside the reminder window
-		const upcoming = contacts
-			.filter(
-				(c) =>
-					c.daysUntilBirthday !== null &&
-					c.daysUntilBirthday >= 1 &&
-					c.daysUntilBirthday <= this.settings.birthdayReminderDays
-			)
-			.sort((a, b) => a.daysUntilBirthday! - b.daysUntilBirthday!);
-		if (upcoming.length > 0) {
-			const parts = upcoming.map((c) =>
-				c.daysUntilBirthday === 1
-					? `${c.displayName} tomorrow`
-					: `${c.displayName} in ${c.daysUntilBirthday} days`
-			);
-			new Notice(
-				`🎈 Upcoming birthdays: ${parts.join(" · ")}`,
-				REMINDER_NOTICE_MS
-			);
-		}
+		const digest = upcomingBirthdayDigest(
+			contacts,
+			this.settings.birthdayReminderDays
+		);
+		if (digest) new Notice(digest, REMINDER_NOTICE_MS);
 
 		// Met-anniversaries, at recorded precision (exact-day mets only)
-		const now = new Date();
-		for (const c of contacts) {
-			const met = parseFlexDate(c.met);
-			if (
-				met?.year != null &&
-				met.month === now.getMonth() + 1 &&
-				met.day === now.getDate()
-			) {
-				const years = now.getFullYear() - met.year;
-				if (years > 0) {
-					new Notice(
-						`🤝 ${formatCount(
-							years,
-							"year"
-						)} since you met ${c.displayName} today!`,
-						REMINDER_NOTICE_MS
-					);
-				}
-			}
+		for (const notice of metAnniversaryNotices(contacts, new Date())) {
+			new Notice(notice, REMINDER_NOTICE_MS);
 		}
 	}
 
 	private async updateStatusBar() {
 		if (!this.statusBarEl) return;
 		const contacts = await this.contactOperations.getContacts();
-		const next = contacts
-			.filter(
-				(c) =>
-					c.daysUntilBirthday !== null &&
-					c.daysUntilBirthday <= this.settings.birthdayReminderDays
-			)
-			.sort((a, b) => a.daysUntilBirthday! - b.daysUntilBirthday!)[0];
-		if (next) {
-			this.statusBarEl.setText(
-				next.daysUntilBirthday === 0
-					? `🎂 ${next.displayName} today!`
-					: `🎂 ${next.displayName} ${next.daysUntilBirthday}d`
-			);
-		} else {
-			this.statusBarEl.setText("");
-		}
+		this.statusBarEl.setText(
+			birthdayStatusLabel(contacts, this.settings.birthdayReminderDays)
+		);
 	}
 
 	// ---- Settings ----

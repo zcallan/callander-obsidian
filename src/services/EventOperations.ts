@@ -1,7 +1,7 @@
 import { TFile, normalizePath } from "obsidian";
 import { normalizeHex } from "@/utils/contrastColor";
 import type FriendTracker from "@/main";
-import type { EventInfo } from "@/types";
+import type { EventInfo, EventStatus, EventVariant } from "@/types";
 import type { EventType } from "@/constants";
 import { EVENT_TYPES } from "@/constants";
 import { asArray, fieldOf, fieldText, toText } from "@/utils/fm";
@@ -62,37 +62,11 @@ export interface EventFields {
 	categories?: string[];
 }
 
-/**
- * What an event note is FOR — the two different things that share this
- * schema.
- *
- * "reminder" is a calendar entry: something you put in the diary for
- * yourself, past or future. It shows on the dashboard and the Events
- * page.
- *
- * "timeline" is a record of something that happened with someone —
- * logged from their page or a diary entry. It belongs on their timeline
- * and nowhere else; the Events page is your calendar, not a memory book.
- *
- * Person timelines show both, so nothing is ever hidden from the person
- * it's about.
- */
-export type EventVariant = "reminder" | "timeline";
-
 /** The stored variant; anything unrecognised reads as a reminder, which
  * is the safe default — it shows up rather than silently vanishing. */
 export function eventVariantOf(value: unknown): EventVariant {
 	return value === "timeline" ? "timeline" : "reminder";
 }
-
-/**
- * open | done | cancelled.
- *
- * Cancelled is a soft delete: the event stays in the record — you did plan
- * it, and that's worth keeping — but drops off the dashboard, which is for
- * what's actually happening.
- */
-export type EventStatus = "open" | "done" | "cancelled";
 
 /** The stored status; anything unrecognised reads as open. */
 export function eventStatusOf(value: unknown): EventStatus {
@@ -107,7 +81,6 @@ export function eventTypeOf(value: string): EventType | "" {
 		? (value as EventType)
 		: "";
 }
-
 
 /**
  * Events: one markdown note per event in an Events/ folder. The single

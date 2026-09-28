@@ -1,6 +1,5 @@
 import type { PlanTimelineEntry } from "@/types";
 import { ACCOMMODATION_EMOJI, TRAVEL_TYPE_EMOJI } from "@/constants";
-import { PlanOperations } from "@/services/PlanOperations";
 import {
 	flexToLocalDate,
 	formatFlexDate,
@@ -20,6 +19,8 @@ import {
 import { shortenMemberNames, shortenPeopleList } from "@/utils/nameFormat";
 import { nameWithoutLeadingEmoji, startsWithEmoji } from "@/utils/emoji";
 import { isoDay, MAX_DAY_WALK, pad2 } from "@/utils/dates";
+import { bringOf, itemsOf, simpleListOf } from "@/utils/planFields";
+import { timelineOf } from "@/utils/planTimeline";
 
 /**
  * The plan as a plain-text message you can paste to the group chat.
@@ -308,7 +309,7 @@ export function buildPlanShareText(
 
 	// Everything dated, day by day, in timeline order.
 	const byDay = new Map<string, PlanTimelineEntry[]>();
-	for (const entry of PlanOperations.timelineOf(data)) {
+	for (const entry of timelineOf(data)) {
 		const list = byDay.get(entry.date) ?? [];
 		list.push(entry);
 		byDay.set(entry.date, list);
@@ -329,7 +330,7 @@ export function buildPlanShareText(
 
 	// Undated items still have to appear somewhere, or copying would quietly
 	// drop them.
-	const undatedTravel = PlanOperations.simpleListOf(data, "travel").filter(
+	const undatedTravel = simpleListOf(data, "travel").filter(
 		(t) => !t.date
 	);
 	if (undatedTravel.length > 0) {
@@ -353,7 +354,7 @@ export function buildPlanShareText(
 		});
 	}
 
-	const undatedStay = PlanOperations.simpleListOf(
+	const undatedStay = simpleListOf(
 		data,
 		"accommodation"
 	).filter((a) => !a.date);
@@ -378,7 +379,7 @@ export function buildPlanShareText(
 
 	// What's left is the menu: ideas nobody has pinned to a day yet —
 	// must-dos first, maybes marked.
-	const undatedIdeas = PlanOperations.itemsOf(data).filter((i) => !i.date);
+	const undatedIdeas = itemsOf(data).filter((i) => !i.date);
 	if (undatedIdeas.length > 0) {
 		section("Ideas:");
 		const label = (i: { text: string }) =>
@@ -390,7 +391,7 @@ export function buildPlanShareText(
 	}
 
 	// Checked state stays personal — the message lists everything.
-	const bring = PlanOperations.bringOf(data);
+	const bring = bringOf(data);
 	if (bring.length > 0) {
 		section("Bring:");
 		bring.forEach((b) =>

@@ -12,7 +12,6 @@ import type { IdeaCategory } from "@/constants";
 import { parseFlexDate, todayISO } from "@/utils/flexdate";
 import { nextBirthdayOccurrence } from "@/utils/friendTimeline";
 import { asArray, fieldOf, fieldText, isRecord, toText } from "@/utils/fm";
-import { generatedField } from "@/utils/generated";
 import {
 	joinFrontmatter,
 	splitFrontmatter,
@@ -22,12 +21,13 @@ import {
 	upsertIdeasSection,
 } from "@/utils/ideasMarkdown";
 import {
+	draftsOf,
 	findDraft,
 	fromLegacyDrafts,
+	type LedgerDraft,
 	mergeLegacyDrafts,
 	parseDraftsSection,
 	upsertDraftsSection,
-	type LedgerDraft,
 } from "@/utils/draftsMarkdown";
 import { wholeDaysBetween } from "@/utils/dates";
 import { capitalize, formatCount } from "@/utils/text";
@@ -196,22 +196,7 @@ export class ContactOperations {
 		return [...ideas, ...legacy];
 	}
 
-	static draftsOf(metadata: unknown): Draft[] {
-		return asArray(fieldOf(metadata, "drafts"))
-			.map((d): Draft => {
-				if (typeof d === "string") return { text: d, created: "" };
-				const text = fieldOf(d, "text");
-				const created = fieldOf(d, "created");
-				const date = fieldOf(d, "date");
-				return {
-					text: typeof text === "string" ? text : "",
-					created: typeof created === "string" ? created : "",
-					...(typeof date === "string" && date ? { date } : {}),
-					...generatedField(d),
-				};
-			})
-			.filter((d) => d.text.length > 0);
-	}
+	static draftsOf = draftsOf;
 
 	// ---- Drafts: a checklist in the dashboard note ----
 	// Every draft lives as a task line under `## Drafts` in the dashboard
