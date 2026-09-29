@@ -970,21 +970,6 @@ body.callander-kb-open .callander-modal-buttons {
 	margin-bottom: 0;
 }
 
-:root {
-	--color-green: rgb(74, 222, 128);
-	--color-green-rgb: 74, 222, 128;
-}
-
-@keyframes bounce {
-	0%,
-	100% {
-		transform: translateY(-50%);
-	}
-	50% {
-		transform: translateY(-65%);
-	}
-}
-
 /* Remove border-top from sections */
 .contact-notes-section,
 .contact-events-section,
@@ -2500,7 +2485,7 @@ body.callander-kb-open .callander-modal-buttons {
 }
 
 .plan-chip-confirm:hover {
-	color: var(--color-green, #5cb870);
+	color: var(--color-green);
 }
 
 .plan-unconfirmed-check {
@@ -4093,7 +4078,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* Settled expense, in the cost view modal: only the word goes green — the
    amount stays a plain figure, since it's still what the expense cost. */
 .expense-settled-label {
-	color: var(--color-green, #5cb870);
+	color: var(--color-green);
 }
 
 /* Settled expenses, folded away beneath the open ones. Closed by default:
@@ -4325,11 +4310,11 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 .expense-total.is-balanced {
-	color: var(--color-green, #5cb870);
+	color: var(--color-green);
 }
 
 .expense-total.is-off {
-	color: var(--text-warning, #e6a935);
+	color: var(--text-warning);
 }
 
 /* A value split that doesn't add up to the total — an outright mismatch
@@ -4651,7 +4636,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* Modal "nudge" when an accidental backdrop click is blocked (unsaved edits) */
-@keyframes ft-modal-shake {
+@keyframes callander-modal-shake {
 	0%,
 	100% {
 		transform: translateX(0);
@@ -4671,7 +4656,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 .modal.ft-modal-shake {
-	animation: ft-modal-shake 0.28s ease;
+	animation: callander-modal-shake 0.28s ease;
 }
 
 .plan-timeline-footer {
@@ -6276,8 +6261,8 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 }
 
 .getting-started-step.is-done .getting-started-mark {
-	background: var(--color-green, #5cb870);
-	border-color: var(--color-green, #5cb870);
+	background: var(--color-green);
+	border-color: var(--color-green);
 	color: #fff;
 }
 
@@ -6538,7 +6523,7 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 
 .event-import-modal .event-import-copy.is-copied {
 	border-style: solid;
-	border-color: var(--color-green, #5cb870);
+	border-color: var(--color-green);
 }
 
 .event-import-copy pre {
@@ -6559,7 +6544,7 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 }
 
 .event-import-modal .event-import-copy.is-copied .event-import-copy-hint {
-	color: var(--color-green, #5cb870);
+	color: var(--color-green);
 }
 
 .event-import-input {

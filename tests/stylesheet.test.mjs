@@ -53,13 +53,13 @@ const NOT_A_CLASS = new Set(["callander-view"]);
 const DEAD_CLASSES = [];
 
 /** Rules on the whole document rather than under a Callander class. */
-const ROOT_RULES = [":root"];
+const ROOT_RULES = [];
 
 /**
  * Animations not named `callander-…`. Keyframes are global, so one sharing
  * a name with a theme's or another plugin's replaces it, or is replaced.
  */
-const UNPREFIXED_KEYFRAMES = ["bounce", "ft-modal-shake"];
+const UNPREFIXED_KEYFRAMES = [];
 
 /**
  * Selectors on Obsidian's modal classes with no `callander-` class to keep

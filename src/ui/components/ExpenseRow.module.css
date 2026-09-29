@@ -53,7 +53,7 @@
    source order decides and this one is later. The global version of this
    rule needed `.expense-row-status.expense-settled-label` to win. */
 .settled {
-	color: var(--color-green, #5cb870);
+	color: var(--color-green);
 }
 
 .meta {
