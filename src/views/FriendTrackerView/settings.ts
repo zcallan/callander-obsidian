@@ -7,7 +7,7 @@ import {
 	type SettingDefinitionItem,
 } from "obsidian";
 import type FriendTracker from "@/main";
-import type { FriendTrackerSettings } from "@/types";
+import { DEFAULT_SETTINGS, type FriendTrackerSettings } from "@/types";
 import {
 	DASHBOARD_SECTIONS,
 	DEFAULT_DASHBOARD_ORDER,
@@ -22,6 +22,12 @@ import {
 	commonZones,
 	deviceZoneOption,
 } from "@/utils/timezone";
+import {
+	clampSetting,
+	isNumberSettingKey,
+	NUMBER_SETTING_BOUNDS,
+	type NumberSettingKey,
+} from "@/utils/settingValues";
 
 // The declarative settings API arrived in 1.13; below that Obsidian renders
 // display() instead.
@@ -109,6 +115,20 @@ function timezoneOptions(): Record<string, string> {
 const TIMEZONE_SETTING_DESC =
 	"Note: this is not recommended for most users. Use this setting to lock the plugin to a specific timezone. This may be useful if you are a) actually using timezones in your events, and b) you're in a different timezone for a short time and want to force the timezone back to your usual timezone.";
 
+/** A declarative number control under the shared bounds, falling back to
+ * the default rather than 0 when its field is cleared. */
+function numberControl(key: NumberSettingKey) {
+	const { min, max, integer } = NUMBER_SETTING_BOUNDS[key];
+	return {
+		type: "number" as const,
+		key,
+		min,
+		max,
+		step: integer ? 1 : ("any" as const),
+		defaultValue: DEFAULT_SETTINGS[key],
+	};
+}
+
 export class FriendTrackerSettingTab extends PluginSettingTab {
 	constructor(app: App, private plugin: FriendTracker) {
 		super(app, plugin);
@@ -188,12 +208,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 			{
 				name: "Birthday reminder window",
 				desc: "Include birthdays up to this many days away",
-				control: {
-					type: "number",
-					key: "birthdayReminderDays",
-					min: 1,
-					max: 60,
-				},
+				control: numberControl("birthdayReminderDays"),
 			},
 			{
 				type: "group",
@@ -290,32 +305,17 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					{
 						name: "Belated birthday window",
 						desc: 'For this many days after a birthday, show "birthday was X days ago" so you can still send a belated message',
-						control: {
-							type: "number",
-							key: "belatedBirthdayDays",
-							min: 0,
-							max: 60,
-						},
+						control: numberControl("belatedBirthdayDays"),
 					},
 					{
 						name: "Somedays shown",
 						desc: 'How many somedays the dashboard lists before the rest become a "+N more" link',
-						control: {
-							type: "number",
-							key: "dashboardSomedayCount",
-							min: 1,
-							max: 50,
-						},
+						control: numberControl("dashboardSomedayCount"),
 					},
 					{
 						name: "Friend suggestions shown",
 						desc: 'How many recently-touched friends the dashboard suggests under the search bar, before the "All friends" button',
-						control: {
-							type: "number",
-							key: "dashboardFriendSuggestionCount",
-							min: 1,
-							max: 50,
-						},
+						control: numberControl("dashboardFriendSuggestionCount"),
 					},
 				],
 			},
@@ -339,12 +339,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					{
 						name: "Default sales tax",
 						desc: 'Pre-filled when you tick "Add sales tax?" on a by-receipt expense split (%)',
-						control: {
-							type: "number",
-							key: "receiptTaxPercent",
-							min: 0,
-							max: 100,
-						},
+						control: numberControl("receiptTaxPercent"),
 						visible: () => this.plugin.settings.receiptTaxEnabled,
 					},
 					{
@@ -355,12 +350,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					{
 						name: "Default tip",
 						desc: 'Pre-filled when you tick "Add tip?" on a by-receipt expense split (%)',
-						control: {
-							type: "number",
-							key: "receiptTipPercent",
-							min: 0,
-							max: 100,
-						},
+						control: numberControl("receiptTipPercent"),
 						visible: () => this.plugin.settings.receiptTipEnabled,
 					},
 				],
@@ -401,6 +391,14 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		if (key === "weekStartsOn") {
 			value = Number(value) === 0 ? 0 : 1;
 		}
+		// The same bounds and trimming as the fallback path. An empty number
+		// field isn't saved: 1.13 would otherwise store 0 for it.
+		if (isNumberSettingKey(key)) {
+			const clamped = clampSetting(key, value);
+			if (clamped === null) return;
+			value = clamped;
+		}
+		if (key === "yourName") value = String(value).trim();
 		// A basename, not a path — strip separators and stray whitespace
 		if (key === "dashboardFileName") {
 			value = String(value).replace(/[\\/]/g, "-").trim();
@@ -432,6 +430,33 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 	private renderFallback(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+
+		// A number field under the shared bounds; an empty or unreadable
+		// value isn't saved.
+		const numberSetting = (
+			name: string,
+			desc: string,
+			key: NumberSettingKey
+		) => {
+			const { min, max, integer } = NUMBER_SETTING_BOUNDS[key];
+			new Setting(containerEl)
+				.setName(name)
+				.setDesc(desc)
+				.addText((text) => {
+					text.inputEl.type = "number";
+					text.inputEl.min = String(min);
+					text.inputEl.max = String(max);
+					if (integer) text.inputEl.step = "1";
+					text.setValue(String(this.plugin.settings[key])).onChange(
+						async (value) => {
+							const clamped = clampSetting(key, value);
+							if (clamped === null) return;
+							this.plugin.settings[key] = clamped;
+							await this.plugin.saveSettings();
+						}
+					);
+				});
+		};
 
 		// Unheaded — see the matching comment in getSettingDefinitions().
 		new Setting(containerEl)
@@ -510,26 +535,11 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					});
 			});
 
-		new Setting(containerEl)
-			.setName("Birthday reminder window")
-			.setDesc("Include birthdays up to this many days away")
-			.addText((text) => {
-				text.inputEl.type = "number";
-				text.inputEl.min = "1";
-				text.inputEl.max = "60";
-				text.setValue(
-					String(this.plugin.settings.birthdayReminderDays)
-				).onChange(async (value) => {
-					const parsed = Number(value);
-					if (Number.isFinite(parsed)) {
-						this.plugin.settings.birthdayReminderDays = Math.min(
-							60,
-							Math.max(1, Math.round(parsed))
-						);
-						await this.plugin.saveSettings();
-					}
-				});
-			});
+		numberSetting(
+			"Birthday reminder window",
+			"Include birthdays up to this many days away",
+			"birthdayReminderDays"
+		);
 
 		new Setting(containerEl)
 			.setName("Show plans on the Events page")
@@ -657,51 +667,21 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 					});
 			});
 
-		new Setting(containerEl)
-			.setName("Belated birthday window")
-			.setDesc(
-				'For this many days after a birthday, show "birthday was X days ago" so you can still send a belated message'
-			)
-			.addText((text) => {
-				text.inputEl.type = "number";
-				text.inputEl.min = "0";
-				text.inputEl.max = "60";
-				text.setValue(
-					String(this.plugin.settings.belatedBirthdayDays)
-				).onChange(async (value) => {
-					const parsed = Number(value);
-					if (Number.isFinite(parsed)) {
-						this.plugin.settings.belatedBirthdayDays = Math.min(
-							60,
-							Math.max(0, Math.round(parsed))
-						);
-						await this.plugin.saveSettings();
-					}
-				});
-			});
-
-		new Setting(containerEl)
-			.setName("Somedays shown")
-			.setDesc(
-				'How many somedays the dashboard lists before the rest become a "+N more" link'
-			)
-			.addText((text) => {
-				text.inputEl.type = "number";
-				text.inputEl.min = "1";
-				text.inputEl.max = "50";
-				text.setValue(
-					String(this.plugin.settings.dashboardSomedayCount)
-				).onChange(async (value) => {
-					const parsed = Number(value);
-					if (Number.isFinite(parsed)) {
-						this.plugin.settings.dashboardSomedayCount = Math.min(
-							50,
-							Math.max(1, Math.round(parsed))
-						);
-						await this.plugin.saveSettings();
-					}
-				});
-			});
+		numberSetting(
+			"Belated birthday window",
+			'For this many days after a birthday, show "birthday was X days ago" so you can still send a belated message',
+			"belatedBirthdayDays"
+		);
+		numberSetting(
+			"Somedays shown",
+			'How many somedays the dashboard lists before the rest become a "+N more" link',
+			"dashboardSomedayCount"
+		);
+		numberSetting(
+			"Friend suggestions shown",
+			'How many recently-touched friends the dashboard suggests under the search bar, before the "All friends" button',
+			"dashboardFriendSuggestionCount"
+		);
 
 		new Setting(containerEl).setName("Friends").setHeading();
 
@@ -718,32 +698,6 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName("Cost breakdown").setHeading();
 
-		const percentSetting = (
-			name: string,
-			desc: string,
-			key: "receiptTaxPercent" | "receiptTipPercent"
-		) => {
-			new Setting(containerEl)
-				.setName(name)
-				.setDesc(desc)
-				.addText((text) => {
-					text.inputEl.type = "number";
-					text.inputEl.min = "0";
-					text.inputEl.max = "100";
-					text.setValue(String(this.plugin.settings[key])).onChange(
-						async (value) => {
-							const parsed = Number(value);
-							if (Number.isFinite(parsed)) {
-								this.plugin.settings[key] = Math.min(
-									100,
-									Math.max(0, parsed)
-								);
-								await this.plugin.saveSettings();
-							}
-						}
-					);
-				});
-		};
 		// Each add-on switches on or off, and its default percentage shows
 		// only while it's on — redrawn on the toggle so it appears or goes.
 		const addOnToggle = (
@@ -766,7 +720,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		};
 		addOnToggle("Sales tax", SALES_TAX_DESC, "receiptTaxEnabled");
 		if (this.plugin.settings.receiptTaxEnabled) {
-			percentSetting(
+			numberSetting(
 				"Default sales tax",
 				'Pre-filled when you tick "Add sales tax?" on a by-receipt expense split (%)',
 				"receiptTaxPercent"
@@ -774,7 +728,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		}
 		addOnToggle("Tip", TIP_DESC, "receiptTipEnabled");
 		if (this.plugin.settings.receiptTipEnabled) {
-			percentSetting(
+			numberSetting(
 				"Default tip",
 				'Pre-filled when you tick "Add tip?" on a by-receipt expense split (%)',
 				"receiptTipPercent"

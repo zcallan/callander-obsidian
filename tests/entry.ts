@@ -47,6 +47,7 @@ export * from "@/utils/singleFlight";
 export * from "@/utils/markdownRoute";
 export * from "@/utils/patchMethod";
 export * from "@/utils/contactPage";
+export * from "@/utils/settingValues";
 export { summonsKeyboard } from "@/plugin/keyboardInset";
 export * from "@/plugin/startup";
 export {
