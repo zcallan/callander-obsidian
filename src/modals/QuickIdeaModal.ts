@@ -5,6 +5,7 @@ import { confirmThenClose } from "@/modals/ConfirmModal";
 import { appendGeneratedBadge } from "@/components/generatedBadge";
 import type { ContactWithCountdown } from "@/types";
 import { IDEA_CATEGORIES, IdeaCategory } from "@/constants";
+import { markCallanderSuggester } from "@/modals/CallanderModal";
 
 /**
  * Step 1 of quick capture: fuzzy-pick a friend.
@@ -17,6 +18,7 @@ export class ContactSuggestModal extends FuzzySuggestModal<ContactWithCountdown>
 		placeholder = "Who is this idea for?"
 	) {
 		super(app);
+		markCallanderSuggester(this);
 		this.setPlaceholder(placeholder);
 	}
 
@@ -51,6 +53,7 @@ export class CaptureTargetModal extends FuzzySuggestModal<CaptureTarget> {
 		private onChoose: (target: CaptureTarget) => void
 	) {
 		super(app);
+		markCallanderSuggester(this);
 		this.setPlaceholder("Who is this idea for?");
 	}
 

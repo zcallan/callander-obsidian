@@ -62,7 +62,7 @@ A model is bound to the note it was read from, and every write goes through one,
 
 Handlers take the model they were started on and keep it across awaits. Render code and island props read `ctx.model` when they run, because an island outlives every render and every note.
 
-Modals stay Obsidian's `Modal`, because the stylesheet's mobile keyboard handling, Escape, focus trapping and backdrop behaviour all hang off it. `FormModal` adds protection against a stray backdrop click discarding edits (any field, and any button outside the Save / Cancel row, counts as an edit), and the shared Enter-to-submit and initial-focus rules. A form's "Additional details" fold is `appendModalAccordion` (`components/modalAccordion.ts`), and a page's search box is a `SearchBox` (`components/searchBox.ts`), which keeps its focus when the page redraws around it.
+Modals stay Obsidian's `Modal`, because Escape, focus trapping and backdrop behaviour all hang off it. Every one extends `CallanderModal`, which marks it as Callander's, so the stylesheet's modal rules and mobile keyboard handling reach Callander's modals and nobody else's. `FormModal` adds protection against a stray backdrop click discarding edits (any field, and any button outside the Save / Cancel row, counts as an edit), and the shared Enter-to-submit and initial-focus rules. A form's "Additional details" fold is `appendModalAccordion` (`components/modalAccordion.ts`), and a page's search box is a `SearchBox` (`components/searchBox.ts`), which keeps its focus when the page redraws around it.
 
 ## Shared primitives
 

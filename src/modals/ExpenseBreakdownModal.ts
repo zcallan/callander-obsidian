@@ -1,5 +1,6 @@
-import { App, Modal, setIcon } from "obsidian";
+import { App, setIcon } from "obsidian";
 import { formatMoney as money, type BreakdownRow } from "@/utils/expenseMath";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /**
  * One person's ledger for a plan: what they're charged for, what's come off
@@ -19,7 +20,7 @@ import { formatMoney as money, type BreakdownRow } from "@/utils/expenseMath";
  * the modal redraws itself over the result, the same way the expense's own
  * view modal does.
  */
-export class ExpenseBreakdownModal extends Modal {
+export class ExpenseBreakdownModal extends CallanderModal {
 	constructor(
 		app: App,
 		private person: string,

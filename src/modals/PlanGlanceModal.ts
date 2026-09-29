@@ -1,4 +1,4 @@
-import { App, Modal, setIcon } from "obsidian";
+import { App, setIcon } from "obsidian";
 import type { PlanInfo } from "@/types";
 import { PlanOperations } from "@/services/PlanOperations";
 import { formatFlexDate, parseFlexDate } from "@/utils/flexdate";
@@ -6,6 +6,7 @@ import { summarisePeople } from "@/utils/nameFormat";
 import { resolvePeopleInfo } from "@/utils/people";
 import { upcomingWhen } from "@/utils/upcomingWhen";
 import { formatCount } from "@/utils/text";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /**
  * A plan at a glance, from the dashboard's Upcoming list or the Events page.
@@ -18,7 +19,7 @@ import { formatCount } from "@/utils/text";
  * Deliberately not the plan page in miniature: no editing, no sections, no
  * counts of things you'd only act on from the plan itself.
  */
-export class PlanGlanceModal extends Modal {
+export class PlanGlanceModal extends CallanderModal {
 	constructor(
 		app: App,
 		private plan: PlanInfo,

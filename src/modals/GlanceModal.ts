@@ -1,4 +1,4 @@
-import { App, Modal, TFile, setIcon } from "obsidian";
+import { App, TFile, setIcon } from "obsidian";
 import type FriendTracker from "@/main";
 import type { ContactWithCountdown, SomedayInfo } from "@/types";
 import { EVENT_TYPES, IDEA_CATEGORIES, somedayType } from "@/constants";
@@ -14,6 +14,7 @@ import {
 } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { daysUntil } from "@/utils/somedaySort";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /** How far back "Last 12 months" reaches. */
 const RECENT_MONTHS = 12;
@@ -32,7 +33,7 @@ interface TimelineRow {
  * coming and what just happened — read-only, arrive as the friend who
  * remembers.
  */
-export class GlanceModal extends Modal {
+export class GlanceModal extends CallanderModal {
 	constructor(
 		app: App,
 		private plugin: FriendTracker,

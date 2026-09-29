@@ -26,7 +26,10 @@ export function currentKeyboardInset(doc: Document = document): number {
 }
 
 /**
- * Does focusing this bring up the keyboard? Only a modal's text fields.
+ * Does focusing this bring up the keyboard? Only a text field in one of
+ * Callander's modals (CallanderModal's marker): the layout this drives is
+ * for them, and it used to take hold of Obsidian's Settings and every
+ * other plugin's dialogs too.
  * Selects and native date/month/time inputs open iOS wheel pickers, NOT the
  * keyboard — no keyboard events ever fire for them, so the focus fallback
  * must not fake an inset for them, and a hide event while one is focused
@@ -34,7 +37,7 @@ export function currentKeyboardInset(doc: Document = document): number {
  * popout windows.
  */
 export function summonsKeyboard(el: Element | null): el is HTMLElement {
-	if (!el || !el.closest(".modal")) return false;
+	if (!el || !el.closest(".callander-modal")) return false;
 	if (el.tagName === "TEXTAREA") return true;
 	if (el.tagName !== "INPUT") return false;
 	return ![

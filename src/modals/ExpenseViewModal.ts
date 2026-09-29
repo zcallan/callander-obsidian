@@ -1,4 +1,4 @@
-import { App, Modal, setIcon } from "obsidian";
+import { App, setIcon } from "obsidian";
 import type { Expense } from "@/types";
 import {
 	isFullyPaid,
@@ -9,13 +9,14 @@ import {
 } from "@/utils/expenseMath";
 import { confirmThenClose } from "@/modals/ConfirmModal";
 import { shortenPeopleList } from "@/utils/nameFormat";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /**
  * A read view of one shared expense: what it was, how it's divided, and
  * what that works out to per person. Follows the same shape as the other
  * read views — Edit reopens the real form, Delete confirms first.
  */
-export class ExpenseViewModal extends Modal {
+export class ExpenseViewModal extends CallanderModal {
 	constructor(
 		app: App,
 		private cost: Expense,

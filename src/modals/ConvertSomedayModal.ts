@@ -1,4 +1,5 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /**
  * The pre-flight question for promoting a Someday into something firmer —
@@ -7,7 +8,7 @@ import { App, Modal } from "obsidian";
  * default — asks that the someday be marked done once the promotion
  * actually saves, so cancelling the follow-up modal leaves it untouched.
  */
-export class ConvertSomedayModal extends Modal {
+export class ConvertSomedayModal extends CallanderModal {
 	constructor(
 		app: App,
 		private title: string,

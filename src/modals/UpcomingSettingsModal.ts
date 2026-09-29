@@ -1,8 +1,9 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
 import type FriendTracker from "@/main";
 import { categoryShown, setCategoryShown } from "@/utils/eventCategories";
 import { EVENT_TYPES } from "@/constants";
 import { formatCount } from "@/utils/text";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /**
  * What the dashboard's Upcoming shows: events, plans, and which event
@@ -10,7 +11,7 @@ import { formatCount } from "@/utils/text";
  * what it does, and the control at the end — and applied as it's ticked:
  * the save is what redraws the section behind the modal.
  */
-export class UpcomingSettingsModal extends Modal {
+export class UpcomingSettingsModal extends CallanderModal {
 	constructor(app: App, private plugin: FriendTracker) {
 		super(app);
 	}

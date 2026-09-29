@@ -1,4 +1,4 @@
-import { App, Modal, setIcon } from "obsidian";
+import { App, setIcon } from "obsidian";
 import { reportFailure } from "@/components/guardedAction";
 import type { PlanTimelineEntry } from "@/types";
 import {
@@ -20,13 +20,14 @@ import {
 import { shortenPeopleList } from "@/utils/nameFormat";
 import { buildTimelineCalendarUrl } from "@/utils/planShare";
 import { truncate } from "@/utils/text";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /**
  * A read view of one plan-timeline row — whatever it happens to be: an idea,
  * a travel leg or a stay — with an auto-saving notes field, Edit and Delete.
  * Routing back to the real item is the caller's job (it owns source + index).
  */
-export class PlanTimelineViewModal extends Modal {
+export class PlanTimelineViewModal extends CallanderModal {
 	private notesSaveTimer: number | null = null;
 	private notesDirty = false;
 	private pendingNotes: string;

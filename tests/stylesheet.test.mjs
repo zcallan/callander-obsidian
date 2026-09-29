@@ -63,43 +63,11 @@ const UNPREFIXED_KEYFRAMES = [];
 
 /**
  * Selectors on Obsidian's modal classes with no `callander-` class to keep
- * them to Callander's own modals. Some reach every plugin's modals.
+ * them to Callander's own modals, which reach every plugin's modals and
+ * Obsidian's Settings. CallanderModal marks Callander's: target
+ * .callander-modal, .callander-modal-content or .callander-modal-container.
  */
-const UNSCOPED_MODAL_SELECTORS = [
-	".is-mobile .modal",
-	".is-mobile .modal .contact-bday-inputs",
-	".is-mobile .modal .contact-bday-inputs > *",
-	".is-mobile .modal .contact-event-text-input",
-	".is-mobile .modal .contact-field-input",
-	".is-mobile .modal .contact-met-controls",
-	".is-mobile .modal .contact-met-controls > *",
-	".is-mobile .modal .contact-met-precision",
-	".is-mobile .modal .expense-share-input",
-	".is-mobile .modal .plan-time-precision",
-	".is-mobile .modal .quick-idea-input",
-	'.is-mobile .modal input[type="date"]',
-	'.is-mobile .modal input[type="date"]::-webkit-date-and-time-value',
-	'.is-mobile .modal input[type="month"]',
-	'.is-mobile .modal input[type="month"]::-webkit-date-and-time-value',
-	".is-mobile .modal-content",
-	".is-phone .modal-content",
-	".modal .contact-bday-inputs",
-	".modal .contact-bday-inputs > *",
-	".modal .contact-event-text-input",
-	".modal .contact-field-input",
-	".modal .contact-met-controls",
-	".modal .contact-met-controls > *",
-	".modal .expense-expr-row .expense-share-right",
-	".modal .expense-share-input",
-	".modal .expense-share-input.expense-expr-input",
-	".modal .expense-share-input.is-disabled",
-	".modal .quick-idea-categories",
-	".modal .quick-idea-input",
-	'.modal input[type="date"]',
-	'.modal input[type="month"]',
-	'.modal input[type="number"]',
-	".modal.ft-modal-shake",
-];
+const UNSCOPED_MODAL_SELECTORS = [];
 
 /** base.css without its comments, and every selector in it, one each. */
 function readStylesheet() {

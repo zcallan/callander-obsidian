@@ -1,4 +1,4 @@
-import { App, Modal, setIcon } from "obsidian";
+import { App, setIcon } from "obsidian";
 import { PLAN_IDEA_CATEGORIES } from "@/constants";
 import { CONFIRM_PREVIEW_CHARS, confirmThenClose } from "@/modals/ConfirmModal";
 import {
@@ -9,6 +9,7 @@ import {
 import { shortenPeopleList } from "@/utils/nameFormat";
 import type { PlanQuickIdea } from "@/types";
 import { truncate } from "@/utils/text";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /**
  * A read view of one quick idea, with the route onto the timeline.
@@ -17,7 +18,7 @@ import { truncate } from "@/utils/text";
  * silently — the idea only disappears once that modal's Create is pressed,
  * so backing out of it leaves the idea exactly where it was.
  */
-export class PlanQuickIdeaViewModal extends Modal {
+export class PlanQuickIdeaViewModal extends CallanderModal {
 	constructor(
 		app: App,
 		private idea: PlanQuickIdea,

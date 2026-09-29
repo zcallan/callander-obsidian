@@ -1,4 +1,5 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /** Which Enter submits: plain, Cmd/Ctrl+Enter (a multi-line field), or
  * Enter unless Shift is held (Shift+Enter for a newline). */
@@ -19,7 +20,7 @@ export type SubmitKey = "enter" | "mod-enter" | "enter-unless-shift";
  * should float, so the row is marked `is-stuck` while it's stuck and the
  * stylesheet hides the rest until it comes to rest.
  */
-export class FormModal extends Modal {
+export class FormModal extends CallanderModal {
 	private ftDirty = false;
 	private ftDoc: Document;
 	private ftGuard: (evt: Event) => void;

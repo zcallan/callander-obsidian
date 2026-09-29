@@ -1,4 +1,4 @@
-import { App, Modal, Notice, setIcon } from "obsidian";
+import { App, Notice, setIcon } from "obsidian";
 import type FriendTracker from "@/main";
 import type { ContactWithCountdown, SomedayInfo, SomedaySubIdea } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
@@ -17,6 +17,7 @@ import {
 	somedayCompany,
 	somedayType,
 } from "@/constants";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /**
  * A read-first look at a Someday — its when/days/company/cost/notes and
@@ -24,7 +25,7 @@ import {
  * buttons. Sub-idea ticks are mirrored locally so the view stays in step
  * without a refetch.
  */
-export class SomedayViewModal extends Modal {
+export class SomedayViewModal extends CallanderModal {
 	private status: string;
 	private subIdeas: SomedaySubIdea[];
 	private notesSaveTimer: number | null = null;

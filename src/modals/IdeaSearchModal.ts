@@ -1,6 +1,7 @@
 import { App, FuzzySuggestModal } from "obsidian";
 import type { ContactWithCountdown, Idea } from "@/types";
 import { IDEA_CATEGORIES } from "@/constants";
+import { markCallanderSuggester } from "@/modals/CallanderModal";
 
 interface IdeaHit {
 	contact: ContactWithCountdown;
@@ -20,6 +21,7 @@ export class IdeaSearchModal extends FuzzySuggestModal<IdeaHit> {
 		private onChoose: (hit: IdeaHit) => void
 	) {
 		super(app);
+		markCallanderSuggester(this);
 		this.setPlaceholder("Search all ideas…");
 		this.hits = contacts.flatMap((contact) =>
 			contact.ideas.map((idea) => ({ contact, idea }))

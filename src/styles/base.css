@@ -859,11 +859,11 @@ body.callander-kb-open .callander-modal-buttons {
 }
 
 /* Update modal button styles */
-.modal .callander-button {
+.callander-modal .callander-button {
 	margin-top: 16px;
 }
 
-.modal .callander-button.button-primary {
+.callander-modal .callander-button.button-primary {
 	width: 100%; /* Make modal submit buttons full width */
 }
 
@@ -2528,12 +2528,12 @@ body.callander-kb-open .callander-modal-buttons {
 /* Mobile: modal content stays reachable above the on-screen keyboard.
    The inset var is 0 when the keyboard is closed, so this is inert
    on desktop and while not typing. */
-.is-mobile .modal {
+.is-mobile .callander-modal {
 	overflow-y: auto;
 	min-height: 0;
 }
 
-.is-mobile .modal-content {
+.is-mobile .callander-modal-content {
 	overflow-y: auto;
 	min-height: 0;
 	/* The inset var is 0 with the keyboard closed — keep a breathable
@@ -2541,7 +2541,7 @@ body.callander-kb-open .callander-modal-buttons {
 	padding-bottom: max(var(--callander-keyboard-inset, 0px), 16px);
 }
 
-.is-phone .modal-content {
+.is-phone .callander-modal-content {
 	-webkit-overflow-scrolling: touch;
 }
 
@@ -2551,18 +2551,18 @@ body.callander-kb-open .callander-modal-buttons {
    underneath the keyboard, and low fields are unreachable. Shrinking the
    container's content box re-centers the modal above the keyboard and
    forces modal-content to overflow (and therefore scroll) when needed. */
-body.is-mobile.callander-kb-open .modal-container {
+body.is-mobile.callander-kb-open .callander-modal-container {
 	padding-bottom: var(--callander-keyboard-inset, 0px);
 }
 
-body.is-mobile.callander-kb-open .modal {
+body.is-mobile.callander-kb-open .callander-modal {
 	max-height: 100%;
 }
 
 /* A squeezed modal must scroll, not compress: where modal-content is a
    flex column, its direct children (inputs sit at that level in the
    simpler modals) would otherwise shrink under the keyboard */
-body.is-mobile.callander-kb-open .modal-content > * {
+body.is-mobile.callander-kb-open .callander-modal-content > * {
 	flex-shrink: 0;
 }
 
@@ -2570,49 +2570,49 @@ body.is-mobile.callander-kb-open .modal-content > * {
    which throws off the keyboard inset handling above. max() guarantees
    the floor even where an ancestor shrinks the em, for every control
    class our modals use (Add friend, Add event, Add idea, Add travel, …). */
-.is-mobile .modal .callander-modal-input,
-.is-mobile .modal .contact-field-input,
-.is-mobile .modal .contact-event-text-input,
-.is-mobile .modal .contact-met-precision,
-.is-mobile .modal .plan-time-precision,
-.is-mobile .modal .quick-idea-input {
+.is-mobile .callander-modal .callander-modal-input,
+.is-mobile .callander-modal .contact-field-input,
+.is-mobile .callander-modal .contact-event-text-input,
+.is-mobile .callander-modal .contact-met-precision,
+.is-mobile .callander-modal .plan-time-precision,
+.is-mobile .callander-modal .quick-idea-input {
 	font-size: max(1em, 16px);
 }
 
 /* Modals must never scroll horizontally: box-sizing the 100%-wide
    inputs, and letting flex-row children actually shrink */
-.modal .callander-modal-input,
-.modal .contact-field-input,
-.modal .contact-event-text-input,
-.modal .quick-idea-input {
+.callander-modal .callander-modal-input,
+.callander-modal .contact-field-input,
+.callander-modal .contact-event-text-input,
+.callander-modal .quick-idea-input {
 	box-sizing: border-box;
 	width: 100%;
 	max-width: 100%;
 	min-width: 0;
 }
 
-.modal .contact-met-controls,
-.modal .contact-bday-inputs,
-.modal .quick-idea-categories {
+.callander-modal .contact-met-controls,
+.callander-modal .contact-bday-inputs,
+.callander-modal .quick-idea-categories {
 	min-width: 0;
 	max-width: 100%;
 }
 
-.modal .contact-met-controls > *,
-.modal .contact-bday-inputs > * {
+.callander-modal .contact-met-controls > *,
+.callander-modal .contact-bday-inputs > * {
 	min-width: 0;
 	flex-shrink: 1;
 }
 
 /* Date/month/number inputs carry large intrinsic widths on iOS */
-.modal input[type="date"],
-.modal input[type="month"],
-.modal input[type="number"] {
+.callander-modal input[type="date"],
+.callander-modal input[type="month"],
+.callander-modal input[type="number"] {
 	min-width: 0;
 	max-width: 100%;
 }
 
-.is-mobile .modal-content {
+.is-mobile .callander-modal-content {
 	overflow-x: hidden;
 }
 
@@ -2639,24 +2639,24 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 /* Mobile modals: flexdate controls stack full-width — iOS date inputs
    have intrinsic widths that refuse to shrink in flex rows */
-.is-mobile .modal .callander-modal-field {
+.is-mobile .callander-modal .callander-modal-field {
 	max-width: 100%;
 	min-width: 0;
 }
 
-.is-mobile .modal .contact-met-controls {
+.is-mobile .callander-modal .contact-met-controls {
 	flex-direction: column;
 	align-items: stretch;
 }
 
-.is-mobile .modal .contact-bday-inputs {
+.is-mobile .callander-modal .contact-bday-inputs {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
 }
 
-.is-mobile .modal .contact-met-controls > *,
-.is-mobile .modal .contact-bday-inputs > * {
+.is-mobile .callander-modal .contact-met-controls > *,
+.is-mobile .callander-modal .contact-bday-inputs > * {
 	flex: none;
 	width: 100%;
 	max-width: 100%;
@@ -2666,8 +2666,8 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 /* iOS: date/month inputs ignore CSS width until native appearance is
    stripped. The tap-to-open native picker still works. */
-.is-mobile .modal input[type="date"],
-.is-mobile .modal input[type="month"] {
+.is-mobile .callander-modal input[type="date"],
+.is-mobile .callander-modal input[type="month"] {
 	-webkit-appearance: none;
 	appearance: none;
 	width: 100%;
@@ -2686,8 +2686,8 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* Center the value text in appearance-stripped date/month inputs */
-.is-mobile .modal input[type="date"],
-.is-mobile .modal input[type="month"] {
+.is-mobile .callander-modal input[type="date"],
+.is-mobile .callander-modal input[type="month"] {
 	display: inline-flex;
 	align-items: center;
 	padding-top: 0;
@@ -2696,8 +2696,8 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 /* Companion fix: iOS centers the value text after appearance:none */
-.is-mobile .modal input[type="date"]::-webkit-date-and-time-value,
-.is-mobile .modal input[type="month"]::-webkit-date-and-time-value {
+.is-mobile .callander-modal input[type="date"]::-webkit-date-and-time-value,
+.is-mobile .callander-modal input[type="month"]::-webkit-date-and-time-value {
 	margin: 0;
 	text-align: left;
 }
@@ -4271,14 +4271,14 @@ body.is-mobile.callander-kb-open .modal-content > * {
    `.modal .callander-button.button-primary`. These two sit side by side
    instead: neither is the modal's submit, the ledger has no submit, and
    stretching one of them across pushed the other onto a line of its own. */
-.modal .expense-ledger-actions .callander-button.button-primary {
+.callander-modal .expense-ledger-actions .callander-button.button-primary {
 	width: auto;
 }
 
 /* Same trade for the plan glance's "View full plan": full width pushed
    "Hide from this list" onto its own row below it. Neither is a submit —
    the glance has none — so both stay their natural size, side by side. */
-.modal .plan-glance-actions .callander-button.button-primary {
+.callander-modal .plan-glance-actions .callander-button.button-primary {
 	width: auto;
 }
 
@@ -4446,7 +4446,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	flex-shrink: 0;
 }
 
-.modal .expense-share-input {
+.callander-modal .expense-share-input {
 	width: 56px;
 	max-width: 56px;
 	flex: none;
@@ -4457,13 +4457,13 @@ body.is-mobile.callander-kb-open .modal-content > * {
    they take the width the row can spare rather than a fixed number-field
    size. The row's name shrinks first; the input still scrolls once an
    expression outgrows even that. */
-.modal .expense-expr-row .expense-share-right {
+.callander-modal .expense-expr-row .expense-share-right {
 	flex: 1;
 	min-width: 0;
 	justify-content: flex-end;
 }
 
-.modal .expense-share-input.expense-expr-input {
+.callander-modal .expense-share-input.expense-expr-input {
 	/* Width is set inline as you type (see autosizeExpr). The floor matches
 	   the other modes' field so the row doesn't jump when you switch tabs. */
 	width: 56px;
@@ -4473,7 +4473,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	text-align: right;
 }
 
-.modal .expense-share-input.is-disabled {
+.callander-modal .expense-share-input.is-disabled {
 	background: transparent;
 	opacity: 0.5;
 }
@@ -4634,7 +4634,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 /* Mobile: cost inputs need more room (iOS number fields carry heavy
    native padding/chrome that clips the digits at desktop widths) */
-.is-mobile .modal .expense-share-input {
+.is-mobile .callander-modal .expense-share-input {
 	width: 86px;
 	max-width: 86px;
 	-webkit-appearance: none;
@@ -4663,7 +4663,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	}
 }
 
-.modal.ft-modal-shake {
+.callander-modal.ft-modal-shake {
 	animation: callander-modal-shake 0.28s ease;
 }
 
@@ -4676,7 +4676,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.modal.ft-modal-shake {
+	.callander-modal.ft-modal-shake {
 		animation: callander-modal-nudge 0.28s ease;
 	}
 }

@@ -1,9 +1,10 @@
-import { App, Modal, setIcon } from "obsidian";
+import { App, setIcon } from "obsidian";
 import { reportFailure } from "@/components/guardedAction";
 import { confirmThenClose } from "@/modals/ConfirmModal";
 import { formatDate } from "@/utils/dateFormat";
 import type { LifeGoal } from "@/types";
 import { AUTOSAVE_DELAY_MS } from "@/constants";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /**
  * Read view for a life goal: what it is, how it's going, and the ways it
@@ -18,7 +19,7 @@ import { AUTOSAVE_DELAY_MS } from "@/constants";
  * this is the field you open the goal to update, and a Save button between
  * a thought and the file is a step nobody wants.
  */
-export class LifeGoalViewModal extends Modal {
+export class LifeGoalViewModal extends CallanderModal {
 	private notesSaveTimer: number | null = null;
 	private notesDirty = false;
 	private pendingNotes: string;

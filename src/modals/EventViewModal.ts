@@ -1,4 +1,4 @@
-import { App, Modal, Notice, setIcon } from "obsidian";
+import { App, Notice, setIcon } from "obsidian";
 import { reportFailure } from "@/components/guardedAction";
 import type FriendTracker from "@/main";
 import type { ContactWithCountdown, EventInfo } from "@/types";
@@ -15,6 +15,7 @@ import { normalizeUrl } from "@/utils/url";
 import { closeColorPopover, openColorPopover } from "@/components/colorPicker";
 import { categoryColor, categoryColors } from "@/utils/categoryColor";
 import { linkpathOf } from "@/utils/linkField";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /** A colour is saved this long after the picker stops moving. */
 const COLOR_SAVE_DELAY_MS = 250;
@@ -23,7 +24,7 @@ const COLOR_SAVE_DELAY_MS = 250;
  * A read view of an event with Edit / Done / Hide / Delete — mirrors
  * SomedayViewModal. `onChange` re-renders whatever opened it.
  */
-export class EventViewModal extends Modal {
+export class EventViewModal extends CallanderModal {
 	private descSaveTimer: number | null = null;
 	private descDirty = false;
 	private description: string;

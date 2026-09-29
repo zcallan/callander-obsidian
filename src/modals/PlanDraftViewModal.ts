@@ -1,4 +1,4 @@
-import { App, Modal, setIcon } from "obsidian";
+import { App, setIcon } from "obsidian";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { reportFailure } from "@/components/guardedAction";
 import {
@@ -7,6 +7,7 @@ import {
 } from "@/modals/scheduleFields";
 import { truncate } from "@/utils/text";
 import { AUTOSAVE_DELAY_MS } from "@/constants";
+import { CallanderModal } from "@/modals/CallanderModal";
 
 /** How much of a draft its confirmations quote: shorter than other deletes'. */
 const DRAFT_PREVIEW_CHARS = 60;
@@ -23,7 +24,7 @@ const DRAFT_PREVIEW_CHARS = 60;
  * haven't decided about yet; this is where you decide, and the draft is
  * consumed in the process rather than left behind as a duplicate.
  */
-export class PlanDraftViewModal extends Modal {
+export class PlanDraftViewModal extends CallanderModal {
 	private saveTimer: number | null = null;
 	private dirty = false;
 	private pending: string;

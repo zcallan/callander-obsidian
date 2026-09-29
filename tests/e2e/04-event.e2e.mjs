@@ -69,6 +69,21 @@ export async function run({ cdp }) {
 		{ timeoutMs: 10000, label: "the event modal to open" }
 	);
 	eq("it is the create form, not the edit form", title, "Add event");
+	// CallanderModal's marks, which the stylesheet's modal rules and the
+	// phone keyboard handling key on; the source scan in modal-base.test
+	// can't see them land.
+	eq(
+		"the modal carries Callander's marker classes",
+		await cdp.evaluate(() => {
+			const container = document.querySelector(".modal-container");
+			return [
+				!!container?.matches(".callander-modal-container"),
+				!!container?.querySelector(".modal.callander-modal"),
+				!!container?.querySelector(".modal-content.callander-modal-content"),
+			];
+		}),
+		[true, true, true]
+	);
 
 	// ---------- fill every field ----------
 	const filled = await cdp.evaluate(

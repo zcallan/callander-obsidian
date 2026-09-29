@@ -23,7 +23,7 @@ npm run preview    # renders component fixtures in a browser against the real CS
 | `src/main.ts` | Plugin class: lifecycle, commands and views (as tables), navigation, migrations |
 | `src/plugin/` | Plugin-level machinery split out of `main.ts`: startup steps, the markdown intercept, mobile keyboard tracking |
 | `src/views/` | One `ItemView` per page |
-| `src/modals/` | ~50 modals. Anything with editable fields extends `FormModal` |
+| `src/modals/` | ~50 modals, all on `CallanderModal`. Anything with editable fields extends `FormModal` |
 | `src/services/` | Vault reads/writes (`*Operations`, plus `vaultFiles.ts`'s shared helpers) — the layer meant to touch files. `main.ts` still writes directly in places, and the contact page's saves and migrations live in `views/ContactPageView/persistence.ts`; move writes here rather than adding more |
 | `src/utils/` | Pure logic: parsing, formatting, date maths. Where tests live heaviest. Check the shared primitives first (`dates.ts`, `flexdate.ts`, `text.ts`, `fm.ts`, `linkField.ts`, `fileName.ts`, `async.ts`; listed in ARCHITECTURE.md) before writing a helper |
 | `src/ui/` | React layer: hooks, context, ported sections |
@@ -125,7 +125,9 @@ The check covers the versions installed on this machine (1.12.7 and 1.13.7 at th
 
 ## Modals stay Obsidian's
 
-Roughly 50 selectors in `base.css` hang off `.modal` / `.modal-container`, including the mobile keyboard handling (`--callander-keyboard-inset` and the `callander-kb-open` body class set from `visualViewport`). A hand-rolled React overlay inherits none of it, and also loses Escape, backdrop dismissal, focus trapping and safe areas. Modals also open from commands and the ribbon, outside any React tree.
+Roughly 50 selectors in `base.css` hang off `.callander-modal`, `.callander-modal-content` and `.callander-modal-container`, including the mobile keyboard handling (`--callander-keyboard-inset` and the `callander-kb-open` body class set from `visualViewport`). A hand-rolled React overlay inherits none of it, and also loses Escape, backdrop dismissal, focus trapping and safe areas. Modals also open from commands and the ribbon, outside any React tree.
+
+Those are marker classes, added by `CallanderModal` (`src/modals/CallanderModal.ts`). **Every modal extends it, never Obsidian's `Modal` directly**, and a `FuzzySuggestModal` calls `markCallanderSuggester(this)` in its constructor. A modal without the marks still opens and looks fine on a desktop, but loses the phone keyboard handling. Never style Obsidian's own `.modal`, `.modal-content` or `.modal-container`: those reach Obsidian's Settings and every other plugin's dialogs, which is what these rules did until they were scoped. `tests/modal-base.test.mjs` and the stylesheet guard check both.
 
 If a modal's *contents* want React, `createRoot(modal.contentEl)` — keep the `Modal` shell.
 
