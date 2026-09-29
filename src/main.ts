@@ -291,14 +291,15 @@ export default class FriendTracker extends Plugin {
 					// once-per-day guard inside makes repeats free.
 					// Registered before the first check, so a failure in it
 					// doesn't stop the later ones.
+					// A block body, not `() => runLogged(…)`: the review
+					// bot's no-sample-code rule crashes on an arrow whose
+					// body calls a bare function inside setInterval.
 					this.registerInterval(
-						window.setInterval(
-							() =>
-								runLogged("birthday check", () =>
-									this.checkBirthdays()
-								),
-							BIRTHDAY_CHECK_INTERVAL_MS
-						)
+						window.setInterval(() => {
+							runLogged("birthday check", () =>
+								this.checkBirthdays()
+							);
+						}, BIRTHDAY_CHECK_INTERVAL_MS)
 					);
 					this.registerDomEvent(window, "focus", () =>
 						runLogged("birthday check", () => this.checkBirthdays())
