@@ -6,6 +6,7 @@ import type { GroupInfo } from "@/types";
 import { GROUP_COLORS } from "@/constants";
 import { closeColorPopover } from "@/components/colorPicker";
 import { appendColorSwatchRow } from "@/components/colorSwatchRow";
+import { groupNameProblem } from "@/utils/fileName";
 
 /**
  * Create or manage a group: name, color dot, delete. Deliberately tiny.
@@ -96,6 +97,11 @@ export class GroupModal extends FormModal {
 			async () => {
 				const name = nameInput.value.trim().toLowerCase();
 				if (!name) return;
+				const problem = groupNameProblem(name);
+				if (problem) {
+					new Notice(problem);
+					return;
+				}
 				// A new group under a name another group's page already has
 				// would only recolour that group, silently.
 				const taken = this.existing ? null : ops.groupPageOf(name);

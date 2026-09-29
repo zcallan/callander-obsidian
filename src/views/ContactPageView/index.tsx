@@ -1612,7 +1612,7 @@ export class ContactPageView extends ItemView {
 			if (!this._file) return;
 			const newName = nameInput.value.trim();
 			if (newName) {
-				this.contactData.name = nameInput.value;
+				this.contactData.name = newName;
 				await this.saveContactData();
 
 				// Rename the file
@@ -2349,6 +2349,7 @@ export class ContactPageView extends ItemView {
 					...this.ideasList(),
 					{ category, text: ideaText, done: false },
 				]);
+				await this.saveContactData();
 				this.render();
 			},
 			text
@@ -2862,6 +2863,7 @@ export class ContactPageView extends ItemView {
 		const next = [...list];
 		next[at] = { ...next[at], done: true, doneDate: todayISO() };
 		await this.writeDraftsToBody(next);
+		await this.saveContactData();
 		this.render();
 	}
 
@@ -2893,6 +2895,7 @@ export class ContactPageView extends ItemView {
 					const next = [...list];
 					next[at] = { ...next[at], text: updated };
 					await this.writeDraftsToBody(next);
+					await this.saveContactData();
 				}
 				this.render();
 			},
@@ -3964,6 +3967,7 @@ export class ContactPageView extends ItemView {
 		if (!idea) return;
 		list[index] = { ...idea, done };
 		await this.writeIdeasToBody(list);
+		await this.saveContactData();
 		this.render();
 		// A checked idea is usually something that just happened — offer to
 		// put it on the timeline with one click.
@@ -3984,6 +3988,7 @@ export class ContactPageView extends ItemView {
 				else delete next.resurface;
 				list[index] = next;
 				await this.writeIdeasToBody(list);
+				await this.saveContactData();
 				this.render();
 			}
 		).open();
@@ -3993,6 +3998,7 @@ export class ContactPageView extends ItemView {
 		const list = this.ideasList();
 		list.splice(index, 1);
 		await this.writeIdeasToBody(list);
+		await this.saveContactData();
 		this.render();
 	}
 
@@ -4303,6 +4309,7 @@ export class ContactPageView extends ItemView {
 				if (index === null) list.push(value);
 				else list[index] = value;
 				await this.writeQuotesToBody(list);
+				await this.saveContactData();
 				this.render();
 			},
 			index === null
@@ -4311,6 +4318,7 @@ export class ContactPageView extends ItemView {
 						const list = this.quotesOf();
 						list.splice(index, 1);
 						await this.writeQuotesToBody(list);
+						await this.saveContactData();
 						this.render();
 				  }
 		).open();

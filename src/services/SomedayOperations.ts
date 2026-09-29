@@ -325,24 +325,6 @@ export class SomedayOperations {
 		return this.app.metadataCache.getFileCache(file)?.frontmatter;
 	}
 
-	async addSubIdea(file: TFile, text: string): Promise<void> {
-		const trimmed = text.trim();
-		if (!trimmed) return;
-		const before = SomedayOperations.subIdeasOf(
-			this.currentFrontmatter(file)
-		).length;
-		await this.writeSomeday(
-			file,
-			(fm) => {
-				fm.subIdeas = [
-					...SomedayOperations.subIdeasOf(fm),
-					{ text: trimmed, done: false },
-				];
-			},
-			(fm) => SomedayOperations.subIdeasOf(fm).length === before + 1
-		);
-	}
-
 	async toggleSubIdea(file: TFile, index: number): Promise<void> {
 		const before = SomedayOperations.subIdeasOf(
 			this.currentFrontmatter(file)

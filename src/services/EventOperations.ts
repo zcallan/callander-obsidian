@@ -214,11 +214,16 @@ export class EventOperations {
 			.filter(Boolean);
 	}
 
-	/** Every event linking to this person/group file. Unsorted — the
-	 * timeline does its own ordering. */
+	/** Every event linking to this person/group file that belongs on their
+	 * page. Unsorted — the timeline does its own ordering. One saved with
+	 * "Show on their timelines?" unticked names them without being about
+	 * them, so it's left off their page and their note's Events list, as
+	 * eventsByPersonPath leaves it off everywhere else. */
 	eventsFor(file: TFile): EventInfo[] {
-		return this.getEvents().filter((e) =>
-			this.peoplePaths(e).includes(file.path)
+		return this.getEvents().filter(
+			(e) =>
+				e.showOnTimelines !== false &&
+				this.peoplePaths(e).includes(file.path)
 		);
 	}
 

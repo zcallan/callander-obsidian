@@ -46,7 +46,6 @@ A name is all that's required. Everything else narrows *when* it fits:
 | Type | One or more of Food, Drinks, Nature, Activity, Explore, Museum, Show, Event, Game, Creative, Shopping, Short Trip, Long Trip, Other |
 | People | Friends you'd suggest it to |
 | Cost | An estimate |
-| Sub-ideas | Smaller options within it ("the east trail", "the ramen place nearby") |
 | Notes | Anything else |
 
 ## When it fits
@@ -78,7 +77,7 @@ Three buttons matter:
 | --- | --- |
 | **Mark done** | Archives it as something you did. Tap again to reopen. |
 | **Make event** | Opens a new event prefilled with its name, date (or the window's opening day) and people. Optionally marks the someday done once saved. |
-| **Make plan** | Opens a new plan prefilled with its name and date. Once created, sub-ideas become the plan's ideas (as Maybe), suggested people become members, and the fuzzy details (type, timeframe, days, budget, notes) are written into the plan's notes as a starting brief. The someday links to the plan it became, and can be marked done. |
+| **Make plan** | Opens a new plan prefilled with its name and date. Once created, any sub-ideas it carries from older versions become the plan's ideas (as Maybe), suggested people become members, and the fuzzy details (type, timeframe, days, budget, notes) are written into the plan's notes as a starting brief. The someday links to the plan it became, and can be marked done. |
 
 ## Tips & hidden details
 

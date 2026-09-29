@@ -3,7 +3,13 @@ import { FormModal } from "@/modals/FormModal";
 import { confirmThenClose } from "@/modals/ConfirmModal";
 import { guardedAction } from "@/components/guardedAction";
 import type { ContactWithCountdown, Expense } from "@/types";
-import { CENT, owedFor, payersOf, percentFromInput } from "@/utils/expenseMath";
+import {
+	carryExpenseStatus,
+	CENT,
+	owedFor,
+	payersOf,
+	percentFromInput,
+} from "@/utils/expenseMath";
 import { evaluateAmount } from "@/utils/calc";
 import {
 	appendContactPicker,
@@ -854,6 +860,21 @@ export class ExpenseModal extends FormModal {
 				});
 			});
 		}
+		// An edit that changes the money clears who's paid (see
+		// carryExpenseStatus), so say so where the Save button is.
+		const ticked =
+			this.initial &&
+			(this.initial.settled === true ||
+				(this.initial.paid?.length ?? 0) > 0);
+		if (ticked) {
+			buttons.before(
+				createDiv({
+					cls: "section-helper-text",
+					text:
+						"Changing the amount, split or people clears who's marked as paid.",
+				})
+			);
+		}
 		const saveButton = buttons.createEl("button", {
 			text: this.initial ? "Save" : "Add",
 			cls: "callander-modal-button mod-cta",
@@ -870,7 +891,7 @@ export class ExpenseModal extends FormModal {
 				const shares = this.buildShares();
 				const exprs = this.buildExprs();
 				const people = this.peopleHandle?.wikilinks();
-				await this.onSubmit({
+				const edited: Expense = {
 					label,
 					amount,
 					...(people && { people }),
@@ -881,7 +902,9 @@ export class ExpenseModal extends FormModal {
 						...(isReceipt && this.tax !== null && { tax: this.tax }),
 						...(isReceipt && this.tip !== null && { tip: this.tip }),
 					},
-				});
+				};
+				// Paid ticks and settled survive a relabel, not a new bill.
+				await this.onSubmit(carryExpenseStatus(this.initial, edited));
 				this.close();
 			},
 			{ buttons: [saveButton] }

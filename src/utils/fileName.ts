@@ -14,6 +14,19 @@ export function safeFileName(name: string, fallback = ""): string {
 	return name.replace(ILLEGAL_FILENAME_CHARS, "-").trim() || fallback;
 }
 
+/**
+ * Why a group name can't be used, or null when it can. A group's page is
+ * found by its name, and its wikilink is the name, so a character a file
+ * name or a link can't hold is refused rather than swapped out.
+ */
+export function groupNameProblem(name: string): string | null {
+	if (!name.trim()) return "A group needs a name";
+	if (new RegExp(ILLEGAL_FILENAME_CHARS.source).test(name)) {
+		return 'Group names can\'t contain \\ / : * ? " < > | # ^ [ or ]';
+	}
+	return null;
+}
+
 /** How much of an event's name its slug keeps, in UTF-16 units. */
 export const EVENT_SLUG_NAME_MAX = 60;
 

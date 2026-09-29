@@ -29,6 +29,39 @@ export function formatMoney(n: number): string {
 	return `${n < 0 && figure !== "0.00" ? "\u2212" : ""}$${figure}`;
 }
 
+/**
+ * An edited expense, with who's paid and whether it's settled carried over
+ * from `before` when the edit left the money alone — only the label (or
+ * nothing) changed. A new amount, split or set of people makes the old
+ * ticks describe a different bill, so they're dropped. See also
+ * expenseEditClearsStatus, which the form uses to say so.
+ */
+export function carryExpenseStatus(
+	before: Expense | null,
+	after: Expense
+): Expense {
+	if (!before || expenseEditClearsStatus(before, after)) return after;
+	return {
+		...after,
+		...(before.settled !== undefined && { settled: before.settled }),
+		...(before.paid !== undefined && { paid: before.paid }),
+	};
+}
+
+/** Would saving `after` over `before` clear its paid ticks and settled state? */
+export function expenseEditClearsStatus(
+	before: Expense,
+	after: Expense
+): boolean {
+	const same = (a: unknown, b: unknown) =>
+		JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+	return (
+		before.amount !== after.amount ||
+		!same(before.split, after.split) ||
+		!same(before.people, after.people)
+	);
+}
+
 /** How an expense is divided, for display: "By receipt", "Split evenly"… */
 export function splitModeLabel(
 	mode: "even" | "shares" | "percent" | "value" | "receipt"

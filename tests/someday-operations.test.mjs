@@ -51,17 +51,18 @@ export async function run() {
 	}
 
 	// ---------- sub-ideas ----------
+	// Nothing creates them any more (decision 2), but notes written before
+	// still carry them, and they still tick and delete.
 	{
 		const t = await createTestVault();
 		const file = await t.somedays.createSomeday({ name: "Trip to Maine" });
 		const subIdeas = () => S.subIdeasOf(t.frontmatterOf(file));
-		await t.somedays.addSubIdea(file, "  Beth's bakery  ");
-		await t.somedays.addSubIdea(file, "   ");
-		await t.somedays.addSubIdea(file, "Sunset at the point");
-		eq("added trimmed, a blank one ignored", subIdeas(), [
-			{ text: "Beth's bakery", done: false },
-			{ text: "Sunset at the point", done: false },
-		]);
+		await t.app.fileManager.processFrontMatter(file, (fm) => {
+			fm.subIdeas = [
+				{ text: "Beth's bakery", done: false },
+				{ text: "Sunset at the point", done: false },
+			];
+		});
 		await t.somedays.toggleSubIdea(file, 1);
 		eq("a tick lands on the one at that place", subIdeas().map((s) => s.done), [false, true]);
 		await t.somedays.toggleSubIdea(file, 1);

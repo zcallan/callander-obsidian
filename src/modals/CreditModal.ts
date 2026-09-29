@@ -2,6 +2,7 @@ import { App } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import type { Credit } from "@/types";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 
 /**
  * Record money a person has already handed over (a transfer, or covering
@@ -61,19 +62,22 @@ export class CreditModal extends FormModal {
 		const buttons = contentEl.createDiv({
 			cls: "callander-modal-buttons",
 		});
-		if (this.initial && this.onDelete) {
+		const { initial, onDelete } = this;
+		if (initial && onDelete) {
 			const del = buttons.createEl("button", {
 				text: "Delete",
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
-			const handleDelete = guardedAction(
-				async () => {
-					await this.onDelete!();
-					this.close();
-				},
-				{ buttons: [del], failure: "Couldn't delete" }
+			// Asked first, like every other delete: a credit is frontmatter,
+			// so nothing of it lands in the trash.
+			del.addEventListener("click", () =>
+				confirmThenClose(this, {
+					title: "Delete credit",
+					message: `Delete ${initial.person}'s credit?`,
+					failure: "Couldn't delete",
+					onConfirm: onDelete,
+				})
 			);
-			del.addEventListener("click", () => void handleDelete());
 		}
 		const saveButton = buttons.createEl("button", {
 			text: this.initial ? "Save" : "Add",

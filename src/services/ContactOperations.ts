@@ -36,6 +36,7 @@ import { linkpathOf } from "@/utils/linkField";
 import { createNote, ensureFolder, markdownFilesIn } from "@/services/vaultFiles";
 import { upsertNotesSection } from "@/utils/notesMarkdown";
 import { upsertQuotesSection } from "@/utils/quotesMarkdown";
+import { safeFileName } from "@/utils/fileName";
 
 /** Where the inbox lived before it became the dashboard file's properties. */
 const LEGACY_INBOX_BASENAME = "Idea Inbox";
@@ -503,7 +504,12 @@ export class ContactOperations {
 	async createContact(
 		data: Record<string, string | string[]>
 	): Promise<TFile> {
-		const filePath = `${this.getPeopleFolderPath()}/${String(data.name)}.md`;
+		// The name is kept as typed, trimmed; the file takes it with the
+		// characters a file name can't hold swapped for "-".
+		const name = String(data.name ?? "").trim();
+		if (!name) throw new Error("A friend needs a name");
+		data = { ...data, name };
+		const filePath = `${this.getPeopleFolderPath()}/${safeFileName(name)}.md`;
 		// Ensure the base and People folders exist before creating
 		await this.ensurePeopleFolder();
 		return await this.app.vault.create(
@@ -526,9 +532,11 @@ export class ContactOperations {
 	 * Links to it update, since this goes through the file manager. */
 	async renamePerson(file: TFile, name: string): Promise<void> {
 		if (!file.parent) return;
+		const base = safeFileName(name.trim());
+		if (!base) return;
 		await this.app.fileManager.renameFile(
 			file,
-			`${file.parent.path}/${name}.md`
+			`${file.parent.path}/${base}.md`
 		);
 	}
 

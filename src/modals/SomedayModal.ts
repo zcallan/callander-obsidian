@@ -32,8 +32,8 @@ type WhenMode = "anytime" | "within" | "year" | "month" | "day" | "season";
  * Create or edit a Someday — a wishlist idea. Deliberately lighter than a plan:
  * a name, a type, a rough when (a calendar date at any precision, a from/until
  * window, or one/more seasons), which days suit it, an estimated cost,
- * solo/group, suggested people, and notes. Sub-ideas are managed on the full
- * page.
+ * solo/group, suggested people, and notes. Sub-ideas written before they were
+ * retired still show in the someday's view, where they tick and delete.
  */
 export class SomedayModal extends FormModal {
 	constructor(

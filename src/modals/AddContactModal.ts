@@ -188,7 +188,7 @@ export class AddContactModal extends FormModal {
 		const addFriend = guardedAction(
 			async () => {
 				const data: Record<string, string | string[]> = {
-					name: nameInput.value,
+					name: nameInput.value.trim(),
 				};
 
 				if (displayInput.value.trim()) {
