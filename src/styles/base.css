@@ -1114,16 +1114,13 @@ body.callander-kb-open .callander-modal-buttons {
 
 .contact-idea-group-header {
 	font-weight: 600;
-	font-size: 0.9em;
 	color: var(--text-muted);
-	margin-bottom: 2px;
 }
 
 .contact-idea-item {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	padding: 7px 0;
 }
 
 /* Separators only between consecutive items — never after the last one
@@ -1254,7 +1251,6 @@ body.callander-kb-open .callander-modal-buttons {
 .quick-idea-categories {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 6px;
 	margin-bottom: 12px;
 }
 
@@ -1495,10 +1491,6 @@ body.callander-kb-open .callander-modal-buttons {
 .dashboard-chip-badge {
 	color: var(--text-muted);
 	font-size: 0.85em;
-}
-
-.dashboard-section {
-	margin-top: 20px;
 }
 
 .dashboard-section h3 {
@@ -2691,19 +2683,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	appearance: none;
 	width: 100%;
 	max-width: 100%;
-	display: block;
 	min-height: var(--input-height, 40px);
-}
-
-/* Companion fix: iOS centers the value text after appearance:none */
-.is-mobile .modal input[type="date"]::-webkit-date-and-time-value,
-.is-mobile .modal input[type="month"]::-webkit-date-and-time-value {
-	text-align: left;
-}
-
-/* Add buttons that sit below their lists */
-.contact-section-footer {
-	margin-top: 10px;
 }
 
 /* Mobile: timeline rows are tap-to-edit; hide the row action buttons */
@@ -2726,6 +2706,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	line-height: normal;
 }
 
+/* Companion fix: iOS centers the value text after appearance:none */
 .is-mobile .modal input[type="date"]::-webkit-date-and-time-value,
 .is-mobile .modal input[type="month"]::-webkit-date-and-time-value {
 	margin: 0;
@@ -2734,24 +2715,12 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 /* Ideas section rhythm: stack header supplies the top spacing; groups
    breathe evenly; helper text doesn't crowd the list */
-.contact-content-stacked .contact-ideas-section {
-	padding-top: 6px;
-}
-
 .contact-ideas-section .section-helper-text {
 	margin-bottom: 10px;
 }
 
-.contact-idea-group {
-	margin: 0 0 18px;
-}
-
 .contact-idea-group:last-of-type {
 	margin-bottom: 6px;
-}
-
-.contact-idea-group-header {
-	margin-bottom: 4px;
 }
 
 .contact-idea-item {
@@ -2845,11 +2814,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin-bottom: 2px;
 }
 
-/* Room between the section header and the first group */
-.contact-content-stacked .contact-ideas-section {
-	padding-top: 10px;
-}
-
 .plan-items-section .contact-idea-group:first-of-type {
 	margin-top: 4px;
 }
@@ -2858,7 +2822,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 .dashboard-diary-row {
 	flex-direction: column;
 	align-items: flex-start;
-	gap: 2px;
 	padding-top: 10px;
 	padding-bottom: 10px;
 }
@@ -2871,7 +2834,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .dashboard-diary-tagged {
 	color: var(--text-muted);
-	font-size: 0.85em;
 }
 
 /* Diary rows */
@@ -2955,11 +2917,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	border-top: 1px solid var(--background-modifier-border);
 }
 
-/* A little more air under the Ideas heading */
-.contact-content-stacked .contact-ideas-section {
-	padding-top: 14px;
-}
-
 /* More air between each section divider and its heading */
 .contact-stack-header {
 	padding-top: 22px;
@@ -2968,11 +2925,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 /* Ideas: more room under the section heading before the first group */
 .contact-content-stacked .contact-ideas-section {
 	padding-top: 20px;
-}
-
-/* Tighter gap between list content and the section's action button */
-.contact-section-footer {
-	margin-top: 4px;
 }
 
 /* Timeline: pull the helper text up toward the heading */
@@ -2995,6 +2947,7 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	margin-top: 0;
 }
 
+/* Add buttons that sit below their lists */
 .contact-section-footer {
 	margin-top: 0;
 }
@@ -3011,10 +2964,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 	display: flex;
 	gap: 6px;
 	flex-shrink: 0;
-}
-
-.contact-header-action {
-	padding: 6px 8px;
 }
 
 /* Header actions as labeled buttons */
@@ -3193,7 +3142,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .friend-list-row {
 	display: flex;
-	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
 	padding: 10px 8px;
@@ -4349,14 +4297,6 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .expense-shares {
 	margin: 8px 0;
-}
-
-.expense-share-row {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	padding: 4px 0;
 }
 
 .expense-share-name {
