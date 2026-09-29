@@ -17,7 +17,7 @@ import {
 	indexBirthdays,
 	turnsLabel,
 } from "@/utils/friendTimeline";
-import { monthGrid, monthLabel } from "@/utils/calendarGrid";
+import { monthGrid, monthLabel, weekStartsOn } from "@/utils/calendarGrid";
 import { GlanceModal } from "@/modals/GlanceModal";
 import { sortFriends } from "@/utils/friendListSort";
 
@@ -418,13 +418,14 @@ export class TableView {
 
 		const head = wrap.createDiv({ cls: "cal-weekdays" });
 		const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-		const from = this.weekStartsOn();
+		const from = weekStartsOn(this.view.callander.settings);
 		for (const d of names.slice(from).concat(names.slice(0, from))) {
 			head.createSpan({ text: d });
 		}
 
 		const grid = wrap.createDiv({ cls: "cal-grid" });
-		for (const day of monthGrid(this.calCursor, new Date(), this.weekStartsOn())) {
+		const startsOn = weekStartsOn(this.view.callander.settings);
+		for (const day of monthGrid(this.calCursor, new Date(), startsOn)) {
 			const cls = ["cal-cell"];
 			if (!day.inMonth) cls.push("is-outside");
 			if (day.isToday) cls.push("is-today");
@@ -484,11 +485,6 @@ export class TableView {
 				});
 			}
 		}
-	}
-
-	/** Which day the grid opens on — 1 Monday, 0 Sunday. */
-	private weekStartsOn(): 0 | 1 {
-		return this.view.callander.settings.weekStartsOn === 0 ? 0 : 1;
 	}
 
 	/**

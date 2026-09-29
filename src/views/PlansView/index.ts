@@ -5,7 +5,7 @@ import type { ContactWithCountdown } from "@/types";
 import { PlanModal } from "@/modals/PlanModal";
 import type { EventSort } from "@/utils/eventRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
-import { registerVaultRefresh } from "@/utils/vaultRefresh";
+import { inFolders, registerPageRefresh } from "@/utils/vaultRefresh";
 import { groupEventsByPeriod } from "@/utils/eventGroups";
 import { summarisePeople } from "@/utils/nameFormat";
 import { planRowFields } from "@/utils/planRow";
@@ -20,6 +20,7 @@ import {
 	type PlanListItem,
 } from "@/utils/planList";
 import type { EventWhen } from "@/utils/eventRow";
+import { weekStartsOn } from "@/utils/calendarGrid";
 
 export const VIEW_TYPE_PLANS = "callander-plans";
 
@@ -78,18 +79,13 @@ export class PlansView extends ItemView {
 
 	async onOpen() {
 		this.register(observePageRoom(this));
-		this.registerEvent(
-			this.plugin.events.on("settings-changed", () => void this.refresh())
-		);
 		// People too: a member renamed on their own page changes what this
 		// list shows for them, and nothing else here would hear about it.
-		const folders = [
-			this.plugin.planOperations.getPlansFolderPath(),
-			this.plugin.contactOperations.getPeopleFolderPath(),
-		];
-		registerVaultRefresh(this, this.plugin, () => void this.refresh(), {
-			scope: (path) =>
-				folders.some((f) => path === f || path.startsWith(f + "/")),
+		registerPageRefresh(this, this.plugin, () => void this.refresh(), {
+			scope: inFolders(
+				this.plugin.planOperations.getPlansFolderPath(),
+				this.plugin.contactOperations.getPeopleFolderPath()
+			),
 		});
 		await this.refresh();
 	}
@@ -149,10 +145,6 @@ export class PlansView extends ItemView {
 	}
 
 	// ---- Filtering ----
-
-	private weekStartsOn(): 0 | 1 {
-		return this.plugin.settings.weekStartsOn === 0 ? 0 : 1;
-	}
 
 	/** The list under the live filters, with one facet optionally swapped
 	 * for a hypothetical value — which is how each chip prices itself. */
@@ -433,7 +425,7 @@ export class PlansView extends ItemView {
 		// another year's carry theirs ("October 2027") — the year is only
 		// worth saying when it isn't the one you're in.
 		const groups = groupEventsByPeriod(list, (p) => p.date, new Date(), {
-			weekStartsOn: this.weekStartsOn(),
+			weekStartsOn: weekStartsOn(this.plugin.settings),
 			// Headings turn round with the rows, or a timeline whose months
 			// ascend while its rows descend reads as neither order.
 			recentFirst: readsBackwards(this.when),

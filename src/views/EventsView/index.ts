@@ -27,7 +27,7 @@ import {
 	type EventWhen,
 } from "@/utils/eventRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
-import { registerVaultRefresh } from "@/utils/vaultRefresh";
+import { inFolders, registerPageRefresh } from "@/utils/vaultRefresh";
 import { groupEventsByPeriod } from "@/utils/eventGroups";
 import { todayISO } from "@/utils/flexdate";
 import {
@@ -64,6 +64,7 @@ import {
 	eventPipeline,
 	planPageItem,
 } from "@/utils/eventList";
+import { weekStartsOn } from "@/utils/calendarGrid";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
 
@@ -162,20 +163,11 @@ export class EventsView extends ItemView {
 		// know whether there's room beside the column.
 		this.register(observePageRoom(this));
 		const folder = this.plugin.eventOperations.getEventsFolderPath();
-		// Settings are read at render time, so a change to one has to be
-		// heard rather than waited on — otherwise it only lands on reopen.
-		this.registerEvent(
-			this.plugin.events.on("settings-changed", () => void this.refresh())
-		);
 		// The Plans folder too, since plans show here as well — without it a
 		// re-dated plan would sit stale until some event happened to change.
 		const plansFolder = this.plugin.planOperations.getPlansFolderPath();
-		const inScope = (path: string) =>
-			[folder, plansFolder].some(
-				(f) => path === f || path.startsWith(f + "/")
-			);
-		registerVaultRefresh(this, this.plugin, () => void this.refresh(), {
-			scope: inScope,
+		registerPageRefresh(this, this.plugin, () => void this.refresh(), {
+			scope: inFolders(folder, plansFolder),
 		});
 		await this.refresh();
 	}
@@ -330,11 +322,6 @@ export class EventsView extends ItemView {
 		return this.items.filter((e) =>
 			matchesEventWhen(e.whenDate, this.when, new Date())
 		);
-	}
-
-	/** Which day the grid opens on — 1 Monday, 0 Sunday. */
-	private weekStartsOn(): 0 | 1 {
-		return this.plugin.settings.weekStartsOn === 0 ? 0 : 1;
 	}
 
 	private pipeline(over: {
@@ -528,7 +515,7 @@ export class EventsView extends ItemView {
 		renderCalendarBoard(listEl, {
 			state: this.cal,
 			items,
-			weekStartsOn: this.weekStartsOn(),
+			weekStartsOn: weekStartsOn(this.plugin.settings),
 			rerender: () => this.renderContent(),
 			onModeChange: (mode) => {
 				this.plugin.settings.eventsCalendarMode = mode;
@@ -903,7 +890,7 @@ export class EventsView extends ItemView {
 		// the bare form, where this year needs no saying.
 		const groups = groupEventsByPeriod(list, (e) => e.date, new Date(), {
 			alwaysYear: this.when !== "upcoming",
-			weekStartsOn: this.weekStartsOn(),
+			weekStartsOn: weekStartsOn(this.plugin.settings),
 			// Looking back, the headings run latest-first too — the rows
 			// inside them already do, and a timeline whose months descend
 			// while its rows ascend reads as neither order.

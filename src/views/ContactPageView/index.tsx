@@ -9,12 +9,6 @@ import {
 	Component,
 	type ViewStateResult,
 } from "obsidian";
-import { createRoot } from "react-dom/client";
-// preact/compat/client exports createRoot but not a name for what it
-// returns, so the root type is derived from the function itself.
-type Root = ReturnType<typeof createRoot>;
-import type { ReactNode } from "react";
-import { PluginProvider } from "@/ui/PluginContext";
 import { AccommodationSection } from "@/ui/sections/AccommodationSection";
 import { BringSection } from "@/ui/sections/BringSection";
 import { PlanDraftsSection } from "@/ui/sections/PlanDraftsSection";
@@ -200,6 +194,7 @@ import {
 	chineseZodiac,
 	zodiacSign,
 } from "@/utils/birthTrivia";
+import { IslandSet } from "@/ui/islands";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -318,7 +313,7 @@ export class ContactPageView extends ItemView {
 	 * React keeps rendering into the same node and its subscriptions never
 	 * lapse. See DashboardView, which does the same. Torn down in onClose.
 	 */
-	private islands = new Map<string, { host: HTMLElement; root: Root }>();
+	private islands = new IslandSet(() => this.plugin);
 	/**
 	 * Bumped whenever `contactData` has been reloaded or written, so the
 	 * islands re-read it at exactly the moments the imperative sections
@@ -763,42 +758,12 @@ export class ContactPageView extends ItemView {
 		}
 	}
 
-	/**
-	 * The host node for a ported section, ready to be placed in the layout.
-	 *
-	 * Rendered once on creation and never again from here — React owns its
-	 * own updates from that point, driven by the store bump. Re-rendering on
-	 * every page render would tie React's update timing back to the
-	 * imperative path this is meant to escape.
-	 */
-	private island(key: string, node: ReactNode): HTMLElement {
-		const existing = this.islands.get(key);
-		if (existing) return existing.host;
-
-		const host = createDiv({ cls: "callander-react-root" });
-		const root = createRoot(host);
-		root.render(
-			<PluginProvider plugin={this.plugin}>{node}</PluginProvider>
-		);
-		this.islands.set(key, { host, root });
-		return host;
-	}
-
-	private unmountIslands() {
-		const roots = [...this.islands.values()];
-		this.islands.clear();
-		// Unmounting synchronously inside a React render pass is an error,
-		// and onClose can be reached from one — defer so teardown always
-		// lands between renders.
-		window.setTimeout(() => roots.forEach(({ root }) => root.unmount()), 0);
-	}
-
 	async onClose() {
 		// Its dismiss handlers live on the document, so they would
 		// outlive this view if the popover were simply left open.
 		this.closeFieldHelp();
 		await this.flushNotesDraft();
-		this.unmountIslands();
+		this.islands.unmountAll();
 	}
 
 	render() {
@@ -891,7 +856,7 @@ export class ContactPageView extends ItemView {
 		// Plans are their own page shape: members, buckets, notes
 		if (this.isPlanFile()) {
 			container.appendChild(
-				this.island(
+				this.islands.host(
 					"plan-drafts",
 					<PlanDraftsSection
 						store={this.store}
@@ -990,7 +955,7 @@ export class ContactPageView extends ItemView {
 			};
 
 			planSection("users", `Who's in (${this.planMemberCount()})`).appendChild(
-				this.island(
+				this.islands.host(
 					"plan-members",
 					<PlanMembersSection
 						store={this.store}
@@ -1019,7 +984,7 @@ export class ContactPageView extends ItemView {
 				"ideas",
 				PlanOperations.quickIdeasOf(this.contactData).length
 			).appendChild(
-				this.island(
+				this.islands.host(
 					"quick-ideas",
 					<QuickIdeasSection
 						store={this.store}
@@ -1040,7 +1005,7 @@ export class ContactPageView extends ItemView {
 				PlanOperations.timelineOf(this.contactData).length
 			);
 			timelineWrap.appendChild(
-				this.island(
+				this.islands.host(
 					"plan-timeline",
 					<PlanTimelineSection
 						store={this.store}
@@ -1076,7 +1041,7 @@ export class ContactPageView extends ItemView {
 				PlanOperations.simpleListOf(this.contactData, "accommodation")
 					.length
 			).appendChild(
-				this.island(
+				this.islands.host(
 					"accommodation",
 					<AccommodationSection
 						store={this.store}
@@ -1099,7 +1064,7 @@ export class ContactPageView extends ItemView {
 				"bring",
 				PlanOperations.bringOf(this.contactData).length
 			).appendChild(
-				this.island(
+				this.islands.host(
 					"bring",
 					<BringSection
 						store={this.store}
@@ -1120,7 +1085,7 @@ export class ContactPageView extends ItemView {
 				expensesOf(this.contactData).length +
 					creditsOf(this.contactData).length
 			).appendChild(
-				this.island(
+				this.islands.host(
 					"plan-expenses",
 					<PlanExpensesSection
 						store={this.store}
@@ -1163,7 +1128,7 @@ export class ContactPageView extends ItemView {
 				cls: "contact-info-section",
 			});
 			membersSection.appendChild(
-				this.island(
+				this.islands.host(
 					"group-members",
 					<GroupMembersSection
 						groupName={() =>
@@ -1221,7 +1186,7 @@ export class ContactPageView extends ItemView {
 
 		// Drafts awaiting triage sit above everything — they're unfinished
 		container.appendChild(
-			this.island(
+			this.islands.host(
 				"person-drafts",
 				<PersonDraftsSection
 					store={this.store}
@@ -1296,7 +1261,7 @@ export class ContactPageView extends ItemView {
 		};
 
 		section("lightbulb", "Ideas").appendChild(
-			this.island(
+			this.islands.host(
 				"ideas",
 				<IdeasSection
 					store={this.store}
@@ -1319,7 +1284,7 @@ export class ContactPageView extends ItemView {
 		// friends only
 		if (!this.isGroupFile()) {
 			section("heart", "Interests").appendChild(
-				this.island(
+				this.islands.host(
 					"interests",
 					<InterestsSection
 						store={this.store}
@@ -1338,7 +1303,7 @@ export class ContactPageView extends ItemView {
 			// Directly under Interests: both answer "what are they into",
 			// one in the present tense and one in the future.
 			section("milestone", "Life goals").appendChild(
-				this.island(
+				this.islands.host(
 					"life-goals",
 					<LifeGoalsSection
 						store={this.store}
@@ -1349,7 +1314,7 @@ export class ContactPageView extends ItemView {
 				)
 			);
 			section("sparkles", "Fun facts").appendChild(
-				this.island(
+				this.islands.host(
 					"fun-facts",
 					<FunFactsSection
 						store={this.store}
@@ -1362,7 +1327,7 @@ export class ContactPageView extends ItemView {
 				)
 			);
 			section("laugh", "Inside jokes").appendChild(
-				this.island(
+				this.islands.host(
 					"inside-jokes",
 					<QuoteListSection
 						store={this.store}
@@ -1380,7 +1345,7 @@ export class ContactPageView extends ItemView {
 				)
 			);
 			section("quote", "Quotes").appendChild(
-				this.island(
+				this.islands.host(
 					"quotes",
 					<QuoteListSection
 						store={this.store}
@@ -1415,7 +1380,7 @@ export class ContactPageView extends ItemView {
 		// the group modal — this is people only.
 		if (this.isPersonFile()) {
 			container.appendChild(
-				this.island(
+				this.islands.host(
 					"delete",
 					<DeleteSection
 						onDelete={() => this.confirmDeletePerson()}
@@ -2391,7 +2356,7 @@ export class ContactPageView extends ItemView {
 				onOpenEditor={openEditor}
 			/>
 		);
-		return this.island(
+		return this.islands.host(
 			"notes",
 			<NotesChooser
 				store={this.store}
@@ -2462,7 +2427,7 @@ export class ContactPageView extends ItemView {
 		});
 
 		eventsSection.appendChild(
-			this.island(
+			this.islands.host(
 				"diary-mentions",
 				<DiaryMentionsSection
 					store={this.store}

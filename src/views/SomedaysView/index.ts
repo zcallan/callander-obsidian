@@ -23,13 +23,14 @@ import {
 	SomedayType,
 } from "@/constants";
 import {
-	sortSomedays,
+	newRandomSeed,
 	possibleToday,
+	sortSomedays,
 	WEEKDAY_BY_INDEX,
 } from "@/utils/somedaySort";
 import { somedayRowParts } from "@/utils/somedayRow";
 import { buildSomedayRow } from "@/components/SomedayRow";
-import { registerVaultRefresh } from "@/utils/vaultRefresh";
+import { inFolders, registerPageRefresh } from "@/utils/vaultRefresh";
 
 export const VIEW_TYPE_SOMEDAYS = "callander-somedays";
 
@@ -63,7 +64,7 @@ export class SomedaysView extends ItemView {
 	// Reshuffles the Random sort. Set once per page open (and when Random is
 	// picked) rather than per render, so the list holds still while you type
 	// in the search box or flip a filter.
-	private randomSeed = Math.floor(Math.random() * 2 ** 31);
+	private randomSeed = newRandomSeed();
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -87,17 +88,11 @@ export class SomedaysView extends ItemView {
 		// know whether there's room beside the column.
 		this.register(observePageRoom(this));
 		// A fresh shuffle each time the page is opened.
-		this.randomSeed = Math.floor(Math.random() * 2 ** 31);
-		// Settings are read at render time, so a change to one has to be
-		// heard rather than waited on — otherwise it only lands on reopen.
-		this.registerEvent(
-			this.plugin.events.on("settings-changed", () => void this.refresh())
-		);
-		const folder = this.plugin.somedayOperations.getSomedaysFolderPath();
-		const inScope = (path: string) =>
-			path === folder || path.startsWith(folder + "/");
-		registerVaultRefresh(this, this.plugin, () => void this.refresh(), {
-			scope: inScope,
+		this.randomSeed = newRandomSeed();
+		registerPageRefresh(this, this.plugin, () => void this.refresh(), {
+			scope: inFolders(
+				this.plugin.somedayOperations.getSomedaysFolderPath()
+			),
 		});
 		await this.refresh();
 	}
@@ -373,7 +368,7 @@ export class SomedaysView extends ItemView {
 			// Re-picking Random deals a new order, rather than leaving the
 			// same shuffle sitting there looking like nothing happened.
 			if (next === "random") {
-				this.randomSeed = Math.floor(Math.random() * 2 ** 31);
+				this.randomSeed = newRandomSeed();
 			}
 			this.plugin.settings.somedaySort = next;
 			await this.plugin.saveSettings();

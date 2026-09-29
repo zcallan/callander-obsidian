@@ -3,6 +3,12 @@ import { monthName, shortMonthName } from "@/utils/flexdate";
 import { weekStart } from "@/utils/eventGroups";
 import { isoDay, pad2 } from "@/utils/dates";
 
+/** Which day a grid opens on — 1 Monday, 0 Sunday — from the setting,
+ * with anything but Sunday reading as Monday. */
+export function weekStartsOn(settings: { weekStartsOn: number }): 0 | 1 {
+	return settings.weekStartsOn === 0 ? 0 : 1;
+}
+
 /** One cell of the calendar. */
 export interface CalendarDay {
 	/** Local YYYY-MM-DD — the key everything else is looked up by. */

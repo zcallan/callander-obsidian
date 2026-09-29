@@ -259,6 +259,11 @@ function recommendedKey(
 	];
 }
 
+/** A fresh seed for randomKey: a new shuffle. */
+export function newRandomSeed(): number {
+	return Math.floor(Math.random() * 2 ** 31);
+}
+
 /**
  * A stable shuffle: the same seed always produces the same order, so the
  * list doesn't jump around as you type in the search box or flip a

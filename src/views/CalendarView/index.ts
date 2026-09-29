@@ -14,14 +14,14 @@ import { EventModal } from "@/modals/EventModal";
 import { EventViewModal } from "@/modals/EventViewModal";
 import { GlanceModal } from "@/modals/GlanceModal";
 import { PlanGlanceModal } from "@/modals/PlanGlanceModal";
-import { monthGrid, weekGrid } from "@/utils/calendarGrid";
+import { monthGrid, weekGrid, weekStartsOn } from "@/utils/calendarGrid";
 import { eventRowFields } from "@/utils/eventRow";
 import { displayZone } from "@/utils/timezone";
 import { parseFlexDate, todayISO } from "@/utils/flexdate";
 import { birthdaysOnDays, turnsLabel } from "@/utils/friendTimeline";
 import { summarisePeople } from "@/utils/nameFormat";
 import { planRowFields } from "@/utils/planRow";
-import { registerVaultRefresh } from "@/utils/vaultRefresh";
+import { registerPageRefresh } from "@/utils/vaultRefresh";
 import {
 	appendDrawer,
 	appendDrawerToggle,
@@ -106,13 +106,10 @@ export class CalendarView extends ItemView {
 			this.plugin.settings.gettingStartedDone = [...done, "calendar"];
 			void this.plugin.saveSettings();
 		}
-		this.registerEvent(
-			this.plugin.events.on("settings-changed", () => void this.refresh())
-		);
 		// Events, plans and people all live under the base folder, which is
 		// the helper's default scope — a birthday edited on someone's page
 		// has to land here as surely as a new event does.
-		registerVaultRefresh(this, this.plugin, () => void this.refresh());
+		registerPageRefresh(this, this.plugin, () => void this.refresh());
 		await this.refresh();
 	}
 
@@ -180,7 +177,7 @@ export class CalendarView extends ItemView {
 		renderCalendarBoard(el, {
 			state: this.cal,
 			items: this.items(),
-			weekStartsOn: this.weekStartsOn(),
+			weekStartsOn: weekStartsOn(this.plugin.settings),
 			rerender: () => this.renderBoard(),
 			onModeChange: (mode) => {
 				this.plugin.settings.calendarMode = mode;
@@ -297,10 +294,11 @@ export class CalendarView extends ItemView {
 	 * birthday is a date in every year and the board needs actual days.
 	 */
 	private birthdayItems(): BoardItem[] {
+		const startsOn = weekStartsOn(this.plugin.settings);
 		const days = (
 			this.cal.mode === "month"
-				? monthGrid(this.cal.cursor, new Date(), this.weekStartsOn())
-				: weekGrid(this.cal.cursor, new Date(), this.weekStartsOn())
+				? monthGrid(this.cal.cursor, new Date(), startsOn)
+				: weekGrid(this.cal.cursor, new Date(), startsOn)
 		).map((d) => d.date);
 		// Alphabetical in, so a shared birthday reads A-Z in its square.
 		const people = [...this.contacts].sort((a, b) =>
@@ -598,10 +596,5 @@ export class CalendarView extends ItemView {
 	}
 
 	// ---- Layout ----
-
-	/** Which day the grid opens on — 1 Monday, 0 Sunday. */
-	private weekStartsOn(): 0 | 1 {
-		return this.plugin.settings.weekStartsOn === 0 ? 0 : 1;
-	}
 
 }

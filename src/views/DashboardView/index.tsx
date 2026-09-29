@@ -1,13 +1,7 @@
 import { ItemView, WorkspaceLeaf, Notice, TFile, setIcon } from "obsidian";
-import { createRoot } from "react-dom/client";
-// preact/compat/client exports createRoot but not a name for what it
-// returns, so the root type is derived from the function itself.
-type Root = ReturnType<typeof createRoot>;
-import type { ReactNode } from "react";
-import { PluginProvider } from "@/ui/PluginContext";
 import { ExpensesSection } from "@/ui/sections/ExpensesSection";
 import { UpcomingSection } from "@/ui/sections/UpcomingSection";
-import { registerVaultRefresh } from "@/utils/vaultRefresh";
+import { registerPageRefresh } from "@/utils/vaultRefresh";
 import type FriendTracker from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import { resolveDashboardOrder } from "@/utils/dashboardOrder";
@@ -34,7 +28,7 @@ import { PlanModal } from "@/modals/PlanModal";
 import { DraftEditModal } from "@/modals/DraftEditModal";
 import { formatDate } from "@/utils/dateFormat";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
-import { sortSomedays } from "@/utils/somedaySort";
+import { newRandomSeed, sortSomedays } from "@/utils/somedaySort";
 import { somedayRowParts } from "@/utils/somedayRow";
 import { buildSomedayRow } from "@/components/SomedayRow";
 import { buildUpcomingRow } from "@/components/UpcomingRow";
@@ -48,6 +42,7 @@ import {
 	UPCOMING_BIRTHDAY_DAYS,
 	upcomingBirthdays,
 } from "@/utils/birthdayLists";
+import { IslandSet } from "@/ui/islands";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -61,7 +56,7 @@ export class DashboardView extends ItemView {
 	private searchQuery = "";
 	// Only used when the Somedays sort is "Random" — fixed for the life of
 	// this dashboard so the list doesn't reshuffle on every refresh.
-	private somedayRandomSeed = Math.floor(Math.random() * 2 ** 31);
+	private somedayRandomSeed = newRandomSeed();
 	/**
 	 * React islands for the sections that have been ported, keyed by slot.
 	 *
@@ -74,7 +69,7 @@ export class DashboardView extends ItemView {
 	 * remaking them; React keeps rendering into the same node throughout and
 	 * its subscriptions never lapse. Torn down only in onClose.
 	 */
-	private islands = new Map<string, { host: HTMLElement; root: Root }>();
+	private islands = new IslandSet(() => this.plugin);
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -108,12 +103,7 @@ export class DashboardView extends ItemView {
 		// opens this page from there.
 		await this.plugin.contactOperations.ensureDashboardFile();
 
-		// Settings are read at render time, so a change to one has to be
-		// heard rather than waited on — otherwise it only lands on reopen.
-		this.registerEvent(
-			this.plugin.events.on("settings-changed", () => void this.refresh())
-		);
-		registerVaultRefresh(this, this.plugin, () => void this.refresh());
+		registerPageRefresh(this, this.plugin, () => void this.refresh());
 		await this.refresh();
 	}
 
@@ -126,44 +116,8 @@ export class DashboardView extends ItemView {
 		await this.render();
 	}
 
-	/**
-	 * The host node for a ported section, ready to be placed in the layout.
-	 *
-	 * Rendered once on creation and never again from here — React owns its
-	 * own updates from that point, driven by the vault subscriptions inside
-	 * it. Re-rendering on every dashboard render would be redundant work and
-	 * would tie React's update timing back to the imperative path this is
-	 * meant to escape.
-	 *
-	 * StrictMode is deliberately off. It double-invokes effects, and this
-	 * plugin's effects reach disk — a debounced autosave firing twice would
-	 * write twice. The checks it buys aren't worth that here, where the tree
-	 * is small and the side effects are real files.
-	 */
-	private island(key: string, node: ReactNode): HTMLElement {
-		const existing = this.islands.get(key);
-		if (existing) return existing.host;
-
-		const host = createDiv({ cls: "callander-react-root" });
-		const root = createRoot(host);
-		root.render(
-			<PluginProvider plugin={this.plugin}>{node}</PluginProvider>
-		);
-		this.islands.set(key, { host, root });
-		return host;
-	}
-
-	private unmountIslands() {
-		const roots = [...this.islands.values()];
-		this.islands.clear();
-		// Unmounting synchronously inside a React render pass is an error,
-		// and onClose can be reached from one — defer so teardown always
-		// lands between renders.
-		window.setTimeout(() => roots.forEach(({ root }) => root.unmount()), 0);
-	}
-
 	async onClose() {
-		this.unmountIslands();
+		this.islands.unmountAll();
 	}
 
 	private async openContact(file: TFile) {
@@ -233,7 +187,9 @@ export class DashboardView extends ItemView {
 			missedBirthdays: (el) => this.renderMissedBirthdays(el),
 			// Future-dated events coming up (React).
 			upcoming: (el) => {
-				el.appendChild(this.island("upcoming", <UpcomingSection />));
+				el.appendChild(
+					this.islands.host("upcoming", <UpcomingSection />)
+				);
 			},
 			gettingStarted: (el) => this.renderGettingStarted(el),
 			calendar: (el) => this.renderCalendarLink(el),
@@ -245,7 +201,9 @@ export class DashboardView extends ItemView {
 			diary: (el) => this.renderDiary(el),
 			// Shared expenses — who owes what (React).
 			expenses: (el) => {
-				el.appendChild(this.island("expenses", <ExpensesSection />));
+				el.appendChild(
+					this.islands.host("expenses", <ExpensesSection />)
+				);
 			},
 			groups: (el) => this.renderGroups(el),
 			resurfacing: (el) => this.renderResurfacing(el),

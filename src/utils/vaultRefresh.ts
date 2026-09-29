@@ -1,5 +1,12 @@
-import type { EventRef } from "obsidian";
-import type FriendTracker from "@/main";
+import type { App, EventRef, Events } from "obsidian";
+
+/** What the refresh helpers read from the plugin. */
+export interface RefreshHost {
+	app: App;
+	settings: { baseFolder: string };
+	/** The plugin's broadcast; "settings-changed" fires after every save. */
+	events: Events;
+}
 
 /** How long events are gathered before one refresh answers them all. */
 const REFRESH_COALESCE_MS = 50;
@@ -34,7 +41,7 @@ interface Registrar {
  */
 export function registerVaultRefresh(
 	view: Registrar,
-	plugin: FriendTracker,
+	plugin: Pick<RefreshHost, "app" | "settings">,
 	refresh: () => void,
 	{
 		delay = REFRESH_COALESCE_MS,
@@ -73,4 +80,24 @@ export function registerVaultRefresh(
 	// The one that was missing everywhere: the cache is what these views
 	// actually read, so it has to be what they listen to.
 	view.registerEvent(metadataCache.on("changed", (f) => schedule(f.path)));
+}
+
+/**
+ * A page's whole refresh wiring: settings changes, which are read at render
+ * time and so have to be heard, plus registerVaultRefresh. The pair CLAUDE.md
+ * says always go together, in one call.
+ */
+export function registerPageRefresh(
+	view: Registrar,
+	plugin: RefreshHost,
+	refresh: () => void,
+	options: { scope?: (path: string) => boolean } = {}
+): void {
+	view.registerEvent(plugin.events.on("settings-changed", refresh));
+	registerVaultRefresh(view, plugin, refresh, options);
+}
+
+/** A scope for registerVaultRefresh: any of these folders, or inside one. */
+export function inFolders(...folders: string[]): (path: string) => boolean {
+	return (path) => folders.some((f) => path === f || path.startsWith(f + "/"));
 }
