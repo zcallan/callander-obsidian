@@ -46,7 +46,10 @@ import { CalendarColorsModal } from "@/modals/CalendarColorsModal";
 import {
 	appendDrawer,
 	appendDrawerToggle,
+	colorOptions,
+	displayOptions,
 	type DrawerSection,
+	EVENTS_TAB_DRAWER,
 } from "@/components/calendarDrawer";
 import {
 	categoryShown,
@@ -555,43 +558,7 @@ export class EventsView extends ItemView {
 			this.renderContent();
 			void this.plugin.saveSettings();
 		};
-		const display: DrawerSection["options"] = [
-			{
-				label: "Wrap event names",
-				checked: settings.eventsCalWrapNames,
-				onChange: (checked) => {
-					settings.eventsCalWrapNames = checked;
-					apply();
-				},
-			},
-			{
-				label: "Show second line",
-				checked: !settings.eventsCalHideDateTime,
-				onChange: (checked) => {
-					settings.eventsCalHideDateTime = !checked;
-					apply();
-				},
-			},
-			// Asked as "emojis", checked by default, but stored as the
-			// names-instead-of-emoji flag it always was: saved choices
-			// carry over.
-			{
-				label: "Emojis on mobile",
-				checked: !settings.eventsCalNarrowNames,
-				onChange: (checked) => {
-					settings.eventsCalNarrowNames = !checked;
-					apply();
-				},
-			},
-			{
-				label: "Fade past events",
-				checked: settings.eventsCalFadePastEvents,
-				onChange: (checked) => {
-					settings.eventsCalFadePastEvents = checked;
-					apply();
-				},
-			},
-		];
+		const display = displayOptions(settings, EVENTS_TAB_DRAWER, apply);
 		// Only while plans are on this page at all — with the setting off
 		// there are none here to show or hide.
 		if (settings.eventsShowPlans) {
@@ -604,72 +571,28 @@ export class EventsView extends ItemView {
 				},
 			});
 		}
-		const colors: DrawerSection["options"] = [
-			{
-				label: "Color backgrounds",
-				checked: settings.eventsCalColorBackgrounds,
-				onChange: (checked) => {
-					settings.eventsCalColorBackgrounds = checked;
-					apply();
-				},
-			},
-			{
-				label: "Color by category",
-				checked: settings.eventsCalUseCategoryColors,
-				onChange: (checked) => {
-					settings.eventsCalUseCategoryColors = checked;
-					apply();
-				},
-				action: {
-					label: "Choose category colors",
-					onClick: () =>
-						new CalendarColorsModal(
+		// Leaves Birthdays out of the colour lists: this page is events.
+		const colors = colorOptions(
+			settings,
+			EVENTS_TAB_DRAWER,
+			apply,
+			(section) =>
+				(section === "categories"
+					? new CalendarColorsModal(
 							this.app,
 							this.plugin,
-							"categories",
+							section,
 							this.plugin.eventOperations.getEventCategories()
-						).open(),
-				},
-			},
-			{
-				label: "Color by type",
-				checked: settings.eventsCalColorByType,
-				onChange: (checked) => {
-					settings.eventsCalColorByType = checked;
-					apply();
-				},
-				action: {
-					label: "Choose type colors",
-					onClick: () =>
-						new CalendarColorsModal(
+					  )
+					: new CalendarColorsModal(
 							this.app,
 							this.plugin,
-							"types",
+							section,
 							[],
 							false
-						).open(),
-				},
-			},
-			{
-				label: "Color by group",
-				checked: settings.eventsCalColorByGroup,
-				onChange: (checked) => {
-					settings.eventsCalColorByGroup = checked;
-					apply();
-				},
-				action: {
-					label: "Choose group colors",
-					onClick: () =>
-						new CalendarColorsModal(
-							this.app,
-							this.plugin,
-							"kinds",
-							[],
-							false
-						).open(),
-				},
-			},
-		];
+					  )
+				).open()
+		);
 		return [
 			{
 				heading: "Category",

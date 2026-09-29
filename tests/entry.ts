@@ -47,6 +47,12 @@ export * from "@/utils/singleFlight";
 export * from "@/utils/markdownRoute";
 export { summonsKeyboard } from "@/plugin/keyboardInset";
 export * from "@/plugin/startup";
+export {
+	CALENDAR_PAGE_DRAWER,
+	EVENTS_TAB_DRAWER,
+	colorOptions,
+	displayOptions,
+} from "@/components/calendarDrawer";
 export * from "@/utils/async";
 export * from "@/utils/friendTimeline";
 export * from "@/utils/gettingStarted";

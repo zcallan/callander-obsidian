@@ -160,6 +160,20 @@ export function eventsByDay<T>(
 }
 
 /** A span's run of days within one week row. */
+/**
+ * How many of `count` things to show in `capacity` slots: all of them when
+ * they fit, else one slot fewer, so the last can say "+N" instead.
+ */
+export function visibleSlots(count: number, capacity: number): number {
+	return count <= capacity ? capacity : Math.max(0, capacity - 1);
+}
+
+/** Its last day, before `today` (YYYY-MM-DD). Undated is never past. */
+export function isPastDays(days: readonly string[], today: string): boolean {
+	if (days.length === 0) return false;
+	return days[days.length - 1] < today;
+}
+
 export interface SpanRun {
 	/** Days of the span this row holds — the columns the bar covers. */
 	length: number;
@@ -252,3 +266,27 @@ function dayOf(d: Date, now: Date, inMonth: boolean): CalendarDay {
 	};
 }
 
+/**
+ * For each lane down a month cell, the plan held in it (if any) and its run
+ * through this day's week row. Lanes run from 0 to the highest a plan here
+ * uses, so a gap is a lane with nothing held — the empty slot that keeps a
+ * bar level with its neighbours.
+ */
+export function laneRuns<T extends { key: string }>(
+	plans: readonly T[],
+	laneOf: (plan: T) => number,
+	spanDays: ReadonlyMap<string, readonly string[]>,
+	date: string,
+	weekStartsOn: 0 | 1
+): { held: T | undefined; run: SpanRun | null }[] {
+	const lanes = plans.length === 0 ? 0 : Math.max(...plans.map(laneOf)) + 1;
+	const out: { held: T | undefined; run: SpanRun | null }[] = [];
+	for (let lane = 0; lane < lanes; lane++) {
+		const held = plans.find((p) => laneOf(p) === lane);
+		const run = held
+			? spanRun(spanDays.get(held.key) ?? [], date, weekStartsOn)
+			: null;
+		out.push({ held, run });
+	}
+	return out;
+}

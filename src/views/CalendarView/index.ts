@@ -25,6 +25,9 @@ import { registerPageRefresh } from "@/utils/vaultRefresh";
 import {
 	appendDrawer,
 	appendDrawerToggle,
+	CALENDAR_PAGE_DRAWER,
+	colorOptions,
+	displayOptions,
 	type DrawerSection,
 } from "@/components/calendarDrawer";
 import {
@@ -460,106 +463,29 @@ export class CalendarView extends ItemView {
 		if (this.cal.mode === "month") {
 			sections.push({
 				heading: "Display",
-				options: [
-					{
-						label: "Wrap event names",
-						checked: settings.calendarWrapNames,
-						onChange: (checked) => {
-							settings.calendarWrapNames = checked;
-							apply();
-						},
-					},
-					// Asked as "show", ticked by default, but stored as the
-					// hide it always was: saved choices carry over.
-					{
-						label: "Show second line",
-						checked: !settings.calendarHideDateTime,
-						onChange: (checked) => {
-							settings.calendarHideDateTime = !checked;
-							apply();
-						},
-					},
-					// Asked as "emojis", checked by default, but stored as the
-					// names-instead-of-emoji flag it always was: saved
-					// choices carry over.
-					{
-						label: "Emojis on mobile",
-						checked: !settings.calendarNarrowNames,
-						onChange: (checked) => {
-							settings.calendarNarrowNames = !checked;
-							apply();
-						},
-					},
-					{
-						label: "Fade past events",
-						checked: settings.calendarFadePastEvents,
-						onChange: (checked) => {
-							settings.calendarFadePastEvents = checked;
-							apply();
-						},
-					},
-				],
+				options: displayOptions(settings, CALENDAR_PAGE_DRAWER, apply),
 			});
 			sections.push({
 				heading: "Colors",
-				options: [
-					{
-						label: "Color backgrounds",
-						checked: settings.calendarColorBackgrounds,
-						onChange: (checked) => {
-							settings.calendarColorBackgrounds = checked;
-							apply();
-						},
-					},
-					{
-						label: "Color by category",
-						checked: settings.calendarCustomCategoryColors,
-						onChange: (checked) => {
-							settings.calendarCustomCategoryColors = checked;
-							apply();
-						},
-						action: {
-							label: "Choose category colors",
-							onClick: () =>
-								new CalendarColorsModal(
+				options: colorOptions(
+					settings,
+					CALENDAR_PAGE_DRAWER,
+					apply,
+					(section) =>
+						(section === "categories"
+							? new CalendarColorsModal(
 									this.app,
 									this.plugin,
-									"categories",
+									section,
 									this.plugin.eventOperations.getEventCategories()
-								).open(),
-						},
-					},
-					{
-						label: "Color by type",
-						checked: settings.calendarColorByType,
-						onChange: (checked) => {
-							settings.calendarColorByType = checked;
-							apply();
-						},
-						action: {
-							label: "Choose type colors",
-							onClick: () =>
-								new CalendarColorsModal(this.app, this.plugin, "types").open(),
-						},
-					},
-					{
-						label: "Color by group",
-						checked: settings.calendarColorByGroup,
-						onChange: (checked) => {
-							settings.calendarColorByGroup = checked;
-							apply();
-						},
-						action: {
-							label: "Choose group colors",
-							onClick: () =>
-								new CalendarColorsModal(
+							  )
+							: new CalendarColorsModal(
 									this.app,
 									this.plugin,
-									"kinds"
-								).open(),
-						},
-					},
-				],
+									section
+							  )
+						).open()
+				),
 			});
 		}
 		return sections;

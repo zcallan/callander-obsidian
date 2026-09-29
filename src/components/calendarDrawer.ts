@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import type { FriendTrackerSettings } from "@/types";
 
 /**
  * The calendar drawer: a ☰ beside the month that opens a panel of
@@ -123,4 +124,128 @@ export function appendDrawer(body: HTMLElement, sections: DrawerSection[]) {
 				more.addEventListener("click", fold.onToggle);
 			}
 		});
+}
+
+// ---- The options both calendars offer ----
+
+/** A settings key that holds a boolean. */
+export type FlagKey = {
+	[K in keyof FriendTrackerSettings]-?: FriendTrackerSettings[K] extends boolean
+		? K
+		: never;
+}[keyof FriendTrackerSettings];
+
+/**
+ * Where one calendar keeps its drawer's choices. The Calendar page and the
+ * Events page's Calendar tab offer the same options but remember them
+ * apart, under different (persisted, so unrenamed) keys.
+ */
+export interface DrawerKeys {
+	wrapNames: FlagKey;
+	/** Stored as the hide it always was; the drawer asks "show". */
+	hideDateTime: FlagKey;
+	/** Stored as names-instead-of-emoji; the drawer asks "emojis". */
+	narrowNames: FlagKey;
+	fadePast: FlagKey;
+	colorBackgrounds: FlagKey;
+	byCategory: FlagKey;
+	byType: FlagKey;
+	byGroup: FlagKey;
+}
+
+export const CALENDAR_PAGE_DRAWER: DrawerKeys = {
+	wrapNames: "calendarWrapNames",
+	hideDateTime: "calendarHideDateTime",
+	narrowNames: "calendarNarrowNames",
+	fadePast: "calendarFadePastEvents",
+	colorBackgrounds: "calendarColorBackgrounds",
+	byCategory: "calendarCustomCategoryColors",
+	byType: "calendarColorByType",
+	byGroup: "calendarColorByGroup",
+};
+
+export const EVENTS_TAB_DRAWER: DrawerKeys = {
+	wrapNames: "eventsCalWrapNames",
+	hideDateTime: "eventsCalHideDateTime",
+	narrowNames: "eventsCalNarrowNames",
+	fadePast: "eventsCalFadePastEvents",
+	colorBackgrounds: "eventsCalColorBackgrounds",
+	byCategory: "eventsCalUseCategoryColors",
+	byType: "eventsCalColorByType",
+	byGroup: "eventsCalColorByGroup",
+};
+
+/** A checkbox bound to one boolean setting; `inverted` when the drawer
+ * asks the opposite of what's stored. `apply` redraws and saves. */
+export function flagOption(
+	settings: FriendTrackerSettings,
+	key: FlagKey,
+	label: string,
+	apply: () => void,
+	{ inverted = false }: { inverted?: boolean } = {}
+): DrawerOption {
+	return {
+		label,
+		checked: inverted ? !settings[key] : settings[key],
+		onChange: (checked) => {
+			settings[key] = inverted ? !checked : checked;
+			apply();
+		},
+	};
+}
+
+/** The Display section's options: how the month grid draws. */
+export function displayOptions(
+	settings: FriendTrackerSettings,
+	keys: DrawerKeys,
+	apply: () => void
+): DrawerOption[] {
+	return [
+		flagOption(settings, keys.wrapNames, "Wrap event names", apply),
+		flagOption(settings, keys.hideDateTime, "Show second line", apply, {
+			inverted: true,
+		}),
+		flagOption(settings, keys.narrowNames, "Emojis on mobile", apply, {
+			inverted: true,
+		}),
+		flagOption(settings, keys.fadePast, "Fade past events", apply),
+	];
+}
+
+/** Which colour list a Colors option's button opens. */
+export type ColorSection = "categories" | "types" | "kinds";
+
+/** The Colors section's options, each colouring rule with its button. */
+export function colorOptions(
+	settings: FriendTrackerSettings,
+	keys: DrawerKeys,
+	apply: () => void,
+	openColors: (section: ColorSection) => void
+): DrawerOption[] {
+	const withColors = (
+		option: DrawerOption,
+		label: string,
+		section: ColorSection
+	): DrawerOption => ({
+		...option,
+		action: { label, onClick: () => openColors(section) },
+	});
+	return [
+		flagOption(settings, keys.colorBackgrounds, "Color backgrounds", apply),
+		withColors(
+			flagOption(settings, keys.byCategory, "Color by category", apply),
+			"Choose category colors",
+			"categories"
+		),
+		withColors(
+			flagOption(settings, keys.byType, "Color by type", apply),
+			"Choose type colors",
+			"types"
+		),
+		withColors(
+			flagOption(settings, keys.byGroup, "Color by group", apply),
+			"Choose group colors",
+			"kinds"
+		),
+	];
 }

@@ -4,15 +4,17 @@ import { calendarChipMeta, eventTimeOrigin } from "@/utils/eventRow";
 import { formatShortWeekdayDate, todayISO } from "@/utils/flexdate";
 import {
 	assignSpanLanes,
+	type CalendarDay,
 	eventsByDay,
+	isPastDays,
+	laneRuns,
 	monthGrid,
 	monthLabel,
 	shortTime,
-	spanRun,
+	type SpanRun,
+	visibleSlots,
 	weekGrid,
 	weekLabel,
-	type CalendarDay,
-	type SpanRun,
 } from "@/utils/calendarGrid";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { needsDarkText } from "@/utils/contrastColor";
@@ -381,17 +383,15 @@ function appendCell(
 	// rest, on every day it covers, saying which days those are.
 	const plans = board.rows ? [] : items.filter((e) => e.kind === "plan");
 	const rest = board.rows ? items : items.filter((e) => e.kind !== "plan");
-	const laneOf = (item: BoardItem) => board.lanes.get(item.key) ?? 0;
-	const lanes = plans.length === 0 ? 0 : Math.max(...plans.map(laneOf)) + 1;
-	for (let lane = 0; lane < lanes; lane++) {
-		const held = plans.find((p) => laneOf(p) === lane);
-		const run = held
-			? spanRun(
-					board.spanDays.get(held.key) ?? [],
-					day.date,
-					opts.weekStartsOn
-			  )
-			: null;
+	const laneList = laneRuns(
+		plans,
+		(item) => board.lanes.get(item.key) ?? 0,
+		board.spanDays,
+		day.date,
+		opts.weekStartsOn
+	);
+	const lanes = laneList.length;
+	for (const { held, run } of laneList) {
 		// The bar is drawn once per row, by the cell that opens the run,
 		// and spans the columns it covers — so its title reads across the
 		// whole thing rather than truncating inside the first square. Every
@@ -442,7 +442,7 @@ function appendCell(
 		// quiet day shows all three and a busy one trades the third for the
 		// count, which is the only arrangement that always fits and always
 		// tells the truth about how much is there.
-		const slots = live.length <= CAL_DOTS ? CAL_DOTS : CAL_DOTS - 1;
+		const slots = visibleSlots(live.length, CAL_DOTS);
 		for (const item of live.slice(0, slots)) {
 			if (item.glyph) {
 				dots.createSpan({ cls: "cal-glyph", text: item.glyph });
@@ -475,15 +475,7 @@ function appendCell(
 		// Plans lead, in their lanes, drawn once per week row as a bar
 		// across the days they cover — the chips' scheme at phone size, so
 		// a trip reads as one thing rather than its name in every square.
-		for (let lane = 0; lane < lanes; lane++) {
-			const held = plans.find((p) => laneOf(p) === lane);
-			const run = held
-				? spanRun(
-						board.spanDays.get(held.key) ?? [],
-						day.date,
-						opts.weekStartsOn
-				  )
-				: null;
+		for (const { held, run } of laneList) {
 			if (held && !held.cancelled && run?.opens) {
 				appendNameBar(board, day.date, names, held, run);
 			} else {
@@ -493,8 +485,7 @@ function appendCell(
 		}
 		const liveRest = rest.filter((e) => !e.cancelled);
 		const room = Math.max(0, CAL_DOTS - lanes);
-		const shown =
-			liveRest.length <= room ? room : Math.max(0, room - 1);
+		const shown = visibleSlots(liveRest.length, room);
 		for (const item of liveRest.slice(0, shown)) {
 			appendName(
 				board,
@@ -751,8 +742,7 @@ function linkSpanHover(board: Board, el: HTMLElement, key: string) {
 /** Its last day, before today — the one date a multi-day plan needs, and
  * a single-day item's only one. Empty (undated) is never "past". */
 function isPast(item: BoardItem): boolean {
-	if (item.days.length === 0) return false;
-	return item.days[item.days.length - 1] < todayISO();
+	return isPastDays(item.days, todayISO());
 }
 
 /**
