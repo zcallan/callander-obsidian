@@ -3,9 +3,9 @@ import type FriendTracker from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type { DiaryEntry } from "@/types";
 import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
-import { DeleteDiaryEntryModal } from "@/modals/DeleteDiaryEntryModal";
 import { formatDate } from "@/utils/dateFormat";
 import { truncate } from "@/utils/text";
+import { ConfirmModal } from "@/modals/ConfirmModal";
 
 export const VIEW_TYPE_DIARY = "callander-diary-view";
 
@@ -281,10 +281,15 @@ export class DiaryView extends ItemView {
 		});
 		setIcon(deleteButton, "trash");
 		deleteButton.addEventListener("click", () => {
-			new DeleteDiaryEntryModal(this.app, entry.title, async () => {
-				await this.plugin.diaryOperations.deleteEntry(entry.file);
-				this.expandedPath = null;
-				await this.refresh();
+			new ConfirmModal(this.app, {
+				title: "Delete diary entry",
+				message: `Are you sure you want to delete "${entry.title}"? It will be moved to your trash.`,
+				failure: "Couldn't delete",
+				onConfirm: async () => {
+					await this.plugin.diaryOperations.deleteEntry(entry.file);
+					this.expandedPath = null;
+					await this.refresh();
+				},
 			}).open();
 		});
 	}

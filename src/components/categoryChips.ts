@@ -127,12 +127,11 @@ export function renderCategoryChips(
 
 	const confirmDeleteCategory = (cat: string) => {
 		if (!onDeleteCategory) return;
-		new ConfirmModal(
-			app,
-			"Remove category",
-			`Remove "${cat}"? This takes it off every ${options.deleteScope} on this plan, not just this one.`,
-			"Remove",
-			async () => {
+		new ConfirmModal(app, {
+			title: "Remove category",
+			message: `Remove "${cat}"? This takes it off every ${options.deleteScope} on this plan, not just this one.`,
+			confirmLabel: "Remove",
+			onConfirm: async () => {
 				await onDeleteCategory(cat);
 				const at = names.findIndex(
 					(c) => c.toLowerCase() === cat.toLowerCase()
@@ -143,8 +142,8 @@ export function renderCategoryChips(
 				);
 				if (picked >= 0) selected.splice(picked, 1);
 				renderChips();
-			}
-		).open();
+			},
+		}).open();
 	};
 
 	// Created once, detached from the chip row until the first renderChips

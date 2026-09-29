@@ -1,6 +1,6 @@
 import { App, Modal, setIcon } from "obsidian";
 import { reportFailure } from "@/components/guardedAction";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import { formatDate } from "@/utils/dateFormat";
 import type { LifeGoal } from "@/types";
 import { AUTOSAVE_DELAY_MS } from "@/constants";
@@ -163,16 +163,13 @@ export class LifeGoalViewModal extends Modal {
 		});
 		setIcon(del, "trash-2");
 		del.addEventListener("click", () => {
-			new ConfirmModal(
-				this.app,
-				"Delete life goal",
-				`Delete "${this.goal.text}"?`,
-				"Delete",
-				async () => {
+			confirmThenClose(this, {
+				title: "Delete life goal",
+				message: `Delete "${this.goal.text}"?`,
+				onConfirm: async () => {
 					await this.onDelete();
-					this.close();
-				}
-			).open();
+				},
+			});
 		});
 	}
 

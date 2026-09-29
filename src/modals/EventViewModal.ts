@@ -3,7 +3,7 @@ import { reportFailure } from "@/components/guardedAction";
 import type FriendTracker from "@/main";
 import type { ContactWithCountdown, EventInfo } from "@/types";
 import { EventModal } from "@/modals/EventModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import { parseFlexDate, formatFlexDate } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
@@ -411,18 +411,15 @@ export class EventViewModal extends Modal {
 			"trash",
 			"Delete",
 			() => {
-				new ConfirmModal(
-					this.app,
-					"Delete event",
-					`Delete "${e.name}"?`,
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete event",
+					message: `Delete "${e.name}"?`,
+					onConfirm: async () => {
 						this.descDirty = false; // nothing left to save to
 						await this.plugin.eventOperations.deleteEvent(e.file);
 						await this.onChange();
-						this.close();
-					}
-				).open();
+					},
+				});
 			},
 			{ iconOnly: true, danger: true }
 		);

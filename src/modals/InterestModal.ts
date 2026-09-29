@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import { INTEREST_CATEGORIES, InterestCategory } from "@/constants";
 import type { Interest } from "@/types";
 
@@ -155,16 +155,13 @@ export class InterestModal extends FormModal {
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			deleteButton.addEventListener("click", () => {
-				new ConfirmModal(
-					this.app,
-					"Delete interest",
-					`Delete "${this.existing?.text ?? ""}"?`,
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete interest",
+					message: `Delete "${this.existing?.text ?? ""}"?`,
+					onConfirm: async () => {
 						await onDelete();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 		const saveButton = buttonContainer.createEl("button", {

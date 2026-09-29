@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import type { Quote } from "@/types";
 
 /** Capture or edit a memorable quote from a friend, with optional context. */
@@ -52,16 +52,13 @@ export class QuoteModal extends FormModal {
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			del.addEventListener("click", () => {
-				new ConfirmModal(
-					this.app,
-					"Delete quote",
-					"Delete this quote?",
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete quote",
+					message: "Delete this quote?",
+					onConfirm: async () => {
 						await this.onDelete!();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 		const saveButton = buttons.createEl("button", {

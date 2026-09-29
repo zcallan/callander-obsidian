@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 
 /**
  * Capture or edit a single fun fact about a friend — one line worth
@@ -45,16 +45,13 @@ export class FunFactsModal extends FormModal {
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			del.addEventListener("click", () => {
-				new ConfirmModal(
-					this.app,
-					"Delete fun fact",
-					"Delete this fun fact?",
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete fun fact",
+					message: "Delete this fun fact?",
+					onConfirm: async () => {
 						await this.onDelete!();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 

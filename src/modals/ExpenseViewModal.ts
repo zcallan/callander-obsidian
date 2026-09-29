@@ -7,7 +7,7 @@ import {
 	payersOf,
 	splitModeLabel,
 } from "@/utils/expenseMath";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import { shortenPeopleList } from "@/utils/nameFormat";
 
 /**
@@ -212,16 +212,13 @@ export class ExpenseViewModal extends Modal {
 		});
 		setIcon(del, "trash");
 		del.addEventListener("click", () => {
-			new ConfirmModal(
-				this.app,
-				"Delete expense",
-				`Delete "${c.label}"?`,
-				"Delete",
-				async () => {
+			confirmThenClose(this, {
+				title: "Delete expense",
+				message: `Delete "${c.label}"?`,
+				onConfirm: async () => {
 					await this.onDelete();
-					this.close();
-				}
-			).open();
+				},
+			});
 		});
 	}
 

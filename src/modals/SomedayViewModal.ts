@@ -2,7 +2,7 @@ import { App, Modal, Notice, setIcon } from "obsidian";
 import type FriendTracker from "@/main";
 import type { ContactWithCountdown, SomedayInfo, SomedaySubIdea } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import { guardedAction, reportFailure } from "@/components/guardedAction";
 import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { EventModal } from "@/modals/EventModal";
@@ -315,17 +315,14 @@ export class SomedayViewModal extends Modal {
 			"trash",
 			"Delete",
 			() => {
-				new ConfirmModal(
-					this.app,
-					"Delete someday",
-					`Delete "${s.name}"?`,
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete someday",
+					message: `Delete "${s.name}"?`,
+					onConfirm: async () => {
 						await ops.deleteSomeday(s.file);
 						await this.onChange();
-						this.close();
-					}
-				).open();
+					},
+				});
 			},
 			{ iconOnly: true, danger: true }
 		);

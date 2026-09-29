@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import type { InsideJoke } from "@/types";
 
 /** Capture or edit an inside joke, with optional context (how it started). */
@@ -54,16 +54,13 @@ export class InsideJokeModal extends FormModal {
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			del.addEventListener("click", () => {
-				new ConfirmModal(
-					this.app,
-					"Delete inside joke",
-					"Delete this inside joke?",
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete inside joke",
+					message: "Delete this inside joke?",
+					onConfirm: async () => {
 						await this.onDelete!();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 		const saveButton = buttons.createEl("button", {

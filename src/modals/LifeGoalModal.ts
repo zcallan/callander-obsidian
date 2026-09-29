@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import type { LifeGoal } from "@/types";
 
 /** Capture or edit something this person wants to do someday. */
@@ -54,16 +54,13 @@ export class LifeGoalModal extends FormModal {
 				attr: { type: "button" },
 			});
 			del.addEventListener("click", () => {
-				new ConfirmModal(
-					this.app,
-					"Delete life goal",
-					`Delete "${this.initial!.text}"?`,
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete life goal",
+					message: `Delete "${this.initial!.text}"?`,
+					onConfirm: async () => {
 						await this.onDelete!();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 

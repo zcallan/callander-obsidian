@@ -10,7 +10,7 @@ import {
 	ScheduleFieldOptions,
 } from "@/modals/scheduleFields";
 import { formatShortWeekdayDate } from "@/utils/flexdate";
-import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
+import { CONFIRM_PREVIEW_CHARS, confirmThenClose } from "@/modals/ConfirmModal";
 import type { PlanQuickIdea } from "@/types";
 import { truncate } from "@/utils/text";
 
@@ -190,16 +190,13 @@ export class PlanQuickIdeaModal extends FormModal {
 			deleteButton.addEventListener("click", () => {
 				const preview =
 					truncate(this.initial!.text, CONFIRM_PREVIEW_CHARS);
-				new ConfirmModal(
-					this.app,
-					"Delete idea",
-					`Delete "${preview}"?`,
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete idea",
+					message: `Delete "${preview}"?`,
+					onConfirm: async () => {
 						await this.onDelete!();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 

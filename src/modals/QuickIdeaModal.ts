@@ -1,7 +1,7 @@
 import { App, FuzzySuggestModal, TFile } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import { appendGeneratedBadge } from "@/components/generatedBadge";
 import type { ContactWithCountdown } from "@/types";
 import { IDEA_CATEGORIES, IdeaCategory } from "@/constants";
@@ -178,16 +178,13 @@ export class QuickIdeaModal extends FormModal {
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			deleteButton.addEventListener("click", () => {
-				new ConfirmModal(
-					this.app,
-					"Delete idea",
-					`Delete "${this.initialText}"?`,
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete idea",
+					message: `Delete "${this.initialText}"?`,
+					onConfirm: async () => {
 						await this.onDelete!();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 

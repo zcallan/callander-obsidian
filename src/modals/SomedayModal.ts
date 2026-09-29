@@ -1,7 +1,7 @@
 import { App, TFile, setIcon } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import { appendContactPicker } from "@/components/ContactPicker";
 import type FriendTracker from "@/main";
 import type { SomedayInfo } from "@/types";
@@ -584,19 +584,16 @@ export class SomedayModal extends FormModal {
 			});
 			deleteBtn.addEventListener("click", () => {
 				const existing = this.existing!;
-				new ConfirmModal(
-					this.app,
-					"Delete someday",
-					`Delete "${existing.name}"?`,
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete someday",
+					message: `Delete "${existing.name}"?`,
+					onConfirm: async () => {
 						await this.plugin.somedayOperations.deleteSomeday(
 							existing.file
 						);
 						await this.onDeleted?.();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 		const saveBtn = buttons.createEl("button", {

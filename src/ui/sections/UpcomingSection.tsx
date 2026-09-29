@@ -126,16 +126,15 @@ export function UpcomingSection() {
 		ariaLabel: `Mark ${event.name} as done`,
 		onClick: (e: MouseEvent) => {
 			e.stopPropagation();
-			new ConfirmModal(
-				plugin.app,
-				"Mark as done?",
-				`"${event.name}" will come off your dashboard.`,
-				"Mark as done",
-				async () => {
+			new ConfirmModal(plugin.app, {
+				title: "Mark as done?",
+				message: `"${event.name}" will come off your dashboard.`,
+				confirmLabel: "Mark as done",
+				onConfirm: async () => {
 					await plugin.eventOperations.setStatus(event.file, "done");
 				},
-				"normal"
-			).open();
+				tone: "normal",
+			}).open();
 		},
 	});
 

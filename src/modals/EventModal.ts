@@ -1,7 +1,7 @@
 import { App, Notice, setIcon } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { appendContactPicker } from "@/components/ContactPicker";
 import {
@@ -401,19 +401,16 @@ export class EventModal extends FormModal {
 				cls: "callander-modal-button callander-modal-button-danger",
 			});
 			deleteBtn.addEventListener("click", () => {
-				new ConfirmModal(
-					this.app,
-					"Delete event",
-					`Delete "${existing.name}"?`,
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete event",
+					message: `Delete "${existing.name}"?`,
+					onConfirm: async () => {
 						await this.plugin.eventOperations.deleteEvent(
 							existing.file
 						);
 						await this.onChange();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 		const saveBtn = buttons.createEl("button", {

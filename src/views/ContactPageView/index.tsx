@@ -85,7 +85,6 @@ import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
 import { PlanShareModal } from "@/modals/PlanShareModal";
 import { PlanQuickIdeaModal } from "@/modals/PlanQuickIdeaModal";
 import { PlanQuickIdeaViewModal } from "@/modals/PlanQuickIdeaViewModal";
-import { DeleteContactModal } from "@/modals/DeleteContactModal";
 import { ContactSuggestModal, QuickIdeaModal } from "@/modals/QuickIdeaModal";
 import {
 	FriendTrackerView,
@@ -1431,12 +1430,17 @@ export class ContactPageView extends ItemView {
 		const file = this._file;
 		if (!file) return;
 		const name = this.contactData.name || file.basename;
-		new DeleteContactModal(this.app, file, async () => {
-			await this.plugin.contactOperations.deleteContact(file);
-			new Notice(`Deleted "${name}"`);
-			// This view is now showing a file that no longer exists.
-			this.leaf.detach();
-			await this.plugin.activateDashboard();
+		new ConfirmModal(this.app, {
+			title: "Remove friend",
+			message: `Are you sure you want to remove ${file.basename}? Their note will be moved to your trash.`,
+			failure: "Couldn't delete",
+			onConfirm: async () => {
+				await this.plugin.contactOperations.deleteContact(file);
+				new Notice(`Deleted "${name}"`);
+				// This view is now showing a file that no longer exists.
+				this.leaf.detach();
+				await this.plugin.activateDashboard();
+			},
 		}).open();
 	}
 
@@ -2639,18 +2643,16 @@ export class ContactPageView extends ItemView {
 		const file = this._file;
 		if (!file) return;
 		const name = this.contactData.name || file.basename;
-		new ConfirmModal(
-			this.app,
-			"Delete plan",
-			`Delete the plan "${name}"?`,
-			"Delete",
-			async () => {
+		new ConfirmModal(this.app, {
+			title: "Delete plan",
+			message: `Delete the plan "${name}"?`,
+			onConfirm: async () => {
 				await this.plugin.planOperations.deletePlan(file);
 				new Notice(`Deleted "${name}"`);
 				this.leaf.detach();
 				await this.plugin.activateDashboard();
-			}
-		).open();
+			},
+		}).open();
 	}
 
 	private createPlanDoneButton(container: HTMLElement) {
@@ -2670,17 +2672,16 @@ export class ContactPageView extends ItemView {
 			}
 			// Members' timelines list this plan already — derived live from
 			// its membership — so marking it done only has to set the status.
-			new ConfirmModal(
-				this.app,
-				"Mark plan as done",
-				"Archive this plan? It stays on the timeline of everyone who was on it.",
-				"Done",
-				async () => {
+			new ConfirmModal(this.app, {
+				title: "Mark plan as done",
+				message: "Archive this plan? It stays on the timeline of everyone who was on it.",
+				confirmLabel: "Done",
+				onConfirm: async () => {
 					this.contactData.status = "done";
 					await this.saveContactData();
 					this.render();
-				}
-			).open();
+				},
+			}).open();
 		});
 	}
 
@@ -3412,13 +3413,11 @@ export class ContactPageView extends ItemView {
 
 	private confirmDeleteTimelineEntry(entry: PlanTimelineEntry) {
 		const preview = truncate(entry.text, CONFIRM_PREVIEW_CHARS);
-		new ConfirmModal(
-			this.app,
-			"Delete from plan",
-			`Delete "${preview}"?`,
-			"Delete",
-			() => this.deleteTimelineEntry(entry)
-		).open();
+		new ConfirmModal(this.app, {
+			title: "Delete from plan",
+			message: `Delete "${preview}"?`,
+			onConfirm: () => this.deleteTimelineEntry(entry),
+		}).open();
 	}
 
 	/** Exact YYYY-MM-DD for a plan flex date, or null if not day-precise. */

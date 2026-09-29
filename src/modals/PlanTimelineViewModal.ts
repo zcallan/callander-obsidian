@@ -9,7 +9,7 @@ import {
 	PLAN_PRIORITIES,
 	TRAVEL_TYPES,
 } from "@/constants";
-import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
+import { CONFIRM_PREVIEW_CHARS, confirmThenClose } from "@/modals/ConfirmModal";
 import {
 	formatItemCost,
 	formatItemTime,
@@ -328,16 +328,13 @@ export class PlanTimelineViewModal extends Modal {
 		await this.flushNotes();
 		const e = this.entry;
 		const preview = truncate(e.text, CONFIRM_PREVIEW_CHARS);
-		new ConfirmModal(
-			this.app,
-			"Delete from plan",
-			`Delete "${preview}"?`,
-			"Delete",
-			async () => {
+		confirmThenClose(this, {
+			title: "Delete from plan",
+			message: `Delete "${preview}"?`,
+			onConfirm: async () => {
 				await this.onDelete();
-				this.close();
-			}
-		).open();
+			},
+		});
 	}
 
 	onClose() {

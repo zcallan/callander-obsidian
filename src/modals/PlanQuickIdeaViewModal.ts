@@ -1,6 +1,6 @@
 import { App, Modal, setIcon } from "obsidian";
 import { PLAN_IDEA_CATEGORIES } from "@/constants";
-import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
+import { CONFIRM_PREVIEW_CHARS, confirmThenClose } from "@/modals/ConfirmModal";
 import {
 	formatItemCost,
 	formatItemTime,
@@ -125,16 +125,13 @@ export class PlanQuickIdeaViewModal extends Modal {
 		setIcon(del, "trash-2");
 		del.addEventListener("click", () => {
 			const preview = truncate(i.text, CONFIRM_PREVIEW_CHARS);
-			new ConfirmModal(
-				this.app,
-				"Delete idea",
-				`Delete "${preview}"?`,
-				"Delete",
-				async () => {
+			confirmThenClose(this, {
+				title: "Delete idea",
+				message: `Delete "${preview}"?`,
+				onConfirm: async () => {
 					await this.onDelete();
-					this.close();
-				}
-			).open();
+				},
+			});
 		});
 	}
 

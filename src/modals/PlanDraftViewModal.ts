@@ -89,21 +89,20 @@ export class PlanDraftViewModal extends Modal {
 		run: (text: string) => Promise<void>
 	) {
 		const preview = truncate(this.pending.trim(), DRAFT_PREVIEW_CHARS);
-		new ConfirmModal(
-			this.app,
-			`Make ${kind}`,
-			`Turn "${preview}" into ${
+		new ConfirmModal(this.app, {
+			title: `Make ${kind}`,
+			message: `Turn "${preview}" into ${
 				kind === "idea" ? "an idea" : "a travel leg"
 			}? The draft will be replaced.`,
-			`Make ${kind}`,
-			async () => {
+			confirmLabel: `Make ${kind}`,
+			onConfirm: async () => {
 				// Don't flush: the draft is about to go, and writing to it
 				// first would only be undone a moment later.
 				this.dirty = false;
 				this.close();
 				await run(this.pending.trim());
-			}
-		).open();
+			},
+		}).open();
 	}
 
 	onOpen() {
@@ -167,17 +166,16 @@ export class PlanDraftViewModal extends Modal {
 		setIcon(del, "trash");
 		del.addEventListener("click", () => {
 			const preview = truncate(this.pending.trim(), DRAFT_PREVIEW_CHARS);
-			new ConfirmModal(
-				this.app,
-				"Discard draft",
-				`Discard "${preview}"?`,
-				"Discard",
-				async () => {
+			new ConfirmModal(this.app, {
+				title: "Discard draft",
+				message: `Discard "${preview}"?`,
+				confirmLabel: "Discard",
+				onConfirm: async () => {
 					this.dirty = false; // nothing left to save to
 					this.close();
 					await this.onDelete();
-				}
-			).open();
+				},
+			}).open();
 		});
 	}
 

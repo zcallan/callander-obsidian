@@ -4,7 +4,7 @@ import { FormModal } from "@/modals/FormModal";
 import { renderCategoryChips } from "@/components/categoryChips";
 import type { AccommodationType, BookingState, TravelType } from "@/constants";
 import { ACCOMMODATION_TYPES, BOOKING_STATES } from "@/constants";
-import { CONFIRM_PREVIEW_CHARS, ConfirmModal } from "@/modals/ConfirmModal";
+import { CONFIRM_PREVIEW_CHARS, confirmThenClose } from "@/modals/ConfirmModal";
 import {
 	appendPeopleField,
 	appendScheduleFields,
@@ -479,16 +479,13 @@ export class PlanSimpleItemModal extends FormModal {
 			deleteButton.addEventListener("click", () => {
 				const preview =
 					truncate(this.initial!.text, CONFIRM_PREVIEW_CHARS);
-				new ConfirmModal(
-					this.app,
-					"Delete item",
-					`Delete "${preview}"?`,
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete item",
+					message: `Delete "${preview}"?`,
+					onConfirm: async () => {
 						await this.onDelete!();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 

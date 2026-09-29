@@ -312,13 +312,11 @@ export class EventTimeline {
 		deleteBtn.addEventListener("click", (e) => {
 			e.stopPropagation();
 			const preview = truncate(event.name, CONFIRM_PREVIEW_CHARS);
-			new ConfirmModal(
-				this.view.app,
-				"Delete event",
-				`Delete "${preview}" from the timeline?`,
-				"Delete",
-				() => void this.view.deleteEvent(event)
-			).open();
+			new ConfirmModal(this.view.app, {
+				title: "Delete event",
+				message: `Delete "${preview}" from the timeline?`,
+				onConfirm: () => void this.view.deleteEvent(event),
+			}).open();
 		});
 	}
 }

@@ -1,6 +1,6 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import { guardedAction } from "@/components/guardedAction";
 import type { ContactWithCountdown, Expense } from "@/types";
 import { CENT, owedFor, payersOf, percentFromInput } from "@/utils/expenseMath";
@@ -845,16 +845,13 @@ export class ExpenseModal extends FormModal {
 			// Asks first, like every other edit form. An expense is an entry
 			// in a note's frontmatter, so nothing lands in the trash.
 			del.addEventListener("click", () => {
-				new ConfirmModal(
-					this.app,
-					"Delete expense",
-					`Delete "${label}"?`,
-					"Delete",
-					async () => {
+				confirmThenClose(this, {
+					title: "Delete expense",
+					message: `Delete "${label}"?`,
+					onConfirm: async () => {
 						await onDelete();
-						this.close();
-					}
-				).open();
+					},
+				});
 			});
 		}
 		const saveButton = buttons.createEl("button", {

@@ -1,7 +1,7 @@
 import { App } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import { ConfirmModal } from "@/modals/ConfirmModal";
+import { confirmThenClose } from "@/modals/ConfirmModal";
 import type FriendTracker from "@/main";
 import { closeColorPopover } from "@/components/colorPicker";
 import { appendColorSwatchRow } from "@/components/colorSwatchRow";
@@ -74,21 +74,18 @@ export class EventCategoryEditModal extends FormModal {
 			cls: "callander-modal-button callander-modal-button-danger",
 		});
 		deleteButton.addEventListener("click", () => {
-			new ConfirmModal(
-				this.app,
-				"Delete category",
-				`Remove "${this.categoryName}"? Your events will not be deleted — only the category will be removed from them.`,
-				"Delete",
-				async () => {
+			confirmThenClose(this, {
+				title: "Delete category",
+				message: `Remove "${this.categoryName}"? Your events will not be deleted — only the category will be removed from them.`,
+				onConfirm: async () => {
 					await this.plugin.eventOperations.deleteCategory(
 						this.categoryName
 					);
 					delete colors.categories[this.categoryName.toLowerCase()];
 					await this.plugin.saveSettings();
 					this.onDone({ deleted: true });
-					this.close();
-				}
-			).open();
+				},
+			});
 		});
 
 		const saveButton = buttons.createEl("button", {
