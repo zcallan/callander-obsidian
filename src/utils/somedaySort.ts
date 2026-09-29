@@ -170,6 +170,28 @@ export function dateDeadlineLabel(iso: string, now: Date): string {
 	return "";
 }
 
+/** Somedays' quick day pills. */
+export type QuickDay = "today" | "tomorrow" | "weekend";
+
+/**
+ * The dates a quick pill asks about. "This weekend" is the current
+ * weekend's two days, down to just Sunday once it's underway.
+ */
+export function quickDayDates(id: QuickDay, now: Date): Date[] {
+	if (id === "today") return [new Date(now)];
+	if (id === "tomorrow") {
+		const d = new Date(now);
+		d.setDate(d.getDate() + 1);
+		return [d];
+	}
+	if (now.getDay() === 0) return [new Date(now)];
+	const sat = new Date(now);
+	sat.setDate(now.getDate() + (6 - now.getDay()));
+	const sun = new Date(sat);
+	sun.setDate(sat.getDate() + 1);
+	return [sat, sun];
+}
+
 /**
  * Could this be done today? Weekday first (no chosen days means any day
  * suits), then the "Within dates" window, then whichever of season/date

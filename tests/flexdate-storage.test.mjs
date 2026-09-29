@@ -70,7 +70,7 @@ export function run() {
 	eq(
 		"shown at the precision recorded",
 		["2019", "2019-03", "2019-03-14", "03-14"].map((s) => formatFlexDate(parse(s))),
-		["2019", "March 2019", "March 14, 2019", "March 14"]
+		["2019", "March 2019", "14 March 2019", "14 March"]
 	);
 	eq("month names, and nothing outside 1–12", [1, 12, 0, 13].map(monthName), ["January", "December", "", ""]);
 	eq(

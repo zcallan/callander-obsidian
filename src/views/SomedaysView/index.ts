@@ -25,8 +25,9 @@ import {
 import {
 	newRandomSeed,
 	possibleToday,
+	type QuickDay,
+	quickDayDates,
 	sortSomedays,
-	WEEKDAY_BY_INDEX,
 } from "@/utils/somedaySort";
 import { somedayRowParts } from "@/utils/somedayRow";
 import { buildSomedayRow } from "@/components/SomedayRow";
@@ -34,7 +35,7 @@ import { inFolders, registerPageRefresh } from "@/utils/vaultRefresh";
 
 export const VIEW_TYPE_SOMEDAYS = "callander-somedays";
 
-type DayFilter = "today" | "tomorrow" | "weekend";
+type DayFilter = QuickDay;
 
 /**
  * The full page of Somedays — the wishlist. Each idea is a plain row; clicking
@@ -119,36 +120,15 @@ export class SomedaysView extends ItemView {
 
 	// ---- Filtering ----
 
-	private weekdayId(d: Date): SomedayDay {
-		return WEEKDAY_BY_INDEX[d.getDay()];
-	}
-
-	/** The current weekend's actual dates — down to just Sunday once the
-	 * weekend is underway. */
-	private weekendDates(): Date[] {
-		const now = new Date();
-		if (now.getDay() === 0) return [now];
-		const sat = new Date(now);
-		sat.setDate(now.getDate() + (6 - now.getDay()));
-		const sun = new Date(sat);
-		sun.setDate(sat.getDate() + 1);
-		return [sat, sun];
-	}
-
 	/** One quick pill's calendar test — shared by the live filter and the
-	 * what-if counts the chips advertise. */
+	 * what-if counts the chips advertise. Each pill asks about its own
+	 * dates, so seasons, exact dates and from/until windows all get a say:
+	 * on the last day of autumn, Today offers the autumn ones and Tomorrow
+	 * the winter ones. */
 	private dayFilterPred(id: DayFilter): (s: SomedayInfo) => boolean {
-		if (id === "weekend") {
-			// "This weekend" means these two dates, not weekends at large —
-			// so seasons, exact dates and from/until windows all get a say.
-			const days = this.weekendDates();
-			const hemisphere = this.plugin.settings.hemisphere;
-			return (s) => days.some((d) => possibleToday(s, d, hemisphere));
-		}
-		const d = new Date();
-		if (id === "tomorrow") d.setDate(d.getDate() + 1);
-		const wd = this.weekdayId(d);
-		return (s) => s.days.length === 0 || s.days.includes(wd);
+		const days = quickDayDates(id, new Date());
+		const hemisphere = this.plugin.settings.hemisphere;
+		return (s) => days.some((d) => possibleToday(s, d, hemisphere));
 	}
 
 	/**

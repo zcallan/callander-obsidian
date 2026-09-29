@@ -1556,7 +1556,7 @@ export class ContactPageView extends ItemView {
 			}
 			if (year !== null && s.showChineseZodiac) {
 				nameDisplay.createSpan({
-					text: `Zodiac: ${chineseZodiac(year)}`,
+					text: `Zodiac: ${chineseZodiac(year, month, day)}`,
 					cls: "contact-age-display",
 				});
 			}

@@ -57,12 +57,12 @@ export function run() {
 	eq(
 		"an exact date joins the days",
 		parts({ days: ["sat", "sun"], date: "2026-09-12" }).when,
-		"Weekends · September 12, 2026"
+		"Weekends · 12 September 2026"
 	);
 	eq(
 		"an exact date alone",
 		parts({ date: "2026-09-12" }).when,
-		"September 12, 2026"
+		"12 September 2026"
 	);
 	// A coarse date reads as a deadline beside the name instead, so it must
 	// not also appear in the timing column.

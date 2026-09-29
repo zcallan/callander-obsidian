@@ -148,7 +148,10 @@ export function toFlexString(date: FlexDate): string {
 	return isoDateOf(date.year, date.month, date.day);
 }
 
-/** Display at recorded precision: "2019" | "March 2019" | "March 14, 2019" | "March 14" */
+/**
+ * Display at recorded precision, in the house style (day first, no comma,
+ * as dateFormat.ts): "2019" | "March 2019" | "14 March 2019" | "14 March".
+ */
 export function formatFlexDate(date: FlexDate): string {
 	if (date.month === null) {
 		return date.year !== null ? String(date.year) : "";
@@ -158,9 +161,9 @@ export function formatFlexDate(date: FlexDate): string {
 		return date.year !== null ? `${month} ${date.year}` : month;
 	}
 	if (date.year === null) {
-		return `${month} ${date.day}`;
+		return `${date.day} ${month}`;
 	}
-	return `${month} ${date.day}, ${date.year}`;
+	return `${date.day} ${month} ${date.year}`;
 }
 
 /**
