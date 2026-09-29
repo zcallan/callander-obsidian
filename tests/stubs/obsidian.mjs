@@ -52,6 +52,18 @@ export class TAbstractFile {
 	}
 }
 
+/**
+ * File times the stub hands out: the wall clock, but never the same value
+ * twice. Obsidian stamps a file's stat before it fires `modify`, and code
+ * tells writes apart by it (OwnWrites), so two writes landing in the same
+ * millisecond mustn't look like one.
+ */
+let lastStamp = 0;
+function nextStamp() {
+	lastStamp = Math.max(lastStamp + 1, Date.now());
+	return lastStamp;
+}
+
 export class TFile extends TAbstractFile {
 	constructor(path) {
 		super(path);
@@ -152,6 +164,8 @@ export class FakeVault {
 		const parent = normalized.split("/").slice(0, -1).join("/");
 		if (parent && !this.nodes.has(parent)) await this.createFolder(parent);
 		const file = new TFile(normalized);
+		const stamp = nextStamp();
+		file.stat = { ctime: stamp, mtime: stamp, size: content.length };
 		this.nodes.set(normalized, file);
 		this.contents.set(normalized, content);
 		this.#linkToParent(file);
@@ -174,6 +188,9 @@ export class FakeVault {
 
 	async modify(file, content) {
 		this.contents.set(file.path, content);
+		// Before the event, as Obsidian does: a handler reading the file's
+		// stat sees this write's.
+		file.stat = { ...file.stat, mtime: nextStamp(), size: content.length };
 		this.writeLog.push({ op: "modify", path: file.path });
 		this.trigger("modify", file);
 	}

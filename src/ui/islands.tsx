@@ -23,6 +23,10 @@ type Root = ReturnType<typeof createRoot>;
  */
 export class IslandSet {
 	private islands = new Map<string, { host: HTMLElement; root: Root }>();
+	/** Set by unmountAll. A render that lands after the view closed — an
+	 * await finishing late — would otherwise mount roots nothing ever
+	 * unmounts. */
+	private closed = false;
 
 	/** `plugin` is read on first render, so a view can build this in a
 	 * field initialiser, before its constructor has run. */
@@ -30,6 +34,7 @@ export class IslandSet {
 
 	/** The host node for `key`, rendering `node` into it the first time. */
 	host(key: string, node: ReactNode): HTMLElement {
+		if (this.closed) return createDiv();
 		const existing = this.islands.get(key);
 		if (existing) return existing.host;
 
@@ -44,6 +49,7 @@ export class IslandSet {
 
 	/** Tear every island down, from the view's onClose. */
 	unmountAll(): void {
+		this.closed = true;
 		const roots = [...this.islands.values()];
 		this.islands.clear();
 		// Unmounting synchronously inside a React render pass is an error,

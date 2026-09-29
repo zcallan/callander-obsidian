@@ -24,7 +24,7 @@ npm run preview    # renders component fixtures in a browser against the real CS
 | `src/plugin/` | Plugin-level machinery split out of `main.ts`: startup steps, the markdown intercept, mobile keyboard tracking |
 | `src/views/` | One `ItemView` per page |
 | `src/modals/` | ~50 modals. Anything with editable fields extends `FormModal` |
-| `src/services/` | Vault reads/writes (`*Operations`, plus `vaultFiles.ts`'s shared helpers) — the layer meant to touch files. `main.ts` and `ContactPageView` still write directly in places; move those writes here rather than adding more |
+| `src/services/` | Vault reads/writes (`*Operations`, plus `vaultFiles.ts`'s shared helpers) — the layer meant to touch files. `main.ts` still writes directly in places, and the contact page's saves and migrations live in `views/ContactPageView/persistence.ts`; move writes here rather than adding more |
 | `src/utils/` | Pure logic: parsing, formatting, date maths. Where tests live heaviest. Check the shared primitives first (`dates.ts`, `flexdate.ts`, `text.ts`, `fm.ts`, `linkField.ts`, `fileName.ts`, `async.ts`; listed in ARCHITECTURE.md) before writing a helper |
 | `src/ui/` | React layer: hooks, context, ported sections |
 | `src/components/` | Imperative DOM builders shared between views |
@@ -83,6 +83,8 @@ A view that never subscribed to the cache cannot answer that, whatever the timin
 Preact 10 through `preact/compat`, aliased as `react`/`react-dom` in tsconfig `paths` and esbuild `alias`, so write React imports as usual. `jsx: "react-jsx"` with `jsxImportSource: "preact"`. The migration is partial and deliberately incremental — most views are still imperative.
 
 **Islands, created once.** A view's `render()` rebuilds imperative DOM on every vault event. React roots must *not* be rebuilt alongside it — create the host and `createRoot` once, keep them for the life of the view, and have `render()` re-append the same host. A root recreated per render unmounts and resubscribes a beat later, and anything arriving in that gap is lost. Unmount in `onClose`, deferred by a `setTimeout(…, 0)` so teardown never lands inside a render pass.
+
+**An island's props read state when they run; they never capture it.** The JSX handed to `IslandSet.host` renders once, the first time, so a prop computed as a value — or a closure over a variable from that render — freezes the island on the first note it showed. On the contact page that means `() => ctx.model.ideas()`, never a `model` captured at render; handlers, by contrast, keep the model they were started on (ARCHITECTURE.md, "The contact page").
 
 **StrictMode is off, on purpose.** Under `preact/compat` it's a plain Fragment, but real React's double-invokes effects, and effects here reach disk — a debounced autosave firing twice writes twice. Don't switch it on, or move to React, without auditing every write path.
 

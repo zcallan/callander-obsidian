@@ -43,6 +43,23 @@ Every read goes through `app.metadataCache.getFileCache()`, never through file c
 
 Most pages are imperative: `render()` empties the container and rebuilds it. Where a section is written in React (Preact through `preact/compat`), it lives in an island: an `IslandSet` (`ui/islands.tsx`) creates each root once for the life of the view and hands back the same host node on every render, so re-rendering the page never remounts React. There is no router (Obsidian's workspace is one) and no state library (the vault is the state; UI state is per-view).
 
+### The contact page
+
+`views/ContactPageView/` is the person, plan and group page, split by job:
+
+| File | What |
+| --- | --- |
+| `index.tsx` | The view's lifetime: what it listens to, loading a note, choosing a layout |
+| `model.ts` | `ContactPageModel`: one note as the page read it, with its readers and list edits |
+| `persistence.ts` | Loading, saving, and the note's one-time moves out of frontmatter |
+| `context.ts` | `PageContext`, which is all that sections and handlers see of the view |
+| `sections/` | Drawing: the header, each layout, About, Notes, the timeline |
+| `actions/` | What each button does, grouped by what it edits |
+
+A model is bound to the note it was read from, and every write goes through one, so a save still running when you move to another note lands in the note it was made for. Reading the same note again refreshes its model in place, keeping anything the page changed and hasn't saved. A save writes only what changed since the last read (`frontmatterPatch`), so it can't undo someone else's edit to another key. The page reloads when its note changes on disk, except after its own writes, which `OwnWrites` (`utils/ownWrites.ts`) recognises exactly rather than by timing; a change that arrives while you're typing waits until you stop.
+
+Handlers take the model they were started on and keep it across awaits. Render code and island props read `ctx.model` when they run, because an island outlives every render and every note.
+
 Modals stay Obsidian's `Modal`, because the stylesheet's mobile keyboard handling, Escape, focus trapping and backdrop behaviour all hang off it. `FormModal` adds protection against a stray backdrop click discarding edits, and the shared Enter-to-submit and initial-focus rules.
 
 ## Shared primitives
