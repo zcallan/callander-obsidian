@@ -59,46 +59,21 @@ const stampDevBuild = () => {
 	fs.writeFileSync(file, src.split(DEV_STAMP_SENTINEL).join(buildStamp()));
 };
 
-/** The hand-written stylesheet. `styles.css` at the root is generated. */
-const BASE_CSS = path.join("src", "styles", "base.css");
-
 /**
- * The most recent CSS Modules output esbuild handed us, kept in memory
- * across builds — see the note on `lastScoped` below for why this can't
- * just be re-read from disk each time.
- */
-let lastScoped = "";
-
-/**
- * Obsidian loads exactly one stylesheet — `styles.css` — so the shipped file
- * is the hand-written base plus whatever the `.module.css` imports compiled
- * to. esbuild emits those next to main.js as `main.css`, which Obsidian would
- * never read, so it's folded in here and the stray file removed.
+ * Obsidian loads exactly one stylesheet — `styles.css`. esbuild bundles it:
+ * src/main.ts imports src/styles/base.css first, then every `.module.css`
+ * arrives through the components that import it, and the lot is emitted
+ * next to main.js as `main.css`, base first. So the shipped file is that,
+ * renamed; production builds minify it along with the JS.
  *
  * Written to the repo root as well as the vault: the root copy is the release
  * artifact, and the e2e harness copies it into its throwaway vault.
- *
- * Two independent watchers call this: esbuild's own, after every JS/CSS
- * Modules rebuild, and the plain `fs.watch(BASE_CSS)` below, after a
- * base.css-only edit that never touches the JS graph. The second one used
- * to regress every module class in the shipped stylesheet to nothing —
- * `emitted` had already been read and deleted by the JS watcher's last
- * pass, so a base.css-only save found no `main.css` on disk and rewrote
- * `styles.css` as base CSS alone, discarding every `.module.css` rule that
- * had been in it. Caching the last real reading in `lastScoped` instead of
- * falling back to "" is what stops that: a base.css save now repeats
- * whatever module CSS was last known, rather than erasing it.
  */
 const buildStyles = () => {
-	const base = fs.readFileSync(BASE_CSS, "utf8");
 	const emitted = path.join(outDir, "main.css");
-	if (fs.existsSync(emitted)) {
-		lastScoped = fs.readFileSync(emitted, "utf8");
-		fs.rmSync(emitted);
-	}
-	const css = lastScoped
-		? `${base}\n/* ---- generated from *.module.css — do not edit ---- */\n${lastScoped}`
-		: base;
+	if (!fs.existsSync(emitted)) return;
+	const css = fs.readFileSync(emitted, "utf8");
+	fs.rmSync(emitted);
 	fs.writeFileSync("styles.css", css);
 	if (outDir !== ".") {
 		fs.mkdirSync(outDir, { recursive: true });
@@ -215,33 +190,8 @@ if (prod) {
 	await context.rebuild();
 	process.exit(0);
 } else {
-	// The base stylesheet isn't part of the JS graph — watch it separately
-	// so CSS-only edits reach the vault too. (Module CSS *is* in the graph,
-	// so esbuild rebuilds for those on its own.)
-	//
-	// The folder rather than the file: fs.watch follows an inode, and an
-	// editor that saves by write-then-rename (or a git checkout) replaces
-	// the file, which silently ended a watch on the file itself. Debounced,
-	// since one save can arrive as several events.
-	let pending;
-	const rebuildStyles = () => {
-		clearTimeout(pending);
-		pending = setTimeout(() => {
-			try {
-				buildStyles();
-				console.log(
-					`[watch] styles rebuilt ${new Date().toLocaleTimeString("en-AU")}`
-				);
-			} catch (e) {
-				console.error("[watch] style rebuild failed", e);
-			}
-		}, 50);
-	};
-	fs.watch(path.dirname(BASE_CSS), (_event, name) => {
-		if (!name || name === path.basename(BASE_CSS)) rebuildStyles();
-	}).on("error", (e) =>
-		// Unhandled, this would kill the whole watcher without a word.
-		console.error("[watch] base.css watcher died — restart npm run dev", e)
-	);
+	// base.css is in the graph through src/main.ts, so esbuild's own watcher
+	// rebuilds on a CSS-only edit too, following the path rather than the
+	// file's inode.
 	await context.watch();
 }

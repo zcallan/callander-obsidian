@@ -1,3 +1,6 @@
+// First, so esbuild emits the global stylesheet ahead of every
+// component's .module.css in the one styles.css Obsidian loads.
+import "@/styles/base.css";
 import {
 	Events,
 	Plugin,

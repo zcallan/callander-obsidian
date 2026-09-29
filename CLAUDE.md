@@ -126,7 +126,7 @@ If a modal's *contents* want React, `createRoot(modal.contentEl)` — keep the `
 
 ## Styling
 
-- `src/styles/base.css` is global and holds the Obsidian-shell integration. Root `styles.css` is generated (base + compiled `.module.css`) and gitignored.
+- `src/styles/base.css` is global and holds the Obsidian-shell integration. `src/main.ts` imports it first, so esbuild bundles it ahead of the compiled `.module.css` into the one `styles.css` Obsidian loads; that file is generated and gitignored.
 - **New component styles go in a co-located `.module.css`.** esbuild's native `local-css` loader handles them with no extra dependency. Global CSS caused repeated specificity collisions in this codebase; scoping makes that class of bug structurally impossible.
 - Production uses `minifyWhitespace` + `minifySyntax` but **not** `minifyIdentifiers`, which would mangle CSS-module class names into short strings that can collide with other plugins and themes in the shared DOM.
 - `:nth-child` counts children that are `display: none`. Split the list or render conditionally rather than hiding rows, or banding breaks.
@@ -174,7 +174,7 @@ The dev build stamps a real timestamp into its startup notice on **every** rebui
 Both were hit in one day, and neither logged anything. Both are handled now, but the watcher still has nothing supervising it, so the check at the end stays worth running.
 
 1. **Switching branches didn't reload the watcher's config.** `npm run dev` now runs under `node --watch`, which restarts it whenever `esbuild.config.mjs` changes, a checkout included. A watcher started some other way (a bare `node esbuild.config.mjs`) still needs restarting by hand.
-2. **`base.css` was watched through its inode.** `fs.watch` on the file ended silently the first time an editor or a checkout replaced it, and CSS stopped reaching the vault while JS kept updating. It now watches the styles folder and matches the filename, and a watcher error is logged rather than killing the process. Symptom, if it ever recurs: your rule is in the repo's `base.css` but the vault's generated `styles.css` lacks it. (The root `styles.css` is itself generated, so editing it directly does nothing on the next build.)
+2. **`base.css` was watched through its inode.** A separate `fs.watch` on the file ended silently the first time an editor or a checkout replaced it, and CSS stopped reaching the vault while JS kept updating. `base.css` is now imported by `src/main.ts`, so it's part of esbuild's graph and its own watcher rebuilds on a CSS-only edit, by path. Symptom, if it ever recurs: your rule is in the repo's `base.css` but the vault's generated `styles.css` lacks it. (The root `styles.css` is itself generated, so editing it directly does nothing on the next build.)
 
 So after editing `base.css`, confirm it actually arrived:
 
@@ -182,4 +182,4 @@ So after editing `base.css`, confirm it actually arrived:
 diff <(tail -5 styles.css) <(tail -5 "$(cat .vault-plugin-path)/styles.css")
 ```
 
-`buildStyles()` also runs on every JS build, so a later `src/` edit carries the CSS across too, which makes a missed CSS update intermittent and easy to misread as "the CSS is wrong" rather than "the CSS never shipped".
+A production `styles.css` is minified along with `main.js`, so it has no comments; read `src/styles/base.css` for those.
