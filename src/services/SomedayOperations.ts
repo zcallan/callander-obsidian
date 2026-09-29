@@ -217,16 +217,15 @@ export class SomedayOperations {
 			safeFileName(fields.name, "Someday"),
 			{ separator: " " }
 		);
-		const created = todayISO();
-		const file = await this.app.vault.create(
-			path,
-			`---\nkind: someday\nname: ${JSON.stringify(
-				fields.name
-			)}\nstatus: open\ncreated: ${created}\n---\n`
-		);
-		// Set the optional fields through the same path as an edit, so arrays
-		// and numbers are serialized consistently.
-		await this.updateSomeday(file, fields);
+		const file = await this.app.vault.create(path, "");
+		// Written through the same path as an edit, so arrays and numbers are
+		// serialized consistently, with the new note's own keys first.
+		await this.updateSomeday(file, fields, {
+			kind: "someday",
+			name: fields.name,
+			status: "open",
+			created: todayISO(),
+		});
 		return file;
 	}
 
@@ -240,7 +239,9 @@ export class SomedayOperations {
 	 */
 	async updateSomeday(
 		file: TFile,
-		patch: Partial<SomedayFields>
+		patch: Partial<SomedayFields>,
+		/** A new note's own keys, written first. */
+		seed?: Record<string, unknown>
 	): Promise<void> {
 		const resolved = (value: unknown): unknown => {
 			if (value === undefined || value === null || value === "") {
@@ -284,6 +285,7 @@ export class SomedayOperations {
 					if (v === undefined) delete fm[key];
 					else fm[key] = v;
 				};
+				if (seed) Object.assign(fm, seed);
 				if (patch.name !== undefined) fm.name = patch.name;
 				if (patch.date !== undefined) set("date", patch.date);
 				if (patch.seasons !== undefined) {

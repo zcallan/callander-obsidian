@@ -33,7 +33,7 @@ import {
 import { wholeDaysBetween } from "@/utils/dates";
 import { capitalize, formatCount } from "@/utils/text";
 import { linkpathOf } from "@/utils/linkField";
-import { ensureFolder, markdownFilesIn } from "@/services/vaultFiles";
+import { createNote, ensureFolder, markdownFilesIn } from "@/services/vaultFiles";
 import { upsertNotesSection } from "@/utils/notesMarkdown";
 import { upsertQuotesSection } from "@/utils/quotesMarkdown";
 
@@ -298,8 +298,7 @@ export class ContactOperations {
 	async updateDraft(
 		index: number,
 		text: string,
-		newText: string,
-		about?: TFile | null
+		{ text: newText, about }: { text: string; about?: TFile | null }
 	): Promise<void> {
 		const reworded = newText.trim();
 		if (!reworded) return;
@@ -781,10 +780,7 @@ export class ContactOperations {
 		if (existing) return existing;
 		const pretty = capitalize(name);
 		const path = normalizePath(`${folderPath}/${pretty}.md`);
-		return await this.app.vault.create(
-			path,
-			`---\nname: ${JSON.stringify(pretty)}\n---\n`
-		);
+		return await createNote(this.app, path, { name: pretty });
 	}
 
 	// ---- Dashboard file (carries the idea inbox in its properties) ----
@@ -804,10 +800,7 @@ export class ContactOperations {
 		const path = this.getDashboardFilePath();
 		const existing = this.app.vault.getFileByPath(path);
 		if (existing) return existing;
-		return await this.app.vault.create(
-			path,
-			`---\nkind: dashboard\n---\n`
-		);
+		return await createNote(this.app, path, { kind: "dashboard" });
 	}
 
 	/** One-time: the old "Idea Inbox.md" becomes the dashboard file. */

@@ -90,12 +90,12 @@ export class PlanModal extends FormModal {
 			async () => {
 				const name = nameInput.value.trim();
 				if (!name) return;
-				const file = await this.plugin.planOperations.createPlan(
+				const file = await this.plugin.planOperations.createPlan({
 					name,
-					dateValue,
-					locationInput.value,
-					endDateValue
-				);
+					date: dateValue,
+					location: locationInput.value,
+					endDate: endDateValue,
+				});
 				this.close();
 				this.onCreated(file);
 			},

@@ -4,6 +4,7 @@ import type { PlanInfo, PlanItem, PlanList } from "@/types";
 import { asArray, fieldOf, fieldText, toText } from "@/utils/fm";
 import { todayISO } from "@/utils/flexdate";
 import {
+	createNote,
 	ensureFolder,
 	markdownFilesIn,
 	uniqueNotePath,
@@ -124,32 +125,35 @@ export class PlanOperations {
 		}
 	}
 
-	async createPlan(
-		name: string,
-		date: string,
+	async createPlan({
+		name,
+		date,
 		location = "",
-		endDate = ""
-	): Promise<TFile> {
+		endDate = "",
+	}: {
+		name: string;
+		date: string;
+		location?: string;
+		endDate?: string;
+	}): Promise<TFile> {
 		const folderPath = this.getPlansFolderPath();
 		await ensureFolder(this.app, folderPath);
 		const path = uniqueNotePath(this.app, folderPath, safeFileName(name), {
 			separator: " ",
 		});
-		const loc = location.trim()
-			? `location: ${JSON.stringify(location.trim())}\n`
-			: "";
-		const end = endDate.trim() ? `endDate: ${endDate.trim()}\n` : "";
-		return await this.app.vault.create(
-			path,
-			`---\nname: ${JSON.stringify(
-				name
-			)}\ndate: ${date}\n${end}${loc}status: planning\ncreated: ${todayISO()}\nupdated: ${todayISO()}\n---\n`
-		);
+		const loc = location.trim();
+		const end = endDate.trim();
+		return await createNote(this.app, path, {
+			name,
+			date,
+			...(end && { endDate: end }),
+			...(loc && { location: loc }),
+			status: "planning",
+			created: todayISO(),
+			updated: todayISO(),
+		});
 	}
 
-	/** Plan writes go through here so the file's `updated` stamp stays true —
-	 * all but removePersonFromPlans, which writes directly and leaves
-	 * `updated` as it was. */
 	/**
 	 * Keep a plan's file name in step with its name (the same sanitising
 	 * as plan creation), in the folder it's in. Nothing happens when the
@@ -180,6 +184,9 @@ export class PlanOperations {
 		});
 	}
 
+	/** Plan writes go through here so the file's `updated` stamp stays true —
+	 * all but removePersonFromPlans, which writes directly and leaves
+	 * `updated` as it was. */
 	private async writePlan(
 		file: TFile,
 		fn: (fm: Record<string, unknown>) => void

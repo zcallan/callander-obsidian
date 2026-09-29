@@ -186,24 +186,32 @@ export async function run() {
 		const t = await createTestVault();
 		const ada = await t.addPerson("Ada");
 		await t.addPerson("Bee");
-		await t.events.syncDiaryEvent("Diary/2026-06-01.md", "2026-06-01", "Lake day", [
-			"[[Ada]]",
-		]);
+		await t.events.syncDiaryEvent({
+			source: "Diary/2026-06-01.md",
+			date: "2026-06-01",
+			name: "Lake day",
+			people: ["[[Ada]]"],
+		});
 		let logged = t.events.findBySource("Diary/2026-06-01.md");
 		ok("logging a diary entry creates one event", !!logged);
 		eq("hangout by default", logged.type, "hangout");
 
-		await t.events.syncDiaryEvent(
-			"Diary/2026-06-01.md",
-			"2026-06-02",
-			"Lake day (edited)",
-			["[[Ada]]", "[[Bee]]"]
-		);
+		await t.events.syncDiaryEvent({
+			source: "Diary/2026-06-01.md",
+			date: "2026-06-02",
+			name: "Lake day (edited)",
+			people: ["[[Ada]]", "[[Bee]]"],
+		});
 		logged = t.events.findBySource("Diary/2026-06-01.md");
 		eq("re-logging updates, not duplicates", t.events.getEvents().length, 1);
 		eq("...with the new people", logged.people.length, 2);
 
-		await t.events.syncDiaryEvent("Diary/2026-06-01.md", "2026-06-02", "x", []);
+		await t.events.syncDiaryEvent({
+			source: "Diary/2026-06-01.md",
+			date: "2026-06-02",
+			name: "x",
+			people: [],
+		});
 		eq(
 			"no mentions removes the event",
 			t.events.findBySource("Diary/2026-06-01.md"),
@@ -221,19 +229,22 @@ export async function run() {
 	{
 		const t = await createTestVault();
 		await t.addPerson("Ada");
-		await t.events.syncDiaryEvent("Diary/2026-06-01.md", "2026-06-01", "Lake day", [
-			"[[Ada]]",
-		]);
+		await t.events.syncDiaryEvent({
+			source: "Diary/2026-06-01.md",
+			date: "2026-06-01",
+			name: "Lake day",
+			people: ["[[Ada]]"],
+		});
 		const logged = t.events.findBySource("Diary/2026-06-01.md");
 		await t.app.fileManager.processFrontMatter(logged.file, (fm) => {
 			fm.showOnTimelines = false;
 		});
-		await t.events.syncDiaryEvent(
-			"Diary/2026-06-01.md",
-			"2026-06-01",
-			"Lake day (edited)",
-			["[[Ada]]"]
-		);
+		await t.events.syncDiaryEvent({
+			source: "Diary/2026-06-01.md",
+			date: "2026-06-01",
+			name: "Lake day (edited)",
+			people: ["[[Ada]]"],
+		});
 		const resynced = t.events.findBySource("Diary/2026-06-01.md");
 		eq("the re-sync took the entry's new title", resynced.name, "Lake day (edited)");
 		eq("...and kept the event off people's timelines", resynced.showOnTimelines, false);

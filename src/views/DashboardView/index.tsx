@@ -686,8 +686,10 @@ export class DashboardView extends ItemView {
 					await ops.updateDraft(
 						item.index,
 						item.draft.text,
-						text,
-						nowAbout
+						{
+							text,
+							about: nowAbout,
+						}
 					);
 					if (wasAbout) await this.plugin.refreshOpenContactPages(wasAbout);
 					if (nowAbout && nowAbout.path !== wasAbout?.path) {

@@ -2472,7 +2472,7 @@ export class ContactPageView extends ItemView {
 				await this.plugin.contactOperations.updateDraft(
 					about.index,
 					about.draft.text,
-					updated
+					{ text: updated }
 				);
 				await this.refreshAboutDrafts();
 			},

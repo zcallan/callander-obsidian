@@ -265,7 +265,9 @@ export class EventOperations {
 	 * created, stamps updated, and waits for the cache to catch up. */
 	private async writeEventFile(
 		file: TFile,
-		fields: EventFields
+		fields: EventFields,
+		/** A new note's own keys, written right after kind and name. */
+		seed?: Record<string, unknown>
 	): Promise<void> {
 		const optional = (
 			fm: Record<string, unknown> | undefined,
@@ -295,6 +297,7 @@ export class EventOperations {
 				};
 				fm.kind = "event";
 				fm.name = fields.name;
+				if (seed) Object.assign(fm, seed);
 				set("date", fields.date);
 				set("time", fields.time);
 				set("timezone", fields.timezone);
@@ -338,15 +341,14 @@ export class EventOperations {
 	): Promise<TFile> {
 		await ensureFolder(this.app, this.getEventsFolderPath());
 		const path = this.freePath(this.slugFor(fields));
-		const file = await this.app.vault.create(
-			path,
-			`---\nkind: event\nname: ${JSON.stringify(
-				fields.name
-			)}\nstatus: open\ncreated: ${todayISO()}\n---\n`
-		);
-		// Set the optional fields through the same path as an edit, so
-		// values are serialized consistently (this also stamps `updated`).
-		await this.writeEventFile(file, fields);
+		const file = await this.app.vault.create(path, "");
+		// Written through the same path as an edit, so values are serialized
+		// consistently (this also stamps `updated`), with the new note's
+		// status and created stamp seeded in the same pass.
+		await this.writeEventFile(file, fields, {
+			status: "open",
+			created: todayISO(),
+		});
 		if (opts.refreshSections !== false) {
 			await this.refreshPersonSections(
 				this.peoplePaths(this.toInfo(file))
@@ -488,12 +490,19 @@ export class EventOperations {
 	 * one event per entry, whoever it [[mentions]] attached. No mentions
 	 * removes it. A manually adjusted type or description is preserved.
 	 */
-	async syncDiaryEvent(
-		source: string,
-		date: string,
-		name: string,
-		peopleLinks: string[]
-	): Promise<void> {
+	async syncDiaryEvent({
+		source,
+		date,
+		name,
+		people: peopleLinks,
+	}: {
+		/** The diary entry's path. */
+		source: string;
+		date: string;
+		name: string;
+		/** Wikilinks to everyone it mentions. */
+		people: string[];
+	}): Promise<void> {
 		const existing = this.findBySource(source);
 		if (peopleLinks.length === 0) {
 			if (existing) await this.deleteEvent(existing.file);

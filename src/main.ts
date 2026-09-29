@@ -1047,12 +1047,12 @@ export default class FriendTracker extends Plugin {
 		// One shared event carries the whole entry — added and removed
 		// mentions are both just its people list changing.
 		const before = this.eventOperations.peoplePaths(existing);
-		await this.eventOperations.syncDiaryEvent(
-			file.path,
+		await this.eventOperations.syncDiaryEvent({
+			source: file.path,
 			date,
-			title,
-			mentioned.map((m) => `[[${m.file.basename}]]`)
-		);
+			name: title,
+			people: mentioned.map((m) => `[[${m.file.basename}]]`),
+		});
 		const touched = new Set([
 			...before,
 			...mentioned.map((m) => m.file.path),
@@ -1089,12 +1089,12 @@ export default class FriendTracker extends Plugin {
 			return;
 		}
 
-		await this.eventOperations.syncDiaryEvent(
-			file.path,
+		await this.eventOperations.syncDiaryEvent({
+			source: file.path,
 			date,
-			title,
-			mentioned.map((m) => `[[${m.file.basename}]]`)
-		);
+			name: title,
+			people: mentioned.map((m) => `[[${m.file.basename}]]`),
+		});
 		for (const m of mentioned) {
 			await this.refreshOpenContactPages(m.file);
 		}

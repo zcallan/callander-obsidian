@@ -39,3 +39,24 @@ export function uniqueNotePath(
 	}
 	return path;
 }
+
+/**
+ * A new note with `frontmatter` written by Obsidian's own serialiser, never
+ * by hand. Keys land in the order the object lists them, so pass them in the
+ * order the file should read.
+ */
+export async function createNote(
+	app: App,
+	path: string,
+	frontmatter: Record<string, unknown>,
+	body = ""
+): Promise<TFile> {
+	const file = await app.vault.create(path, body);
+	await app.fileManager.processFrontMatter(
+		file,
+		(fm: Record<string, unknown>) => {
+			Object.assign(fm, frontmatter);
+		}
+	);
+	return file;
+}

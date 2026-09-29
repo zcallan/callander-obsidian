@@ -4,7 +4,11 @@ import type { DiaryEntry } from "@/types";
 import { fieldText, isRecord } from "@/utils/fm";
 import { todayISO } from "@/utils/flexdate";
 import { ILLEGAL_FILENAME_CHARS } from "@/utils/fileName";
-import { markdownFilesIn, uniqueNotePath } from "@/services/vaultFiles";
+import {
+	createNote,
+	markdownFilesIn,
+	uniqueNotePath,
+} from "@/services/vaultFiles";
 
 export class DiaryOperations {
 	constructor(private plugin: ServiceHost) {}
@@ -104,11 +108,12 @@ export class DiaryOperations {
 	async createEntry(title: string, date: string): Promise<TFile> {
 		await this.ensureDiaryFolder();
 		const path = await this.getAvailablePath(date, title);
-		const created = todayISO();
-		const content = `---\ntitle: ${JSON.stringify(
-			title
-		)}\ndate: ${date}\ncreated: ${created}\n---\n\n`;
-		return await this.app.vault.create(path, content);
+		return await createNote(
+			this.app,
+			path,
+			{ title, date, created: todayISO() },
+			"\n"
+		);
 	}
 
 	async updateMetadata(

@@ -213,7 +213,7 @@ export async function run() {
 			[true, false]
 		);
 
-		await t.contacts.updateDraft(1, "Ask about the trip", "Ask about the Maine trip");
+		await t.contacts.updateDraft(1, "Ask about the trip", { text: "Ask about the Maine trip" });
 		const reworded = (await t.contacts.readDrafts())[1];
 		eq("rewording changes the text", reworded.text, "Ask about the Maine trip");
 		eq("...and keeps who it's about", reworded.person, "Bo Nakamura");
