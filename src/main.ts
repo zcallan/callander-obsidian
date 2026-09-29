@@ -83,6 +83,8 @@ import { singleFlight } from "@/utils/singleFlight";
 import { installKeyboardInsetTracking } from "@/plugin/keyboardInset";
 import { installMarkdownIntercept } from "@/plugin/markdownIntercept";
 import { type MarkdownRouteRule } from "@/utils/markdownRoute";
+import { runStartupTasks } from "@/plugin/startup";
+import { runLogged } from "@/utils/async";
 
 /** How long "open as markdown" bypasses the view intercept: one navigation. */
 const MARKDOWN_BYPASS_TTL_MS = 1000;
@@ -209,64 +211,107 @@ export default class FriendTracker extends Plugin {
 			this.addSettingTab(new FriendTrackerSettingTab(this.app, this));
 
 			this.statusBarEl = this.addStatusBarItem();
-
-			// One-time data migration: birthplace values move to the new
-			// hometown field (the birthplace field itself remains)
-			await this.migrateBirthplaceValues();
-			await this.migrateSomedayTypes();
-
-			// The idea inbox's old standalone file becomes the dashboard file
-			await this.contactOperations.migrateLegacyInboxFile();
-
-			// Drafts move out of frontmatter into a checklist in the
-			// dashboard note. After the inbox move above, which decides
-			// which file that is. Re-run when the cache settles, too, so a
-			// friend's note syncing in from a device still writing the old
-			// way is carried over rather than left behind.
-			this.registerEvent(
-				this.app.metadataCache.on("resolved", () => {
-					void this.contactOperations.migrateDraftsToDashboard();
-				})
-			);
-			await this.contactOperations.migrateDraftsToDashboard();
-
-			// The reminders→events merge: move embedded person events and
-			// reminder files into Events/. Detection-based, so re-running on
-			// every cache settle is a cheap no-op once done — and exactly
-			// what catches an old-format file syncing in from a device that
-			// hasn't updated yet.
-			this.registerEvent(
-				this.app.metadataCache.on("resolved", () => {
-					void this.runEventMigration();
-				})
-			);
-			await this.runEventMigration();
-
-			// Classify anything the reminders→events merge just landed (and
-			// anything older) as a calendar entry or a person's timeline
-			// record — must follow that merge, which creates the files.
-			await this.migrateEventVariants();
-
-			// Check for birthdays after everything is initialized — and
-			// keep checking (hourly + on focus) so a Mac waking up with
-			// Obsidian in the background still notifies. The once-per-day
-			// guard inside makes repeats free.
-			await this.checkBirthdays();
-			await this.updateStatusBar();
-			this.registerInterval(
-				window.setInterval(
-					() => void this.checkBirthdays(),
-					BIRTHDAY_CHECK_INTERVAL_MS
-				)
-			);
-			this.registerDomEvent(window, "focus", () =>
-				this.checkBirthdays()
-			);
 		} catch (error) {
 			console.error("Callander failed to load:", error);
 			const message =
 				error instanceof Error ? error.message : String(error);
 			new Notice("Callander failed to load: " + message);
+			return;
+		}
+
+		// Startup work on vault data, each step on its own: one that throws
+		// is reported and the rest still run. Steps that must follow one
+		// another share a task.
+		const failed = await runStartupTasks([
+			{
+				// One-time data migration: birthplace values move to the new
+				// hometown field (the birthplace field itself remains)
+				name: "hometown migration",
+				run: () => this.migrateBirthplaceValues(),
+			},
+			{
+				name: "someday types migration",
+				run: () => this.migrateSomedayTypes(),
+			},
+			{
+				name: "drafts migration",
+				run: async () => {
+					// The idea inbox's old standalone file becomes the
+					// dashboard file
+					await this.contactOperations.migrateLegacyInboxFile();
+
+					// Drafts move out of frontmatter into a checklist in the
+					// dashboard note. After the inbox move above, which
+					// decides which file that is. Re-run when the cache
+					// settles, too, so a friend's note syncing in from a
+					// device still writing the old way is carried over
+					// rather than left behind.
+					this.registerEvent(
+						this.app.metadataCache.on("resolved", () => {
+							runLogged("drafts migration", () =>
+								this.contactOperations.migrateDraftsToDashboard()
+							);
+						})
+					);
+					await this.contactOperations.migrateDraftsToDashboard();
+				},
+			},
+			{
+				name: "events migration",
+				run: async () => {
+					// The reminders→events merge: move embedded person events
+					// and reminder files into Events/. Detection-based, so
+					// re-running on every cache settle is a cheap no-op once
+					// done — and exactly what catches an old-format file
+					// syncing in from a device that hasn't updated yet.
+					this.registerEvent(
+						this.app.metadataCache.on("resolved", () => {
+							runLogged("events migration", () =>
+								this.runEventMigration()
+							);
+						})
+					);
+					await this.runEventMigration();
+
+					// Classify anything the reminders→events merge just landed
+					// (and anything older) as a calendar entry or a person's
+					// timeline record — must follow that merge, which creates
+					// the files.
+					await this.migrateEventVariants();
+				},
+			},
+			{
+				name: "birthday reminders",
+				run: async () => {
+					// Keep checking (hourly + on focus) so a Mac waking up
+					// with Obsidian in the background still notifies. The
+					// once-per-day guard inside makes repeats free.
+					// Registered before the first check, so a failure in it
+					// doesn't stop the later ones.
+					this.registerInterval(
+						window.setInterval(
+							() =>
+								runLogged("birthday check", () =>
+									this.checkBirthdays()
+								),
+							BIRTHDAY_CHECK_INTERVAL_MS
+						)
+					);
+					this.registerDomEvent(window, "focus", () =>
+						runLogged("birthday check", () => this.checkBirthdays())
+					);
+					await this.checkBirthdays();
+					await this.updateStatusBar();
+				},
+			},
+		]);
+		if (failed.length > 0) {
+			new Notice(
+				`Callander: ${formatCount(
+					failed.length,
+					"startup step"
+				)} failed (${failed.join(", ")}) — see the console`
+			);
 		}
 	}
 

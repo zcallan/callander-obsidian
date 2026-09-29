@@ -46,6 +46,8 @@ export * from "@/utils/eventList";
 export * from "@/utils/singleFlight";
 export * from "@/utils/markdownRoute";
 export { summonsKeyboard } from "@/plugin/keyboardInset";
+export * from "@/plugin/startup";
+export * from "@/utils/async";
 export * from "@/utils/friendTimeline";
 export * from "@/utils/gettingStarted";
 export * from "@/utils/eventImport";
