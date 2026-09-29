@@ -24,6 +24,12 @@ import {
 	timelineOf,
 	undatedIdeaEntries,
 } from "@/utils/planTimeline";
+import {
+	PAGE_DRAFTS_SECTION,
+	type LedgerDraft,
+	upsertDraftsSection,
+} from "@/utils/draftsMarkdown";
+import { joinFrontmatter, splitFrontmatter } from "@/utils/markdownSection";
 
 export class PlanOperations {
 	// The readers live in utils/planFields and utils/planTimeline; these
@@ -144,6 +150,36 @@ export class PlanOperations {
 	/** Plan writes go through here so the file's `updated` stamp stays true —
 	 * all but removePersonFromPlans, which writes directly and leaves
 	 * `updated` as it was. */
+	/**
+	 * Keep a plan's file name in step with its name (the same sanitising
+	 * as plan creation), in the folder it's in. Nothing happens when the
+	 * name already matches.
+	 */
+	async renamePlan(file: TFile, name: string): Promise<void> {
+		if (!file.parent) return;
+		const newPath = `${file.parent.path}/${safeFileName(name, "Plan")}.md`;
+		if (newPath !== file.path) {
+			await this.app.fileManager.renameFile(file, newPath);
+		}
+	}
+
+	/** Send the plan note to the trash, per the user's trash setting. */
+	async deletePlan(file: TFile): Promise<void> {
+		await this.app.fileManager.trashFile(file);
+	}
+
+	/** Rewrite just the plan's own Drafts section, leaving the rest of the
+	 * note — frontmatter included — exactly as it was. */
+	async writeDrafts(file: TFile, drafts: LedgerDraft[]): Promise<void> {
+		await this.app.vault.process(file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			return joinFrontmatter(
+				frontmatter,
+				upsertDraftsSection(body, drafts, PAGE_DRAFTS_SECTION)
+			);
+		});
+	}
+
 	private async writePlan(
 		file: TFile,
 		fn: (fm: Record<string, unknown>) => void

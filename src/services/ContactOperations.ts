@@ -1,4 +1,4 @@
-import { Notice, TFile, normalizePath } from "obsidian";
+import { Notice, TFile, normalizePath, stringifyYaml } from "obsidian";
 import type { ServiceHost } from "@/services/host";
 import type {
 	ContactWithCountdown,
@@ -6,6 +6,7 @@ import type {
 	Expense,
 	GroupInfo,
 	Idea,
+	Quote,
 } from "@/types";
 import { expensesOf } from "@/utils/expenseMath";
 import type { IdeaCategory } from "@/constants";
@@ -33,6 +34,8 @@ import { wholeDaysBetween } from "@/utils/dates";
 import { capitalize, formatCount } from "@/utils/text";
 import { linkpathOf } from "@/utils/linkField";
 import { ensureFolder, markdownFilesIn } from "@/services/vaultFiles";
+import { upsertNotesSection } from "@/utils/notesMarkdown";
+import { upsertQuotesSection } from "@/utils/quotesMarkdown";
 
 /** Where the inbox lived before it became the dashboard file's properties. */
 const LEGACY_INBOX_BASENAME = "Idea Inbox";
@@ -99,6 +102,27 @@ export class ContactOperations {
 			return joinFrontmatter(
 				frontmatter,
 				upsertIdeasSection(body, ideas)
+			);
+		});
+	}
+
+	/** Rewrite just the `## Notes` section, leaving the generated sections
+	 * and the frontmatter exactly as they were. */
+	async writeNotes(file: TFile, notes: string): Promise<void> {
+		await this.app.vault.process(file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			return joinFrontmatter(frontmatter, upsertNotesSection(body, notes));
+		});
+	}
+
+	/** Rewrite just the Quotes section, leaving the rest of the note —
+	 * frontmatter included — exactly as it was. */
+	async writeQuotes(file: TFile, quotes: Quote[]): Promise<void> {
+		await this.app.vault.process(file, (content) => {
+			const { frontmatter, body } = splitFrontmatter(content);
+			return joinFrontmatter(
+				frontmatter,
+				upsertQuotesSection(body, quotes)
 			);
 		});
 	}
@@ -473,6 +497,42 @@ export class ContactOperations {
 	}
 
 	/** Creates the base and People folders on first use. */
+	/**
+	 * A new person's note, named for them, with `data` as its frontmatter
+	 * in the order given. Throws when the name is taken.
+	 */
+	async createContact(
+		data: Record<string, string | string[]>
+	): Promise<TFile> {
+		const filePath = `${this.getPeopleFolderPath()}/${String(data.name)}.md`;
+		// Ensure the base and People folders exist before creating
+		await this.ensurePeopleFolder();
+		return await this.app.vault.create(
+			filePath,
+			`---\n${stringifyYaml(data)}\n---\n`
+		);
+	}
+
+	/**
+	 * Trash a person's note, having taken them out of every plan first: a
+	 * plan's own "Who's in" is a copy of the wikilink, not a live query, and
+	 * only resolves against this file while it still exists.
+	 */
+	async deleteContact(file: TFile): Promise<void> {
+		await this.plugin.planOperations.removePersonFromPlans(file);
+		await this.app.fileManager.trashFile(file);
+	}
+
+	/** Rename a person's note to their new name, in the folder it's in.
+	 * Links to it update, since this goes through the file manager. */
+	async renamePerson(file: TFile, name: string): Promise<void> {
+		if (!file.parent) return;
+		await this.app.fileManager.renameFile(
+			file,
+			`${file.parent.path}/${name}.md`
+		);
+	}
+
 	async ensurePeopleFolder(): Promise<void> {
 		const base = normalizePath(this.plugin.settings.baseFolder);
 		if (!this.app.vault.getFolderByPath(base)) {

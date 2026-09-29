@@ -174,17 +174,12 @@ import {
 	joinFrontmatter,
 	parseQuotesSection,
 	splitFrontmatter,
-	upsertQuotesSection,
 } from "@/utils/quotesMarkdown";
-import {
-	parseIdeasSection,
-	upsertIdeasSection,
-} from "@/utils/ideasMarkdown";
+import { parseIdeasSection } from "@/utils/ideasMarkdown";
 import {
 	PAGE_DRAFTS_SECTION,
 	findDraft,
 	parseDraftsSection,
-	upsertDraftsSection,
 	type LedgerDraft,
 } from "@/utils/draftsMarkdown";
 import {
@@ -192,7 +187,6 @@ import {
 	normalizeNotes,
 	parseNotesSection,
 	rescueDraftsFromNotes,
-	upsertNotesSection,
 } from "@/utils/notesMarkdown";
 import {
 	isoDateOf,
@@ -201,7 +195,6 @@ import {
 	wholeDaysBetween,
 } from "@/utils/dates";
 import { formatCount, truncate } from "@/utils/text";
-import { safeFileName } from "@/utils/fileName";
 import {
 	birthFlower,
 	birthstone,
@@ -396,13 +389,7 @@ export class ContactPageView extends ItemView {
 		const file = this._file;
 		if (!file) return;
 		this.writingUntil = Date.now() + OWN_WRITE_GRACE_MS;
-		await this.app.vault.process(file, (content) => {
-			const { frontmatter, body } = splitFrontmatter(content);
-			return joinFrontmatter(
-				frontmatter,
-				upsertIdeasSection(body, ideas)
-			);
-		});
+		await this.plugin.contactOperations.writeIdeas(file, ideas);
 		// Only if the page is still on that note — see writeNotesToBody.
 		if (this._file === file) this.bodyIdeas = ideas;
 	}
@@ -415,10 +402,7 @@ export class ContactPageView extends ItemView {
 	): Promise<void> {
 		if (!file) return;
 		this.writingUntil = Date.now() + OWN_WRITE_GRACE_MS;
-		await this.app.vault.process(file, (content) => {
-			const { frontmatter, body } = splitFrontmatter(content);
-			return joinFrontmatter(frontmatter, upsertNotesSection(body, notes));
-		});
+		await this.plugin.contactOperations.writeNotes(file, notes);
 		// Only if the page is still showing that note. Notes save on blur,
 		// and following a link out of the page blurs them — so the view can
 		// be on the next note by the time this write lands, and adopting
@@ -1448,11 +1432,7 @@ export class ContactPageView extends ItemView {
 		if (!file) return;
 		const name = this.contactData.name || file.basename;
 		new DeleteContactModal(this.app, file, async () => {
-			// Before trashing: a plan's own "Who's in" is a copy of the
-			// wikilink, not a live query, and only resolves against this
-			// file while it still exists.
-			await this.plugin.planOperations.removePersonFromPlans(file);
-			await this.app.fileManager.trashFile(file);
+			await this.plugin.contactOperations.deleteContact(file);
 			new Notice(`Deleted "${name}"`);
 			// This view is now showing a file that no longer exists.
 			this.leaf.detach();
@@ -1674,11 +1654,10 @@ export class ContactPageView extends ItemView {
 
 				// Rename the file
 				if (this._file.parent) {
-					const newPath = `${this._file.parent.path}/${newName}.md`;
 					try {
-						await this.app.fileManager.renameFile(
+						await this.plugin.contactOperations.renamePerson(
 							this._file,
-							newPath
+							newName
 						);
 						new Notice(`Updated contact name`);
 
@@ -2638,20 +2617,15 @@ export class ContactPageView extends ItemView {
 					delete this.contactData.location;
 				}
 				await this.saveContactData();
-				// Keep the filename in step with the name (same sanitizing
-				// as plan creation)
-				if (renamed && this._file?.parent) {
-					const safeName = safeFileName(details.name, "Plan");
-					const newPath = `${this._file.parent.path}/${safeName}.md`;
-					if (newPath !== this._file.path) {
-						try {
-							await this.app.fileManager.renameFile(
-								this._file,
-								newPath
-							);
-						} catch (error) {
-							new Notice(`Error renaming plan: ${String(error)}`);
-						}
+				// Keep the filename in step with the name
+				if (renamed && this._file) {
+					try {
+						await this.plugin.planOperations.renamePlan(
+							this._file,
+							details.name
+						);
+					} catch (error) {
+						new Notice(`Error renaming plan: ${String(error)}`);
 					}
 				}
 				this.render();
@@ -2671,7 +2645,7 @@ export class ContactPageView extends ItemView {
 			`Delete the plan "${name}"?`,
 			"Delete",
 			async () => {
-				await this.app.fileManager.trashFile(file);
+				await this.plugin.planOperations.deletePlan(file);
 				new Notice(`Deleted "${name}"`);
 				this.leaf.detach();
 				await this.plugin.activateDashboard();
@@ -2939,13 +2913,7 @@ export class ContactPageView extends ItemView {
 		const file = this._file;
 		if (!file) return;
 		this.writingUntil = Date.now() + OWN_WRITE_GRACE_MS;
-		await this.app.vault.process(file, (content) => {
-			const { frontmatter, body } = splitFrontmatter(content);
-			return joinFrontmatter(
-				frontmatter,
-				upsertDraftsSection(body, drafts, PAGE_DRAFTS_SECTION)
-			);
-		});
+		await this.plugin.planOperations.writeDrafts(file, drafts);
 		// Only if the page is still on that note — see writeNotesToBody.
 		if (this._file === file) this.bodyDrafts = drafts;
 	}
@@ -4487,13 +4455,7 @@ export class ContactPageView extends ItemView {
 		const file = this._file;
 		if (!file) return;
 		this.writingUntil = Date.now() + OWN_WRITE_GRACE_MS;
-		await this.app.vault.process(file, (content) => {
-			const { frontmatter, body } = splitFrontmatter(content);
-			return joinFrontmatter(
-				frontmatter,
-				upsertQuotesSection(body, quotes)
-			);
-		});
+		await this.plugin.contactOperations.writeQuotes(file, quotes);
 		// Only if the page is still on that note — see writeNotesToBody.
 		if (this._file === file) this.bodyQuotes = quotes;
 	}

@@ -1,7 +1,6 @@
 import { App, Notice } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
-import { stringifyYaml } from "obsidian";
 import { VIEW_TYPE_FRIEND_TRACKER } from "@/views/FriendTrackerView";
 import { FriendTrackerView } from "@/views/FriendTrackerView";
 import { createRelationshipInput } from "@/components/ContactFields";
@@ -246,20 +245,9 @@ export class AddContactModal extends FormModal {
 	 * everything in it, for addFriend's guard to report.
 	 */
 	private async onSubmit(data: Record<string, string | string[]>) {
-		const ops = this.plugin.contactOperations;
 		data.created = todayISO();
 		data.updated = todayISO();
-		const fileName = `${String(data.name)}.md`;
-		const filePath = `${ops.getPeopleFolderPath()}/${fileName}`;
-
-		// Ensure the base and People folders exist before creating
-		await ops.ensurePeopleFolder();
-
-		// Create YAML frontmatter
-		const yaml = stringifyYaml(data);
-		const fileContent = `---\n${yaml}\n---\n`;
-
-		const file = await this.app.vault.create(filePath, fileContent);
+		const file = await this.plugin.contactOperations.createContact(data);
 		this.close();
 
 		try {
