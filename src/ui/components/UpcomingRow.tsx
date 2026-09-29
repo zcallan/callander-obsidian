@@ -4,6 +4,7 @@
 // about which renderer is underneath.
 import type { RowTone } from "@/utils/upcomingWhen";
 import { Icon } from "@/ui/components/Icon";
+import { activatable } from "@/ui/a11y";
 
 /**
  * The two-line "when / what" row — the React twin of
@@ -25,6 +26,7 @@ export function UpcomingRow({
 	cancelled,
 	action,
 	onClick,
+	focusKey,
 }: {
 	icon: string;
 	date: string;
@@ -42,17 +44,31 @@ export function UpcomingRow({
 		onClick: (e: MouseEvent) => void;
 	};
 	onClick: () => void;
+	/** Finds the row again after its page redraws — see setFocusKey. */
+	focusKey?: string;
 }) {
 	// Rows without a date (missed birthdays) are single-line — skip the when
 	// line entirely rather than leaving an empty gap above the name.
 	const hasWhen = !!(icon || date || time);
 
+	// From the keyboard too, as components/UpcomingRow.ts does it: a row
+	// with a button of its own is reached through its text column, and any
+	// other row is the button whole.
+	const rowClass =
+		"dashboard-row dashboard-row-clickable dashboard-upcoming-row";
+	const row = action
+		? { className: rowClass, onClick }
+		: activatable(onClick, rowClass, { focusKey });
+	const main = action
+		? activatable(onClick, "dashboard-upcoming-main", {
+				keysOnly: true,
+				focusKey,
+		  })
+		: { className: "dashboard-upcoming-main" };
+
 	return (
-		<div
-			className="dashboard-row dashboard-row-clickable dashboard-upcoming-row"
-			onClick={onClick}
-		>
-			<div className="dashboard-upcoming-main">
+		<div {...row}>
+			<div {...main}>
 				{hasWhen && (
 					<div className="dashboard-upcoming-when">
 						{icon ? `${icon} ` : ""}

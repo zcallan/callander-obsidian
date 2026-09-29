@@ -5,6 +5,7 @@ import { ContactSuggestModal } from "@/modals/QuickIdeaModal";
 import { parseFlexDate } from "@/utils/flexdate";
 import { runAction } from "@/utils/async";
 import type { DashboardContext } from "@/views/DashboardView/context";
+import { makeActivatable } from "@/components/activatable";
 
 /** Ideas whose resurface date has come round. */
 export function renderResurfacing(
@@ -25,9 +26,10 @@ export function renderResurfacing(
 			cls: "dashboard-row-meta",
 			text: contact.displayName,
 		});
-		row.addEventListener("click", () =>
-			void ctx.openContact(contact.file)
-		);
+		makeActivatable(row, () => void ctx.openContact(contact.file), {
+			role: "link",
+			focusKey: `resurface:${contact.file.path}:${idea.text}`,
+		});
 	}
 }
 

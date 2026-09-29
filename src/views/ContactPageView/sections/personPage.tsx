@@ -40,6 +40,7 @@ import { renderEventsSection } from "@/views/ContactPageView/sections/events";
 import { renderExtrasSection } from "@/views/ContactPageView/sections/extras";
 import type { PageContext } from "@/views/ContactPageView/context";
 import { renderAbout } from "@/views/ContactPageView/sections/about";
+import { makeDisclosure } from "@/components/activatable";
 
 export function renderPersonPage(ctx: PageContext, container: HTMLElement) {
 	// Friends get the attribute fields; groups get a members list instead
@@ -305,10 +306,15 @@ function collapsibleSection(
 	);
 	const body = wrap.createDiv({ cls: "plan-accordion-body" });
 	wrap.toggleClass("is-open", open);
-	header.addEventListener("click", () => {
-		open = !open;
-		wrap.toggleClass("is-open", open);
-		onToggle(open);
-	});
+	makeDisclosure(
+		header,
+		wrap,
+		() => {
+			open = !open;
+			wrap.toggleClass("is-open", open);
+			onToggle(open);
+		},
+		`section:${label}`
+	);
 	return { wrap, body };
 }

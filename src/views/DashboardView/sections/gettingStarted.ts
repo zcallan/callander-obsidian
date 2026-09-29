@@ -6,6 +6,7 @@ import {
 import { GroupModal } from "@/modals/GroupModal";
 import { PlanModal } from "@/modals/PlanModal";
 import type { DashboardContext } from "@/views/DashboardView/context";
+import { makeDisclosure } from "@/components/activatable";
 
 /**
  * A first thing to try on each page, ticked off by itself as the vault
@@ -41,11 +42,16 @@ export function renderGettingStarted(
 	const applyOpen = () =>
 		wrap.toggleClass("is-open", !settings.gettingStartedCollapsed);
 	applyOpen();
-	header.addEventListener("click", () => {
-		settings.gettingStartedCollapsed = !settings.gettingStartedCollapsed;
-		applyOpen();
-		void plugin.saveSettings();
-	});
+	makeDisclosure(
+		header,
+		wrap,
+		() => {
+			settings.gettingStartedCollapsed = !settings.gettingStartedCollapsed;
+			applyOpen();
+			void plugin.saveSettings();
+		},
+		"section:getting-started"
+	);
 
 	const hide = () => {
 		settings.showGettingStarted = false;

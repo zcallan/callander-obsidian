@@ -56,6 +56,7 @@ import {
 	openCreditModal,
 } from "@/views/ContactPageView/actions/planCosts";
 import type { PageContext } from "@/views/ContactPageView/context";
+import { makeActivatable } from "@/components/activatable";
 
 /** A plan's own page shape: members, buckets, notes. */
 export function renderPlanPage(ctx: PageContext, container: HTMLElement) {
@@ -117,7 +118,7 @@ export function renderPlanPage(ctx: PageContext, container: HTMLElement) {
 			header.createSpan({ cls: "contact-stack-header-icon" }),
 			icon
 		);
-		header.createSpan({ text: label });
+		const title = header.createSpan({ text: label });
 		if (!collapseId) return wrap;
 
 		if (count !== undefined) {
@@ -143,8 +144,19 @@ export function renderPlanPage(ctx: PageContext, container: HTMLElement) {
 
 		const collapsed = () =>
 			collapsedPlanSections(ctx).includes(collapseId);
-		const apply = () => wrap.toggleClass("is-open", !collapsed());
+		const apply = () => {
+			wrap.toggleClass("is-open", !collapsed());
+			title.setAttribute("aria-expanded", String(!collapsed()));
+		};
 		apply();
+		const toggle = () => {
+			const current = collapsedPlanSections(ctx);
+			ctx.plugin.settings.planSectionsCollapsed = collapsed()
+				? current.filter((id) => id !== collapseId)
+				: [...current, collapseId];
+			apply();
+			ctx.saveLayoutSetting();
+		};
 		header.addEventListener("click", (event) => {
 			// Headers can carry controls of their own — the
 			// timeline's "Copy as text" — and folding the section
@@ -152,12 +164,13 @@ export function renderPlanPage(ctx: PageContext, container: HTMLElement) {
 			// what anybody pressed.
 			const target = event.target as HTMLElement | null;
 			if (target?.closest("button")) return;
-			const current = collapsedPlanSections(ctx);
-			ctx.plugin.settings.planSectionsCollapsed = collapsed()
-				? current.filter((id) => id !== collapseId)
-				: [...current, collapseId];
-			apply();
-			ctx.saveLayoutSetting();
+			toggle();
+		});
+		// Those controls are why the header isn't a button itself: the
+		// keyboard folds the section from its title instead.
+		makeActivatable(title, toggle, {
+			keysOnly: true,
+			focusKey: `section:${collapseId}`,
 		});
 		return body;
 	};

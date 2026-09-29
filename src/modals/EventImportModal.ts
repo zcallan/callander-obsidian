@@ -17,6 +17,7 @@ import {
 	type ImportedEvent,
 } from "@/utils/eventImport";
 import { formatCount } from "@/utils/text";
+import { makeDisclosure } from "@/components/activatable";
 
 /**
  * The imported events as a collapsible list — shut by default, since the
@@ -39,7 +40,7 @@ function renderPreview(parent: HTMLElement, events: ImportedEvent[]) {
 		header.createSpan({ cls: "plan-accordion-chevron" }),
 		"chevron-down"
 	);
-	header.addEventListener("click", () =>
+	makeDisclosure(header, wrap, () =>
 		wrap.toggleClass("is-open", !wrap.hasClass("is-open"))
 	);
 	const body = wrap.createDiv({ cls: "plan-accordion-body" });

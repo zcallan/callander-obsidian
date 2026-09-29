@@ -60,6 +60,7 @@ export function renderPlans(ctx: DashboardContext, container: HTMLElement) {
 		buildUpcomingRow(section, {
 			...planRowFields(plan, now),
 			onClick: () => void ctx.openContact(plan.file),
+			focusKey: `plan:${plan.file.path}`,
 			// The only way back from "Hide from this list" in the plan's
 			// glance — that row is gone from Upcoming or the Events page,
 			// so the offer to undo it has to live where the plan still

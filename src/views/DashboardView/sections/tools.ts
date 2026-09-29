@@ -1,6 +1,7 @@
 import { setIcon } from "obsidian";
 import { EventImportModal } from "@/modals/EventImportModal";
 import type { DashboardContext } from "@/views/DashboardView/context";
+import { makeActivatable, makeDisclosure } from "@/components/activatable";
 
 /**
  * Tools you reach for rarely — folded at the bottom of the page, laid
@@ -27,11 +28,16 @@ export function renderSecretActions(
 	const applyOpen = () =>
 		wrap.toggleClass("is-open", !settings.secretActionsCollapsed);
 	applyOpen();
-	header.addEventListener("click", () => {
-		settings.secretActionsCollapsed = !settings.secretActionsCollapsed;
-		applyOpen();
-		void ctx.plugin.saveSettings();
-	});
+	makeDisclosure(
+		header,
+		wrap,
+		() => {
+			settings.secretActionsCollapsed = !settings.secretActionsCollapsed;
+			applyOpen();
+			void ctx.plugin.saveSettings();
+		},
+		"section:secret-actions"
+	);
 
 	const list = body.createDiv({ cls: "getting-started-list" });
 	const action = (
@@ -75,19 +81,15 @@ export function renderCalendarLink(
 	});
 	const header = wrap.createDiv({
 		cls: "dashboard-section-header plan-accordion-header",
-		attr: { role: "link", tabindex: "0" },
 	});
 	header.createEl("h3", { text: "📅 Calendar" });
 	setIcon(
 		header.createSpan({ cls: "plan-accordion-chevron" }),
 		"chevron-down"
 	);
-	const open = () => void ctx.plugin.activateCalendar({ here: true });
-	header.addEventListener("click", open);
-	header.addEventListener("keydown", (e) => {
-		if (e.key === "Enter" || e.key === " ") {
-			e.preventDefault();
-			open();
-		}
-	});
+	makeActivatable(
+		header,
+		() => void ctx.plugin.activateCalendar({ here: true }),
+		{ role: "link" }
+	);
 }

@@ -22,6 +22,11 @@ import { GlanceModal } from "@/modals/GlanceModal";
 import { sortFriends } from "@/utils/friendListSort";
 import { monthStep } from "@/utils/dates";
 import { SearchBox } from "@/components/searchBox";
+import {
+	keepingFocus,
+	makeActivatable,
+	setFocusKey,
+} from "@/components/activatable";
 
 const SORT_OPTIONS: Array<{ id: FriendListSort; label: string }> = [
 	// "Next" rather than plain "Birthday": the two calendar orderings below
@@ -204,6 +209,10 @@ export class TableView {
 				cls: `contact-group-chip ${
 					this.view.groupFilter === info.name ? "selected" : ""
 				}`,
+				attr: {
+					type: "button",
+					"aria-pressed": String(this.view.groupFilter === info.name),
+				},
 			});
 			const dot = chip.createSpan({ cls: "group-dot" });
 			dot.style.backgroundColor =
@@ -212,11 +221,13 @@ export class TableView {
 			chip.addEventListener("click", () => {
 				this.view.groupFilter =
 					this.view.groupFilter === info.name ? "" : info.name;
-				pills
-					.findAll(".contact-group-chip")
-					.forEach((el) => el.removeClass("selected"));
+				pills.findAll(".contact-group-chip").forEach((el) => {
+					el.removeClass("selected");
+					el.setAttribute("aria-pressed", "false");
+				});
 				if (this.view.groupFilter === info.name) {
 					chip.addClass("selected");
+					chip.setAttribute("aria-pressed", "true");
 				}
 				this.renderContent();
 			});
@@ -319,17 +330,21 @@ export class TableView {
 			const row = listEl.createDiv({
 				cls: "friend-list-row",
 			});
-			row.addEventListener("click", () =>
-				void this.view.openContact(contact.file)
-			);
+			const open = () => void this.view.openContact(contact.file);
+			row.addEventListener("click", open);
 
 			const info = row.createDiv({ cls: "friend-list-info" });
 
-			// Line 1: name + group dots
+			// Line 1: name + group dots. The row holds its Glance button,
+			// so the keyboard reaches the row through the name.
 			const main = info.createDiv({ cls: "friend-list-main" });
-			main.createSpan({
+			const name = main.createSpan({
 				cls: "friend-list-name",
 				text: contact.displayName,
+			});
+			makeActivatable(name, open, {
+				keysOnly: true,
+				focusKey: `friend:${contact.file.path}`,
 			});
 			this.appendGroupTags(main, contact);
 
@@ -416,7 +431,9 @@ export class TableView {
 				text: label,
 				attr: { type: "button", "aria-label": aria },
 			});
-			b.addEventListener("click", onClick);
+			// Paging redraws the calendar, this button with it.
+			setFocusKey(b, `bday-nav:${aria}`);
+			b.addEventListener("click", () => keepingFocus(b, onClick));
 		};
 		button("‹", "Previous month", () => step(-1));
 		button("Today", "This month", () => {
@@ -450,7 +467,7 @@ export class TableView {
 			if (day.isToday) cls.push("is-today");
 			if (day.date === this.calSelected) cls.push("is-selected");
 			const cell = grid.createDiv({ cls: cls.join(" ") });
-			cell
+			const dayNum = cell
 				.createDiv({ cls: "cal-cell-head" })
 				.createSpan({ cls: "cal-daynum", text: String(day.day) });
 
@@ -476,9 +493,17 @@ export class TableView {
 			// No modal here: a birthday belongs to a person, not to a date,
 			// so there is nothing to add to an empty square. Tapping picks
 			// the day, which is what the narrow layout lists underneath.
-			cell.addEventListener("click", () => {
+			const pick = () => {
 				this.calSelected = day.date;
 				this.renderContent();
+			};
+			cell.addEventListener("click", pick);
+			// Its birthday chips are buttons of their own, so the cell
+			// isn't; the keyboard picks the day through its number.
+			makeActivatable(dayNum, pick, {
+				keysOnly: true,
+				label: formatShortWeekdayDate(new Date(day.date + "T00:00:00")),
+				focusKey: `bday-day:${day.date}`,
 			});
 		}
 
@@ -538,7 +563,7 @@ export class TableView {
 					  )}`
 					: "🎂",
 		});
-		chip.addEventListener("click", (e) => {
+		makeActivatable(chip, (e) => {
 			e.stopPropagation();
 			this.openGlance(person);
 		});
@@ -735,16 +760,23 @@ export class TableView {
 			main.createDiv({ cls: "contact-timeline-date", text: when });
 		}
 		const text = main.createDiv({ cls: "contact-timeline-text" });
-		text.createSpan({
+		const name = text.createSpan({
 			cls: "friend-list-name",
 			text: person.displayName,
 		});
 		this.appendGroupTags(text, person);
-		if (glanceButton) this.appendGlanceButton(row, person);
-		row.addEventListener(
-			"click",
-			onClick ?? (() => void this.view.openContact(person.file))
-		);
+		const open = onClick ?? (() => void this.view.openContact(person.file));
+		// With a Glance button beside it the row is more than one control,
+		// so the keyboard reaches it through the name; without, it's the
+		// button whole.
+		const focusKey = `friend-timeline:${person.file.path}:${when}`;
+		if (glanceButton) {
+			this.appendGlanceButton(row, person);
+			row.addEventListener("click", open);
+			makeActivatable(name, open, { keysOnly: true, focusKey });
+		} else {
+			makeActivatable(row, open, { focusKey });
+		}
 	}
 
 	/** Birthday as a plain date: "21 Aug 1997", "21 Aug", or "Aug 1997". */

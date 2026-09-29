@@ -2,6 +2,7 @@ import type { ContactWithCountdown } from "@/types";
 import { parseFlexDate } from "@/utils/flexdate";
 import { formatCount } from "@/utils/text";
 import type { DashboardContext } from "@/views/DashboardView/context";
+import { makeActivatable } from "@/components/activatable";
 
 /** "On this day": events from earlier years on today's date, the most
  * recent year first. Nothing at all when there are none. */
@@ -48,8 +49,9 @@ export function renderOnThisDay(ctx: DashboardContext, container: HTMLElement) {
 				"year"
 			)} ago · ${hit.contact.displayName}`,
 		});
-		row.addEventListener("click", () =>
-			void ctx.openContact(hit.contact.file)
-		);
+		makeActivatable(row, () => void ctx.openContact(hit.contact.file), {
+			role: "link",
+			focusKey: `on-this-day:${hit.contact.file.path}:${hit.text}`,
+		});
 	}
 }

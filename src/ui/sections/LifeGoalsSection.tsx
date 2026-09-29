@@ -2,6 +2,7 @@ import type { LifeGoal } from "@/types";
 import { groupLifeGoals } from "@/utils/lifeGoals";
 import { Icon } from "@/ui/components/Icon";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
+import { activatable } from "@/ui/a11y";
 
 /**
  * Things they want to do someday.
@@ -28,10 +29,13 @@ export function LifeGoalsSection({
 	const row = ({ goal, index }: { goal: LifeGoal; index: number }) => (
 		<div
 			key={index}
-			className={`contact-funfact-item plan-clickable-row contact-life-goal${
-				goal.done ? " is-done" : ""
-			}`}
-			onClick={() => onOpen(index)}
+			{...activatable(
+				() => onOpen(index),
+				`contact-funfact-item plan-clickable-row contact-life-goal${
+					goal.done ? " is-done" : ""
+				}`,
+				{ focusKey: `life-goal:${index}` }
+			)}
 		>
 			<span className="contact-life-goal-text">{goal.text}</span>
 			{/* Says a note exists without spending a line quoting it — the

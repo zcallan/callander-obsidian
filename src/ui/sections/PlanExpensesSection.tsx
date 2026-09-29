@@ -8,6 +8,7 @@ import {
 import { ExpenseRow } from "@/ui/components/ExpenseRow";
 import { Icon } from "@/ui/components/Icon";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
+import { activatable } from "@/ui/a11y";
 
 /**
  * One person's line: what they owe, and whether they're square.
@@ -28,15 +29,19 @@ function OwedPersonRow({
 	onBreakdown: (person: string) => void;
 }) {
 	const canOpen = breakdownCount > 0;
+	const className = `expense-owed-row${row.done ? " paid" : ""}${
+		row.isYou ? " is-you" : ""
+	}${canOpen ? " is-clickable" : ""}`;
 
 	return (
+		// Only a row with lines to list opens anything, so only that one
+		// is a button.
 		<div
-			className={`expense-owed-row${row.done ? " paid" : ""}${
-				row.isYou ? " is-you" : ""
-			}${canOpen ? " is-clickable" : ""}`}
-			onClick={() => {
-				if (canOpen) onBreakdown(row.person);
-			}}
+			{...(canOpen
+				? activatable(() => onBreakdown(row.person), className, {
+						focusKey: `owed:${row.person}`,
+				  })
+				: { className })}
 		>
 			<span className="expense-owed-check">
 				<input
@@ -102,7 +107,7 @@ function CreditRow({
 	onClick: () => void;
 }) {
 	return (
-		<div className="plan-credit-row" onClick={onClick}>
+		<div {...activatable(onClick, "plan-credit-row")}>
 			<span className="plan-credit-text">
 				<strong>{credit.person}</strong>
 				{credit.note ? ` · ${credit.note}` : ""}

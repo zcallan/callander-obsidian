@@ -8,6 +8,7 @@ import {
 import type { PlanTimelineEntry } from "@/types";
 import { Icon } from "@/ui/components/Icon";
 import { startsWithEmoji } from "@/utils/emoji";
+import { activatable } from "@/ui/a11y";
 
 /**
  * One dated row of the itinerary — an idea, a travel leg or a stay.
@@ -63,7 +64,13 @@ export function TimelineEntryRow({
 				</div>
 			)}
 
-			<div className="contact-timeline-text">
+			{/* The row holds Edit and Delete of its own, so it isn't a
+			    button itself: the keyboard opens it from its text. */}
+			<div
+				{...activatable(onOpen, "contact-timeline-text", {
+					keysOnly: true,
+				})}
+			>
 				{showEmoji ? `${entry.emoji} ${entry.text}` : entry.text}
 				{/* A draft says so, in its own colour — it's on the timeline
 				    because it has a day, not because it's a decision anyone

@@ -1,5 +1,6 @@
 import { Icon } from "@/ui/components/Icon";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
+import { activatable } from "@/ui/a11y";
 
 /** A line with optional context — the shape quotes and inside jokes share. */
 export interface QuoteLike {
@@ -46,8 +47,10 @@ export function QuoteListSection({
 			{rows.map((row, index) => (
 				<div
 					key={index}
-					className="contact-quote-item plan-clickable-row"
-					onClick={() => onOpen(index)}
+					{...activatable(
+						() => onOpen(index),
+						"contact-quote-item plan-clickable-row"
+					)}
 				>
 					<div className="contact-quote-text">
 						{quoted ? `“${row.text}”` : row.text}

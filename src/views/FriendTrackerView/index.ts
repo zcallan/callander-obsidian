@@ -6,11 +6,14 @@ import type { FriendListSort, FriendListTab } from "@/types";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { registerPageRefresh } from "@/utils/vaultRefresh";
 import { queuedFlight } from "@/utils/singleFlight";
+import { FocusKeeper } from "@/components/activatable";
 
 export const VIEW_TYPE_FRIEND_TRACKER = "callander-view";
 
 export class FriendTrackerView extends ItemView {
 	public groupFilter = "";
+	/** Keyboard focus across a redraw — see FocusKeeper. */
+	private readonly focusKeeper = new FocusKeeper();
 	private tableView: TableView;
 	/** Widened for this view only, until it closes. */
 	private pageWide = false;
@@ -84,6 +87,7 @@ export class FriendTrackerView extends ItemView {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		this.tableView.search.hold();
+		this.focusKeeper.hold(container);
 		container.empty();
 		// The list view handles its own filtering and sorting
 		const tableContainer = container.createDiv();
@@ -93,6 +97,7 @@ export class FriendTrackerView extends ItemView {
 			void this.refresh();
 		});
 		container.scrollTop = scrollTop;
+		this.focusKeeper.restore(container);
 	}
 
 }

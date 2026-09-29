@@ -1,5 +1,6 @@
 import { setIcon } from "obsidian";
 import type { RowTone } from "@/utils/upcomingWhen";
+import { makeActivatable } from "@/components/activatable";
 
 export interface UpcomingRowOpts {
 	icon: string;
@@ -17,6 +18,8 @@ export interface UpcomingRowOpts {
 	/** Called off: the name is struck and the suffix reads "Cancelled". */
 	cancelled?: boolean;
 	onClick: () => void;
+	/** Finds the row again after its page redraws — see setFocusKey. */
+	focusKey?: string;
 	/** Right-hand button, shown in place of the relative text */
 	action?: {
 		icon: string;
@@ -99,6 +102,15 @@ export function buildUpcomingRow(
 			text: opts.relative,
 		});
 	}
-	row.addEventListener("click", opts.onClick);
+	// From the keyboard too. A row with a button of its own can't be a
+	// button itself, so it's reached through its text column; any other
+	// row is the button whole.
+	const keys = { focusKey: opts.focusKey };
+	if (opts.action) {
+		row.addEventListener("click", opts.onClick);
+		makeActivatable(mainCol, opts.onClick, { ...keys, keysOnly: true });
+	} else {
+		makeActivatable(row, opts.onClick, keys);
+	}
 	return row;
 }

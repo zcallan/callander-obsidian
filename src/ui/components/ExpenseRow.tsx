@@ -1,6 +1,7 @@
 import type { Expense } from "@/types";
 import { paidStateOf, payersOf, splitModeLabel } from "@/utils/expenseMath";
 import styles from "@/ui/components/ExpenseRow.module.css";
+import { activatable } from "@/ui/a11y";
 
 /**
  * One expense, over two lines: its label and how much of it is paid, then
@@ -12,17 +13,20 @@ export function ExpenseRow({
 	participants,
 	yourName = "",
 	onClick,
+	focusKey,
 }: {
 	expense: Expense;
 	participants: string[];
 	yourName?: string;
 	onClick: () => void;
+	/** Finds the row again after its page redraws — see setFocusKey. */
+	focusKey?: string;
 }) {
 	const payers = payersOf(expense, participants);
 	const paid = paidStateOf(expense, payers, yourName);
 
 	return (
-		<div className={styles.row} onClick={onClick}>
+		<div {...activatable(onClick, styles.row, { focusKey })}>
 			<div className={styles.line}>
 				<span className={styles.label}>{expense.label}</span>
 				{expense.settled ? (

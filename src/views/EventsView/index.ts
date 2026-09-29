@@ -69,6 +69,7 @@ import {
 } from "@/utils/eventList";
 import { weekStartsOn } from "@/utils/calendarGrid";
 import { SearchBox } from "@/components/searchBox";
+import { FocusKeeper, setFocusKey } from "@/components/activatable";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
 
@@ -95,6 +96,8 @@ export class EventsView extends ItemView {
 	private contacts: ContactWithCountdown[] = [];
 	private searchQuery = "";
 	private readonly search = new SearchBox();
+	/** Keyboard focus across a redraw — see FocusKeeper. */
+	private readonly focusKeeper = new FocusKeeper();
 	private focusPath: string | null = null;
 	private listEl: HTMLElement | null = null;
 
@@ -369,6 +372,7 @@ export class EventsView extends ItemView {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		this.search.hold();
+		this.focusKeeper.hold(container);
 		container.empty();
 		container.addClass("dashboard-container", "somedays-container");
 
@@ -412,6 +416,7 @@ export class EventsView extends ItemView {
 		});
 
 		container.scrollTop = scrollTop;
+		this.focusKeeper.restore(container);
 	}
 
 	private filterPill(
@@ -425,8 +430,16 @@ export class EventsView extends ItemView {
 		const pill = row.createEl("button", {
 			cls: `someday-filter-pill${active ? " is-active" : ""}`,
 			text: count === undefined ? label : `${label} • ${count}`,
-			attr: { type: "button" },
+			attr: { type: "button", "aria-pressed": String(active) },
 		});
+		// A pick redraws the page, pills and all: focus comes back to this
+		// one, found by its row's label and its own.
+		const group =
+			row
+				.closest(".someday-filter-row")
+				?.querySelector(".someday-filter-label")?.textContent ??
+			row.className;
+		setFocusKey(pill, `pill:${group}:${label}`);
 		pill.addEventListener("click", onClick);
 		return pill;
 	}
@@ -1062,6 +1075,7 @@ export class EventsView extends ItemView {
 			// one thing worth catching your eye on a calendar.
 			tone: fields.tone === "past" ? undefined : fields.tone,
 			onClick: () => this.openItem(event),
+			focusKey: `row:${event.file.path}`,
 		});
 		// The day list under a narrow grid is where a cancelled event gets
 		// read, since its cell has no room to say so — see the glyphs.

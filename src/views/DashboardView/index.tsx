@@ -42,6 +42,7 @@ import {
 	renderSecretActions,
 } from "@/views/DashboardView/sections/tools";
 import { SearchBox } from "@/components/searchBox";
+import { FocusKeeper } from "@/components/activatable";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -94,6 +95,8 @@ export class DashboardView extends ItemView implements DashboardContext {
 	private pageWide = false;
 	readonly ui = { searchQuery: "" };
 	readonly searchBox = new SearchBox();
+	/** Keyboard focus across a redraw — see FocusKeeper. */
+	private readonly focusKeeper = new FocusKeeper();
 	// Only used when the Somedays sort is "Random" — fixed for the life of
 	// this dashboard so the list doesn't reshuffle on every refresh.
 	readonly somedaySeed = newRandomSeed();
@@ -188,6 +191,7 @@ export class DashboardView extends ItemView implements DashboardContext {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		this.searchBox.hold();
+		this.focusKeeper.hold(container);
 		container.empty();
 		container.addClass("dashboard-container", "dashboard-home-container");
 
@@ -207,5 +211,6 @@ export class DashboardView extends ItemView implements DashboardContext {
 		});
 
 		container.scrollTop = scrollTop;
+		this.focusKeeper.restore(container);
 	}
 }

@@ -7,6 +7,7 @@ import { EventModal } from "@/modals/EventModal";
 import { DraftEditModal } from "@/modals/DraftEditModal";
 import { wholeDaysBetween } from "@/utils/dates";
 import type { DashboardContext } from "@/views/DashboardView/context";
+import { makeDisclosure } from "@/components/activatable";
 
 export function renderDrafts(ctx: DashboardContext, container: HTMLElement) {
 	const ops = ctx.plugin.contactOperations;
@@ -58,15 +59,20 @@ export function renderDrafts(ctx: DashboardContext, container: HTMLElement) {
 	const applyOpen = () =>
 		wrap.toggleClass("is-open", !ctx.plugin.settings.draftsCollapsed);
 	applyOpen();
-	header.addEventListener("click", () => {
-		ctx.plugin.settings.draftsCollapsed =
-			!ctx.plugin.settings.draftsCollapsed;
-		applyOpen();
-		// Persisted rather than held on the view: the dashboard is torn
-		// down and rebuilt on every open, so in-memory state would spring
-		// back open each time.
-		void ctx.plugin.saveSettings();
-	});
+	makeDisclosure(
+		header,
+		wrap,
+		() => {
+			ctx.plugin.settings.draftsCollapsed =
+				!ctx.plugin.settings.draftsCollapsed;
+			applyOpen();
+			// Persisted rather than held on the view: the dashboard is
+			// torn down and rebuilt on every open, so in-memory state
+			// would spring back open each time.
+			void ctx.plugin.saveSettings();
+		},
+		"section:drafts"
+	);
 
 	for (const item of all) {
 		renderDraftRow(ctx, section, item, ops);

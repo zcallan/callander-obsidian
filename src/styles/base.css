@@ -308,7 +308,8 @@
 	right: 0;
 }
 
-.contact-timeline-item:hover .contact-timeline-actions {
+.contact-timeline-item:hover .contact-timeline-actions,
+.contact-timeline-item:focus-within .contact-timeline-actions {
 	opacity: 1;
 }
 
@@ -450,7 +451,8 @@
 	opacity: 0.5;
 }
 
-.contact-name-row:hover .contact-name-edit {
+.contact-name-row:hover .contact-name-edit,
+.contact-name-row:focus-within .contact-name-edit {
 	opacity: 1;
 }
 
@@ -578,10 +580,11 @@
 	background: var(--background-modifier-form-field);
 }
 
+/* Obsidian's own ring. The border's change of colour on its own was the
+   only sign of focus, at about 1.5:1 against the border it replaced. */
 .contact-notes-section .contact-notes-empty:focus-visible {
 	border-color: var(--background-modifier-border-focus);
-	box-shadow: none;
-	outline: none;
+	box-shadow: 0 0 0 3px var(--background-modifier-border-focus);
 }
 
 /* ── Notes, native editor (experimental) ──
@@ -1139,7 +1142,8 @@ body.callander-kb-open .callander-modal-buttons {
 	transition: opacity 0.2s ease;
 }
 
-.contact-idea-item:hover .button-icon {
+.contact-idea-item:hover .button-icon,
+.contact-idea-item:focus-within .button-icon {
 	opacity: 1;
 }
 
@@ -3173,7 +3177,8 @@ body.is-mobile.callander-kb-open .callander-modal-content > * {
 	flex-shrink: 0;
 }
 
-.friend-list-row:hover .button-icon {
+.friend-list-row:hover .button-icon,
+.friend-list-row:focus-within .button-icon {
 	opacity: 1;
 }
 
@@ -7070,4 +7075,13 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 .calendar-colors-modal .callander-color-swatch:focus-visible,
 .fullcal-drawer .fullcal-drawer-more:focus-visible {
 	box-shadow: 0 0 0 3px var(--background-modifier-border-focus);
+}
+
+/* Rows, cells, chips and headers that work as buttons (makeActivatable,
+   activatable). Obsidian rings only real buttons, so these draw the ring
+   its own list items use: an inset outline, since a row sits flush
+   against the next and a ring outside it would be clipped or overlap. */
+.callander-activatable:focus-visible {
+	outline: 2px solid var(--background-modifier-border-focus);
+	outline-offset: -2px;
 }

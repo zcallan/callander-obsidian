@@ -11,6 +11,7 @@ import { Icon } from "@/ui/components/Icon";
 import { GeneratedBadge } from "@/ui/components/GeneratedBadge";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
 import { startsWithEmoji } from "@/utils/emoji";
+import { activatable } from "@/ui/a11y";
 
 /** One parked idea: type emoji, text, then the days it could happen on. */
 function QuickIdeaRow({
@@ -37,8 +38,10 @@ function QuickIdeaRow({
 
 	return (
 		<div
-			className="contact-timeline-item plan-timeline-item timeline-idea plan-quick-idea-row"
-			onClick={onClick}
+			{...activatable(
+				onClick,
+				"contact-timeline-item plan-timeline-item timeline-idea plan-quick-idea-row"
+			)}
 		>
 			<div className="contact-timeline-dot timeline-dot-idea" />
 			<div className="contact-timeline-text">

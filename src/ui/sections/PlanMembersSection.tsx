@@ -1,5 +1,6 @@
 import { Icon } from "@/ui/components/Icon";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
+import { activatable } from "@/ui/a11y";
 
 /** A member as the chip needs them: resolved name, and the note if it exists. */
 export interface PlanMemberChip {
@@ -55,8 +56,11 @@ export function PlanMembersSection({
 	const name = (chip: PlanMemberChip) =>
 		chip.path ? (
 			<span
-				className="plan-chip-name"
-				onClick={() => onOpen(chip.path as string)}
+				{...activatable(
+					() => onOpen(chip.path as string),
+					"plan-chip-name",
+					{ role: "link", focusKey: `member:${chip.path}` }
+				)}
 			>
 				{chip.display}
 			</span>
@@ -80,9 +84,11 @@ export function PlanMembersSection({
 					>
 						{name(chip)}
 						<span
-							className="contact-member-remove"
-							aria-label="Remove from plan"
-							onClick={() => onRemove(chip.index)}
+							{...activatable(
+								() => onRemove(chip.index),
+								"contact-member-remove",
+								{ label: `Remove ${chip.display} from the plan` }
+							)}
 						>
 							✕
 						</span>
@@ -101,18 +107,20 @@ export function PlanMembersSection({
 							>
 								{name(chip)}
 								<span
-									className="plan-chip-confirm"
-									aria-label="Confirm — they're in"
-									onClick={() => onConfirm(chip.index)}
+									{...activatable(
+										() => onConfirm(chip.index),
+										"plan-chip-confirm",
+										{ label: `Confirm ${chip.display} — they're in` }
+									)}
 								>
 									✓
 								</span>
 								<span
-									className="contact-member-remove"
-									aria-label="Remove"
-									onClick={() =>
-										onRemoveUnconfirmed(chip.index)
-									}
+									{...activatable(
+										() => onRemoveUnconfirmed(chip.index),
+										"contact-member-remove",
+										{ label: `Remove ${chip.display}` }
+									)}
 								>
 									✕
 								</span>

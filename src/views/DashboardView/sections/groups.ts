@@ -2,6 +2,7 @@ import { setIcon } from "obsidian";
 import { GroupModal } from "@/modals/GroupModal";
 import { formatCount } from "@/utils/text";
 import type { DashboardContext } from "@/views/DashboardView/context";
+import { makeActivatable } from "@/components/activatable";
 
 export function renderGroups(ctx: DashboardContext, container: HTMLElement) {
 	const ops = ctx.plugin.contactOperations;
@@ -52,7 +53,10 @@ export function renderGroups(ctx: DashboardContext, container: HTMLElement) {
 				info.file ?? (await ops.ensureGroupFile(info.name));
 			await ctx.openContact(file);
 		};
-		label.addEventListener("click", () => void handleOpenGroup());
+		makeActivatable(label, () => void handleOpenGroup(), {
+			role: "link",
+			focusKey: `group:${info.name}`,
+		});
 
 		const manageButton = row.createEl("button", {
 			cls: "callander-button button-icon dashboard-row-action",

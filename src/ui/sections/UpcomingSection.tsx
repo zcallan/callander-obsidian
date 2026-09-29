@@ -26,6 +26,7 @@ import { UpcomingSettingsModal } from "@/modals/UpcomingSettingsModal";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { Icon } from "@/ui/components/Icon";
 import { TimezoneBanner } from "@/ui/components/TimezoneBanner";
+import { activatable } from "@/ui/a11y";
 
 /**
  * What's next — the section this dashboard mostly exists for.
@@ -153,6 +154,7 @@ export function UpcomingSection() {
 			})}
 			{...(event.type === "task" ? { action: doneAction(event) } : {})}
 			onClick={() => openEvent(event)}
+			focusKey={`upcoming:${event.file.path}`}
 		/>
 	);
 
@@ -177,6 +179,7 @@ export function UpcomingSection() {
 		return (
 			<UpcomingRow
 				key={plan.file.path}
+				focusKey={`upcoming:${plan.file.path}`}
 				icon={lead?.emoji ?? "🗺️"}
 				date={when.date}
 				name={lead ? lead.rest : plan.name}
@@ -287,8 +290,11 @@ export function UpcomingSection() {
 
 			{hiddenCount > 0 && (
 				<div
-					className="section-helper-text dashboard-row-clickable"
-					onClick={() => void plugin.activateEvents(undefined, { here: true })}
+					{...activatable(
+						() => void plugin.activateEvents(undefined, { here: true }),
+						"section-helper-text dashboard-row-clickable",
+						{ role: "link" }
+					)}
 				>
 					View all upcoming events
 				</div>

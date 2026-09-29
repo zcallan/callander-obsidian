@@ -1,5 +1,6 @@
 import { Icon } from "@/ui/components/Icon";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
+import { activatable } from "@/ui/a11y";
 
 /**
  * Small things worth remembering about someone — a flat list of lines.
@@ -33,8 +34,11 @@ export function FunFactsSection({
 					{rows.map((fact, index) => (
 						<div
 							key={index}
-							className="contact-funfact-item plan-clickable-row"
-							onClick={() => onOpen(index)}
+							{...activatable(
+								() => onOpen(index),
+								"contact-funfact-item plan-clickable-row",
+								{ focusKey: `fun-fact:${index}` }
+							)}
 						>
 							<span className="contact-funfact-text">{fact}</span>
 						</div>

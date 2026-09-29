@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { makeDisclosure } from "@/components/activatable";
 
 export interface ModalAccordion {
 	/** Where the folded-away fields go. */
@@ -28,23 +29,17 @@ export function appendModalAccordion(
 	});
 	const header = wrap.createDiv({
 		cls: "plan-accordion-header callander-modal-accordion-header",
-		attr: { role: "button", tabindex: "0", "aria-expanded": "false" },
 	});
 	header.createSpan({ text: label });
 	setIcon(header.createSpan({ cls: "plan-accordion-chevron" }), "chevron-down");
 	const body = wrap.createDiv({ cls: "plan-accordion-body" });
 
+	makeDisclosure(header, wrap, () =>
+		wrap.toggleClass("is-open", !wrap.hasClass("is-open"))
+	);
 	const setOpen = (open: boolean) => {
 		wrap.toggleClass("is-open", open);
 		header.setAttribute("aria-expanded", String(open));
 	};
-	const toggle = () => setOpen(!wrap.hasClass("is-open"));
-	header.addEventListener("click", toggle);
-	header.addEventListener("keydown", (e) => {
-		if (e.key !== "Enter" && e.key !== " ") return;
-		// Space would scroll the form, and Enter reach a form's submit.
-		e.preventDefault();
-		toggle();
-	});
 	return { body, setOpen };
 }

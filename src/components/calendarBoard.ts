@@ -21,6 +21,11 @@ import { splitLeadingEmoji } from "@/utils/emoji";
 import { needsDarkText } from "@/utils/contrastColor";
 import { PLAN_ICON, planDays, planSpanLabel } from "@/utils/planRow";
 import { monthStep } from "@/utils/dates";
+import {
+	keepingFocus,
+	makeActivatable,
+	setFocusKey,
+} from "@/components/activatable";
 
 /**
  * The month / week calendar, shared by the Events page's Calendar tab and the
@@ -314,7 +319,10 @@ function appendBar(board: Board) {
 			text: narrowLabel && board.narrow ? narrowLabel : label,
 			attr: { type: "button", "aria-label": aria },
 		});
-		b.addEventListener("click", onClick);
+		// Paging redraws the whole board, this button with it; focus
+		// follows it to the new one rather than to the top of the page.
+		setFocusKey(b, `cal-nav:${aria}`);
+		b.addEventListener("click", () => keepingFocus(b, onClick));
 	};
 	button("‹", "Previous", () => step(-1));
 	button(
@@ -343,12 +351,15 @@ function appendBar(board: Board) {
 				"aria-pressed": String(active),
 			},
 		});
-		b.addEventListener("click", () => {
-			if (state.mode === mode) return;
-			state.mode = mode;
-			opts.rerender();
-			opts.onModeChange(mode);
-		});
+		setFocusKey(b, `cal-mode:${mode}`);
+		b.addEventListener("click", () =>
+			keepingFocus(b, () => {
+				if (state.mode === mode) return;
+				state.mode = mode;
+				opts.rerender();
+				opts.onModeChange(mode);
+			})
+		);
 	}
 }
 
@@ -367,7 +378,7 @@ function appendCell(
 	const cell = grid.createDiv({ cls: cls.join(" ") });
 
 	const head = cell.createDiv({ cls: "cal-cell-head" });
-	head.createSpan({ cls: "cal-daynum", text: String(day.day) });
+	const dayNum = head.createSpan({ cls: "cal-daynum", text: String(day.day) });
 	if (state.mode === "week") {
 		const dow = new Date(day.date + "T00:00:00").getDay();
 		head.createSpan({
@@ -508,7 +519,7 @@ function appendCell(
 
 	// Empty space in a cell adds something on that day. The chips stop
 	// their own clicks, so this only fires where nothing was hit.
-	cell.addEventListener("click", () => {
+	const pick = () => {
 		// Measured now, not when the grid was drawn: a page drawn as it
 		// opens hasn't been laid out yet and reads as zero wide, which used
 		// to make every tap on a phone open the Add event modal.
@@ -523,6 +534,14 @@ function appendCell(
 		// underneath.
 		if (narrow) opts.rerender();
 		else opts.onAdd(day.date);
+	};
+	cell.addEventListener("click", pick);
+	// The cell holds chips that are buttons of their own, so it can't be
+	// one; the keyboard reaches its empty space through the day number.
+	makeActivatable(dayNum, pick, {
+		keysOnly: true,
+		label: formatShortWeekdayDate(new Date(day.date + "T00:00:00")),
+		focusKey: `cal-day:${day.date}`,
 	});
 	return cell;
 }
@@ -560,7 +579,7 @@ function appendName(
 	// falling through to the cell's own click — but also selects this day
 	// itself, so closing the modal leaves its other items in view instead
 	// of whatever day was selected (or none) before the tap.
-	name.addEventListener("click", (e) => {
+	makeActivatable(name, (e) => {
 		e.stopPropagation();
 		selectDay(board, date);
 		item.open();
@@ -614,7 +633,7 @@ function appendNameBar(
 		);
 		if (meta) bar.createDiv({ cls: "cal-name-meta", text: meta });
 	}
-	bar.addEventListener("click", (e) => {
+	makeActivatable(bar, (e) => {
 		e.stopPropagation();
 		selectDay(board, date);
 		item.open();
@@ -870,7 +889,7 @@ function appendChip(
 		}
 	}
 
-	chip.addEventListener("click", (e) => {
+	makeActivatable(chip, (e) => {
 		e.stopPropagation();
 		item.open();
 	});

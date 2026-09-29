@@ -12,6 +12,7 @@ import {
 } from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { truncate } from "@/utils/text";
+import { makeActivatable } from "@/components/activatable";
 
 /**
  * What one timeline row needs to draw itself — the common ground between
@@ -188,7 +189,7 @@ export class EventTimeline {
 
 		// Tapping the item opens the edit modal (the only path on mobile,
 		// where the hover action buttons don't exist).
-		item.addEventListener("click", () => {
+		const open = () => {
 			if (content.event) {
 				this.view.openEditEventModal(content.event);
 				return;
@@ -197,7 +198,8 @@ export class EventTimeline {
 			if (target) {
 				void this.view.app.workspace.openLinkText(target, "", true);
 			}
-		});
+		};
+		item.addEventListener("click", open);
 
 		// Typed events get a coloured dot; untyped render neutral. The colour
 		// comes from EVENT_TYPES rather than a `.type-x` CSS rule, so the
@@ -233,10 +235,17 @@ export class EventTimeline {
 			});
 		}
 
-		const textEl = item.createDiv({
-			cls: "contact-timeline-text",
-			text: lead ? lead.rest : content.name,
-		});
+		const textEl = item.createDiv({ cls: "contact-timeline-text" });
+		// The item holds buttons and badges of its own, so it can't be a
+		// button itself: the keyboard reaches it through its title.
+		makeActivatable(
+			textEl.createSpan({ text: lead ? lead.rest : content.name }),
+			open,
+			{
+				keysOnly: true,
+				focusKey: `timeline:${content.event?.file.path ?? content.plan}`,
+			}
+		);
 		appendGeneratedBadge(textEl, content.generated);
 
 		// Where it happened, as a bullet after the text
@@ -263,12 +272,15 @@ export class EventTimeline {
 			const badgeEl = textEl.createSpan({
 				cls: "contact-timeline-source",
 				text: " 🗺️",
-				attr: { "aria-label": "Open plan" },
 			});
-			badgeEl.addEventListener("click", (e) => {
-				e.stopPropagation();
-				void this.view.app.workspace.openLinkText(target, "", true);
-			});
+			makeActivatable(
+				badgeEl,
+				(e) => {
+					e.stopPropagation();
+					void this.view.app.workspace.openLinkText(target, "", true);
+				},
+				{ role: "link", label: "Open plan" }
+			);
 		}
 
 		// Provenance badge: this event came from a diary entry
@@ -277,12 +289,15 @@ export class EventTimeline {
 			const badgeEl = textEl.createSpan({
 				cls: "contact-timeline-source",
 				text: " 📖",
-				attr: { "aria-label": "Open diary entry" },
 			});
-			badgeEl.addEventListener("click", (e) => {
-				e.stopPropagation();
-				void this.view.app.workspace.openLinkText(source, "", true);
-			});
+			makeActivatable(
+				badgeEl,
+				(e) => {
+					e.stopPropagation();
+					void this.view.app.workspace.openLinkText(source, "", true);
+				},
+				{ role: "link", label: "Open diary entry" }
+			);
 		}
 
 		// Actions — a derived plan row has no stored event behind it, so

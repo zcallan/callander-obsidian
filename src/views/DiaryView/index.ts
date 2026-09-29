@@ -14,6 +14,7 @@ import { truncate } from "@/utils/text";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { registerPageRefresh } from "@/utils/vaultRefresh";
 import { runAction } from "@/utils/async";
+import { FocusKeeper, makeActivatable } from "@/components/activatable";
 
 export const VIEW_TYPE_DIARY = "callander-diary-view";
 
@@ -25,6 +26,8 @@ export class DiaryView extends ItemView {
 	/** Widened for this view only, until it closes. */
 	private pageWide = false;
 	private expandedPath: string | null = null;
+	/** Keyboard focus across a redraw — see FocusKeeper. */
+	private readonly focusKeeper = new FocusKeeper();
 	/** What the current render's markdown hangs from (renderBody). */
 	private renderChild: Component | null = null;
 
@@ -92,6 +95,7 @@ export class DiaryView extends ItemView {
 		this.renderChild = new Component();
 		this.renderChild.load();
 		const container = this.contentEl;
+		this.focusKeeper.hold(container);
 		container.empty();
 		container.addClass("diary-view-container");
 
@@ -127,6 +131,7 @@ export class DiaryView extends ItemView {
 				this.renderEntryCard(list, entry);
 			}
 		}
+		this.focusKeeper.restore(container);
 	}
 
 	private monthLabel(dateStr: string): string {
@@ -178,10 +183,17 @@ export class DiaryView extends ItemView {
 			}
 		}
 
-		cardHeader.addEventListener("click", () => {
-			this.expandedPath = isExpanded ? null : entry.file.path;
-			this.render();
-		});
+		// Opening it redraws the page, and focus follows the header to its
+		// successor (the focus key) rather than dropping to the top.
+		makeActivatable(
+			cardHeader,
+			() => {
+				this.expandedPath = isExpanded ? null : entry.file.path;
+				this.render();
+			},
+			{ focusKey: `diary:${entry.file.path}` }
+		);
+		cardHeader.setAttribute("aria-expanded", String(isExpanded));
 
 		if (!isExpanded) return;
 

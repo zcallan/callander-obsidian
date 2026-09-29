@@ -31,6 +31,7 @@ import {
 	isFilledField,
 } from "@/utils/contactPage";
 import type { PageContext } from "@/views/ContactPageView/context";
+import { makeActivatable, makeDisclosure } from "@/components/activatable";
 
 /** "About": the person's attribute fields, in an accordion that remembers
  * whether it was open. */
@@ -66,12 +67,17 @@ export function renderAbout(ctx: PageContext, container: HTMLElement) {
 	// state would spring back closed the moment anything changed.
 	// Same treatment as the dashboard's draftsCollapsed.
 	infoWrap.toggleClass("is-open", ctx.plugin.settings.aboutExpanded);
-	infoHeader.addEventListener("click", () => {
-		const open = !ctx.plugin.settings.aboutExpanded;
-		ctx.plugin.settings.aboutExpanded = open;
-		infoWrap.toggleClass("is-open", open);
-		ctx.saveLayoutSetting();
-	});
+	makeDisclosure(
+		infoHeader,
+		infoWrap,
+		() => {
+			const open = !ctx.plugin.settings.aboutExpanded;
+			ctx.plugin.settings.aboutExpanded = open;
+			infoWrap.toggleClass("is-open", open);
+			ctx.saveLayoutSetting();
+		},
+		"section:about"
+	);
 }
 
 function renderInfoSection(ctx: PageContext, container: HTMLElement) {
@@ -150,14 +156,18 @@ function renderInfoSection(ctx: PageContext, container: HTMLElement) {
 						const dest = fileOf.get(g);
 						if (!dest) continue;
 						label.addClass("contact-group-chip-link");
-						label.addEventListener("click", (e) => {
-							e.stopPropagation();
-							void ctx.app.workspace.openLinkText(
-								dest.path,
-								ctx.model.file?.path ?? "",
-								true
-							);
-						});
+						makeActivatable(
+							label,
+							(e) => {
+								e.stopPropagation();
+								void ctx.app.workspace.openLinkText(
+									dest.path,
+									ctx.model.file?.path ?? "",
+									true
+								);
+							},
+							{ role: "link" }
+						);
 					}
 					return;
 				}

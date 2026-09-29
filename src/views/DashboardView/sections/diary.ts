@@ -1,5 +1,6 @@
 import { shortenMemberNames, shortNameOverrides } from "@/utils/nameFormat";
 import type { DashboardContext } from "@/views/DashboardView/context";
+import { makeActivatable } from "@/components/activatable";
 
 /** How many recent diary entries the dashboard shows. */
 const DASHBOARD_DIARY_ENTRIES = 3;
@@ -79,8 +80,10 @@ export function renderDiary(ctx: DashboardContext, container: HTMLElement) {
 			});
 		}
 
-		row.addEventListener("click", () =>
-			void ctx.app.workspace.getLeaf(false).openFile(entry.file)
+		makeActivatable(
+			row,
+			() => void ctx.app.workspace.getLeaf(false).openFile(entry.file),
+			{ role: "link", focusKey: `diary:${entry.file.path}` }
 		);
 	}
 }

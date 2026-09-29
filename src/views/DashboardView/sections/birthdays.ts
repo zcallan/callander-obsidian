@@ -12,6 +12,7 @@ import {
 } from "@/utils/birthdayLists";
 import { runAction } from "@/utils/async";
 import type { DashboardContext } from "@/views/DashboardView/context";
+import { makeDisclosure } from "@/components/activatable";
 
 export function renderUpcomingBirthdays(
 	ctx: DashboardContext,
@@ -47,15 +48,20 @@ export function renderUpcomingBirthdays(
 			!ctx.plugin.settings.birthdaysCollapsed
 		);
 	applyOpen();
-	header.addEventListener("click", () => {
-		ctx.plugin.settings.birthdaysCollapsed =
-			!ctx.plugin.settings.birthdaysCollapsed;
-		applyOpen();
-		// Persisted rather than held on the view: the dashboard is torn
-		// down and rebuilt on every open, so in-memory state would
-		// spring back open each time.
-		void ctx.plugin.saveSettings();
-	});
+	makeDisclosure(
+		header,
+		wrap,
+		() => {
+			ctx.plugin.settings.birthdaysCollapsed =
+				!ctx.plugin.settings.birthdaysCollapsed;
+			applyOpen();
+			// Persisted rather than held on the view: the dashboard is
+			// torn down and rebuilt on every open, so in-memory state
+			// would spring back open each time.
+			void ctx.plugin.saveSettings();
+		},
+		"section:birthdays"
+	);
 
 	if (upcoming.length === 0) {
 		section.createDiv({
@@ -103,6 +109,7 @@ export function renderUpcomingBirthdays(
 			// the only tone that applies here.
 			tone: days <= 1 ? "soon" : undefined,
 			onClick: () => void ctx.openContact(c.file),
+			focusKey: `birthday:${c.file.path}`,
 			// Today swaps the countdown for the same Done action Missed
 			// birthdays offers — there's nothing left to count down to.
 			action: isToday
@@ -181,6 +188,7 @@ export function renderMissedBirthdays(
 			suffixTone: "past",
 			relative: "",
 			onClick: () => void ctx.openContact(c.file),
+			focusKey: `missed:${c.file.path}`,
 			action: {
 				icon: "check",
 				label: "Done",

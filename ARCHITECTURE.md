@@ -64,6 +64,8 @@ Handlers take the model they were started on and keep it across awaits. Render c
 
 Modals stay Obsidian's `Modal`, because Escape, focus trapping and backdrop behaviour all hang off it. Every one extends `CallanderModal`, which marks it as Callander's, so the stylesheet's modal rules and mobile keyboard handling reach Callander's modals and nobody else's. `FormModal` adds protection against a stray backdrop click discarding edits (any field, and any button outside the Save / Cancel row, counts as an edit), and the shared Enter-to-submit and initial-focus rules. A form's "Additional details" fold is `appendModalAccordion` (`components/modalAccordion.ts`), and a page's search box is a `SearchBox` (`components/searchBox.ts`), which keeps its focus when the page redraws around it.
 
+Rows, cells, chips and accordion headers are mostly divs, for their layout's sake, so they're made keyboard-operable by `makeActivatable` and `makeDisclosure` (`components/activatable.ts`), or `activatable()` in JSX (`ui/a11y.ts`). Each page keeps keyboard focus across its redraws with a `FocusKeeper`, finding the focused element again by its focus key. CLAUDE.md's "Keyboard access" has the rules.
+
 ## Shared primitives
 
 Before writing a helper, check these; most small date and text operations already have one.

@@ -4,6 +4,7 @@ import { sortSomedays } from "@/utils/somedaySort";
 import { somedayRowParts } from "@/utils/somedayRow";
 import { buildSomedayRow } from "@/components/SomedayRow";
 import type { DashboardContext } from "@/views/DashboardView/context";
+import { makeActivatable } from "@/components/activatable";
 
 export function renderSomedays(ctx: DashboardContext, container: HTMLElement) {
 	// Ordered by whatever sort the Somedays page is set to, so the five
@@ -63,17 +64,21 @@ export function renderSomedays(ctx: DashboardContext, container: HTMLElement) {
 			cls: "dashboard-row dashboard-row-clickable dashboard-someday-row",
 		});
 		buildSomedayRow(row, somedayRowParts(s, now));
-		row.addEventListener("click", () => {
-			new SomedayViewModal(ctx.app, ctx.plugin, s).open();
-		});
+		makeActivatable(
+			row,
+			() => new SomedayViewModal(ctx.app, ctx.plugin, s).open(),
+			{ focusKey: `someday:${s.file.path}` }
+		);
 	}
 	if (somedays.length > shown) {
 		const more = section.createDiv({
 			cls: "section-helper-text dashboard-row-clickable",
 			text: `+${somedays.length - shown} more on the Somedays page`,
 		});
-		more.addEventListener("click", () =>
-			void ctx.plugin.activateSomedays(undefined, { here: true })
+		makeActivatable(
+			more,
+			() => void ctx.plugin.activateSomedays(undefined, { here: true }),
+			{ role: "link" }
 		);
 	}
 }

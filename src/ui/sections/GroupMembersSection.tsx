@@ -3,6 +3,7 @@ import { formatFlexDate, parseFlexDate } from "@/utils/flexdate";
 import { usePlugin } from "@/ui/PluginContext";
 import { useVaultQuery } from "@/ui/useVaultData";
 import { Icon } from "@/ui/components/Icon";
+import { activatable } from "@/ui/a11y";
 
 const NO_CONTACTS: ContactWithCountdown[] = [];
 
@@ -54,15 +55,20 @@ export function GroupMembersSection({
 							}
 						>
 							<span
-								className="plan-chip-name"
-								onClick={() => onOpen(m.file.path)}
+								{...activatable(
+									() => onOpen(m.file.path),
+									"plan-chip-name",
+									{ role: "link", focusKey: `member:${m.file.path}` }
+								)}
 							>
 								{m.displayName}
 							</span>
 							<span
-								className="contact-member-remove"
-								aria-label="Remove from group"
-								onClick={() => onRemove(m)}
+								{...activatable(
+									() => onRemove(m),
+									"contact-member-remove",
+									{ label: `Remove ${m.displayName} from the group` }
+								)}
 							>
 								✕
 							</span>

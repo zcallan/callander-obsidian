@@ -2,6 +2,7 @@ import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import { guardedAction } from "@/components/guardedAction";
 import type { ContactWithCountdown } from "@/types";
+import { makeActivatable } from "@/components/activatable";
 
 interface GroupOption {
 	name: string;
@@ -110,7 +111,7 @@ export class AddPlanMemberModal extends FormModal {
 			const el = listEl.createDiv({
 				cls: "friend-list-row plan-member-result",
 			});
-			el.addEventListener("click", () => void add(c, c.displayName));
+			makeActivatable(el, () => void add(c, c.displayName));
 			const info = el.createDiv({ cls: "friend-list-info" });
 			const main = info.createDiv({ cls: "friend-list-main" });
 			main.createSpan({ cls: "friend-list-name", text: c.displayName });
@@ -143,7 +144,7 @@ export class AddPlanMemberModal extends FormModal {
 				const el = listEl.createDiv({
 					cls: "friend-list-row plan-member-result plan-member-guest",
 				});
-				el.addEventListener("click", () => void add(null, raw));
+				makeActivatable(el, () => void add(null, raw));
 				el.createDiv({
 					cls: "friend-list-info",
 				}).createDiv({

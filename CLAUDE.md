@@ -133,6 +133,15 @@ If a modal's *contents* want React, `createRoot(modal.contentEl)` — keep the `
 
 **Extend `FormModal`, not `Modal`, for anything with fields.** It suppresses backdrop-click dismissal once the user has edited something, so a stray click can't discard in-progress input. Escape and the ✕ still close normally.
 
+## Keyboard access
+
+Anything clickable that isn't a `<button>`, or a link with an `href`, goes through `makeActivatable` (`src/components/activatable.ts`) or, in JSX, `activatable()` (`src/ui/a11y.ts`). That makes it focusable, announced as a button (or a link), run by Enter and Space as well as a click, and ringed by `.callander-activatable:focus-visible`. A bare `div` with a click listener can't be reached from the keyboard at all, and nothing warns you.
+
+- **A row that holds buttons of its own can't be a button**: a button inside a button is lost to a screen reader. Keep the row's click for the mouse and give its title `keysOnly: true`, so the title is the keyboard's way in.
+- **An accordion header is `makeDisclosure`**, which keeps `aria-expanded` in step with the section.
+- **A redraw drops keyboard focus to the top of the page**, and every page redraws on vault changes. Give anything that can have focus a `focusKey` (a path, a day), and have the page's `render()` call a `FocusKeeper`'s `hold()` before it empties and `restore()` once drawn. A `<button>` that redraws its own page wraps its click in `keepingFocus`.
+- **A control shown only on `:hover` needs `:focus-within` as well**, or Tab lands on a button nobody can see.
+
 ## Styling
 
 - `src/styles/base.css` is global and holds the Obsidian-shell integration. `src/main.ts` imports it first, so esbuild bundles it ahead of the compiled `.module.css` into the one `styles.css` Obsidian loads; that file is generated and gitignored.

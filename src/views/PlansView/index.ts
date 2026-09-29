@@ -23,6 +23,7 @@ import type { EventWhen } from "@/utils/eventRow";
 import { weekStartsOn } from "@/utils/calendarGrid";
 import { runAction } from "@/utils/async";
 import { SearchBox } from "@/components/searchBox";
+import { FocusKeeper, setFocusKey } from "@/components/activatable";
 
 export const VIEW_TYPE_PLANS = "callander-plans";
 
@@ -46,6 +47,8 @@ export class PlansView extends ItemView {
 	private contacts: ContactWithCountdown[] = [];
 	private searchQuery = "";
 	private readonly search = new SearchBox();
+	/** Keyboard focus across a redraw — see FocusKeeper. */
+	private readonly focusKeeper = new FocusKeeper();
 	private listEl: HTMLElement | null = null;
 
 	// Filters — one status and one person at a time, like the Events page's
@@ -195,6 +198,7 @@ export class PlansView extends ItemView {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		this.search.hold();
+		this.focusKeeper.hold(container);
 		container.empty();
 		container.addClass("dashboard-container", "somedays-container");
 
@@ -230,6 +234,7 @@ export class PlansView extends ItemView {
 		});
 
 		container.scrollTop = scrollTop;
+		this.focusKeeper.restore(container);
 	}
 
 	private filterPill(
@@ -243,8 +248,16 @@ export class PlansView extends ItemView {
 		const pill = row.createEl("button", {
 			cls: `someday-filter-pill${active ? " is-active" : ""}`,
 			text: count === undefined ? label : `${label} • ${count}`,
-			attr: { type: "button" },
+			attr: { type: "button", "aria-pressed": String(active) },
 		});
+		// A pick redraws the page, pills and all: focus comes back to this
+		// one, found by its row's label and its own.
+		const group =
+			row
+				.closest(".someday-filter-row")
+				?.querySelector(".someday-filter-label")?.textContent ??
+			row.className;
+		setFocusKey(pill, `pill:${group}:${label}`);
 		pill.addEventListener("click", onClick);
 		return pill;
 	}
@@ -515,6 +528,7 @@ export class PlansView extends ItemView {
 			// not the glance the Events page uses, whose "Hide from this
 			// list" is about a list this one deliberately isn't.
 			onClick: () => void this.plugin.openContactPage(item.plan.file),
+			focusKey: `row:${item.plan.file.path}`,
 		});
 	}
 

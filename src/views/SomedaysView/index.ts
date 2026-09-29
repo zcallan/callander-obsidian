@@ -33,6 +33,7 @@ import { somedayRowParts } from "@/utils/somedayRow";
 import { buildSomedayRow } from "@/components/SomedayRow";
 import { inFolders, registerPageRefresh } from "@/utils/vaultRefresh";
 import { SearchBox } from "@/components/searchBox";
+import { FocusKeeper, makeActivatable, setFocusKey } from "@/components/activatable";
 
 export const VIEW_TYPE_SOMEDAYS = "callander-somedays";
 
@@ -50,6 +51,8 @@ export class SomedaysView extends ItemView {
 	private pageWide = false;
 	private searchQuery = "";
 	private readonly search = new SearchBox();
+	/** Keyboard focus across a redraw — see FocusKeeper. */
+	private readonly focusKeeper = new FocusKeeper();
 	private focusPath: string | null = null;
 	private listEl: HTMLElement | null = null;
 
@@ -244,6 +247,7 @@ export class SomedaysView extends ItemView {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
 		this.search.hold();
+		this.focusKeeper.hold(container);
 		container.empty();
 		container.addClass("dashboard-container", "somedays-container");
 
@@ -290,6 +294,7 @@ export class SomedaysView extends ItemView {
 		});
 
 		container.scrollTop = scrollTop;
+		this.focusKeeper.restore(container);
 	}
 
 	private filterPill(
@@ -302,8 +307,16 @@ export class SomedaysView extends ItemView {
 		const pill = row.createEl("button", {
 			cls: `someday-filter-pill${active ? " is-active" : ""}`,
 			text: count === undefined ? label : `${label} • ${count}`,
-			attr: { type: "button" },
+			attr: { type: "button", "aria-pressed": String(active) },
 		});
+		// A pick redraws the page, pills and all: focus comes back to this
+		// one, found by its row's label and its own.
+		const group =
+			row
+				.closest(".someday-filter-row")
+				?.querySelector(".someday-filter-label")?.textContent ??
+			row.className;
+		setFocusKey(pill, `pill:${group}:${label}`);
 		pill.addEventListener("click", onClick);
 		return pill;
 	}
@@ -588,7 +601,9 @@ export class SomedaysView extends ItemView {
 			}`,
 		});
 		buildSomedayRow(row, somedayRowParts(someday, new Date()));
-		row.addEventListener("click", () => this.openViewModal(someday));
+		makeActivatable(row, () => this.openViewModal(someday), {
+			focusKey: `someday:${someday.file.path}`,
+		});
 	}
 
 	private openViewModal(someday: SomedayInfo) {

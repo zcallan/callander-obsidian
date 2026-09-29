@@ -18,6 +18,7 @@ import {
 	somedayType,
 } from "@/constants";
 import { CallanderModal } from "@/modals/CallanderModal";
+import { makeActivatable } from "@/components/activatable";
 
 /**
  * A read-first look at a Someday — its when/days/company/cost/notes and
@@ -152,13 +153,17 @@ export class SomedayViewModal extends CallanderModal {
 				cls: "someday-converted-link",
 				text: "→ opened as a plan",
 			});
-			link.addEventListener("click", () => {
-				const pf = this.app.vault.getFileByPath(s.convertedTo);
-				if (pf) {
-					this.close();
-					void this.plugin.openContactPage(pf);
-				}
-			});
+			makeActivatable(
+				link,
+				() => {
+					const pf = this.app.vault.getFileByPath(s.convertedTo);
+					if (pf) {
+						this.close();
+						void this.plugin.openContactPage(pf);
+					}
+				},
+				{ role: "link" }
+			);
 		}
 
 		this.renderSubIdeas(contentEl);

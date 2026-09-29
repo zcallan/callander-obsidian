@@ -44,6 +44,7 @@ import {
 } from "@/utils/categoryColor";
 import { CalendarColorsModal } from "@/modals/CalendarColorsModal";
 import { appendTimezoneBanner } from "@/components/timezoneBanner";
+import { FocusKeeper } from "@/components/activatable";
 
 export const VIEW_TYPE_CALENDAR = "callander-calendar";
 
@@ -78,6 +79,8 @@ export class CalendarView extends ItemView {
 	 * kept here because the drawer itself is redrawn on every tick. */
 	private categoriesExpanded = false;
 	private boardEl: HTMLElement | null = null;
+	/** Keyboard focus across a redraw — see FocusKeeper. */
+	private readonly focusKeeper = new FocusKeeper();
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
@@ -131,6 +134,7 @@ export class CalendarView extends ItemView {
 	private render() {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
+		this.focusKeeper.hold(container);
 		container.empty();
 		container.addClass("dashboard-container", "fullcal-container");
 
@@ -153,6 +157,7 @@ export class CalendarView extends ItemView {
 		applyPageWidth(container, this.plugin, true, () => {});
 
 		container.scrollTop = scrollTop;
+		this.focusKeeper.restore(container);
 	}
 
 	/**

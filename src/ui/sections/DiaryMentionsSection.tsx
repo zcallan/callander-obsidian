@@ -1,4 +1,5 @@
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
+import { activatable } from "@/ui/a11y";
 
 /** A diary entry that links to this person. */
 export interface DiaryMention {
@@ -31,13 +32,17 @@ export function DiaryMentionsSection({
 		<div className="contact-diary-mentions">
 			<div className="contact-idea-group-header">📖 Mentioned in diary</div>
 			{rows.map((entry) => (
+				// An <a> with no href isn't focusable, so it says what it is.
 				<a
 					key={entry.path}
-					className="contact-diary-mention-row"
-					onClick={(e) => {
-						e.preventDefault();
-						onOpen(entry.path);
-					}}
+					{...activatable(
+						(e) => {
+							e.preventDefault();
+							onOpen(entry.path);
+						},
+						"contact-diary-mention-row",
+						{ role: "link", focusKey: `mention:${entry.path}` }
+					)}
 				>
 					{`${entry.date} — ${entry.title}`}
 				</a>

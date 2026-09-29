@@ -34,6 +34,7 @@ import { renderHeader } from "@/views/ContactPageView/sections/header";
 import { NotesController } from "@/views/ContactPageView/sections/notes";
 import { renderPersonPage } from "@/views/ContactPageView/sections/personPage";
 import { renderPlanPage } from "@/views/ContactPageView/sections/planPage";
+import { FocusKeeper } from "@/components/activatable";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -62,6 +63,8 @@ export class ContactPageView extends ItemView implements PageContext {
 	 */
 	readonly store = new ViewStore();
 	readonly ownWrites = new OwnWrites();
+	/** Keyboard focus across a redraw — see FocusKeeper. */
+	private readonly focusKeeper = new FocusKeeper();
 	readonly ui: PageUiState = {
 		lastIdeaCategory: "gift",
 		lastInterestCategory: "hobbies",
@@ -402,6 +405,7 @@ export class ContactPageView extends ItemView implements PageContext {
 		// handlers are on the document — closing first keeps them from
 		// pointing at a detached node.
 		this.helpPopover.close();
+		this.focusKeeper.hold(container);
 		container.empty();
 		// The imperative DOM above is gone; tell the islands to re-read the
 		// data they're about to be re-attached with.
@@ -426,6 +430,7 @@ export class ContactPageView extends ItemView implements PageContext {
 			this.ui.pageWide = true;
 			this.render();
 		});
+		this.focusKeeper.restore(container);
 	}
 
 	/** Opened from the timeline (EventTimeline). */

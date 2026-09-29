@@ -2,6 +2,7 @@ import { ACCOMMODATION_EMOJI, BOOKING_STATES } from "@/constants";
 import { formatStayHours, nightsLabel } from "@/utils/planFormat";
 import type { PlanSimpleItem } from "@/types";
 import { startsWithEmoji } from "@/utils/emoji";
+import { activatable } from "@/ui/a11y";
 
 /**
  * One accommodation row: name • nights, then hours • booking, with the
@@ -38,8 +39,10 @@ export function StayRow({
 
 	return (
 		<div
-			className="contact-idea-item plan-clickable-row plan-stay-list-item"
-			onClick={onClick}
+			{...activatable(
+				onClick,
+				"contact-idea-item plan-clickable-row plan-stay-list-item"
+			)}
 		>
 			<div className="contact-idea-text plan-stay-row">
 				{/* Name + nights in their own non-wrapping group. Without this,
