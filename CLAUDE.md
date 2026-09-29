@@ -2,6 +2,8 @@
 
 An Obsidian plugin for keeping up with people: friends, events, plans, expenses. Everything lives in the user's vault as plain markdown with YAML frontmatter — the vault is the database, and there is no other store.
 
+[ARCHITECTURE.md](ARCHITECTURE.md) is the overview of layers, data flow and shared helpers; [CONTRIBUTING.md](CONTRIBUTING.md) the dev loop, checks and release steps. This file holds the working rules.
+
 ## Commands
 
 ```bash
@@ -22,7 +24,7 @@ npm run preview    # renders component fixtures in a browser against the real CS
 | `src/views/` | One `ItemView` per page |
 | `src/modals/` | ~50 modals. Anything with editable fields extends `FormModal` |
 | `src/services/` | Vault reads/writes (`*Operations`, plus `vaultFiles.ts`'s shared helpers) — the layer meant to touch files. `main.ts` and `ContactPageView` still write directly in places; move those writes here rather than adding more |
-| `src/utils/` | Pure logic: parsing, formatting, date maths. Where tests live heaviest |
+| `src/utils/` | Pure logic: parsing, formatting, date maths. Where tests live heaviest. Check the shared primitives first (`dates.ts`, `flexdate.ts`, `text.ts`, `fm.ts`, `linkField.ts`, `fileName.ts`, `async.ts`; listed in ARCHITECTURE.md) before writing a helper |
 | `src/ui/` | React layer: hooks, context, ported sections |
 | `src/components/` | Imperative DOM builders shared between views |
 | `src/styles/base.css` | The hand-written stylesheet. Root `styles.css` is **generated** |

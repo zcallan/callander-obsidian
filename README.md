@@ -149,7 +149,7 @@ npm ci
 npm run dev
 ```
 
-`npm run dev` is esbuild in watch mode. `npm run lint` and `npm test` (tiers 1 and 2, about a second) are what CI runs on every push and pull request; `npm run test:e2e` drives a real Obsidian and needs the desktop app on macOS. [tests/README.md](tests/README.md) explains the three tiers.
+`npm run dev` is esbuild in watch mode. `npm run lint` and `npm test` (tiers 1 and 2, about a second) are what CI runs on every push and pull request; `npm run test:e2e` drives a real Obsidian and needs the desktop app on macOS. [tests/README.md](tests/README.md) explains the three tiers, [ARCHITECTURE.md](ARCHITECTURE.md) how the code fits together, and [CONTRIBUTING.md](CONTRIBUTING.md) the checks a change passes and how a release is cut.
 
 Put the absolute path of a vault plugin folder (e.g. `<vault>/.obsidian/plugins/callander`) in a `.vault-plugin-path` file at the repo root (gitignored) — dev builds then output `main.js` there and copy `manifest.json`/`styles.css` along, which works with iCloud-synced vaults where symlinks won't sync. Pair with the [Hot Reload](https://github.com/pjeby/hot-reload) plugin for instant reload on rebuild (a `.hotreload` marker is written automatically). Without `.vault-plugin-path`, dev builds land in the repo root like the standard template.
 
