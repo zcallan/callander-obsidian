@@ -45,6 +45,7 @@ export * from "@/utils/friendListSort";
 export * from "@/utils/eventList";
 export * from "@/utils/singleFlight";
 export * from "@/utils/markdownRoute";
+export * from "@/utils/patchMethod";
 export { summonsKeyboard } from "@/plugin/keyboardInset";
 export * from "@/plugin/startup";
 export {
