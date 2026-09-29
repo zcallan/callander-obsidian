@@ -17,10 +17,11 @@ npm run preview    # renders component fixtures in a browser against the real CS
 
 | Path | What |
 | --- | --- |
-| `src/main.ts` | Plugin class, view registration, commands, migrations |
+| `src/main.ts` | Plugin class: lifecycle, commands and views (as tables), navigation, migrations |
+| `src/plugin/` | Plugin-level machinery split out of `main.ts`: startup steps, the markdown intercept, mobile keyboard tracking |
 | `src/views/` | One `ItemView` per page |
 | `src/modals/` | ~50 modals. Anything with editable fields extends `FormModal` |
-| `src/services/` | Vault reads/writes (`*Operations`) — the layer meant to touch files. `main.ts`, `ContactPageView` and `AddContactModal` still write directly; move those writes here rather than adding more |
+| `src/services/` | Vault reads/writes (`*Operations`, plus `vaultFiles.ts`'s shared helpers) — the layer meant to touch files. `main.ts` and `ContactPageView` still write directly in places; move those writes here rather than adding more |
 | `src/utils/` | Pure logic: parsing, formatting, date maths. Where tests live heaviest |
 | `src/ui/` | React layer: hooks, context, ported sections |
 | `src/components/` | Imperative DOM builders shared between views |
@@ -131,7 +132,7 @@ If a modal's *contents* want React, `createRoot(modal.contentEl)` — keep the `
 
 ## Vault writes
 
-- Frontmatter: `app.fileManager.processFrontMatter(file, fm => …)`. Never hand-serialise YAML.
+- Frontmatter: `app.fileManager.processFrontMatter(file, fm => …)`. Never hand-serialise YAML. A new note goes through `createNote` in `@/services/vaultFiles`, which writes its frontmatter the same way, keys in the order given.
 - Renames go through `fileManager.renameFile` so links update.
 - Deletes go through `fileManager.trashFile` — respects the user's trash setting and stays recoverable. Never `vault.delete`.
 - Writes resolve **before** the metadata cache reflects them (see above).
