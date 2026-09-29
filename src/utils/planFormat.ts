@@ -1,7 +1,7 @@
 import { ANY_TIME, roughTime } from "@/constants";
 import { formatDate, ordinalDay } from "@/utils/dateFormat";
 import { formatShortWeekdayDate } from "@/utils/flexdate";
-import { wholeDaysBetween } from "@/utils/dates";
+import { localDateOfIso, wholeDaysBetween } from "@/utils/dates";
 import { formatCount } from "@/utils/text";
 
 /**
@@ -137,8 +137,8 @@ export function formatStayHours(
 
 /** "Thursday 30 July" from an ISO date. */
 export function formatTimelineDay(iso: string): string {
-	const d = new Date(`${iso}T00:00:00`);
-	if (isNaN(d.getTime())) return iso;
+	const d = localDateOfIso(iso);
+	if (!d) return iso;
 	return formatDate(d, {
 		weekday: "long",
 		day: "numeric",

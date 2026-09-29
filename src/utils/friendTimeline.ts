@@ -71,7 +71,8 @@ export interface OccurrenceOptions {
  * 29 February in a non-leap year rolls into 1 March, which is what
  * `new Date(y, 1, 29)` does and what this has always done — deliberately
  * left alone rather than "fixed" to 28 February, since changing it would
- * move a date users already see on the dashboard.
+ * move a date users already see on the dashboard. In a leap year it's the
+ * 29th.
  */
 export function nextBirthdayOccurrence(
 	birthday: string,
@@ -85,7 +86,7 @@ export function nextBirthdayOccurrence(
 	const today = new Date(now);
 	today.setHours(0, 0, 0, 0);
 
-	const occurrence = new Date(
+	let occurrence = new Date(
 		today.getFullYear(),
 		parsed.month - 1,
 		parsed.day ?? 1
@@ -93,7 +94,13 @@ export function nextBirthdayOccurrence(
 	occurrence.setHours(0, 0, 0, 0);
 	// Already been and gone this year — the next one is next year's.
 	if (occurrence < today) {
-		occurrence.setFullYear(today.getFullYear() + 1);
+		// Rebuilt from the stored month and day, not moved with setFullYear:
+		// a 29 February already rolled to 1 March would stay there.
+		occurrence = new Date(
+			today.getFullYear() + 1,
+			parsed.month - 1,
+			parsed.day ?? 1
+		);
 	}
 
 	return {
@@ -172,14 +179,18 @@ export function birthdayMonths<T extends DatedPerson>(
 		// case it belongs to the far end of the window, next year. A month
 		// without a day sorts as the 1st, which is a position in the list
 		// rather than a claim about the date; `exact` carries that on.
-		const occurrence = new Date(
+		let occurrence = new Date(
 			opens.getFullYear(),
 			parsed.month - 1,
 			parsed.day ?? 1
 		);
 		occurrence.setHours(0, 0, 0, 0);
 		if (occurrence < opens) {
-			occurrence.setFullYear(opens.getFullYear() + 1);
+			occurrence = new Date(
+				opens.getFullYear() + 1,
+				parsed.month - 1,
+				parsed.day ?? 1
+			);
 		}
 
 		// Membership decides the window rather than any day count: 29 Feb

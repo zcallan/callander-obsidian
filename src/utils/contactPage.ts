@@ -17,7 +17,9 @@ import { formatPlanDateRange } from "@/utils/planShare";
 
 /** "today", "yesterday", "12 days ago", or past a month the date itself. */
 export function lastUpdatedLabel(mtime: Date, now: Date): string {
-	const daysAgo = wholeDaysBetween(mtime, now);
+	// A synced device whose clock runs ahead can leave an mtime in the
+	// future: that's today, not "-2 days ago".
+	const daysAgo = Math.max(0, wholeDaysBetween(mtime, now));
 	return daysAgo === 0
 		? "today"
 		: daysAgo === 1
@@ -55,6 +57,7 @@ export function planWhenLabel(
 		if (days === 0) when += " · today!";
 		else if (days === 1) when += " · tomorrow";
 		else if (days > 1) when += ` · in ${days} days`;
+		else if (days === -1) when += " · yesterday";
 		else when += ` · ${-days} days ago`;
 	}
 	return when;

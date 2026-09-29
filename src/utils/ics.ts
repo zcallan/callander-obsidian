@@ -5,7 +5,7 @@
  */
 
 import { parseFlexDate } from "@/utils/flexdate";
-import { pad2 } from "@/utils/dates";
+import { nextBirthdayOccurrence } from "@/utils/friendTimeline";
 
 /** Where the export lands, at the vault root. Documented in docs/DATA.md. */
 export const BIRTHDAY_ICS_PATH = "Callander Birthdays.ics";
@@ -51,16 +51,12 @@ export function birthdayCalendar(
 		}
 		const uidBase = c.basename.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-		// The next occurrence only — one year of coverage
-		const today = new Date(now);
-		today.setHours(0, 0, 0, 0);
-		let year = now.getFullYear();
-		let occurrence = new Date(year, parsed.month - 1, parsed.day);
-		occurrence.setHours(0, 0, 0, 0);
-		if (occurrence < today) {
-			year++;
-			occurrence = new Date(year, parsed.month - 1, parsed.day);
-		}
+		// The next occurrence only — one year of coverage. Through the rule
+		// the dashboard counts down by, so 29 February is 1 March in a
+		// common year here too, not an invalid 20270229.
+		const next = nextBirthdayOccurrence(c.birthday, now);
+		if (!next) continue;
+		const year = Number(next.date.slice(0, 4));
 
 		const title =
 			parsed.year !== null
@@ -71,7 +67,7 @@ export function birthdayCalendar(
 			"BEGIN:VEVENT",
 			`UID:callander-${uidBase}-${year}@callander`,
 			`DTSTAMP:${stamp}`,
-			`DTSTART;VALUE=DATE:${year}${pad2(parsed.month)}${pad2(parsed.day)}`,
+			`DTSTART;VALUE=DATE:${next.date.replace(/-/g, "")}`,
 			`SUMMARY:${escapeIcsText(title)}`,
 			"BEGIN:VALARM",
 			"ACTION:DISPLAY",

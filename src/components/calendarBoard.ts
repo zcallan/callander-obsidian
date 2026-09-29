@@ -19,6 +19,7 @@ import {
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { needsDarkText } from "@/utils/contrastColor";
 import { PLAN_ICON, planDays, planSpanLabel } from "@/utils/planRow";
+import { monthStep } from "@/utils/dates";
 
 /**
  * The month / week calendar, shared by the Events page's Calendar tab and the
@@ -290,8 +291,8 @@ function appendBar(board: Board) {
 
 	const nav = bar.createDiv({ cls: "cal-nav" });
 	const step = (by: number) => {
-		const next = new Date(state.cursor);
-		if (state.mode === "month") next.setMonth(next.getMonth() + by);
+		let next = new Date(state.cursor);
+		if (state.mode === "month") next = monthStep(next, by);
 		else next.setDate(next.getDate() + by * 7);
 		state.cursor = next;
 		// The day you'd picked is in the month you just left.

@@ -2,6 +2,7 @@ import type { PlanSimpleItem } from "@/types";
 import { formatDate } from "@/utils/dateFormat";
 import { formatMoney } from "@/utils/expenseMath";
 import { formatStayHours, nightsLabel } from "@/utils/planFormat";
+import { localDateOfIso } from "@/utils/dates";
 
 /**
  * Where you're staying, as plain text.
@@ -120,8 +121,8 @@ function heading(stay: PlanSimpleItem, detail: StayShareDetail): string {
  */
 function stayDates(stay: PlanSimpleItem): string {
 	const nights = stay.nights ?? 0;
-	const start = stay.date ? new Date(`${stay.date}T00:00:00`) : null;
-	if (!start || isNaN(start.getTime()) || nights < 1) {
+	const start = localDateOfIso(stay.date);
+	if (!start || nights < 1) {
 		return nights > 0 ? nightsLabel(nights) : "";
 	}
 	const weekday = (offset: number) => {

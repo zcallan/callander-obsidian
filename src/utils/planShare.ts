@@ -18,7 +18,7 @@ import {
 } from "@/utils/planFormat";
 import { shortenMemberNames, shortenPeopleList } from "@/utils/nameFormat";
 import { nameWithoutLeadingEmoji, startsWithEmoji } from "@/utils/emoji";
-import { isoDay, MAX_DAY_WALK, pad2 } from "@/utils/dates";
+import { isoDay, localDateOfIso, MAX_DAY_WALK, pad2 } from "@/utils/dates";
 import { bringOf, itemsOf, simpleListOf } from "@/utils/planFields";
 import { timelineOf } from "@/utils/planTimeline";
 
@@ -423,8 +423,8 @@ export function buildPlanShareText(
 export function buildTimelineCalendarUrl(
 	entry: PlanTimelineEntry
 ): string | null {
-	const start = new Date(`${entry.date}T00:00:00`);
-	if (!entry.date || isNaN(start.getTime())) return null;
+	const start = localDateOfIso(entry.date);
+	if (!start) return null;
 
 	const day = (d: Date) =>
 		`${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;

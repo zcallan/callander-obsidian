@@ -1117,16 +1117,21 @@ export class ContactOperations {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 
-		const lastBirthday = new Date(
+		let lastBirthday = new Date(
 			today.getFullYear(),
 			parsed.month - 1,
 			parsed.day
 		);
-		lastBirthday.setHours(0, 0, 0, 0);
 
-		// If this year's occurrence is still ahead, the last one was last year
+		// If this year's occurrence is still ahead, the last one was last
+		// year's — rebuilt from the month and day, so a 29 February rolled
+		// to 1 March this year is still the 29th in a leap last year.
 		if (lastBirthday > today) {
-			lastBirthday.setFullYear(today.getFullYear() - 1);
+			lastBirthday = new Date(
+				today.getFullYear() - 1,
+				parsed.month - 1,
+				parsed.day
+			);
 		}
 
 		return wholeDaysBetween(lastBirthday, today);

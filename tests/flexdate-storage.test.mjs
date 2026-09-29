@@ -49,9 +49,10 @@ export function run() {
 		[null, null, null]
 	);
 	eq("nothing is nothing", [parse(null), parse(undefined), parse("")], [null, null, null]);
-	// Today's rule, loose on purpose or not: a day is checked against 31,
-	// not against its month.
-	eq("a 30 February is read, not refused", [parse("2019-02-30"), parse("02-30")], [at(2019, 2, 30), at(null, 2, 30)]);
+	// A day is checked against its month (IMPL-8); with no year, February
+	// allows the 29th.
+	eq("a 30 February is refused", [parse("2019-02-30"), parse("02-30")], [null, null]);
+	eq("29 February: a leap year's, or a year-less one's", [parse("2020-02-29"), parse("02-29"), parse("2019-02-29")], [at(2020, 2, 29), at(null, 2, 29), null]);
 
 	// ---------- writing back ----------
 	eq(

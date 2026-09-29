@@ -20,6 +20,7 @@ import {
 import { monthGrid, monthLabel, weekStartsOn } from "@/utils/calendarGrid";
 import { GlanceModal } from "@/modals/GlanceModal";
 import { sortFriends } from "@/utils/friendListSort";
+import { monthStep } from "@/utils/dates";
 
 const SORT_OPTIONS: Array<{ id: FriendListSort; label: string }> = [
 	// "Next" rather than plain "Birthday": the two calendar orderings below
@@ -395,9 +396,7 @@ export class TableView {
 		});
 		const nav = bar.createDiv({ cls: "cal-nav" });
 		const step = (by: number) => {
-			const next = new Date(this.calCursor);
-			next.setMonth(next.getMonth() + by);
-			this.calCursor = next;
+			this.calCursor = monthStep(this.calCursor, by);
 			this.renderContent();
 		};
 		const button = (label: string, aria: string, onClick: () => void) => {

@@ -8,7 +8,14 @@
  */
 
 import { formatDate } from "@/utils/dateFormat";
-import { isoDateOf, isoDay, pad2, wholeDaysBetween } from "@/utils/dates";
+import {
+	daysInMonth,
+	isoDateOf,
+	isoDay,
+	monthsBefore,
+	pad2,
+	wholeDaysBetween,
+} from "@/utils/dates";
 import { formatCount } from "@/utils/text";
 
 export interface FlexDate {
@@ -49,24 +56,31 @@ export function parseFlexDate(
 
 	const str = String(value).trim();
 
+	// Years outside 1000–9999 are refused, as the numeric branch refuses
+	// them: "0099" would be read as 1999 by every `new Date(year, …)`.
+	const inRange = (year: string) => Number(year) >= 1000;
+
 	let match = str.match(/^(\d{4})$/);
 	if (match) {
+		if (!inRange(match[1])) return null;
 		return { year: Number(match[1]), month: null, day: null };
 	}
 
 	match = str.match(/^(\d{4})-(\d{1,2})$/);
 	if (match) {
 		const month = Number(match[2]);
-		if (month < 1 || month > 12) return null;
+		if (!inRange(match[1]) || month < 1 || month > 12) return null;
 		return { year: Number(match[1]), month, day: null };
 	}
 
 	match = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
 	if (match) {
+		const year = Number(match[1]);
 		const month = Number(match[2]);
 		const day = Number(match[3]);
-		if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-		return { year: Number(match[1]), month, day };
+		if (!inRange(match[1]) || month < 1 || month > 12) return null;
+		if (day < 1 || day > daysInMonth(year, month)) return null;
+		return { year, month, day };
 	}
 
 	// Year-less month-day, e.g. a birthday where the year is unknown
@@ -74,7 +88,9 @@ export function parseFlexDate(
 	if (match) {
 		const month = Number(match[1]);
 		const day = Number(match[2]);
-		if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+		if (month < 1 || month > 12) return null;
+		// No year, so 29 February has to be allowed: measured in a leap year.
+		if (day < 1 || day > daysInMonth(2000, month)) return null;
 		return { year: null, month, day };
 	}
 
@@ -219,9 +235,7 @@ export function isFlexWithinLastMonths(
 	if (date.year === null) return false;
 	if (isFlexUpcoming(date, now)) return false;
 	const when = new Date(date.year, (date.month ?? 1) - 1, date.day ?? 1);
-	const cutoff = new Date(now);
-	cutoff.setMonth(cutoff.getMonth() - months);
-	cutoff.setHours(0, 0, 0, 0);
+	const cutoff = monthsBefore(now, months);
 	return when >= cutoff;
 }
 

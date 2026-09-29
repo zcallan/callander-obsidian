@@ -69,3 +69,38 @@ export function isoDaysBetween(startISO: string, endISO: string): string[] {
 	}
 	return days;
 }
+
+/** Days in a month (1–12) of a year. */
+export function daysInMonth(year: number, month: number): number {
+	return new Date(year, month, 0).getDate();
+}
+
+/**
+ * The 1st of the month `by` months from `cursor`'s. Paging by setMonth on
+ * the 29th–31st overflows: from 31 October, +1 is "31 November", which is
+ * 1 December, and from 31 March, -1 is 3 March.
+ */
+export function monthStep(cursor: Date, by: number): Date {
+	return new Date(cursor.getFullYear(), cursor.getMonth() + by, 1);
+}
+
+/** The same day `months` months before `d`, clamped to that month's length. */
+export function monthsBefore(d: Date, months: number): Date {
+	const first = new Date(d.getFullYear(), d.getMonth() - months, 1);
+	const day = Math.min(
+		d.getDate(),
+		daysInMonth(first.getFullYear(), first.getMonth() + 1)
+	);
+	return new Date(first.getFullYear(), first.getMonth(), day);
+}
+
+/**
+ * A local Date for a YYYY-MM-DD string, or null for anything else. A bare
+ * `new Date(x + "T00:00:00")` also accepts "2026-07", as 1 July.
+ */
+export function localDateOfIso(iso: string | undefined): Date | null {
+	if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+	const d = new Date(`${iso}T00:00:00`);
+	return isNaN(d.getTime()) ? null : d;
+}
+
