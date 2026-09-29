@@ -21,6 +21,7 @@ import {
 } from "@/utils/planList";
 import type { EventWhen } from "@/utils/eventRow";
 import { weekStartsOn } from "@/utils/calendarGrid";
+import { runAction } from "@/utils/async";
 
 export const VIEW_TYPE_PLANS = "callander-plans";
 
@@ -272,7 +273,10 @@ export class PlansView extends ItemView {
 		sortSel.value = planSortOf(this.plugin.settings.planSort);
 		sortSel.addEventListener("change", () => {
 			this.plugin.settings.planSort = sortSel.value as EventSort;
-			void this.plugin.saveSettings().then(() => this.render());
+			runAction("save the sort", async () => {
+				await this.plugin.saveSettings();
+				this.render();
+			});
 		});
 	}
 

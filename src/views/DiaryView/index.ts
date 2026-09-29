@@ -7,6 +7,7 @@ import { formatDate } from "@/utils/dateFormat";
 import { truncate } from "@/utils/text";
 import { ConfirmModal } from "@/modals/ConfirmModal";
 import { registerPageRefresh } from "@/utils/vaultRefresh";
+import { runAction } from "@/utils/async";
 
 export const VIEW_TYPE_DIARY = "callander-diary-view";
 
@@ -223,7 +224,9 @@ export class DiaryView extends ItemView {
 		setIcon(logButton, "milestone");
 		logButton.createSpan({ text: "Log to timelines" });
 		logButton.addEventListener("click", () =>
-			void this.plugin.logDiaryEntryToTimelines(entry.file)
+			runAction("log the entry to timelines", () =>
+				this.plugin.logDiaryEntryToTimelines(entry.file)
+			)
 		);
 
 		toolbar.createDiv({ cls: "diary-toolbar-spacer" });

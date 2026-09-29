@@ -15,3 +15,11 @@ export function runLogged(
 		if (notice) new Notice(notice);
 	});
 }
+
+/**
+ * Something the person just asked for, fired from a click: a failure is
+ * logged and shown as "Couldn't <what>" rather than disappearing.
+ */
+export function runAction(what: string, task: () => Promise<unknown>): void {
+	runLogged(what, task, `Couldn't ${what}`);
+}

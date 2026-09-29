@@ -1,5 +1,5 @@
 import { createSuite } from "./harness.mjs";
-import { Notice, runLogged, runStartupTasks } from "./.build/callander.mjs";
+import { Notice, runAction, runLogged, runStartupTasks } from "./.build/callander.mjs";
 
 /** A startup step that throws is reported, and the rest still run. */
 export async function run() {
@@ -24,6 +24,13 @@ export async function run() {
 		runLogged("fine", async () => "ok", "never shown");
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		eq("only work the person asked for says so", Notice.all, ["Couldn't log that entry"]);
+
+		Notice.all.length = 0;
+		let acted = false;
+		runAction("save the sort", () => Promise.reject(new Error("locked")));
+		runAction("file the idea", async () => void (acted = true));
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		eq("an action says what it couldn't do, and only when it fails", [Notice.all, acted], [["Couldn't save the sort"], true]);
 	} finally {
 		console.error = errors;
 	}

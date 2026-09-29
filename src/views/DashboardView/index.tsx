@@ -43,6 +43,7 @@ import {
 	upcomingBirthdays,
 } from "@/utils/birthdayLists";
 import { IslandSet } from "@/ui/islands";
+import { runAction } from "@/utils/async";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -923,10 +924,12 @@ export class DashboardView extends ItemView {
 						ariaLabel: `Show ${plan.name} in ${hidden.where}`,
 						onClick: (e: MouseEvent) => {
 							e.stopPropagation();
-							void this.plugin.planOperations.setHiddenFrom(
-								plan.file,
-								hidden.lists,
-								false
+							runAction("show the plan again", () =>
+								this.plugin.planOperations.setHiddenFrom(
+									plan.file,
+									hidden.lists,
+									false
+								)
 							);
 						},
 					},
@@ -1264,7 +1267,10 @@ export class DashboardView extends ItemView {
 							icon: "check",
 							label: "Done",
 							ariaLabel: "Mark birthday as wished",
-							onClick: (e) => void handleDone(e),
+							onClick: (e) =>
+								runAction("mark the birthday as wished", () =>
+									handleDone(e)
+								),
 							// Filled purple — the day itself is the one
 							// birthday row with nothing left to count down
 							// to, so its Done stands out from Missed's.
@@ -1336,7 +1342,10 @@ export class DashboardView extends ItemView {
 					icon: "check",
 					label: "Done",
 					ariaLabel: "Mark as wished",
-					onClick: (e) => void handleWished(e),
+					onClick: (e) =>
+						runAction("mark the birthday as wished", () =>
+							handleWished(e)
+						),
 				},
 			});
 		}
@@ -1405,7 +1414,8 @@ export class DashboardView extends ItemView {
 				new ContactSuggestModal(
 					this.app,
 					this.contacts,
-					(contact) => void handleChoose(contact),
+					(contact) =>
+						runAction("file the idea", () => handleChoose(contact)),
 					"File this idea to…"
 				).open();
 			});
