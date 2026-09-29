@@ -51,3 +51,21 @@ export function wholeDaysBetween(from: Date, to: Date): number {
 			MS_PER_DAY
 	);
 }
+
+/**
+ * Every local day from `startISO` to `endISO` inclusive, as YYYY-MM-DD.
+ * Empty when either doesn't parse or the range runs backwards; capped at
+ * MAX_DAY_WALK days.
+ */
+export function isoDaysBetween(startISO: string, endISO: string): string[] {
+	const days: string[] = [];
+	const d = new Date(`${startISO}T00:00:00`);
+	const end = new Date(`${endISO}T00:00:00`);
+	if (isNaN(d.getTime()) || isNaN(end.getTime()) || end < d) return days;
+	let guard = 0;
+	while (d <= end && guard++ < MAX_DAY_WALK) {
+		days.push(isoDay(d));
+		d.setDate(d.getDate() + 1);
+	}
+	return days;
+}

@@ -88,7 +88,6 @@ import {
 	STANDARD_FIELDS,
 	SYSTEM_FIELDS,
 	LINKABLE_FIELDS,
-	IDEA_CATEGORIES,
 	IdeaCategory,
 	INTEREST_CATEGORIES,
 	InterestCategory,
@@ -101,11 +100,7 @@ import { AddPlanMemberModal } from "@/modals/AddPlanMemberModal";
 import { PlanItemModal } from "@/modals/PlanItemModal";
 import { PlanSimpleItemModal } from "@/modals/PlanSimpleItemModal";
 import { PlanTimelineViewModal } from "@/modals/PlanTimelineViewModal";
-import {
-	buildPlanShareText,
-	formatPlanDateRange,
-	type PlanShareDetail,
-} from "@/utils/planShare";
+import { buildPlanShareText, type PlanShareDetail } from "@/utils/planShare";
 import {
 	formatTimelineDay,
 } from "@/utils/planFormat";
@@ -151,7 +146,6 @@ import { InsideJokeModal } from "@/modals/InsideJokeModal";
 import {
 	formatFlexDate,
 	formatTimeSince,
-	isExactFlexDate,
 	monthName,
 	parseFlexDate,
 	todayISO,
@@ -181,12 +175,7 @@ import {
 	parseNotesSection,
 	rescueDraftsFromNotes,
 } from "@/utils/notesMarkdown";
-import {
-	isoDateOf,
-	isoDay,
-	MAX_DAY_WALK,
-	wholeDaysBetween,
-} from "@/utils/dates";
+import { isoDaysBetween } from "@/utils/dates";
 import { formatCount, truncate } from "@/utils/text";
 import {
 	birthFlower,
@@ -195,6 +184,16 @@ import {
 	zodiacSign,
 } from "@/utils/birthTrivia";
 import { IslandSet } from "@/ui/islands";
+import {
+	exactPlanDay,
+	ideaLogText,
+	interestIdeaText,
+	lastUpdatedLabel,
+	normalizeIdeaCategory,
+	normalizeInterestCategory,
+	parseFunFacts,
+	planWhenLabel,
+} from "@/utils/contactPage";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -1266,7 +1265,7 @@ export class ContactPageView extends ItemView {
 				<IdeasSection
 					store={this.store}
 					ideas={() => this.ideasList()}
-					categoryOf={(idea) => this.normalizeCategory(idea)}
+					categoryOf={(idea) => normalizeIdeaCategory(idea)}
 					onToggleDone={(index, done) =>
 						void this.toggleIdeaDone(index, done)
 					}
@@ -1292,7 +1291,7 @@ export class ContactPageView extends ItemView {
 							asArray(this.contactData.interests) as Interest[]
 						}
 						categoryOf={(interest) =>
-							this.normalizeInterestCategory(interest)
+							normalizeInterestCategory(interest)
 						}
 						onEdit={(index) => this.openEditInterestModal(index)}
 						onMakeIdea={(index) => this.makeIdeaFromInterest(index)}
@@ -1583,20 +1582,10 @@ export class ContactPageView extends ItemView {
 
 		// Last updated — from the file itself, so edits made anywhere count
 		if (this._file) {
-			const mtime = new Date(this._file.stat.mtime);
-			const daysAgo = wholeDaysBetween(mtime, new Date());
-			const label =
-				daysAgo === 0
-					? "today"
-					: daysAgo === 1
-					? "yesterday"
-					: daysAgo <= 30
-					? `${daysAgo} days ago`
-					: mtime.toLocaleDateString("en-AU", {
-							day: "numeric",
-							month: "long",
-							year: "numeric",
-					  });
+			const label = lastUpdatedLabel(
+				new Date(this._file.stat.mtime),
+				new Date()
+			);
 			nameDisplay.createSpan({
 				cls: "contact-age-display contact-last-updated",
 				text: `Last updated: ${label}`,
@@ -2193,16 +2182,7 @@ export class ContactPageView extends ItemView {
 	// A checked-off idea is usually something that just happened — offer to
 	// put it on the timeline with one click
 	private offerLogAsEvent(idea: Idea) {
-		const verbs: Partial<Record<IdeaCategory, string>> = {
-			gift: "Gave",
-			conversation: "Talked about",
-			activity: "Did",
-			place: "Went to",
-			recommendation: "Recommended",
-			other: "",
-		};
-		const verb = verbs[this.normalizeCategory(idea)];
-		const eventText = verb ? `${verb}: ${idea.text}` : idea.text;
+		const eventText = ideaLogText(idea);
 		// The person whose idea it was: the notice outlives the page, which
 		// may be showing someone else by the time the button is clicked.
 		const file = this._file;
@@ -2220,7 +2200,7 @@ export class ContactPageView extends ItemView {
 			const today = todayISO();
 			// Gifts given get their own type; everything else was time spent
 			const type: EventType =
-				this.normalizeCategory(idea) === "gift" ? "given" : "hangout";
+				normalizeIdeaCategory(idea) === "gift" ? "given" : "hangout";
 			await this.addEvent(today, eventText, type, file);
 			new Notice("Added to timeline");
 		};
@@ -2501,27 +2481,12 @@ export class ContactPageView extends ItemView {
 	/** Plan date/status + location lines, shown under "Last updated". */
 	private renderPlanMetaLines(container: HTMLElement) {
 		const parts: string[] = [];
-		const dateFlex = parseFlexDate(this.contactData.date);
-		if (dateFlex) {
-			let when = formatPlanDateRange(
-				this.contactData.date,
-				this.contactData.endDate
-			);
-			if (dateFlex.month !== null && dateFlex.day !== null) {
-				const target = new Date(
-					dateFlex.year ?? new Date().getFullYear(),
-					dateFlex.month - 1,
-					dateFlex.day
-				);
-				target.setHours(0, 0, 0, 0);
-				const days = wholeDaysBetween(new Date(), target);
-				if (days === 0) when += " · today!";
-				else if (days === 1) when += " · tomorrow";
-				else if (days > 1) when += ` · in ${days} days`;
-				else when += ` · ${-days} days ago`;
-			}
-			parts.push(`🗓 ${when}`);
-		}
+		const when = planWhenLabel(
+			this.contactData.date,
+			this.contactData.endDate,
+			new Date()
+		);
+		if (when !== null) parts.push(`🗓 ${when}`);
 		const est = PlanOperations.estimate(this.contactData);
 		if (est > 0) parts.push(`~$${est} planned`);
 		if (this.contactData.status === "done") parts.push("✅ Done");
@@ -3279,10 +3244,10 @@ export class ContactPageView extends ItemView {
 
 	/** Every day of the plan's exact span, or none when it hasn't got one. */
 	private planRangeDays(): string[] {
-		const startISO = this.exactPlanDay(this.contactData.date);
-		const endISO = this.exactPlanDay(this.contactData.endDate);
+		const startISO = exactPlanDay(this.contactData.date);
+		const endISO = exactPlanDay(this.contactData.endDate);
 		if (!startISO || !endISO) return [];
-		return this.daysBetween(startISO, endISO);
+		return isoDaysBetween(startISO, endISO);
 	}
 
 	/** Collapsed plan sections, tolerant of a hand-edited data.json. */
@@ -3385,30 +3350,7 @@ export class ContactPageView extends ItemView {
 		}).open();
 	}
 
-	/** Exact YYYY-MM-DD for a plan flex date, or null if not day-precise. */
-	private exactPlanDay(value: string | number | undefined): string | null {
-		const p = parseFlexDate(value);
-		if (isExactFlexDate(p)) {
-			return isoDateOf(p.year, p.month, p.day);
-		}
-		return null;
-	}
 
-	/** Inclusive ISO days from start to end (capped for safety). */
-	private daysBetween(startISO: string, endISO: string): string[] {
-		const days: string[] = [];
-		const d = new Date(`${startISO}T00:00:00`);
-		const end = new Date(`${endISO}T00:00:00`);
-		if (isNaN(d.getTime()) || isNaN(end.getTime()) || end < d) return days;
-		let guard = 0;
-		while (d <= end && guard++ < MAX_DAY_WALK) {
-			days.push(
-				isoDay(d)
-			);
-			d.setDate(d.getDate() + 1);
-		}
-		return days;
-	}
 
 	/** Tapping a timeline row reads it first; Edit/Delete live in that view. */
 	private openTimelineEntry(entry: PlanTimelineEntry) {
@@ -3565,10 +3507,10 @@ export class ContactPageView extends ItemView {
 		const opts: ScheduleFieldOptions = {
 			people: this.planParticipants(),
 		};
-		const startISO = this.exactPlanDay(this.contactData.date);
-		const endISO = this.exactPlanDay(this.contactData.endDate);
+		const startISO = exactPlanDay(this.contactData.date);
+		const endISO = exactPlanDay(this.contactData.endDate);
 		if (startISO && endISO) {
-			opts.dayOptions = this.daysBetween(startISO, endISO).map((d) => ({
+			opts.dayOptions = isoDaysBetween(startISO, endISO).map((d) => ({
 				value: d,
 				label: formatTimelineDay(d),
 				// What a pill shows when the range is short enough for them.
@@ -4101,11 +4043,6 @@ export class ContactPageView extends ItemView {
 		if (travel.length > 0) this.contactData.travel = travel;
 	}
 
-	private normalizeCategory(idea: Idea): IdeaCategory {
-		return IDEA_CATEGORIES.some((c) => c.id === idea.category)
-			? idea.category
-			: "other";
-	}
 
 	private async toggleIdeaDone(index: number, done: boolean) {
 		const list = this.ideasList();
@@ -4206,7 +4143,7 @@ export class ContactPageView extends ItemView {
 		new QuickIdeaModal(
 			this.app,
 			this.contactData.displayName || this.contactData.name || "",
-			this.normalizeCategory(idea),
+			normalizeIdeaCategory(idea),
 			async (category, text, generated) => {
 				this.lastIdeaCategory = category;
 				const list = this.ideasList();
@@ -4226,32 +4163,10 @@ export class ContactPageView extends ItemView {
 		).open();
 	}
 
-	/** Unknown/removed categories fall back to "other" so nothing is orphaned. */
-	private normalizeInterestCategory(interest: Interest): InterestCategory {
-		if (INTEREST_CATEGORIES.some((c) => c.id === interest.category)) {
-			return interest.category;
-		}
-		// Legacy "Movie & TV" → Movie
-		if (String(interest.category) === "screen") return "movie";
-		// Legacy "Music Genre" → Music, once its own category
-		if (String(interest.category) === "musicgenre") return "music";
-		return "other";
-	}
 
 	/** Fun facts as a list (a legacy multi-line string splits into items). */
 	private funFactsOf(): string[] {
-		const raw = this.contactData.funFacts;
-		if (Array.isArray(raw)) {
-			return raw.map((f) => String(f).trim()).filter(Boolean);
-		}
-		if (typeof raw === "string") {
-			// Legacy single field: split on newlines or the " · " separator
-			return raw
-				.split(/\r?\n|\s·\s/)
-				.map((l) => l.trim())
-				.filter(Boolean);
-		}
-		return [];
+		return parseFunFacts(this.contactData.funFacts);
 	}
 
 	/** The person's life goals, still-open first and completed below. */
@@ -4502,7 +4417,7 @@ export class ContactPageView extends ItemView {
 		new InterestModal(
 			this.app,
 			this.contactData.displayName || this.contactData.name || "",
-			this.normalizeInterestCategory(interest),
+			normalizeInterestCategory(interest),
 			async (category, text, detail, detail2, notes) => {
 				const list = [...(asArray(this.contactData.interests) as Interest[])];
 				list[index] = {
@@ -4532,11 +4447,9 @@ export class ContactPageView extends ItemView {
 		];
 		if (!interest) return;
 		const type = INTEREST_CATEGORIES.find(
-			(c) => c.id === this.normalizeInterestCategory(interest)
+			(c) => c.id === normalizeInterestCategory(interest)
 		);
-		const text = interest.detail
-			? `${interest.text} (${interest.detail})`
-			: interest.text;
+		const text = interestIdeaText(interest);
 		new QuickIdeaModal(
 			this.app,
 			this.contactData.displayName || this.contactData.name || "",
