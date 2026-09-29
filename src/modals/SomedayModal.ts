@@ -668,18 +668,8 @@ export class SomedayModal extends FormModal {
 			{ buttons: [saveBtn] }
 		);
 		saveBtn.addEventListener("click", () => void submit());
-		nameInput.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				void submit();
-			}
-		});
+		this.submitOnEnter(nameInput, submit);
 
-		if (this.existing) this.blurInitialFocus();
-		else window.setTimeout(() => nameInput.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
+		this.setInitialFocus(nameInput, !!this.existing);
 	}
 }

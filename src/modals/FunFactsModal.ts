@@ -69,17 +69,7 @@ export class FunFactsModal extends FormModal {
 			{ buttons: [saveButton] }
 		);
 		saveButton.addEventListener("click", () => void submit());
-		input.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				void submit();
-			}
-		});
-		if (this.initial) this.blurInitialFocus();
-		else window.setTimeout(() => input.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
+		this.submitOnEnter(input, submit);
+		this.setInitialFocus(input, !!this.initial);
 	}
 }

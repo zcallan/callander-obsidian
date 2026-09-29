@@ -182,8 +182,4 @@ export class PlanShareModal extends FormModal {
 	private refresh() {
 		this.preview.value = this.build(this.detail);
 	}
-
-	onClose() {
-		this.contentEl.empty();
-	}
 }

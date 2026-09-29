@@ -92,19 +92,7 @@ export class CreditModal extends FormModal {
 			{ buttons: [saveButton] }
 		);
 		saveButton.addEventListener("click", () => void submit());
-		for (const input of [amountInput, noteInput]) {
-			input.addEventListener("keydown", (e) => {
-				if (e.key === "Enter") {
-					e.preventDefault();
-					void submit();
-				}
-			});
-		}
-		if (this.initial) this.blurInitialFocus();
-		else window.setTimeout(() => amountInput.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
+		this.submitOnEnter([amountInput, noteInput], submit);
+		this.setInitialFocus(amountInput, !!this.initial);
 	}
 }

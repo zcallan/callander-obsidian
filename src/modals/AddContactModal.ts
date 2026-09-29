@@ -276,9 +276,4 @@ export class AddContactModal extends FormModal {
 			);
 		}
 	}
-
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
-	}
 }

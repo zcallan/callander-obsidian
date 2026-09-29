@@ -893,8 +893,4 @@ export class ExpenseModal extends FormModal {
 		// mobile over a field there's no reason to retype.
 		if (this.initial || this.prefill) this.blurInitialFocus();
 	}
-
-	onClose() {
-		this.contentEl.empty();
-	}
 }

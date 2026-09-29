@@ -42,9 +42,4 @@ export class AddFieldModal extends FormModal {
 			cls: "callander-button button-primary button-full-width",
 		});
 	}
-
-	onClose() {
-		const { contentEl } = this;
-		contentEl.empty();
-	}
 }

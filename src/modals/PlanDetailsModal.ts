@@ -123,8 +123,4 @@ export class PlanDetailsModal extends FormModal {
 		// Always an edit — every field arrives filled, so none deserves focus.
 		this.blurInitialFocus();
 	}
-
-	onClose() {
-		this.contentEl.empty();
-	}
 }

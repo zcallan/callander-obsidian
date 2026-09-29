@@ -79,23 +79,8 @@ export class InsideJokeModal extends FormModal {
 			{ buttons: [saveButton] }
 		);
 		saveButton.addEventListener("click", () => void submit());
-		contextInput.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				void submit();
-			}
-		});
-		textInput.addEventListener("keydown", (e) => {
-			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-				e.preventDefault();
-				void submit();
-			}
-		});
-		if (this.initial) this.blurInitialFocus();
-		else window.setTimeout(() => textInput.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
+		this.submitOnEnter(contextInput, submit);
+		this.submitOnEnter(textInput, submit, "mod-enter");
+		this.setInitialFocus(textInput, !!this.initial);
 	}
 }

@@ -73,14 +73,8 @@ export class DiaryEntryModal extends FormModal {
 		saveButton.addEventListener("click", () => void submit());
 
 		// Ten-second capture: Enter in the title field submits
-		titleInput!.addEventListener("keydown", (event) => {
-			if (event.key === "Enter") {
-				event.preventDefault();
-				void submit();
-			}
-		});
-		if (this.values.title) this.blurInitialFocus();
-		else window.setTimeout(() => titleInput!.focus(), 0);
+		this.submitOnEnter(titleInput!, submit);
+		this.setInitialFocus(titleInput!, !!this.values.title);
 	}
 
 	private async submit() {
@@ -89,9 +83,5 @@ export class DiaryEntryModal extends FormModal {
 		if (!title || !date) return;
 		await this.onSubmit(title, date);
 		this.close();
-	}
-
-	onClose() {
-		this.contentEl.empty();
 	}
 }

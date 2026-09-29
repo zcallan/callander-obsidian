@@ -84,22 +84,8 @@ export class QuickNoteModal extends FormModal {
 		saveButton.addEventListener("click", () => void submit());
 		// Enter still saves, the way it did when this was one line — it's
 		// Shift+Enter that takes the second one.
-		textInput.addEventListener("keydown", (event) => {
-			if (event.key === "Enter" && !event.shiftKey) {
-				event.preventDefault();
-				void submit();
-			}
-		});
-		friendInput.addEventListener("keydown", (event) => {
-			if (event.key === "Enter") {
-				event.preventDefault();
-				void submit();
-			}
-		});
+		this.submitOnEnter(textInput, submit, "enter-unless-shift");
+		this.submitOnEnter(friendInput, submit);
 		window.setTimeout(() => textInput.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
 	}
 }

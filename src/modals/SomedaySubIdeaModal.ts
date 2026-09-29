@@ -42,16 +42,7 @@ export class SomedaySubIdeaModal extends FormModal {
 			{ buttons: [saveButton] }
 		);
 		saveButton.addEventListener("click", () => void submit());
-		input.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				void submit();
-			}
-		});
+		this.submitOnEnter(input, submit);
 		window.setTimeout(() => input.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
 	}
 }

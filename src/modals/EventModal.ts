@@ -500,19 +500,9 @@ export class EventModal extends FormModal {
 		};
 		nameInput.addEventListener("keydown", onEnter);
 		locInput.addEventListener("keydown", onEnter);
-		descInput.addEventListener("keydown", (e) => {
-			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-				e.preventDefault();
-				void submit();
-			}
-		});
+		this.submitOnEnter(descInput, submit, "mod-enter");
 
 		// A pre-filled form counts as an edit for focus purposes.
-		if (this.existing || this.prefill?.name) this.blurInitialFocus();
-		else window.setTimeout(() => nameInput.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
+		this.setInitialFocus(nameInput, !!(this.existing || this.prefill?.name));
 	}
 }

@@ -174,8 +174,4 @@ export class AddPlanMemberModal extends FormModal {
 		renderResults();
 		window.setTimeout(() => searchInput.focus(), 0);
 	}
-
-	onClose() {
-		this.contentEl.empty();
-	}
 }

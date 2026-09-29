@@ -326,8 +326,4 @@ export class PlanQuickIdeaModal extends FormModal {
 
 		renderPills();
 	}
-
-	onClose() {
-		this.contentEl.empty();
-	}
 }

@@ -204,20 +204,10 @@ export class QuickIdeaModal extends FormModal {
 		);
 
 		saveButton.addEventListener("click", () => void submit());
-		textInput.addEventListener("keydown", (event) => {
-			if (event.key === "Enter") {
-				event.preventDefault();
-				void submit();
-			}
-		});
+		this.submitOnEnter(textInput, submit);
 
 		// A new idea wants typing straight away; an edit is as likely to be
 		// a category change, so it opens unfocused (onDelete marks an edit).
-		if (this.onDelete) this.blurInitialFocus();
-		else window.setTimeout(() => textInput.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
+		this.setInitialFocus(textInput, !!this.onDelete);
 	}
 }

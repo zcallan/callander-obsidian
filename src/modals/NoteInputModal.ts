@@ -78,17 +78,7 @@ export class NoteInputModal extends FormModal {
 		);
 		saveButton.addEventListener("click", () => void submit());
 		// Cmd/Ctrl+Enter saves; plain Enter makes a newline
-		input.addEventListener("keydown", (e) => {
-			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-				e.preventDefault();
-				void submit();
-			}
-		});
-		if (this.initial) this.blurInitialFocus();
-		else window.setTimeout(() => input.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
+		this.submitOnEnter(input, submit, "mod-enter");
+		this.setInitialFocus(input, !!this.initial);
 	}
 }

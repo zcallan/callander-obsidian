@@ -82,22 +82,8 @@ export class DraftEditModal extends FormModal {
 		);
 
 		saveButton.addEventListener("click", () => void submit());
-		textInput.addEventListener("keydown", (event) => {
-			if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-				event.preventDefault();
-				void submit();
-			}
-		});
-		friendInput.addEventListener("keydown", (event) => {
-			if (event.key === "Enter") {
-				event.preventDefault();
-				void submit();
-			}
-		});
+		this.submitOnEnter(textInput, submit, "mod-enter");
+		this.submitOnEnter(friendInput, submit);
 		this.blurInitialFocus();
-	}
-
-	onClose() {
-		this.contentEl.empty();
 	}
 }

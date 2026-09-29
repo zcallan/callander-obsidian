@@ -234,9 +234,6 @@ export class EventImportModal extends FormModal {
 		});
 	}
 
-	onClose() {
-		this.contentEl.empty();
-	}
 }
 
 /**
@@ -408,9 +405,5 @@ class EventImportConfirmModal extends FormModal {
 		);
 		this.close();
 		this.onImported();
-	}
-
-	onClose() {
-		this.contentEl.empty();
 	}
 }

@@ -538,18 +538,8 @@ export class PlanSimpleItemModal extends FormModal {
 		if (people?.input) inputs.push(people.input);
 		if (schedule) inputs.push(...schedule.inputs);
 		for (const input of inputs) {
-			input.addEventListener("keydown", (e) => {
-				if (e.key === "Enter") {
-					e.preventDefault();
-					void submit();
-				}
-			});
+			this.submitOnEnter(input, submit);
 		}
-		if (this.initial) this.blurInitialFocus();
-		else window.setTimeout(() => textInput.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
+		this.setInitialFocus(textInput, !!this.initial);
 	}
 }

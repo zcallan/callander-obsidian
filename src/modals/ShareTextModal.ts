@@ -120,8 +120,4 @@ export class ShareTextModal<
 	private refresh() {
 		this.preview.value = this.build(this.detail);
 	}
-
-	onClose() {
-		this.contentEl.empty();
-	}
 }

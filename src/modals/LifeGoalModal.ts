@@ -90,23 +90,9 @@ export class LifeGoalModal extends FormModal {
 			{ buttons: [save] }
 		);
 		save.addEventListener("click", () => void submit());
-		textInput.addEventListener("keydown", (e) => {
-			if (e.key !== "Enter") return;
-			e.preventDefault();
-			void submit();
-		});
-		notesInput.addEventListener("keydown", (e) => {
-			if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-				e.preventDefault();
-				void submit();
-			}
-		});
+		this.submitOnEnter(textInput, submit);
+		this.submitOnEnter(notesInput, submit, "mod-enter");
 
-		if (this.initial) this.blurInitialFocus();
-		else window.setTimeout(() => textInput.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
+		this.setInitialFocus(textInput, !!this.initial);
 	}
 }

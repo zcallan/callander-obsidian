@@ -129,8 +129,4 @@ export class GroupEventModal extends FormModal {
 		);
 		saveButton.addEventListener("click", () => void handleSave());
 	}
-
-	onClose() {
-		this.contentEl.empty();
-	}
 }

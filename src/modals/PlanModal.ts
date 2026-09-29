@@ -102,18 +102,8 @@ export class PlanModal extends FormModal {
 			{ buttons: [createButton] }
 		);
 		createButton.addEventListener("click", () => void submit());
-		nameInput.addEventListener("keydown", (e) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				void submit();
-			}
-		});
+		this.submitOnEnter(nameInput, submit);
 		// A pre-filled form counts as an edit for focus purposes.
-		if (this.prefill?.name) this.blurInitialFocus();
-		else window.setTimeout(() => nameInput.focus(), 0);
-	}
-
-	onClose() {
-		this.contentEl.empty();
+		this.setInitialFocus(nameInput, !!this.prefill?.name);
 	}
 }

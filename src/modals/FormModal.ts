@@ -1,5 +1,9 @@
 import { App, Modal } from "obsidian";
 
+/** Which Enter submits: plain, Cmd/Ctrl+Enter (a multi-line field), or
+ * Enter unless Shift is held (Shift+Enter for a newline). */
+export type SubmitKey = "enter" | "mod-enter" | "enter-unless-shift";
+
 /**
  * A Modal that won't close on an accidental click of the dim backdrop once
  * you've edited anything inside it — so a stray click no longer throws away
@@ -118,6 +122,41 @@ export class FormModal extends Modal {
 				el.blur();
 			}
 		}, 0);
+	}
+
+	/** Submit from the keyboard in these fields, with the given key. */
+	protected submitOnEnter(
+		fields: HTMLElement | readonly HTMLElement[],
+		submit: () => unknown,
+		key: SubmitKey = "enter"
+	): void {
+		const list = fields instanceof HTMLElement ? [fields] : fields;
+		for (const field of list) {
+			field.addEventListener("keydown", (event) => {
+				if (event.key !== "Enter") return;
+				const mod = event.metaKey || event.ctrlKey;
+				if (key === "mod-enter" && !mod) return;
+				if (key === "enter-unless-shift" && event.shiftKey) return;
+				event.preventDefault();
+				void submit();
+			});
+		}
+	}
+
+	/**
+	 * Where focus starts: nowhere for a pre-filled form (see
+	 * blurInitialFocus), else `first`, on the next tick so it lands after
+	 * the modal's own.
+	 */
+	protected setInitialFocus(first: HTMLElement, prefilled: boolean): void {
+		if (prefilled) this.blurInitialFocus();
+		else window.setTimeout(() => first.focus(), 0);
+	}
+
+	/** Every form's content is built in onOpen, so it's cleared on close.
+	 * A subclass with more to tear down calls super.onClose(). */
+	onClose() {
+		this.contentEl.empty();
 	}
 
 	close() {

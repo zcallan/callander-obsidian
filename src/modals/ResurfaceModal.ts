@@ -70,8 +70,4 @@ export class ResurfaceModal extends FormModal {
 		);
 		saveButton.addEventListener("click", () => void handleSave());
 	}
-
-	onClose() {
-		this.contentEl.empty();
-	}
 }

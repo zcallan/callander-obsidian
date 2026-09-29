@@ -315,8 +315,4 @@ export class PlanItemModal extends FormModal {
 			void save();
 		});
 	}
-
-	onClose() {
-		this.contentEl.empty();
-	}
 }

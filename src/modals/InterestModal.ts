@@ -202,17 +202,8 @@ export class InterestModal extends FormModal {
 		detail2Input.addEventListener("keydown", onEnter);
 		// Plain Enter starts a new line, matching every other notes/description
 		// textarea here — only Cmd/Ctrl+Enter submits.
-		notesInput.addEventListener("keydown", (event) => {
-			if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-				event.preventDefault();
-				void submit();
-			}
-		});
+		this.submitOnEnter(notesInput, submit, "mod-enter");
 
 		this.blurInitialFocus();
-	}
-
-	onClose() {
-		this.contentEl.empty();
 	}
 }
