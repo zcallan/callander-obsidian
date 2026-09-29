@@ -205,7 +205,7 @@ export function timelineOf(metadata: unknown): PlanTimelineEntry[] {
 				const emoji = isStay
 					? (item.stay && ACCOMMODATION_EMOJI[item.stay]) || "🛏️"
 					: item.type
-					? TRAVEL_TYPE_EMOJI[item.type]
+					? TRAVEL_TYPE_EMOJI[item.type] ?? "🧭"
 					: "🧭";
 				entries.push({
 					source: isStay ? "accommodation" : "travel",

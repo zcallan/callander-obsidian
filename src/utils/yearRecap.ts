@@ -7,10 +7,15 @@ import { parseFlexDate } from "@/utils/flexdate";
 import { formatCount } from "@/utils/text";
 
 export interface RecapContact {
-	/** What goes inside the [[…]] link: the note's name. */
-	name: string;
+	/** The note itself: its basename is what the [[…]] link points at. */
+	file: { basename: string };
 	met: string;
-	events: readonly { date: string; type: string }[];
+	events: readonly {
+		file: { path: string };
+		date: string;
+		type: string;
+		status: string;
+	}[];
 	ideas: readonly { done: boolean }[];
 	openIdeas: number;
 }
@@ -43,29 +48,40 @@ export function buildYearRecap({
 	);
 	if (newFriends.length > 0) {
 		lines.push(`## New this year`);
-		newFriends.forEach((c) => lines.push(`- [[${c.name}]]`));
+		newFriends.forEach((c) => lines.push(`- [[${c.file.basename}]]`));
 		lines.push("");
 	}
 
+	// Cancelled plans didn't happen, so they aren't moments.
+	const inYear = (e: RecapContact["events"][number]) =>
+		e.status !== "cancelled" && parseFlexDate(e.date)?.year === year;
+
 	lines.push(`## Moments logged`);
-	let totalEvents = 0;
 	for (const c of contacts) {
-		const count = c.events.filter(
-			(e) => parseFlexDate(e.date)?.year === year
-		).length;
-		totalEvents += count;
+		const count = c.events.filter(inYear).length;
 		if (count > 0) {
-			lines.push(`- [[${c.name}]] — ${formatCount(count, "event")}`);
+			lines.push(
+				`- [[${c.file.basename}]] — ${formatCount(count, "event")}`
+			);
 		}
 	}
-	const yearEvents = contacts.flatMap((c) =>
-		c.events.filter((e) => parseFlexDate(e.date)?.year === year)
-	);
+	// Each event once: a hangout with three friends is listed under all
+	// three of them, but it's one hangout.
+	const yearEvents = [
+		...new Map(
+			contacts.flatMap((c) =>
+				c.events.filter(inYear).map((e) => [e.file.path, e] as const)
+			)
+		).values(),
+	];
 	const hangouts = yearEvents.filter((e) => e.type === "hangout").length;
 	const lifeMoments = yearEvents.filter((e) => e.type === "life").length;
 	lines.push(
 		"",
-		`**${totalEvents} events across everyone** — ${formatCount(
+		`**${formatCount(
+			yearEvents.length,
+			"event"
+		)} across everyone** — ${formatCount(
 			hangouts,
 			"hangout"
 		)}, ${lifeMoments} of their life moments witnessed.`,
@@ -87,7 +103,11 @@ export function buildYearRecap({
 	const diaryCount = diaryDates.filter((d) =>
 		d.startsWith(String(year))
 	).length;
-	lines.push(`## Diary`, `- ${diaryCount} entries about ${year}`, "");
+	lines.push(
+		`## Diary`,
+		`- ${formatCount(diaryCount, "entry", "entries")} about ${year}`,
+		""
+	);
 
 	return lines.join("\n");
 }

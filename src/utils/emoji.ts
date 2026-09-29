@@ -63,10 +63,10 @@ export function stripEmoji(text: string): string {
 }
 
 /**
- * True when the text leads with a pictograph. Narrower than
- * splitLeadingEmoji — a flag or keycap doesn't count — which is how it has
- * always behaved; widening it would change which rows get a type emoji.
+ * True when the text already leads with an emoji — any shape
+ * splitLeadingEmoji knows, flags and keycaps included, so a row that
+ * starts with one isn't given a second.
  */
 export function startsWithEmoji(text: string): boolean {
-	return /^\p{Extended_Pictographic}/u.test(text.trim());
+	return splitLeadingEmoji(text.trim()) !== null;
 }

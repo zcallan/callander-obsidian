@@ -338,7 +338,9 @@ export function buildPlanShareText(
 		section("Travel:");
 		undatedTravel.forEach((t) => {
 			const icon =
-				detail.emojis && t.type ? `${TRAVEL_TYPE_EMOJI[t.type]} ` : "";
+				detail.emojis && t.type
+					? `${TRAVEL_TYPE_EMOJI[t.type] ?? "🧭"} `
+					: "";
 			const bits = [
 				t.duration,
 				travelShow.people && t.people

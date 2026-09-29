@@ -24,7 +24,9 @@ const HALF_CENT = 0.005;
  * whether or not a row happens to be negative.
  */
 export function formatMoney(n: number): string {
-	return `${n < 0 ? "\u2212" : ""}$${Math.abs(n).toFixed(2)}`;
+	// Signed after rounding: a -0.0033 balance is $0.00, not "−$0.00".
+	const figure = Math.abs(n).toFixed(2);
+	return `${n < 0 && figure !== "0.00" ? "\u2212" : ""}$${figure}`;
 }
 
 /** How an expense is divided, for display: "By receipt", "Split evenly"… */

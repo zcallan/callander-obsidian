@@ -24,11 +24,19 @@ export function resolvePeopleInfo(
 	list: string[]
 ): PersonInfo[] {
 	return list.map((raw) => {
-		const linktext = String(raw).replace(/^\[\[|\]\]$/g, "");
+		const inner = String(raw).replace(/^\[\[|\]\]$/g, "");
+		// An aliased link resolves on the note before the "|"; with no note
+		// behind it, the alias is the name to show.
+		const [target, alias] = inner.split("|");
 		const dest = sourcePath
-			? app.metadataCache.getFirstLinkpathDest(linktext, sourcePath)
+			? app.metadataCache.getFirstLinkpathDest(target.trim(), sourcePath)
 			: null;
-		if (!dest) return { displayName: linktext, shortName: "" };
+		if (!dest) {
+			return {
+				displayName: alias !== undefined ? alias.trim() : inner,
+				shortName: "",
+			};
+		}
 		const fm = app.metadataCache.getFileCache(dest)?.frontmatter;
 		return {
 			// `||`, not `??`: an emptied-out `displayName: ""` is exactly as

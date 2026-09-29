@@ -5,5 +5,9 @@
  * vault instead of the web.
  */
 export function normalizeUrl(raw: string): string {
-	return /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+	// mailto:, tel: and sms: have no "//". Named rather than any `word:`,
+	// which would take "localhost:3000" for a scheme too.
+	return /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) || /^(mailto|tel|sms):/i.test(raw)
+		? raw
+		: `https://${raw}`;
 }

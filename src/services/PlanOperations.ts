@@ -31,6 +31,7 @@ import {
 	upsertDraftsSection,
 } from "@/utils/draftsMarkdown";
 import { joinFrontmatter, splitFrontmatter } from "@/utils/markdownSection";
+import { linkpathOf } from "@/utils/linkField";
 
 export class PlanOperations {
 	// The readers live in utils/planFields and utils/planTimeline; these
@@ -105,7 +106,8 @@ export class PlanOperations {
 		for (const plan of plans) {
 			const resolves = (raw: unknown) =>
 				this.app.metadataCache.getFirstLinkpathDest(
-					toText(raw).replace(/^\[\[|\]\]$/g, ""),
+					// Aliased or space-padded, it's still them.
+					linkpathOf(toText(raw).trim()),
 					plan.path
 				)?.path === file.path;
 			const fm = this.app.metadataCache.getFileCache(plan)?.frontmatter;

@@ -1204,7 +1204,7 @@ export default class FriendTracker extends Plugin {
 		const path = BIRTHDAY_ICS_PATH;
 		await this.app.vault.adapter.write(path, ics);
 		new Notice(
-			`📅 Saved "${path}" to your vault root (${eventCount} events — everyone's next birthday).\n\nOpen it in Finder and double-click to add to Apple Calendar — pick an iCloud calendar to get iPhone alerts too. Re-run and re-import yearly to top up.`,
+			`📅 Saved "${path}" to your vault root (${formatCount(eventCount, "event")} — everyone's next birthday).\n\nOpen it in Finder and double-click to add to Apple Calendar — pick an iCloud calendar to get iPhone alerts too. Re-run and re-import yearly to top up.`,
 			EXPORT_NOTICE_MS
 		);
 	}

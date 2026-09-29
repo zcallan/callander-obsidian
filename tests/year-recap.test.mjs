@@ -4,13 +4,15 @@ import { buildYearRecap } from "./.build/callander.mjs";
 /** The recap note's text, as main.ts wrote it before the builder moved out. */
 export function run() {
 	const { eq, result } = createSuite("year recap");
-	const contact = (name, met, events, ideas, openIdeas) => ({ name, met, events, ideas, openIdeas });
+	const contact = (name, met, events, ideas, openIdeas) => ({ file: { basename: name }, met, events, ideas, openIdeas });
+	let n = 0;
+	const ev = (date, type) => ({ file: { path: `Events/${n++}.md` }, date, type, status: "open" });
 	const text = buildYearRecap({
 		year: 2026,
 		generatedOn: "2026-12-30",
 		contacts: [
-			contact("Ann", "2026-03", [{ date: "2026-04-01", type: "hangout" }, { date: "2025-01-01", type: "hangout" }], [{ done: true }, { done: false }], 1),
-			contact("Bo", "2019", [{ date: "2026-06", type: "life" }, { date: "2026", type: "hangout" }, { date: "", type: "life" }], [{ done: true }], 0),
+			contact("Ann", "2026-03", [ev("2026-04-01", "hangout"), ev("2025-01-01", "hangout")], [{ done: true }, { done: false }], 1),
+			contact("Bo", "2019", [ev("2026-06", "life"), ev("2026", "hangout"), ev("", "life")], [{ done: true }], 0),
 			contact("Cy", "", [], [], 2),
 		],
 		diaryDates: ["2026-01-02", "2025-12-31", "2026-11-11"],

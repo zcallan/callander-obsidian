@@ -400,7 +400,10 @@ class EventImportConfirmModal extends FormModal {
 		if (touched.size > 0) await ops.refreshPersonSections([...touched]);
 		new Notice(
 			failed > 0
-				? `Imported ${done} of ${done + failed} events — ${failed} couldn't be written (see the console).`
+				? `Imported ${done} of ${formatCount(
+						done + failed,
+						"event"
+				  )} — ${failed} couldn't be written (see the console).`
 				: `Imported ${formatCount(done, "event")}`
 		);
 		this.close();
