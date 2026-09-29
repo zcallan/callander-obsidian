@@ -1,6 +1,6 @@
 import type { App, TFile } from "obsidian";
 import type { ReactNode } from "react";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { DashboardSnapshot } from "@/views/DashboardView/snapshot";
 import type { SearchBox } from "@/components/searchBox";
 
@@ -17,7 +17,7 @@ export type DashboardIslandKey = "upcoming" | "expenses";
  */
 export interface DashboardContext {
 	readonly app: App;
-	readonly plugin: FriendTracker;
+	readonly plugin: CallanderPlugin;
 	/** What this render draws from. */
 	readonly data: DashboardSnapshot;
 	readonly ui: { searchQuery: string };

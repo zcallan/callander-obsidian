@@ -2,14 +2,14 @@ import { createSuite } from "./harness.mjs";
 import { IDEA_SHARE_DEFAULTS, buildIdeaShareText } from "./.build/callander.mjs";
 
 const IDEAS = [
-	{ text: "Cannolis in North End", categories: ["Boston"], time: "late-night" },
+	{ text: "Churros in North End", categories: ["Boston"], time: "late-night" },
 	{
 		text: "Brattle Bookstore",
 		categories: ["Boston"],
 		dates: ["2026-08-22", "2026-08-23"],
 		time: "all-day",
 		cost: 0,
-		people: "Riley",
+		people: "Rowan",
 		notes: "Cash only downstairs.",
 	},
 	{ text: "Dead Rabbit", categories: ["New York"] },
@@ -47,7 +47,7 @@ export function run() {
 			text.split("\n\n")[0].split("\n"),
 			[
 				"Boston",
-				"- Cannolis in North End • Late night",
+				"- Churros in North End • Late night",
 				"- Brattle Bookstore • Sat 22 Aug - Sun 23 Aug • All day",
 			]
 		);
@@ -82,8 +82,8 @@ export function run() {
 	ok("Time off drops it", !build({ time: false }).includes("All day"));
 	ok("Cost is off to begin with", !build().includes("Free"));
 	ok("and shows when asked for", build({ cost: true }).includes("Free"));
-	ok("People off drops them", !build().includes("Riley"));
-	ok("and on adds them", build({ people: true }).includes("• Riley"));
+	ok("People off drops them", !build().includes("Rowan"));
+	ok("and on adds them", build({ people: true }).includes("• Rowan"));
 	{
 		// A note is a sentence where the rest of the row is labels, so it
 		// takes its own indented line rather than another bullet.

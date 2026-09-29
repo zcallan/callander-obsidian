@@ -4,6 +4,7 @@ import { FormModal } from "@/modals/FormModal";
 import { confirmThenClose } from "@/modals/ConfirmModal";
 import { INTEREST_CATEGORIES, InterestCategory } from "@/constants";
 import type { Interest } from "@/types";
+import { interestFieldsTip, interestParts } from "@/utils/contactPage";
 
 type InterestCategoryInfo = (typeof INTEREST_CATEGORIES)[number];
 
@@ -12,6 +13,10 @@ type InterestCategoryInfo = (typeof INTEREST_CATEGORIES)[number];
  * fields where the type has them (a book's author, music's artist and
  * genre), and notes on what they like about it. Deliberately factual —
  * what they're into, never a rating.
+ *
+ * Any one of those fields is enough. An artist they love is worth keeping
+ * without a song to go with it, and the form says so wherever a type has
+ * more than the one field.
  */
 export class InterestModal extends FormModal {
 	private category: InterestCategory;
@@ -53,7 +58,7 @@ export class InterestModal extends FormModal {
 
 		// Each field's label and placeholder follow the selected type — see
 		// INTEREST_CATEGORIES — so the form asks for a Book and its Author,
-		// a Song and its Band, and so on.
+		// a Song and its Artist, and so on.
 		const nameField = contentEl.createDiv({ cls: "callander-modal-field" });
 		const nameLabel = nameField.createEl("label");
 		const textInput = nameField.createEl("input", {
@@ -84,6 +89,10 @@ export class InterestModal extends FormModal {
 		});
 		detail2Input.value = this.existing?.detail2 ?? "";
 
+		const tip = contentEl.createDiv({
+			cls: "section-helper-text",
+		});
+
 		const notesField = contentEl.createDiv({
 			cls: "callander-modal-field",
 		});
@@ -107,7 +116,7 @@ export class InterestModal extends FormModal {
 				: null;
 		const syncFields = () => {
 			const cat = current();
-			nameLabel.setText(cat.label);
+			nameLabel.setText("nameLabel" in cat ? cat.nameLabel : cat.label);
 			textInput.placeholder = cat.namePlaceholder;
 			const detail = detailOf(cat);
 			detailField.toggle(!!detail);
@@ -117,6 +126,12 @@ export class InterestModal extends FormModal {
 			detail2Field.toggle(!!detail2);
 			detail2Label.setText(detail2?.label ?? "");
 			detail2Input.placeholder = detail2?.placeholder ?? "";
+			const detailLabels: string[] = [];
+			if (detail) detailLabels.push(detail.label);
+			if (detail2) detailLabels.push(detail2.label);
+			const tipText = interestFieldsTip(detailLabels);
+			tip.setText(tipText);
+			tip.toggle(!!tipText);
 			notesInput.placeholder = cat.notesPlaceholder;
 		};
 
@@ -157,7 +172,9 @@ export class InterestModal extends FormModal {
 			deleteButton.addEventListener("click", () => {
 				confirmThenClose(this, {
 					title: "Delete interest",
-					message: `Delete "${this.existing?.text ?? ""}"?`,
+					message: `Delete "${
+						this.existing ? interestParts(this.existing).join(" · ") : ""
+					}"?`,
 					onConfirm: async () => {
 						await onDelete();
 					},
@@ -172,12 +189,17 @@ export class InterestModal extends FormModal {
 		const submit = guardedAction(
 			async () => {
 				const text = textInput.value.trim();
-				if (!text) return;
 				// A field hidden by the type isn't asked, so isn't saved —
 				// switching Book → Hobby shouldn't carry a stray author across.
 				const cat = current();
 				const detail = detailOf(cat) ? detailInput.value.trim() : "";
 				const detail2 = detail2Of(cat) ? detail2Input.value.trim() : "";
+				// Any one of them will do (the tip says so); none, and
+				// there's nothing to save.
+				if (!text && !detail && !detail2) {
+					textInput.focus();
+					return;
+				}
 				await this.onSubmit(
 					this.category,
 					text,

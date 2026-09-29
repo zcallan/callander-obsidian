@@ -1,6 +1,6 @@
 import { App, Notice, setIcon } from "obsidian";
 import { reportFailure } from "@/components/guardedAction";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { ContactWithCountdown, EventInfo } from "@/types";
 import { EventModal } from "@/modals/EventModal";
 import { confirmThenClose } from "@/modals/ConfirmModal";
@@ -33,7 +33,7 @@ export class EventViewModal extends CallanderModal {
 
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private event: EventInfo,
 		/** Anything to do after a change, beyond the write itself; pages
 		 * hear the write on their own. */

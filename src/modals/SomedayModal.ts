@@ -3,7 +3,7 @@ import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { confirmThenClose } from "@/modals/ConfirmModal";
 import { appendContactPicker } from "@/components/ContactPicker";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { SomedayInfo } from "@/types";
 import type { SomedayFields } from "@/services/SomedayOperations";
 import {
@@ -40,7 +40,7 @@ type WhenMode = "anytime" | "within" | "year" | "month" | "day" | "season";
 export class SomedayModal extends FormModal {
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private existing: SomedayInfo | null,
 		/** Anything to do once it's saved, beyond the write itself — say,
 		 * opening it. Pages hear the write on their own. */

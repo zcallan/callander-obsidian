@@ -14,21 +14,21 @@ export async function run() {
 	// ---------- creating ----------
 	{
 		const t = await createTestVault();
-		await t.addPerson("Austin Philleo");
+		await t.addPerson("Anders Pennell");
 		const file = await t.events.createEvent({
 			name: "Concert at the Sinclair",
 			date: "2026-08-06",
 			type: "concert",
-			people: ["[[Austin Philleo]]"],
+			people: ["[[Anders Pennell]]"],
 		});
 		eq(
 			"slug is date + person • name",
 			file.path,
-			"Friends/Events/2026-08-06 Austin Philleo • Concert at the Sinclair.md"
+			"Friends/Events/2026-08-06 Anders Pennell • Concert at the Sinclair.md"
 		);
 		const fm = t.frontmatterOf(file);
 		eq("kind stamped", fm.kind, "event");
-		eq("people stored as wikilinks", fm.people, ["[[Austin Philleo]]"]);
+		eq("people stored as wikilinks", fm.people, ["[[Anders Pennell]]"]);
 		ok("created stamped", typeof fm.created === "string");
 	}
 	{
@@ -321,7 +321,7 @@ export async function run() {
 	// ---------- migration: reminder files ----------
 	{
 		const t = await createTestVault();
-		await t.addPerson("Laura");
+		await t.addPerson("Livia");
 		await t.vault.createFolder("Friends/Reminders");
 		await t.vault.create(
 			"Friends/Reminders/Houndmouth Concert.md",
@@ -332,7 +332,7 @@ export async function run() {
 				"date: 2026-08-06",
 				'time: "19:00"',
 				"type: concert",
-				"people: Laura",
+				"people: Livia",
 				"notes: Doors at 7",
 				"status: open",
 				"created: 2026-07-01",
@@ -349,7 +349,7 @@ export async function run() {
 		eq("it moved into Events/", e.file.path.startsWith("Friends/Events/"), true);
 		eq("time carries over", e.time, "19:00");
 		eq("type carries over", e.type, "concert");
-		eq("people text became wikilinks", e.people, ["[[Laura]]"]);
+		eq("people text became wikilinks", e.people, ["[[Livia]]"]);
 		eq("notes became the description", e.description, "Doors at 7");
 		eq(
 			"the empty Reminders folder is gone",
@@ -768,7 +768,7 @@ export async function run() {
 		const stays = PlanOperations.simpleListOf(
 			{
 				accommodation: [
-					{ text: "Riley's spare room", stay: "friends" },
+					{ text: "Rowan's spare room", stay: "friends" },
 					{ text: "The Ritz", stay: "hotel" },
 					{ text: "Untyped", stay: "" },
 				],

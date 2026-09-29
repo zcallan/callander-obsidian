@@ -18,7 +18,7 @@ export interface PlanItem {
 	/** How long it runs, canonical "2h 30m" — the same shape a travel leg
 	 * stores, and what a calendar export reads for an end time. */
 	duration?: string;
-	/** Who's involved, free text, e.g. "me, Riley, Laura". */
+	/** Who's involved, free text, e.g. "me, Rowan, Livia". */
 	people?: string;
 	/** Where it happens, e.g. "Eventide Oyster Co" — openable in Maps. */
 	location?: string;
@@ -70,7 +70,7 @@ export interface PlanSimpleItem {
 	date?: string;
 	/** 24h time (HH:MM) — travel legs, refines ordering within a day. */
 	time?: string;
-	/** Who's on this leg / staying, free text, e.g. "me, Riley, Laura". */
+	/** Who's on this leg / staying, free text, e.g. "me, Rowan, Livia". */
 	people?: string;
 	/** Free-text span for travel, e.g. "2h flight". Stays use `nights`. */
 	duration?: string;
@@ -132,7 +132,7 @@ export interface PlanTimelineEntry {
 
 /**
  * A shared expense split across participants. "even" divides equally;
- * "shares" divides by integer weights (Austin 3, Riley 2 nights, etc.) —
+ * "shares" divides by integer weights (Anders 3, Rowan 2 nights, etc.) —
  * generic units, so it works for nights, drinks, gas, anything.
  */
 export interface Expense {
@@ -204,7 +204,7 @@ export interface PlanInfo {
 	created: string;
 	updated: string;
 	items: PlanItem[];
-	/** Wikilink strings, e.g. "[[Austin Philleo]]" */
+	/** Wikilink strings, e.g. "[[Anders Pennell]]" */
 	members: string[];
 	/**
 	 * Kept off the dashboard's Upcoming list.

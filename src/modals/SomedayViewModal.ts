@@ -1,5 +1,5 @@
 import { App, Notice, setIcon } from "obsidian";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { ContactWithCountdown, SomedayInfo, SomedaySubIdea } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
 import { confirmThenClose } from "@/modals/ConfirmModal";
@@ -37,7 +37,7 @@ export class SomedayViewModal extends CallanderModal {
 
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private someday: SomedayInfo,
 		/** Anything to do after a change, beyond the write itself; pages
 		 * hear the write on their own. */

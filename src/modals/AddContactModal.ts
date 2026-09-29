@@ -1,6 +1,6 @@
 import { App, Notice } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import {
 	createRelationshipInput,
 	rememberRelationshipType,
@@ -15,7 +15,7 @@ import { errorText, guardedAction } from "@/components/guardedAction";
 export class AddContactModal extends FormModal {
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 	) {
 		super(app);
 	}
@@ -68,7 +68,7 @@ export class AddContactModal extends FormModal {
 			attr: {
 				type: "text",
 				name: "shortName",
-				placeholder: "Used in lists to save space, e.g. 'Callan' -> 'Cal'",
+				placeholder: "Used in lists to save space, e.g. 'Theodore' -> 'Theo'",
 			},
 			cls: "callander-modal-input",
 		});

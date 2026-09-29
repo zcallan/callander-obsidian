@@ -26,18 +26,18 @@ export function run() {
 	const { eq, result } = createSuite("plan format (short names)");
 
 	// ---------- shortenMemberNames: existing behaviour, no overrides ----------
-	eq("first name alone when unique", shortenMemberNames(["Austin Philleo"]), [
-		"Austin",
+	eq("first name alone when unique", shortenMemberNames(["Anders Pennell"]), [
+		"Anders",
 	]);
 	eq(
 		"disambiguates a real collision",
-		shortenMemberNames(["Riley Sorensen", "Riley Park"]),
-		["Riley S", "Riley P"]
+		shortenMemberNames(["Rowan Sandberg", "Rowan Park"]),
+		["Rowan S", "Rowan P"]
 	);
 	eq(
 		"a single-word name has no second word to suffix with, so stays bare",
-		shortenMemberNames(["Riley", "Riley Park"]),
-		["Riley", "Riley P"]
+		shortenMemberNames(["Rowan", "Rowan Park"]),
+		["Rowan", "Rowan P"]
 	);
 
 	// ---------- overrides ----------
@@ -73,10 +73,10 @@ export function run() {
 	eq(
 		"unrelated names are untouched by someone else's override",
 		shortenMemberNames(
-			["Barack Obama", "Riley Sorensen", "Riley Park"],
+			["Barack Obama", "Rowan Sandberg", "Rowan Park"],
 			new Map([["barack obama", "Obama"]])
 		),
-		["Obama", "Riley S", "Riley P"]
+		["Obama", "Rowan S", "Rowan P"]
 	);
 
 	// ---------- shortenPeopleList ----------
@@ -103,10 +103,10 @@ export function run() {
 	eq(
 		"\"Me\" still wins over an override for yourName's own row",
 		shortenPeopleList(
-			"Callan",
-			["Callan"],
-			"Callan",
-			new Map([["callan", "Cal"]])
+			"Casey",
+			["Casey"],
+			"Casey",
+			new Map([["casey", "Cas"]])
 		),
 		"Me"
 	);
@@ -122,8 +122,8 @@ export function run() {
 	// ---------- shortNameOverrides ----------
 	const map = shortNameOverrides([
 		{ displayName: "Barack Obama", shortName: "Obama" },
-		{ displayName: "Riley Sorensen", shortName: "" },
-		{ displayName: "Laura Morton", shortName: "   " },
+		{ displayName: "Rowan Sandberg", shortName: "" },
+		{ displayName: "Livia Marlow", shortName: "   " },
 	]);
 	eq("map size excludes blank/whitespace-only shortNames", map.size, 1);
 	eq(
@@ -131,7 +131,7 @@ export function run() {
 		map.get("barack obama"),
 		"Obama"
 	);
-	eq("no entry for a contact without one", map.has("riley sorensen"), false);
+	eq("no entry for a contact without one", map.has("rowan sandberg"), false);
 
 	// ---------- "All day" ----------
 	// Not a time of day but an answer to the same question, so it resolves

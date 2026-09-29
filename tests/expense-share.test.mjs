@@ -12,20 +12,20 @@ const even = (label, amount, extra = {}) => ({
 	...extra,
 });
 
-/** Callan paid; the other two owe their share. */
+/** Casey paid; the other two owe their share. */
 const INPUT = {
 	expenses: [
 		even("Cabin", 300),
-		even("Taxi", 30, { paid: ["Callan", "Riley", "Laura"], settled: true }),
+		even("Taxi", 30, { paid: ["Casey", "Rowan", "Livia"], settled: true }),
 		{
 			label: "Dinner",
 			amount: 90,
-			split: { mode: "shares", shares: { Callan: 1, Riley: 2 } },
+			split: { mode: "shares", shares: { Casey: 1, Rowan: 2 } },
 		},
 	],
-	credits: [{ person: "Riley", amount: 20, note: "petrol" }],
-	participants: ["Callan", "Riley", "Laura"],
-	yourName: "Callan",
+	credits: [{ person: "Rowan", amount: 20, note: "petrol" }],
+	participants: ["Casey", "Rowan", "Livia"],
+	yourName: "Casey",
 };
 
 const detail = (scope, over = {}) => ({ ...shareDefaultsFor(scope), ...over });
@@ -50,7 +50,7 @@ export function run() {
 		"hideMe",
 		"hideSettled",
 	]);
-	eq("one person is their own People, and can't hide you", ids({ kind: "person", person: "Riley" }), [
+	eq("one person is their own People, and can't hide you", ids({ kind: "person", person: "Rowan" }), [
 		"credits",
 		"totals",
 		"hideSettled",
@@ -84,7 +84,7 @@ export function run() {
 		"totals",
 	]);
 	// A person's ledger keeps its settled lines where a section drops them.
-	eq("a person's ledger opens showing what's paid", opens({ kind: "person", person: "Riley" }), [
+	eq("a person's ledger opens showing what's paid", opens({ kind: "person", person: "Rowan" }), [
 		"credits",
 		"hideMe",
 		"people",
@@ -98,14 +98,14 @@ export function run() {
 		eq("a colon joins the expense to its total", text.split("\n")[0], "Cabin: $300.00");
 		// A dash between a person and their share, and you are left out.
 		eq("a dash joins a person to their share", text.split("\n").slice(1), [
-			"  Riley — $100.00",
-			"  Laura — $100.00",
+			"  Rowan — $100.00",
+			"  Livia — $100.00",
 		]);
 	}
 	eq(
 		"Hide me off puts you back",
 		build({ kind: "expense", index: 0 }, { hideMe: false }).split("\n")[1],
-		"  Callan — $100.00"
+		"  Casey — $100.00"
 	);
 	eq(
 		"People off leaves the expense alone",
@@ -117,7 +117,7 @@ export function run() {
 		// often to show it is square.
 		const text = build({ kind: "expense", index: 1 });
 		ok("a settled expense says so", text.startsWith("Taxi: $30.00 (Paid)"));
-		ok("and so does each settled person", text.includes("  Riley — $10.00 (Paid)"));
+		ok("and so does each settled person", text.includes("  Rowan — $10.00 (Paid)"));
 	}
 	eq(
 		"Hide settled drops the people who are square",
@@ -128,9 +128,9 @@ export function run() {
 
 	// ---------- one person ----------
 	{
-		const text = build({ kind: "person", person: "Riley" });
+		const text = build({ kind: "person", person: "Rowan" });
 		const lines = text.split("\n");
-		eq("it opens with the person", lines[0], "Riley");
+		eq("it opens with the person", lines[0], "Rowan");
 		eq("a blank line follows the name", lines[1], "");
 		ok("a dash joins the cost to the figure", text.includes("Cabin — $100.00"));
 		ok("and the figure is this person's share", text.includes("Dinner — $60.00"));
@@ -150,12 +150,12 @@ export function run() {
 	{
 		// Settled lines show here by default, unlike a whole section: they
 		// are the working that explains a smaller number than expected.
-		const text = build({ kind: "person", person: "Riley" });
+		const text = build({ kind: "person", person: "Rowan" });
 		ok("a settled line is listed", text.includes("Taxi — $10.00 (Paid)"));
 		ok("but doesn't count toward the total", text.endsWith("Total: $140.00"));
 	}
 	{
-		const text = build({ kind: "person", person: "Riley" }, { hideSettled: true });
+		const text = build({ kind: "person", person: "Rowan" }, { hideSettled: true });
 		ok("Hide settled drops it", !text.includes("Taxi"));
 		// It was never counted, so hiding it must not move the total.
 		ok("without moving the total", text.endsWith("Total: $140.00"));
@@ -164,13 +164,13 @@ export function run() {
 	// reads the same for your own ledger as for anyone else's.
 	ok(
 		"your own ledger totals the same way",
-		build({ kind: "person", person: "Callan" }).includes("Total: ")
+		build({ kind: "person", person: "Casey" }).includes("Total: ")
 	);
 	{
 		// The heading is gone, so this has to test the line itself — looking
 		// for the word "Credits" passed whatever the toggle did, which
 		// mutation testing caught.
-		const off = build({ kind: "person", person: "Riley" }, { credits: false });
+		const off = build({ kind: "person", person: "Rowan" }, { credits: false });
 		ok("Credits off drops the credit line", !off.includes("petrol"));
 		ok("and no stray plus survives it", !off.includes("+$"));
 		// It comes off the sum either way — hiding a line can't change what
@@ -186,14 +186,14 @@ export function run() {
 		// tells the reader nothing they don't have.
 		eq("no plan name leads it", lines[0], "Expenses");
 		eq("a blank line follows the heading", lines[1], "");
-		ok("a colon joins a person to their share here", text.includes("  Riley: $100.00"));
-		ok("credits name the person", text.includes("Credits\n\nRiley: −$20.00 (petrol)"));
+		ok("a colon joins a person to their share here", text.includes("  Rowan: $100.00"));
+		ok("credits name the person", text.includes("Credits\n\nRowan: −$20.00 (petrol)"));
 		ok("totals get their own blank line", text.includes("Totals\n\n"));
-		ok("and match what the page shows", text.includes("Riley: $140.00"));
+		ok("and match what the page shows", text.includes("Rowan: $140.00"));
 		// You're the one being paid, so you're out of the list by default.
-		ok("you are left out", !text.includes("Callan:"));
+		ok("you are left out", !text.includes("Casey:"));
 		// A blank line between expenses, so a run doesn't read as one block.
-		ok("expenses are spaced apart", text.includes("$300.00\n  Riley: $100.00\n  Laura: $100.00\n\nTaxi"));
+		ok("expenses are spaced apart", text.includes("$300.00\n  Rowan: $100.00\n  Livia: $100.00\n\nTaxi"));
 	}
 	{
 		// With no shares underneath, every expense is one line — the gap it

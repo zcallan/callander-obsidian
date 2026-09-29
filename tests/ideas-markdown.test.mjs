@@ -82,10 +82,10 @@ export function run() {
 	}
 
 	// ---------- section level ----------
-	eq("no section -> null (not migrated)", parseIdeasSection("# Callan\n\nNotes."), null);
+	eq("no section -> null (not migrated)", parseIdeasSection("# Casey\n\nNotes."), null);
 	eq("empty section -> empty list", parseIdeasSection("## Ideas\n"), []);
 
-	const body = `# Riley
+	const body = `# Rowan
 
 Intro prose.
 
@@ -269,7 +269,7 @@ Ask his sister first.
 	);
 
 	// ---------- creating from scratch ----------
-	const fresh = upsertIdeasSection("# Callan\n\nNotes.", [
+	const fresh = upsertIdeasSection("# Casey\n\nNotes.", [
 		{ category: "gift", text: "Hi", done: false },
 	]);
 	eq("creates section", parseIdeasSection(fresh), [

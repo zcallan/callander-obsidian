@@ -39,7 +39,7 @@ export interface SomedayFields {
 	notes?: string;
 	company?: SomedayCompany | "";
 	types?: SomedayType[];
-	/** Wikilinks to real contacts, e.g. ["[[Callan]]"] — same shape as a
+	/** Wikilinks to real contacts, e.g. ["[[Casey]]"] — same shape as a
 	 * plan's members. */
 	people?: string[];
 }

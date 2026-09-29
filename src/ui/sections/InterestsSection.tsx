@@ -1,4 +1,5 @@
 import { INTEREST_CATEGORIES } from "@/constants";
+import { interestParts } from "@/utils/contactPage";
 import type { Interest } from "@/types";
 import { Icon } from "@/ui/components/Icon";
 import { useViewRevision, type ViewStore } from "@/ui/viewStore";
@@ -53,15 +54,17 @@ export function InterestsSection({
 							{`${cat.emoji} ${cat.plural}`}
 						</div>
 						<div className="contact-interest-chips">
-							{items.map(({ interest, index }) => (
-								<div
-									className="contact-interest-chip"
-									key={index}
-								>
-									<span>{interest.text}</span>
-									{[interest.detail, interest.detail2]
-										.filter(Boolean)
-										.map((value, i) => (
+							{items.map(({ interest, index }) => {
+								// Whatever it has leads, so an artist on their
+								// own reads as the chip's name, not a detail.
+								const [name, ...details] = interestParts(interest);
+								return (
+									<div
+										className="contact-interest-chip"
+										key={index}
+									>
+										<span>{name}</span>
+										{details.map((value, i) => (
 											<span
 												className="contact-interest-chip-detail"
 												key={i}
@@ -69,42 +72,43 @@ export function InterestsSection({
 												{` · ${value}`}
 											</span>
 										))}
-									{/* The note isn't shown on the chip — a marker says one
-									    exists and shows it on hover, so a chip stays one
-									    line however much was written. */}
-									{interest.notes && (
-										<span
-											className="contact-interest-chip-note"
-										>
-											<Icon name="document" />
-											{/* Not an aria-label: Obsidian's tooltip for
-											    those waits about a second, and the note should
-											    show on hover straight away. CSS draws this as
-											    the tooltip on hover and keeps it screen-reader
-											    text the rest of the time. */}
-											<span className="contact-interest-chip-note-tip">
-												{interest.notes}
+										{/* The note isn't shown on the chip — a marker says one
+										    exists and shows it on hover, so a chip stays one
+										    line however much was written. */}
+										{interest.notes && (
+											<span
+												className="contact-interest-chip-note"
+											>
+												<Icon name="document" />
+												{/* Not an aria-label: Obsidian's tooltip for
+												    those waits about a second, and the note should
+												    show on hover straight away. CSS draws this as
+												    the tooltip on hover and keeps it screen-reader
+												    text the rest of the time. */}
+												<span className="contact-interest-chip-note-tip">
+													{interest.notes}
+												</span>
 											</span>
-										</span>
-									)}
-									<button
-										className="contact-interest-chip-action"
-										aria-label="Edit"
-										data-tooltip-position="top"
-										onClick={() => onEdit(index)}
-									>
-										<Icon name="pencil" />
-									</button>
-									<button
-										className="contact-interest-chip-action"
-										aria-label="Make idea"
-										data-tooltip-position="top"
-										onClick={() => onMakeIdea(index)}
-									>
-										<Icon name="lightbulb" />
-									</button>
-								</div>
-							))}
+										)}
+										<button
+											className="contact-interest-chip-action"
+											aria-label="Edit"
+											data-tooltip-position="top"
+											onClick={() => onEdit(index)}
+										>
+											<Icon name="pencil" />
+										</button>
+										<button
+											className="contact-interest-chip-action"
+											aria-label="Make idea"
+											data-tooltip-position="top"
+											onClick={() => onMakeIdea(index)}
+										>
+											<Icon name="lightbulb" />
+										</button>
+									</div>
+								);
+							})}
 						</div>
 					</div>
 				);

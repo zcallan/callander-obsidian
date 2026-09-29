@@ -119,6 +119,9 @@ export type IdeaCategory = (typeof IDEA_CATEGORIES)[number]["id"];
 //
 // `plural` heads the group on the friend page ("Books"), matching Ideas.
 //
+// `nameLabel` names the first field where the type's own label doesn't
+// name the thing in it: Music asks for a Song, Food for a Dish.
+//
 // `ideaCategory` is where the chip's lightbulb files an idea made from it:
 // a book is a book to read, a place somewhere to go, a team more often a gift.
 export const INTEREST_CATEGORIES = [
@@ -148,6 +151,8 @@ export const INTEREST_CATEGORIES = [
 		label: "Music",
 		plural: "Music",
 		emoji: "🎵",
+		// The type is Music; the thing itself is a song.
+		nameLabel: "Song",
 		namePlaceholder: "e.g. Stick Season",
 		detailLabel: "Artist",
 		detailPlaceholder: "e.g. Noah Kahan",
@@ -202,7 +207,7 @@ export const INTEREST_CATEGORIES = [
 		namePlaceholder: "e.g. Boston Celtics",
 		detailLabel: "Sport/league",
 		detailPlaceholder: "e.g. NBA",
-		notesPlaceholder: "e.g. Season ticket holder, loves Larry Bird",
+		notesPlaceholder: "e.g. Season ticket holder, loves Paul Pierce",
 	},
 	{
 		id: "foods",
@@ -210,6 +215,7 @@ export const INTEREST_CATEGORIES = [
 		label: "Food",
 		plural: "Foods",
 		emoji: "🍔",
+		nameLabel: "Dish",
 		namePlaceholder: "e.g. Spicy miso ramen",
 		detailLabel: "Restaurant",
 		detailPlaceholder: "e.g. Shinjuku Ramen",
@@ -241,6 +247,7 @@ export const INTEREST_CATEGORIES = [
 		label: "Other",
 		plural: "Other",
 		emoji: "✨",
+		nameLabel: "Interest",
 		namePlaceholder: "e.g. Vintage cameras",
 		notesPlaceholder: "e.g. Loves Leica and Fujifilm the best",
 	},

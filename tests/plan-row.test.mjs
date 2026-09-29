@@ -33,7 +33,7 @@ export function run() {
 		eq("a plain plan takes the map icon", fields.icon, "🗺️");
 		// With nobody named, where it is beats saying nothing at all.
 		eq("and shows where it is", fields.suffix, "Portland");
-		eq("people win over the location", planRowFields(plan({ date: "2026-09-19" }), now, "Austin, Riley").suffix, "Austin, Riley");
+		eq("people win over the location", planRowFields(plan({ date: "2026-09-19" }), now, "Anders, Rowan").suffix, "Anders, Rowan");
 		// A plan has no time of day to run at.
 		eq("a plan has no time", fields.time, "");
 	}

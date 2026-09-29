@@ -9,7 +9,7 @@ const event = (over = {}) => ({
 	type: "hangout",
 	location: "Neptune Oyster",
 	description: "Book ahead — they don't take reservations.",
-	people: ["[[Lauren Delbridge]]"],
+	people: ["[[Leanne Dunmore]]"],
 	...over,
 });
 
@@ -37,8 +37,8 @@ export function run() {
 	// ---------- what the plan starts with ----------
 	{
 		const seed = eventPlanSeed(
-			event({ people: ["[[Lauren Delbridge]]", "[[Riley Sorensen]]"] }),
-			["Lauren", "Riley"]
+			event({ people: ["[[Leanne Dunmore]]", "[[Rowan Sandberg]]"] }),
+			["Leanne", "Rowan"]
 		);
 		eq("the plan is named for the event", seed.prefill.name, "Dinner at Neptune Oyster");
 		eq("and dated from it", seed.prefill.date, "2026-09-11");
@@ -51,13 +51,13 @@ export function run() {
 		eq("its place", seed.item.location, "Neptune Oyster");
 		// Resolved names, because a timeline entry stores people as text —
 		// everyone, joined, not just whoever happens to be first.
-		eq("and everyone coming, by name", seed.item.people, "Lauren, Riley");
+		eq("and everyone coming, by name", seed.item.people, "Leanne, Rowan");
 		// The description describes this entry, not the trip around it.
 		eq("the description rides with the entry", seed.item.notes, "Book ahead — they don't take reservations.");
 		// Members stay wikilinks, the shape a plan's own list uses.
 		eq("members stay links", seed.fields.members, [
-			"[[Lauren Delbridge]]",
-			"[[Riley Sorensen]]",
+			"[[Leanne Dunmore]]",
+			"[[Rowan Sandberg]]",
 		]);
 		eq("and the place seeds the plan's own", seed.fields.location, "Neptune Oyster");
 	}

@@ -236,7 +236,7 @@ export class PlanItemModal extends FormModal {
 			attr: {
 				name: "notes",
 				rows: "2",
-				placeholder: "e.g. Booked for 7pm under Callan",
+				placeholder: "e.g. Booked for 7pm under Casey",
 			},
 		});
 		notesInput.value = this.source?.notes ?? "";

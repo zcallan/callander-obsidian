@@ -61,7 +61,7 @@ export function run() {
 	// ---------- section level ----------
 	eq(
 		"no section -> null (not yet migrated)",
-		parseQuotesSection("# Callan\n\nSome notes."),
+		parseQuotesSection("# Casey\n\nSome notes."),
 		null
 	);
 	eq(
@@ -70,7 +70,7 @@ export function run() {
 		[]
 	);
 
-	const body = `# Riley Sorensen
+	const body = `# Rowan Sandberg
 
 Some intro prose.
 
@@ -117,7 +117,7 @@ Context for all of these.
 	]);
 
 	// ---------- creating the section when absent ----------
-	const fresh = upsertQuotesSection("# Callan\n\nNotes.", [{ text: "Hi" }]);
+	const fresh = upsertQuotesSection("# Casey\n\nNotes.", [{ text: "Hi" }]);
 	eq("creates section at end", parseQuotesSection(fresh), [{ text: "Hi" }]);
 	eq("keeps original body when creating", fresh.includes("Notes."), true);
 	eq("empty list on empty body is a no-op", upsertQuotesSection("", []), "");
@@ -153,27 +153,27 @@ Context for all of these.
 	eq("...and lossless", parseQuotesSection(twice), parseQuotesSection(body));
 
 	// ---------- frontmatter split ----------
-	const file = `---\nname: Riley\nquotes:\n  - text: Hi\n---\n# Riley\n\nBody here.`;
+	const file = `---\nname: Rowan\nquotes:\n  - text: Hi\n---\n# Rowan\n\nBody here.`;
 	const split = splitFrontmatter(file);
-	eq("frontmatter extracted", split.frontmatter, "name: Riley\nquotes:\n  - text: Hi");
-	eq("body extracted", split.body, "# Riley\n\nBody here.");
+	eq("frontmatter extracted", split.frontmatter, "name: Rowan\nquotes:\n  - text: Hi");
+	eq("body extracted", split.body, "# Rowan\n\nBody here.");
 	eq("rejoins losslessly", joinFrontmatter(split.frontmatter, split.body), file);
 
-	const noFm = splitFrontmatter("# Riley\n\nNo frontmatter.");
+	const noFm = splitFrontmatter("# Rowan\n\nNo frontmatter.");
 	eq("no frontmatter -> null", noFm.frontmatter, null);
-	eq("no frontmatter -> whole content is body", noFm.body, "# Riley\n\nNo frontmatter.");
+	eq("no frontmatter -> whole content is body", noFm.body, "# Rowan\n\nNo frontmatter.");
 
 	// A `---` further down is a horizontal rule, not frontmatter.
-	const hr = splitFrontmatter("# Riley\n\n---\n\nAfter the rule.");
+	const hr = splitFrontmatter("# Rowan\n\n---\n\nAfter the rule.");
 	eq("mid-file --- is not treated as frontmatter", hr.frontmatter, null);
 	eq(
 		"...and the rule is preserved in the body",
 		hr.body,
-		"# Riley\n\n---\n\nAfter the rule."
+		"# Rowan\n\n---\n\nAfter the rule."
 	);
 
 	// ---------- full-file round trip ----------
-	const realish = `---\nname: Riley Sorensen\nbirthday: 2000-03-28\n---\n`;
+	const realish = `---\nname: Rowan Sandberg\nbirthday: 2000-03-28\n---\n`;
 	const s = splitFrontmatter(realish);
 	const rebuilt = joinFrontmatter(
 		s.frontmatter,
@@ -184,7 +184,7 @@ Context for all of these.
 	eq(
 		"frontmatter survives a body write",
 		splitFrontmatter(rebuilt).frontmatter,
-		"name: Riley Sorensen\nbirthday: 2000-03-28"
+		"name: Rowan Sandberg\nbirthday: 2000-03-28"
 	);
 	eq(
 		"quote readable from rebuilt file",

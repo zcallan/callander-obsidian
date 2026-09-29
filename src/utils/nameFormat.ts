@@ -26,11 +26,11 @@ export function compareByFirstName(a: string, b: string): number {
 }
 
 /**
- * "Riley" — or "Riley P" when two Rileys would otherwise collide. A name
+ * "Rowan" — or "Rowan P" when two Rowans would otherwise collide. A name
  * with an override in `shortNames` (keyed by full name, lowercased) skips
  * all of that and renders exactly as given — and doesn't count toward
- * anyone else's collision either, since it's no longer showing as "Riley"
- * at all. Two other Rileys still disambiguate against each other; a Riley
+ * anyone else's collision either, since it's no longer showing as "Rowan"
+ * at all. Two other Rowans still disambiguate against each other; a Rowan
  * with an override never forces that on them.
  */
 export function shortenMemberNames(
@@ -107,12 +107,12 @@ export function summarisePeople(
 }
 
 /**
- * An item's comma-separated `people` as first names — "Austin Philleo,
- * Riley Sorensen" reads "Austin, Riley".
+ * An item's comma-separated `people` as first names — "Anders Pennell,
+ * Rowan Sandberg" reads "Anders, Rowan".
  *
  * Disambiguated against the whole roster rather than just this row, so a
- * roster with two Rileys renders "Riley S" on every row that has her, not
- * a bare "Riley" on rows where she happens to be the only one. Names typed
+ * roster with two Rowans renders "Rowan S" on every row that has her, not
+ * a bare "Rowan" on rows where she happens to be the only one. Names typed
  * free-hand (not on the roster) still shorten, and fold into the same
  * collision check.
  *

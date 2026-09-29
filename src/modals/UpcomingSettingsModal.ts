@@ -1,5 +1,5 @@
 import { App } from "obsidian";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { categoryShown, setCategoryShown } from "@/utils/eventCategories";
 import { EVENT_TYPES } from "@/constants";
 import { formatCount } from "@/utils/text";
@@ -12,7 +12,7 @@ import { CallanderModal } from "@/modals/CallanderModal";
  * the save is what redraws the section behind the modal.
  */
 export class UpcomingSettingsModal extends CallanderModal {
-	constructor(app: App, private plugin: FriendTracker) {
+	constructor(app: App, private plugin: CallanderPlugin) {
 		super(app);
 	}
 

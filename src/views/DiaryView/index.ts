@@ -5,7 +5,7 @@ import {
 	MarkdownRenderer,
 	setIcon,
 } from "obsidian";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type { DiaryEntry } from "@/types";
 import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
@@ -31,7 +31,7 @@ export class DiaryView extends ItemView {
 	/** What the current render's markdown hangs from (renderBody). */
 	private renderChild: Component | null = null;
 
-	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
+	constructor(leaf: WorkspaceLeaf, private plugin: CallanderPlugin) {
 		super(leaf);
 		// Participate in tab history so back/forward arrows work
 		this.navigation = true;

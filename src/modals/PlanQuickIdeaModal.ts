@@ -66,7 +66,7 @@ export class PlanQuickIdeaModal extends FormModal {
 			attr: {
 				type: "text",
 				name: "idea",
-				placeholder: "e.g. Get a cannoli in the North End",
+				placeholder: "e.g. Walk the Freedom Trail",
 			},
 		});
 		textInput.value = this.initial?.text ?? "";

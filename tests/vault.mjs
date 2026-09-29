@@ -30,7 +30,7 @@ import {
  */
 const TEST_OVERRIDES = {
 	diaryFolder: "Diary",
-	yourName: "Callan",
+	yourName: "Casey",
 	relationshipTypes: ["friend", "family"],
 };
 

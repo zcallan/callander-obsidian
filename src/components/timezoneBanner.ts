@@ -1,4 +1,4 @@
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { deviceZone, zoneLabel } from "@/utils/timezone";
 import {
 	SNOOZE_OPTIONS,
@@ -18,7 +18,7 @@ import {
  */
 export function appendTimezoneBanner(
 	container: HTMLElement,
-	plugin: FriendTracker,
+	plugin: CallanderPlugin,
 	/** Called after a snooze is saved, to redraw without the banner. */
 	onSnoozed: () => void
 ): void {

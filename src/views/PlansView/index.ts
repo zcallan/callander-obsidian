@@ -1,5 +1,5 @@
 import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type { ContactWithCountdown } from "@/types";
 import { PlanModal } from "@/modals/PlanModal";
@@ -63,7 +63,7 @@ export class PlansView extends ItemView {
 	private pageWide = false;
 	private tab: "timeline" | "list";
 
-	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
+	constructor(leaf: WorkspaceLeaf, private plugin: CallanderPlugin) {
 		super(leaf);
 		this.navigation = true;
 		// Off the parameter, not `this.plugin` — parameter properties are

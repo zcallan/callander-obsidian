@@ -55,22 +55,22 @@ Adding an idea without picking a friend first — from the dashboard's **Add ide
 
 ## Interests
 
-Short, factual things a person is already into — not a rating, not a recommendation *to* them, just what's true. Each type asks only for the fields that fit it:
+Short, factual things a person is already into — not a rating, not a recommendation *to* them, just what's true. Each type asks only for the fields that fit it, and any one of them is enough: an artist on their own, with no song in mind, is fine, and the form says so under the fields of every type that has more than one.
 
-| Type | Second field | Third field | Filed as |
-| --- | --- | --- | --- |
-| Hobby | — | — | Activity |
-| Book | Author | — | Book |
-| Music | Artist | Genre | Music |
-| Movie | — | — | Movie |
-| TV Show | — | — | Show |
-| Game | Platform | — | Gift |
-| Sport | — | — | Activity |
-| Team | Sport/league | — | Gift |
-| Food | Restaurant | — | Place |
-| Drink | — | — | Gift |
-| Place | Location | — | Place |
-| Other | — | — | Gift |
+| Type | Fields | Filed as |
+| --- | --- | --- |
+| Hobby | Hobby | Activity |
+| Book | Book · Author | Book |
+| Music | Song · Artist · Genre | Music |
+| Movie | Movie | Movie |
+| TV Show | TV Show | Show |
+| Game | Game · Platform | Gift |
+| Sport | Sport | Activity |
+| Team | Team · Sport/league | Gift |
+| Food | Dish · Restaurant | Place |
+| Drink | Drink | Gift |
+| Place | Place · Location | Place |
+| Other | Interest | Gift |
 
 Every type also has its own Notes placeholder, written as what *they* like about it — a book's is "Loves the setting and time period, but hates Cathy Ames," a drink's is "Shaken, not stirred."
 
@@ -111,6 +111,12 @@ Ideas are stored as markdown in the note body, grouped under a `## Ideas` headin
 ## Version history
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
+
+**1.10.7** · unreleased
+- Any one field is enough for an interest (an artist with no song, say), and the form says so under the fields.
+- An interest's first field says what goes in it: Music asks for a Song, Food for a Dish, and Other for an Interest.
+- Adding an idea can no longer replace all of a friend's ideas when their note can't be read at that moment.
+- Filing an inbox idea adds it to the friend before taking it out of the inbox, so a failed save leaves it in both places rather than neither.
 
 **1.10.3** · 2026-09-26
 - The eye button becomes a pencil, labelled Edit; a note gets its own purple hover icon showing it instantly instead of after a delay.

@@ -5,7 +5,7 @@ import {
 	type ViewStateResult,
 } from "obsidian";
 import { fieldOf } from "@/utils/fm";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type {
 	ContactWithCountdown,
@@ -139,7 +139,7 @@ export class EventsView extends ItemView {
 	 * kept here because the drawer itself is redrawn on every tick. */
 	private categoriesExpanded = false;
 
-	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
+	constructor(leaf: WorkspaceLeaf, private plugin: CallanderPlugin) {
 		super(leaf);
 		this.navigation = true;
 		// Off the parameter, not `this.plugin` — parameter properties are

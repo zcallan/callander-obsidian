@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 
 /**
  * The plugin instance, handed to React at the mount point.
@@ -12,19 +12,19 @@ import type FriendTracker from "@/main";
  * and failing loudly at the point of use beats rendering against a null
  * plugin and producing an empty screen with no explanation.
  */
-const PluginCtx = createContext<FriendTracker | null>(null);
+const PluginCtx = createContext<CallanderPlugin | null>(null);
 
 export function PluginProvider({
 	plugin,
 	children,
 }: {
-	plugin: FriendTracker;
+	plugin: CallanderPlugin;
 	children: ReactNode;
 }) {
 	return <PluginCtx.Provider value={plugin}>{children}</PluginCtx.Provider>;
 }
 
-export function usePlugin(): FriendTracker {
+export function usePlugin(): CallanderPlugin {
 	const plugin = useContext(PluginCtx);
 	if (!plugin) {
 		throw new Error("usePlugin() used outside <PluginProvider>");

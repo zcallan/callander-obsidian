@@ -1,5 +1,5 @@
 import { App, TFile, setIcon } from "obsidian";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { ContactWithCountdown, SomedayInfo } from "@/types";
 import { EVENT_TYPES, IDEA_CATEGORIES, somedayType } from "@/constants";
 import {
@@ -36,7 +36,7 @@ interface TimelineRow {
 export class GlanceModal extends CallanderModal {
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private contact: ContactWithCountdown
 	) {
 		super(app);

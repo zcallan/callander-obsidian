@@ -65,7 +65,9 @@ export interface Idea {
 /** A thing a friend is into — a short tag under a fixed category. */
 export interface Interest {
 	category: InterestCategory;
-	text: string;
+	/** The thing itself: a song, a book, a team. Optional where a detail
+	 * says enough on its own — an artist they love, with no song in mind. */
+	text?: string;
 	/** Optional second field; meaning varies by category (author, artist, …) */
 	detail?: string;
 	/** Optional third field, only categories with one of their own ask for

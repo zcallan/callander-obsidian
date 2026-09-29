@@ -21,9 +21,9 @@ export type SubmitKey = "enter" | "mod-enter" | "enter-unless-shift";
  * stylesheet hides the rest until it comes to rest.
  */
 export class FormModal extends CallanderModal {
-	private ftDirty = false;
-	private ftDoc: Document;
-	private ftGuard: (evt: Event) => void;
+	private formEdited = false;
+	private formDoc: Document;
+	private backdropGuard: (evt: Event) => void;
 	/**
 	 * Stuck vs resting. A sticky row can't be asked directly, and it isn't
 	 * clipped when stuck either — sticky holds it inside the scroller's
@@ -34,7 +34,7 @@ export class FormModal extends CallanderModal {
 	 * Its only write is a class that changes visibility, never layout —
 	 * nothing it does can move the marker and re-trigger it.
 	 */
-	private ftStuckObserver = new IntersectionObserver((entries) => {
+	private stuckObserver = new IntersectionObserver((entries) => {
 		for (const entry of entries) {
 			const row = entry.target.previousElementSibling;
 			if (row instanceof HTMLElement) {
@@ -48,7 +48,7 @@ export class FormModal extends CallanderModal {
 	 * a marker is itself a childList change, so this runs once more after
 	 * each insert, finds every row already marked, and stops.
 	 */
-	private ftRowFinder = new MutationObserver(() => {
+	private buttonRowFinder = new MutationObserver(() => {
 		this.contentEl
 			.querySelectorAll<HTMLElement>(".callander-modal-buttons")
 			.forEach((row) => {
@@ -58,7 +58,7 @@ export class FormModal extends CallanderModal {
 					cls: "callander-modal-buttons-marker",
 				});
 				row.after(marker);
-				this.ftStuckObserver.observe(marker);
+				this.stuckObserver.observe(marker);
 			});
 	});
 
@@ -66,7 +66,7 @@ export class FormModal extends CallanderModal {
 		super(app);
 
 		const markDirty = () => {
-			this.ftDirty = true;
+			this.formEdited = true;
 		};
 		// input/change bubble, so this catches every field built in onOpen()
 		this.contentEl.addEventListener("input", markDirty);
@@ -84,9 +84,9 @@ export class FormModal extends CallanderModal {
 			}
 		});
 
-		this.ftDoc = this.containerEl.ownerDocument;
-		this.ftGuard = (evt: Event) => {
-			if (!this.ftDirty) return;
+		this.formDoc = this.containerEl.ownerDocument;
+		this.backdropGuard = (evt: Event) => {
+			if (!this.formEdited) return;
 			const el = evt.target as HTMLElement | null;
 			if (!el) return;
 			// Only the dim backdrop of THIS modal: inside its container but
@@ -106,10 +106,10 @@ export class FormModal extends CallanderModal {
 		};
 		// Capture phase at the document root: fires before Obsidian's own
 		// background-click handler, so we can veto the close.
-		this.ftDoc.addEventListener("mousedown", this.ftGuard, true);
-		this.ftDoc.addEventListener("click", this.ftGuard, true);
+		this.formDoc.addEventListener("mousedown", this.backdropGuard, true);
+		this.formDoc.addEventListener("click", this.backdropGuard, true);
 
-		this.ftRowFinder.observe(this.contentEl, {
+		this.buttonRowFinder.observe(this.contentEl, {
 			childList: true,
 			subtree: true,
 		});
@@ -170,10 +170,10 @@ export class FormModal extends CallanderModal {
 	}
 
 	close() {
-		this.ftDoc.removeEventListener("mousedown", this.ftGuard, true);
-		this.ftDoc.removeEventListener("click", this.ftGuard, true);
-		this.ftRowFinder.disconnect();
-		this.ftStuckObserver.disconnect();
+		this.formDoc.removeEventListener("mousedown", this.backdropGuard, true);
+		this.formDoc.removeEventListener("click", this.backdropGuard, true);
+		this.buttonRowFinder.disconnect();
+		this.stuckObserver.disconnect();
 		super.close();
 	}
 }

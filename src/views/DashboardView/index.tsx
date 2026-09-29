@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { ExpensesSection } from "@/ui/sections/ExpensesSection";
 import { UpcomingSection } from "@/ui/sections/UpcomingSection";
 import { isInFolder, registerPageRefresh } from "@/utils/vaultRefresh";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import { resolveDashboardOrder } from "@/utils/dashboardOrder";
 import { DASHBOARD_SECTIONS, DEFAULT_DASHBOARD_ORDER } from "@/constants";
@@ -117,7 +117,7 @@ export class DashboardView extends ItemView implements DashboardContext {
 
 	constructor(
 		leaf: WorkspaceLeaf,
-		public plugin: FriendTracker
+		public plugin: CallanderPlugin
 	) {
 		super(leaf);
 		// Participate in tab history so back/forward arrows work

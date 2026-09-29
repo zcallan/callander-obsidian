@@ -19,7 +19,7 @@ export function planSimplePlaceholders(
 	key: "travel" | "accommodation"
 ) {
 	return key === "travel"
-		? { text: "e.g. Harry's car to the coast" }
+		? { text: "e.g. Hamid's car to the coast" }
 		: { text: "e.g. Beachfront Airbnb" };
 }
 

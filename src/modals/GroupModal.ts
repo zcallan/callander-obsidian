@@ -1,7 +1,7 @@
 import { App, Notice } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { GroupInfo } from "@/types";
 import { GROUP_COLORS } from "@/constants";
 import { closeColorPopover } from "@/components/colorPicker";
@@ -16,7 +16,7 @@ export class GroupModal extends FormModal {
 
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private existing: GroupInfo | null,
 		/** The saved group's name, lowercased, and its colour — so a caller
 		 * creating one inline (no group list of its own to refresh from)

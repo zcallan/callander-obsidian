@@ -42,8 +42,8 @@ export class NoteSuggest extends AbstractInputSuggest<TFile> {
 			? files.filter((f) => f.basename.toLowerCase().includes(query))
 			: files;
 		// Shortest first: an exact-ish name beats a longer one that merely
-		// contains the query, which is what people mean by "Alex" when both
-		// "Alex" and "Alex Thompson's birthday" exist.
+		// contains the query, which is what people mean by "Avery" when both
+		// "Avery" and "Avery Thorne's birthday" exist.
 		return matches
 			.sort((a, b) => a.basename.length - b.basename.length)
 			.slice(0, MAX_NOTE_SUGGESTIONS);

@@ -795,7 +795,7 @@
 	   reach on a form taller than the window. A modal that already fits
 	   is unaffected: sticky only engages once there's something to stick
 	   past. FormModal tells stuck from resting with a marker right after
-	   the row (see ftStuckObserver). */
+	   the row (see FormModal.stuckObserver). */
 	position: sticky;
 	bottom: 0;
 	z-index: 5;

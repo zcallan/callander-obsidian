@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import type { FriendTrackerSettings } from "@/types";
+import type { CallanderSettings } from "@/types";
 import type { ContactOperations } from "@/services/ContactOperations";
 import type { EventOperations } from "@/services/EventOperations";
 import type { PlanOperations } from "@/services/PlanOperations";
@@ -12,7 +12,7 @@ import type { PlanOperations } from "@/services/PlanOperations";
  */
 export interface ServiceHost {
 	app: App;
-	settings: FriendTrackerSettings;
+	settings: CallanderSettings;
 	contactOperations: ContactOperations;
 	eventOperations: EventOperations;
 	planOperations: PlanOperations;

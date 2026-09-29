@@ -6,7 +6,7 @@ import {
 	type ViewStateResult,
 } from "obsidian";
 import { fieldOf } from "@/utils/fm";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type { SomedayInfo } from "@/types";
 import { SomedayModal } from "@/modals/SomedayModal";
@@ -72,7 +72,7 @@ export class SomedaysView extends ItemView {
 	// in the search box or flip a filter.
 	private randomSeed = newRandomSeed();
 
-	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
+	constructor(leaf: WorkspaceLeaf, private plugin: CallanderPlugin) {
 		super(leaf);
 		this.navigation = true;
 	}

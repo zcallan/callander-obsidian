@@ -1,16 +1,16 @@
 import { ItemView, WorkspaceLeaf, TFile } from "obsidian";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
-import { TableView } from "@/views/FriendTrackerView/TableView";
+import { TableView } from "@/views/AllFriendsView/TableView";
 import type { FriendListSort, FriendListTab } from "@/types";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { registerPageRefresh } from "@/utils/vaultRefresh";
 import { queuedFlight } from "@/utils/singleFlight";
 import { FocusKeeper } from "@/components/activatable";
 
-export const VIEW_TYPE_FRIEND_TRACKER = "callander-view";
+export const VIEW_TYPE_ALL_FRIENDS = "callander-view";
 
-export class FriendTrackerView extends ItemView {
+export class AllFriendsView extends ItemView {
 	public groupFilter = "";
 	/** Keyboard focus across a redraw — see FocusKeeper. */
 	private readonly focusKeeper = new FocusKeeper();
@@ -18,7 +18,7 @@ export class FriendTrackerView extends ItemView {
 	/** Widened for this view only, until it closes. */
 	private pageWide = false;
 
-	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
+	constructor(leaf: WorkspaceLeaf, private plugin: CallanderPlugin) {
 		super(leaf);
 		this.tableView = new TableView(this);
 		// Main-pane page: participate in tab history
@@ -57,7 +57,7 @@ export class FriendTrackerView extends ItemView {
 	}
 
 	getViewType(): string {
-		return VIEW_TYPE_FRIEND_TRACKER;
+		return VIEW_TYPE_ALL_FRIENDS;
 	}
 
 	getDisplayText(): string {

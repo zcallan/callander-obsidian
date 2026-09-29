@@ -1,5 +1,5 @@
 import { setIcon } from "obsidian";
-import type { FriendTrackerSettings } from "@/types";
+import type { CallanderSettings } from "@/types";
 
 /**
  * The calendar drawer: a ☰ beside the month that opens a panel of
@@ -130,10 +130,10 @@ export function appendDrawer(body: HTMLElement, sections: DrawerSection[]) {
 
 /** A settings key that holds a boolean. */
 export type FlagKey = {
-	[K in keyof FriendTrackerSettings]-?: FriendTrackerSettings[K] extends boolean
+	[K in keyof CallanderSettings]-?: CallanderSettings[K] extends boolean
 		? K
 		: never;
-}[keyof FriendTrackerSettings];
+}[keyof CallanderSettings];
 
 /**
  * Where one calendar keeps its drawer's choices. The Calendar page and the
@@ -178,7 +178,7 @@ export const EVENTS_TAB_DRAWER: DrawerKeys = {
 /** A checkbox bound to one boolean setting; `inverted` when the drawer
  * asks the opposite of what's stored. `apply` redraws and saves. */
 export function flagOption(
-	settings: FriendTrackerSettings,
+	settings: CallanderSettings,
 	key: FlagKey,
 	label: string,
 	apply: () => void,
@@ -196,7 +196,7 @@ export function flagOption(
 
 /** The Display section's options: how the month grid draws. */
 export function displayOptions(
-	settings: FriendTrackerSettings,
+	settings: CallanderSettings,
 	keys: DrawerKeys,
 	apply: () => void
 ): DrawerOption[] {
@@ -217,7 +217,7 @@ export type ColorSection = "categories" | "types" | "kinds";
 
 /** The Colors section's options, each colouring rule with its button. */
 export function colorOptions(
-	settings: FriendTrackerSettings,
+	settings: CallanderSettings,
 	keys: DrawerKeys,
 	apply: () => void,
 	openColors: (section: ColorSection) => void

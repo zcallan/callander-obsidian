@@ -297,7 +297,7 @@ export function run() {
 	// being dropped or pinned to the 1st. Day-precise birthdays go through
 	// birthdaysOnDays, below.
 	const vague = monthOnlyBirthdays([
-		person("Lauren", "1992-09-21"),
+		person("Leanne", "1992-09-21"),
 		person("Also 21st", "09-21"),
 		person("Month only", "1997-04"),
 		person("Another April", "1990-04"),

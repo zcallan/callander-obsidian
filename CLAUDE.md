@@ -21,7 +21,7 @@ npm run preview    # renders component fixtures in a browser against the real CS
 | Path | What |
 | --- | --- |
 | `src/main.ts` | Plugin class: lifecycle, commands and views (as tables), navigation, migrations |
-| `src/plugin/` | Plugin-level machinery split out of `main.ts`: startup steps, the markdown intercept, mobile keyboard tracking |
+| `src/plugin/` | Plugin-level machinery split out of `main.ts`: startup steps, the markdown intercept, mobile keyboard tracking, the settings tab |
 | `src/views/` | One `ItemView` per page |
 | `src/modals/` | ~50 modals, all on `CallanderModal`. Anything with editable fields extends `FormModal` |
 | `src/services/` | Vault reads/writes (`*Operations`, plus `vaultFiles.ts`'s shared helpers) — the layer meant to touch files. `main.ts` still writes directly in places, and the contact page's saves and migrations live in `views/ContactPageView/persistence.ts`; move writes here rather than adding more |

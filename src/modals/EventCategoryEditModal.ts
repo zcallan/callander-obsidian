@@ -2,7 +2,7 @@ import { App } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { confirmThenClose } from "@/modals/ConfirmModal";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { closeColorPopover } from "@/components/colorPicker";
 import { appendColorSwatchRow } from "@/components/colorSwatchRow";
 import {
@@ -24,7 +24,7 @@ import {
 export class EventCategoryEditModal extends FormModal {
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private categoryName: string,
 		/** Every category this event's picker currently knows, for the
 		 * rename's collision check. */

@@ -1,5 +1,5 @@
 import { Platform, setIcon } from "obsidian";
-import type { FriendTrackerView } from "@/views/FriendTrackerView";
+import type { AllFriendsView } from "@/views/AllFriendsView";
 import type {
 	ContactWithCountdown,
 	FriendListSort,
@@ -84,7 +84,7 @@ export class TableView {
 	private sortEl: HTMLElement | null = null;
 	private contentEl: HTMLElement | null = null;
 
-	constructor(private view: FriendTrackerView) {
+	constructor(private view: AllFriendsView) {
 		// Read off the parameter rather than `this.view`, which isn't
 		// assigned until the parameter properties are, and fall back in
 		// case a vault predates the setting.

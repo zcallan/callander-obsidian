@@ -1,7 +1,7 @@
 import { App, Notice } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { ContactWithCountdown } from "@/types";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { todayISO } from "@/utils/flexdate";
@@ -13,7 +13,7 @@ import { todayISO } from "@/utils/flexdate";
 export class GroupEventModal extends FormModal {
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private contacts: ContactWithCountdown[]
 	) {
 		super(app);

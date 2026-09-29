@@ -336,13 +336,13 @@ export function run() {
 
 	eq(
 		"one person",
-		titleWith({ name: "Dinner" }, ["Riley"]),
-		"Dinner with Riley"
+		titleWith({ name: "Dinner" }, ["Rowan"]),
+		"Dinner with Rowan"
 	);
 	eq(
 		"several are comma separated",
-		titleWith({ name: "Dinner" }, ["Riley", "Laura", "Harry"]),
-		"Dinner with Riley, Laura, Harry"
+		titleWith({ name: "Dinner" }, ["Rowan", "Livia", "Hamid"]),
+		"Dinner with Rowan, Livia, Hamid"
 	);
 	eq(
 		"nobody leaves the title untouched",
@@ -360,20 +360,20 @@ export function run() {
 	// between the emoji and the name.
 	eq(
 		"a typed event keeps its emoji leading",
-		titleWith({ name: "Brand New Day", type: "movie" }, ["Riley"]),
-		"🍿 Brand New Day with Riley"
+		titleWith({ name: "Brand New Day", type: "movie" }, ["Rowan"]),
+		"🍿 Brand New Day with Rowan"
 	);
 	eq(
 		"a name with its own emoji likewise",
-		titleWith({ name: "🎉 Party", type: "movie" }, ["Riley"]),
-		"🎉 Party with Riley"
+		titleWith({ name: "🎉 Party", type: "movie" }, ["Rowan"]),
+		"🎉 Party with Rowan"
 	);
 	// A blank slipping through the caller's list shouldn't leave a dangling
 	// comma in someone's calendar.
 	eq(
 		"blank names are dropped rather than punctuated",
-		titleWith({ name: "Dinner" }, ["Riley", "", "Laura"]),
-		"Dinner with Riley, Laura"
+		titleWith({ name: "Dinner" }, ["Rowan", "", "Livia"]),
+		"Dinner with Rowan, Livia"
 	);
 	eq(
 		"a list of only blanks adds nothing at all",

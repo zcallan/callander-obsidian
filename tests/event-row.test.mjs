@@ -64,8 +64,8 @@ export function run() {
 	);
 	eq(
 		"people win the slot when there are any",
-		parts({ location: "The Sinclair", people: "Riley" }).suffix,
-		"Riley"
+		parts({ location: "The Sinclair", people: "Rowan" }).suffix,
+		"Rowan"
 	);
 
 	// ---------- the date line ----------
@@ -120,15 +120,15 @@ export function run() {
 		const live = parts({
 			date: "2026-09-12",
 			location: "The Sinclair",
-			people: "Riley",
+			people: "Rowan",
 		});
-		eq("an ordinary row shows who's coming", live.suffix, "Riley");
+		eq("an ordinary row shows who's coming", live.suffix, "Rowan");
 		eq("...and isn't flagged", live.cancelled, undefined);
 
 		const off = parts({
 			date: "2026-09-12",
 			location: "The Sinclair",
-			people: "Riley",
+			people: "Rowan",
 			status: "cancelled",
 		});
 		eq("a cancelled row says so", off.suffix, "Cancelled");
@@ -216,12 +216,12 @@ export function run() {
 
 	eq(
 		"a past hangout with someone is a record of them",
-		classify({ date: "2026-07-01", people: ["[[Riley]]"] }),
+		classify({ date: "2026-07-01", people: ["[[Rowan]]"] }),
 		"timeline"
 	);
 	eq(
 		"...but the same thing still ahead is a plan",
-		classify({ date: "2026-09-01", people: ["[[Riley]]"] }),
+		classify({ date: "2026-09-01", people: ["[[Rowan]]"] }),
 		"reminder"
 	);
 	eq(
@@ -231,12 +231,12 @@ export function run() {
 	);
 	eq(
 		"a task is yours even when it names someone",
-		classify({ date: "2026-07-01", people: ["[[Riley]]"], type: "task" }),
+		classify({ date: "2026-07-01", people: ["[[Rowan]]"], type: "task" }),
 		"reminder"
 	);
 	eq(
 		"an undated event is a standing reminder",
-		classify({ people: ["[[Riley]]"] }),
+		classify({ people: ["[[Rowan]]"] }),
 		"reminder"
 	);
 	eq(
@@ -244,7 +244,7 @@ export function run() {
 		classify({
 			date: "2026-09-01",
 			source: "Diary/2026-07-01.md",
-			people: ["[[Riley]]"],
+			people: ["[[Rowan]]"],
 		}),
 		"timeline"
 	);
@@ -254,7 +254,7 @@ export function run() {
 		classify({
 			date: "2026-09-01",
 			hideFromDashboard: true,
-			people: ["[[Riley]]"],
+			people: ["[[Rowan]]"],
 		}),
 		"timeline"
 	);
@@ -274,7 +274,7 @@ export function run() {
 	);
 	eq(
 		"today counts as still ahead",
-		classify({ date: "2026-08-05", people: ["[[Riley]]"] }),
+		classify({ date: "2026-08-05", people: ["[[Rowan]]"] }),
 		"reminder"
 	);
 
@@ -661,16 +661,16 @@ export function run() {
 	}
 
 	// ---------- the second line of a calendar chip ----------
-	// Whose evening it is belongs on the chip: "Laura's Birthday Party" in a
+	// Whose evening it is belongs on the chip: "Livia's Birthday Party" in a
 	// square says what, and the roster says who you'd be seeing.
 	eq(
 		"glyph, time, then who",
-		calendarChipMeta("\u{1f382}", "7:30pm", "Laura"),
-		"\u{1f382} 7:30pm \u00b7 Laura"
+		calendarChipMeta("\u{1f382}", "7:30pm", "Livia"),
+		"\u{1f382} 7:30pm \u00b7 Livia"
 	);
 	// An untimed event still names its people — most events here have no
 	// time at all, so the bullet can't depend on one being there.
-	eq("no time, no stray bullet", calendarChipMeta("\u{1f382}", "", "Laura"), "\u{1f382} Laura");
+	eq("no time, no stray bullet", calendarChipMeta("\u{1f382}", "", "Livia"), "\u{1f382} Livia");
 	eq("nobody named reads as before", calendarChipMeta("\u{1f382}", "7:30pm", ""), "\u{1f382} 7:30pm");
 	// A plan's line is the days it spans, with nobody on it.
 	eq("a span keeps its dates", calendarChipMeta("\u{1f5fa}\ufe0f", "Fri 11 - Mon 14"), "\u{1f5fa}\ufe0f Fri 11 - Mon 14");

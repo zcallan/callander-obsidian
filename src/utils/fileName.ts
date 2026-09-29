@@ -31,7 +31,7 @@ export function groupNameProblem(name: string): string | null {
 export const EVENT_SLUG_NAME_MAX = 60;
 
 /**
- * An event's file name — "2026-08-06 Austin • Concert" — from the date, up
+ * An event's file name — "2026-08-06 Anders • Concert" — from the date, up
  * to two people, and the event name. Frontmatter `name` stays the event's
  * only real name (emoji and all); the slug just makes the quick switcher
  * and file explorer readable, so a leading emoji is dropped there rather

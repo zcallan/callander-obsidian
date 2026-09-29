@@ -1,5 +1,5 @@
 import { ItemView } from "obsidian";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 
 /** The reading column every page is capped to when the setting is on. */
 const PAGE_WIDTH = 760;
@@ -52,7 +52,7 @@ export function observePageRoom(view: ItemView): () => void {
  */
 export function applyPageWidth(
 	root: HTMLElement,
-	plugin: FriendTracker,
+	plugin: CallanderPlugin,
 	wide: boolean,
 	onWiden: () => void
 ): void {

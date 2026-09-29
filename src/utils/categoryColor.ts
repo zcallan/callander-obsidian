@@ -177,7 +177,7 @@ export function categoryColorFor(
 	const key = first.trim().toLowerCase();
 	// Optional: a value saved before this field existed loads with the
 	// object it belongs to but not necessarily this key on it — see
-	// FriendTracker.loadSettings, which repairs it, but nothing here should
+	// CallanderPlugin.loadSettings, which repairs it, but nothing here should
 	// depend on always having run after that.
 	return custom?.categories?.[key] || palette.get(key) || categoryColor(first);
 }

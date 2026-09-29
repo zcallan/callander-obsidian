@@ -1,14 +1,14 @@
 import { App, type TFile } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 
 /** Create a plan: a name and a date as rough as you actually know. */
 export class PlanModal extends FormModal {
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private onCreated: (file: TFile) => void,
 		/** Starting values — e.g. seeded from a Someday being promoted.
 		 * Nothing is written until Create. */

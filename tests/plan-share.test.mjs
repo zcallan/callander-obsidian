@@ -16,9 +16,9 @@ export function run() {
 	const { eq, ok, result } = createSuite("plan share text");
 
 	const opts = {
-		yourName: "Callan",
-		members: ["Riley Sorensen", "Laura Morton"],
-		unconfirmed: ["Harry Mayer"],
+		yourName: "Casey",
+		members: ["Rowan Sandberg", "Livia Marlow"],
+		unconfirmed: ["Hamid Moreau"],
 	};
 
 	const clone = () => structuredClone(PLAN_SHARE_DETAIL_DEFAULTS);
@@ -77,7 +77,7 @@ export function run() {
 						category: "restaurant",
 						date: "2026-07-30",
 						time: "19:00",
-						people: "Callan, Riley Sorensen, Laura Morton",
+						people: "Casey, Rowan Sandberg, Livia Marlow",
 					},
 				],
 			},
@@ -93,13 +93,13 @@ export function run() {
 			.join("\n");
 		ok(
 			"per-item people are shortened to first names",
-			itemLines.includes("Callan, Riley, Laura")
+			itemLines.includes("Casey, Rowan, Livia")
 		);
 		ok(
 			"never says 'Me' — this is for other people to read",
 			!/\bMe\b/.test(out)
 		);
-		ok("your name still appears", out.includes("Callan"));
+		ok("your name still appears", out.includes("Casey"));
 	}
 
 	// Two people sharing a first name must stay distinguishable, and
@@ -113,22 +113,22 @@ export function run() {
 						text: "Dinner",
 						category: "restaurant",
 						date: "2026-07-30",
-						people: "Riley Sorensen",
+						people: "Rowan Sandberg",
 					},
 				],
 			},
 			{
-				yourName: "Callan",
-				members: ["Riley Sorensen", "Riley Baker"],
+				yourName: "Casey",
+				members: ["Rowan Sandberg", "Rowan Baker"],
 				unconfirmed: [],
 				detail: withPeople(),
 			}
 		);
-		ok("duplicate first names disambiguate", out.includes("Riley S"));
-		ok("...and the other one too", out.includes("Riley B"));
+		ok("duplicate first names disambiguate", out.includes("Rowan S"));
+		ok("...and the other one too", out.includes("Rowan B"));
 		ok(
 			"...on the item line, not just the header",
-			out.split("\n").some((l) => l.startsWith("- ") && l.includes("Riley S"))
+			out.split("\n").some((l) => l.startsWith("- ") && l.includes("Rowan S"))
 		);
 	}
 
@@ -158,7 +158,7 @@ export function run() {
 					{
 						text: "Ferry",
 						type: "boat",
-						people: "Riley Sorensen",
+						people: "Rowan Sandberg",
 						cost: 25,
 					},
 				],
@@ -176,7 +176,7 @@ export function run() {
 		ok("undated travel is listed", out.includes("Ferry"));
 		ok(
 			"undated travel people are shortened",
-			out.split("\n").some((l) => l.startsWith("- ") && l.includes("Ferry") && l.includes("Riley"))
+			out.split("\n").some((l) => l.startsWith("- ") && l.includes("Ferry") && l.includes("Rowan"))
 		);
 		ok("undated stays are listed", out.includes("Cabin"));
 		ok("must-do ideas are listed", out.includes("Museum"));
@@ -213,7 +213,7 @@ export function run() {
 					category: "restaurant",
 					date: "2026-07-30",
 					time: "19:00",
-					people: "Riley Sorensen",
+					people: "Rowan Sandberg",
 					cost: 40,
 					notes: "Book ahead",
 					location: "Main St",
@@ -225,7 +225,7 @@ export function run() {
 					type: "boat",
 					date: "2026-07-30",
 					time: "09:00",
-					people: "Laura Morton",
+					people: "Livia Marlow",
 					cost: 60,
 					notes: "Gate 4",
 				},
@@ -236,7 +236,7 @@ export function run() {
 					stay: "camping",
 					date: "2026-07-30",
 					nights: 2,
-					people: "Harry Mayer",
+					people: "Hamid Moreau",
 					cost: 220,
 					address: "12 Pine Rd",
 					notes: "Key in lockbox",
@@ -393,13 +393,13 @@ export function run() {
 		// ---- people ----
 		ok(
 			"per-item people are off at the master by default",
-			!bullets(bare).includes("Laura")
+			!bullets(bare).includes("Livia")
 		);
 		const peopleOn = build((d) => (d.general.people = true));
-		ok("...and appear once the master is on", bullets(peopleOn).includes("Laura"));
+		ok("...and appear once the master is on", bullets(peopleOn).includes("Livia"));
 		ok(
 			"...on every kind",
-			bullets(peopleOn).includes("Harry") && bullets(peopleOn).includes("Riley")
+			bullets(peopleOn).includes("Hamid") && bullets(peopleOn).includes("Rowan")
 		);
 		const ideaPeopleOff = build((d) => {
 			d.general.people = true;
@@ -407,8 +407,8 @@ export function run() {
 		});
 		ok(
 			"one kind can opt out while the master is on",
-			!bullets(ideaPeopleOff).includes("Riley") &&
-				bullets(ideaPeopleOff).includes("Laura")
+			!bullets(ideaPeopleOff).includes("Rowan") &&
+				bullets(ideaPeopleOff).includes("Livia")
 		);
 
 		// ---- the master wins even while a per-kind box is ticked ----

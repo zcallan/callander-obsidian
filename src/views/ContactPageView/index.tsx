@@ -5,7 +5,7 @@ import {
 	type WorkspaceLeaf,
 } from "obsidian";
 import type { ReactNode } from "react";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import { EventTimeline } from "@/components/EventTimeline";
 import type { EventInfo } from "@/types";
@@ -52,7 +52,7 @@ type DeferredWork = "reload" | "render" | "drafts";
  * finishing after the page has moved on lands in the note it was for.
  */
 export class ContactPageView extends ItemView implements PageContext {
-	public plugin: FriendTracker;
+	public plugin: CallanderPlugin;
 	/** The note on screen; replaced, never edited in place, on each load. */
 	model = ContactPageModel.unread();
 	/**
@@ -97,7 +97,7 @@ export class ContactPageView extends ItemView implements PageContext {
 	/** Saves in flight from saveLayoutSetting. */
 	private quietSettingSaves = 0;
 
-	constructor(leaf: WorkspaceLeaf, plugin: FriendTracker) {
+	constructor(leaf: WorkspaceLeaf, plugin: CallanderPlugin) {
 		super(leaf);
 		this.plugin = plugin;
 		this.notes = new NotesController(this);

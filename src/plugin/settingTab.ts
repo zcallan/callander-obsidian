@@ -6,8 +6,8 @@ import {
 	normalizePath,
 	type SettingDefinitionItem,
 } from "obsidian";
-import type FriendTracker from "@/main";
-import { DEFAULT_SETTINGS, type FriendTrackerSettings } from "@/types";
+import type CallanderPlugin from "@/main";
+import { DEFAULT_SETTINGS, type CallanderSettings } from "@/types";
 import {
 	DASHBOARD_SECTIONS,
 	DEFAULT_DASHBOARD_ORDER,
@@ -129,8 +129,8 @@ function numberControl(key: NumberSettingKey) {
 	};
 }
 
-export class FriendTrackerSettingTab extends PluginSettingTab {
-	constructor(app: App, private plugin: FriendTracker) {
+export class CallanderSettingTab extends PluginSettingTab {
+	constructor(app: App, private plugin: CallanderPlugin) {
 		super(app, plugin);
 	}
 
@@ -150,7 +150,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				control: {
 					type: "text",
 					key: "yourName",
-					placeholder: "e.g. Callan",
+					placeholder: "e.g. Casey",
 				},
 			},
 			{
@@ -377,7 +377,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 		if (key === "weekStartsOn") {
 			return String(this.plugin.settings.weekStartsOn);
 		}
-		return this.plugin.settings[key as keyof FriendTrackerSettings];
+		return this.plugin.settings[key as keyof CallanderSettings];
 	}
 
 	setControlValue(key: string, value: unknown): void | Promise<void> {
@@ -465,7 +465,7 @@ export class FriendTrackerSettingTab extends PluginSettingTab {
 				'Included automatically in shared plan messages ("Copy as message"), so you don\'t have to add yourself as a guest'
 			)
 			.addText((text) => {
-				text.setPlaceholder("e.g. Callan")
+				text.setPlaceholder("e.g. Casey")
 					.setValue(this.plugin.settings.yourName)
 					.onChange(async (value) => {
 						this.plugin.settings.yourName = value.trim();

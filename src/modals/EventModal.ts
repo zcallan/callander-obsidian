@@ -18,7 +18,7 @@ import {
 	defaultCategoryColor,
 	ensureGroupColors,
 } from "@/utils/categoryColor";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { EventInfo } from "@/types";
 import type { EventFields } from "@/services/EventOperations";
 import { EVENT_TYPES } from "@/constants";
@@ -46,7 +46,7 @@ export class EventModal extends FormModal {
 
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private existing: EventInfo | null,
 		/** Anything to do once the event is saved or deleted, beyond the
 		 * write itself. Pages hear the write on their own (CLAUDE.md, "Views

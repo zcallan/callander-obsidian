@@ -59,7 +59,7 @@ const HELP: Record<string, FieldHelp> = {
 	},
 	shortName: {
 		text: "A shorter form for quick recognition in lists, where full names crowd each other out. Like a nickname, but chosen for practicality rather than affection.",
-		example: "“Cal” instead of “Callan”",
+		example: "“Theo” instead of “Theodore”",
 	},
 	legalName: {
 		text: "Their full name as it appears on documents. Useful for bookings and paperwork.",
@@ -90,7 +90,7 @@ const HELP: Record<string, FieldHelp> = {
 	},
 	parents: {
 		text: "Their parents. Link a name to another note to connect the two, or just type it.",
-		example: "“[[Denise Chen]]” to link her note, or just “Denise”",
+		example: "“[[Doreen Chen]]” to link her note, or just “Doreen”",
 	},
 	siblings: {
 		text: "Their brothers and sisters. Link a name to another note, or just type it.",

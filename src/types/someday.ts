@@ -50,7 +50,7 @@ export interface SomedayInfo {
 	 * the lead, whose emoji fronts the row when the name brings none. */
 	types: SomedayType[];
 	/**
-	 * Wikilinks to real contacts (e.g. "[[Callan]]"), same storage shape as
+	 * Wikilinks to real contacts (e.g. "[[Casey]]"), same storage shape as
 	 * a plan's members — resolved back to a display name wherever it's
 	 * shown. Empty when unset, or when company is "solo".
 	 */

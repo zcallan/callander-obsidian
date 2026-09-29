@@ -52,12 +52,12 @@ export async function run() {
 		await t.contacts.writeExpenses((list) =>
 			list.push(
 				expense({
-					people: ["[[Riley Sorensen]]", "Sam from work"],
-					paid: ["Callan"],
+					people: ["[[Rowan Sandberg]]", "Sam from work"],
+					paid: ["Casey"],
 					split: {
 						mode: "receipt",
-						shares: { Callan: 20, "Sam from work": 40 },
-						exprs: { Callan: "10+10" },
+						shares: { Casey: 20, "Sam from work": 40 },
+						exprs: { Casey: "10+10" },
 						tax: 6.25,
 						tip: 20,
 					},
@@ -67,17 +67,17 @@ export async function run() {
 		const saved = (await t.contacts.getExpenses())[0] ?? {};
 		const split = saved.split ?? {};
 		eq("people survive the file", saved.people, [
-			"[[Riley Sorensen]]",
+			"[[Rowan Sandberg]]",
 			"Sam from work",
 		]);
-		eq("the paid list survives", saved.paid, ["Callan"]);
+		eq("the paid list survives", saved.paid, ["Casey"]);
 		eq("the split mode survives", split.mode, "receipt");
 		eq("shares survive", split.shares, {
-			Callan: 20,
+			Casey: 20,
 			"Sam from work": 40,
 		});
 		eq("the typed working survives", split.exprs, {
-			Callan: "10+10",
+			Casey: "10+10",
 		});
 		eq("tax survives", split.tax, 6.25);
 		eq("tip survives", split.tip, 20);
@@ -148,12 +148,12 @@ export async function run() {
 	{
 		const t = await createTestVault();
 		const written = expense({
-			people: ["[[Riley Sorensen]]"],
+			people: ["[[Rowan Sandberg]]"],
 			paid: [],
 			split: {
 				mode: "receipt",
-				shares: { Callan: 20, Riley: 40 },
-				exprs: { Callan: "10+10" },
+				shares: { Casey: 20, Rowan: 40 },
+				exprs: { Casey: "10+10" },
 				tax: 6.25,
 			},
 		});
@@ -161,13 +161,13 @@ export async function run() {
 		const [read] = await t.contacts.getExpenses();
 		ok("an expense reads back as the one written", sameExpense(read, written));
 		await t.contacts.writeExpenses((list) => {
-			list[0].paid = ["Callan", "Riley"];
+			list[0].paid = ["Casey", "Rowan"];
 			list[0].settled = true;
 		});
 		const [ticked] = await t.contacts.getExpenses();
 		ok(
 			"…and again once ticks have settled it",
-			sameExpense(ticked, { ...written, paid: ["Callan", "Riley"], settled: true })
+			sameExpense(ticked, { ...written, paid: ["Casey", "Rowan"], settled: true })
 		);
 	}
 

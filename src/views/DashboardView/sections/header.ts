@@ -102,6 +102,6 @@ function renderFriendList(ctx: DashboardContext, listEl: HTMLElement) {
 		text: "All friends",
 	});
 	all.addEventListener("click", () =>
-		void ctx.plugin.activateFriendTracker({ here: true })
+		void ctx.plugin.activateAllFriends({ here: true })
 	);
 }

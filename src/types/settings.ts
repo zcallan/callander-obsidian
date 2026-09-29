@@ -2,7 +2,7 @@ import type { Hemisphere, SomedaySort } from "@/constants";
 import type { GroupColors } from "@/utils/categoryColor";
 import type { EventSort } from "@/utils/eventRow";
 
-export interface FriendTrackerSettings {
+export interface CallanderSettings {
 	/** Holds all Callander data: the People, Groups, Plans, Somedays and
 	 * Events folders plus the dashboard file. */
 	baseFolder: string;
@@ -263,7 +263,7 @@ export type FriendListTab = "list" | "timeline" | "calendar";
 /** Which grid the Events page's Calendar tab is drawing. */
 export type CalendarMode = "month" | "week";
 
-export const DEFAULT_SETTINGS: FriendTrackerSettings = {
+export const DEFAULT_SETTINGS: CallanderSettings = {
 	baseFolder: "Friends",
 	diaryFolder: "Friends/Diary",
 	dashboardFileName: "Dashboard",

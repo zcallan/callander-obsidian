@@ -1,7 +1,7 @@
 import { App, Notice, setIcon } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import { renderCategoryChips } from "@/components/categoryChips";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { ContactWithCountdown } from "@/types";
 import { EVENT_TYPES } from "@/constants";
 import { shortTime } from "@/utils/calendarGrid";
@@ -77,7 +77,7 @@ const MAX_PROBLEMS_SHOWN = 20;
  * confirmation, which is where the events are actually created.
  */
 export class EventImportModal extends FormModal {
-	constructor(app: App, private plugin: FriendTracker) {
+	constructor(app: App, private plugin: CallanderPlugin) {
 		super(app);
 	}
 
@@ -250,7 +250,7 @@ class EventImportConfirmModal extends FormModal {
 
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private events: ImportedEvent[],
 		private onImported: () => void
 	) {

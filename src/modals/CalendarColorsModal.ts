@@ -1,6 +1,6 @@
 import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { appendColorRow, closeColorPopover } from "@/components/colorPicker";
 import { EVENT_TYPES, eventColour } from "@/constants";
 import {
@@ -30,7 +30,7 @@ export class CalendarColorsModal extends FormModal {
 
 	constructor(
 		app: App,
-		private plugin: FriendTracker,
+		private plugin: CallanderPlugin,
 		private section: "kinds" | "categories" | "types",
 		private categories: string[] = [],
 		/** Leave out the Birthdays row — for the Events page, which has

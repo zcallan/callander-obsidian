@@ -1,5 +1,5 @@
 import { ItemView, Platform, WorkspaceLeaf, setIcon } from "obsidian";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { ContactWithCountdown, EventInfo, PlanInfo } from "@/types";
 import { applyPageWidth } from "@/components/pageWidth";
 import {
@@ -82,7 +82,7 @@ export class CalendarView extends ItemView {
 	/** Keyboard focus across a redraw — see FocusKeeper. */
 	private readonly focusKeeper = new FocusKeeper();
 
-	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
+	constructor(leaf: WorkspaceLeaf, private plugin: CallanderPlugin) {
 		super(leaf);
 		this.navigation = true;
 		this.cal = {

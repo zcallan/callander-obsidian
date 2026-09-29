@@ -34,10 +34,10 @@ export function run() {
 	// has always joined these, so the two stay consistent.
 	eq(
 		"a legacy string splits on commas",
-		parseLinkField("Denise, Bob"),
-		["Denise", "Bob"]
+		parseLinkField("Doreen, Bob"),
+		["Doreen", "Bob"]
 	);
-	eq("a single string is one entry", parseLinkField("Denise"), ["Denise"]);
+	eq("a single string is one entry", parseLinkField("Doreen"), ["Doreen"]);
 	eq("empty string is no entries", parseLinkField(""), []);
 	eq("undefined is no entries", parseLinkField(undefined), []);
 	eq("null is no entries", parseLinkField(null), []);
@@ -45,8 +45,8 @@ export function run() {
 	// contains a comma would be torn into two broken entries.
 	eq(
 		"a comma inside brackets does not split",
-		parseLinkField("[[Smith, John]], Bob"),
-		["[[Smith, John]]", "Bob"]
+		parseLinkField("[[Stone, John]], Bob"),
+		["[[Stone, John]]", "Bob"]
 	);
 	eq(
 		"several bracketed entries with inner commas",
@@ -76,7 +76,7 @@ export function run() {
 	// same list — otherwise every open-and-save would drift.
 	const cases = [
 		["[[Alice]]", "Bob"],
-		["[[Smith, John]]", "Bob"],
+		["[[Stone, John]]", "Bob"],
 		["Just text"],
 		[],
 	];
@@ -104,16 +104,16 @@ export function run() {
 	// A capturing regex that refuses to cross a `]` used to treat this as
 	// not a link at all — the whole entry fell through as plain text and
 	// printed its brackets raw, for a relative whose actual note is
-	// "Riley [Jr]".
+	// "Rowan [Jr]".
 	eq(
 		"a bracket inside the name doesn't break the link",
-		linkTarget("[[Riley [Jr]]]"),
-		"Riley [Jr]"
+		linkTarget("[[Rowan [Jr]]]"),
+		"Rowan [Jr]"
 	);
 	eq(
 		"same, with an alias",
-		linkTarget("[[Riley [Jr]|Riley]]"),
-		"Riley [Jr]"
+		linkTarget("[[Rowan [Jr]|Rowan]]"),
+		"Rowan [Jr]"
 	);
 	// A hyphen is just a character here too — not a range inside some
 	// character class, which is the only way it could go wrong.
@@ -126,13 +126,13 @@ export function run() {
 	eq("plain text is trimmed", linkLabel("  Bob  "), "Bob");
 	eq(
 		"a bracket inside the name still reads as the name",
-		linkLabel("[[Riley [Jr]]]"),
-		"Riley [Jr]"
+		linkLabel("[[Rowan [Jr]]]"),
+		"Rowan [Jr]"
 	);
 	eq(
 		"and its alias still wins",
-		linkLabel("[[Riley [Jr]|Riley]]"),
-		"Riley"
+		linkLabel("[[Rowan [Jr]|Rowan]]"),
+		"Rowan"
 	);
 	eq("a hyphenated name reads as itself", linkLabel("[[Anna-Marie]]"), "Anna-Marie");
 
@@ -144,8 +144,8 @@ export function run() {
 	// name used to fool it into double-wrapping an already-linked entry.
 	eq(
 		"a bracketed link isn't double-wrapped",
-		asWikilink("[[Riley [Jr]]]"),
-		"[[Riley [Jr]]]"
+		asWikilink("[[Rowan [Jr]]]"),
+		"[[Rowan [Jr]]]"
 	);
 	eq("blank stays blank", asWikilink("   "), "");
 

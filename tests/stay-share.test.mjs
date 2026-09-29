@@ -15,7 +15,7 @@ const STAYS = [
 		checkOut: "10:00",
 		address: "14 Profile Road, Franconia, NH",
 		notes: "Key in the lockbox — code 4417.",
-		people: "Callan, Cormac",
+		people: "Casey, Cormac",
 		cost: 340,
 		booked: "booked",
 	},
@@ -161,7 +161,7 @@ export function run() {
 	{
 		const all = build({ people: true, costs: true });
 		ok("the address is there", all.includes("  14 Profile Road, Franconia, NH"));
-		ok("so are the people", all.includes("  Callan, Cormac"));
+		ok("so are the people", all.includes("  Casey, Cormac"));
 		// Written as every share text writes a cost (UB-B14): whole dollars
 		// short, "Free" for nothing.
 		ok("and the cost", all.includes("  $340\n") || all.endsWith("  $340"));

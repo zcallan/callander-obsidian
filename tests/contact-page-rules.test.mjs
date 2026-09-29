@@ -5,7 +5,9 @@ import {
 	fieldEditValue,
 	formatPlanDateRange,
 	ideaLogText,
+	interestFieldsTip,
 	interestIdeaText,
+	interestParts,
 	isFilledField,
 	isoDaysBetween,
 	lastUpdatedLabel,
@@ -100,5 +102,34 @@ export function run() {
 		],
 		[["Bob", "Bobby"], [], 32, "thirty", "", true, "maybe", " Ann ", "12"]
 	);
+	// ---------- interests: any one field is enough ----------
+	const song = { category: "music", text: "Stick Season", detail: "Noah Kahan", detail2: "Indie folk" };
+	const artistOnly = { category: "music", detail: "Noah Kahan" };
+	const genreOnly = { category: "music", text: " ", detail2: "Indie folk" };
+	eq(
+		"an interest's words in chip order, whichever it has",
+		[interestParts(song), interestParts(artistOnly), interestParts(genreOnly)],
+		[["Stick Season", "Noah Kahan", "Indie folk"], ["Noah Kahan"], ["Indie folk"]]
+	);
+	eq(
+		"the idea it seeds: title and author, or what there is",
+		[
+			interestIdeaText({ category: "books", text: "East of Eden", detail: "John Steinbeck" }),
+			interestIdeaText({ category: "books", text: "East of Eden" }),
+			interestIdeaText(artistOnly),
+			interestIdeaText(genreOnly),
+		],
+		["East of Eden (John Steinbeck)", "East of Eden", "Noah Kahan", "Indie folk"]
+	);
+	eq(
+		"the tip names the type's own fields, and a single-field type has none",
+		[interestFieldsTip(["Artist", "Genre"]), interestFieldsTip(["Author"]), interestFieldsTip([])],
+		[
+			"Tip: You don't need to fill out all fields — entering just 'Artist' or 'Genre' on their own is fine too.",
+			"Tip: You don't need to fill out all fields — entering just 'Author' on its own is fine too.",
+			"",
+		]
+	);
+
 	return result();
 }

@@ -43,11 +43,11 @@ export async function run() {
 	// UA-B6: an aliased link resolves to its note.
 	{
 		const t = await createTestVault();
-		const riley = await t.addPerson("Riley Sorensen");
+		const rowan = await t.addPerson("Rowan Sandberg");
 		const plan = await t.addPlan("Trip");
-		const info = resolvePeopleInfo(t.app, plan.path, ["[[Riley Sorensen|Riley]]", "[[Nobody|Guest]]", "[[Ann]]"]);
-		eq("an alias resolves to its note; an unresolved one shows its alias (UA-B6)", info.map((p) => p.displayName), ["Riley Sorensen", "Guest", "Ann"]);
-		void riley;
+		const info = resolvePeopleInfo(t.app, plan.path, ["[[Rowan Sandberg|Rowan]]", "[[Nobody|Guest]]", "[[Ann]]"]);
+		eq("an alias resolves to its note; an unresolved one shows its alias (UA-B6)", info.map((p) => p.displayName), ["Rowan Sandberg", "Guest", "Ann"]);
+		void rowan;
 	}
 
 	// SVC-B7: deleting a person takes aliased and space-padded entries too.
@@ -80,9 +80,9 @@ export async function run() {
 
 	eq("a zone is stored as Intl spells it (UA-B11)", [normalizeTimezone("europe/madrid"), normalizeTimezone("Europe/Madrid"), normalizeTimezone("not/a_zone")], ["Europe/Madrid", "Europe/Madrid", null]);
 
-	const [quoted] = expensesOf({ costs: [{ label: "Dinner", amount: 50, split: { mode: "value", shares: { Riley: "25", Harry: "25", Bad: "x" } } }] });
-	eq("quoted shares read as numbers, and junk is left out (UB-B4)", quoted.split.shares, { Riley: 25, Harry: 25 });
-	eq("…so each owes their $25, not \"2510\"", owedFor(quoted, ["Riley", "Harry"]).Riley, 25);
+	const [quoted] = expensesOf({ costs: [{ label: "Dinner", amount: 50, split: { mode: "value", shares: { Rowan: "25", Hamid: "25", Bad: "x" } } }] });
+	eq("quoted shares read as numbers, and junk is left out (UB-B4)", quoted.split.shares, { Rowan: 25, Hamid: 25 });
+	eq("…so each owes their $25, not \"2510\"", owedFor(quoted, ["Rowan", "Hamid"]).Rowan, 25);
 
 	eq("a cost reads the same everywhere it's shared (UB-B14)", [formatItemCost(0), formatItemCost(12), formatItemCost(12.5), formatItemCost(12.345)], ["Free", "$12", "$12.50", "$12.35"]);
 

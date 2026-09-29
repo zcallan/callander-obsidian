@@ -443,7 +443,7 @@ export function run() {
 	{
 		const list = [
 			someday("alone"),
-			someday("withFriends", { people: ["[[Riley]]"] }),
+			someday("withFriends", { people: ["[[Rowan]]"] }),
 		];
 		eq(
 			"having suggested people wins the tie",

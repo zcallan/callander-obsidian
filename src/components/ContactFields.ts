@@ -1,9 +1,9 @@
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { capitalize } from "@/utils/text";
 
 export function createRelationshipInput(
 	container: HTMLElement,
-	plugin: FriendTracker,
+	plugin: CallanderPlugin,
 	value: string = "",
 	onChange?: (value: string) => void | Promise<void>
 ) {
@@ -45,7 +45,7 @@ export function createRelationshipInput(
  */
 export function updateRelationshipDatalist(
 	input: HTMLInputElement,
-	plugin: FriendTracker,
+	plugin: CallanderPlugin,
 	filter?: string
 ) {
 	const doc = input.ownerDocument;
@@ -68,7 +68,7 @@ export function updateRelationshipDatalist(
  * Add a relationship typed into a form to the ones suggested next time,
  * once, however it was cased. Saves settings when it adds one.
  */
-export function rememberRelationshipType(plugin: FriendTracker, value: string) {
+export function rememberRelationshipType(plugin: CallanderPlugin, value: string) {
 	const relationship = value.trim().toLowerCase();
 	const types = plugin.settings.relationshipTypes;
 	if (!relationship || types.includes(relationship)) return;

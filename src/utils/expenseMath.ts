@@ -64,7 +64,7 @@ export function expenseEditClearsStatus(
 
 /**
  * A split's shares with every value a number. Hand-typed or generated YAML
- * can quote them (`Riley: "25"`), and adding strings concatenates: a $25
+ * can quote them (`Rowan: "25"`), and adding strings concatenates: a $25
  * share read as owing "$2510.00". Anything that isn't a finite number is
  * left out; saving the expense again writes the numbers back.
  */
@@ -252,7 +252,7 @@ export function paidStateOf(
  * whole expense being settled.
  *
  * This is what keeps "who owes what" honest while an expense is still
- * open: tick Riley and Riley's share stops counting, while Harry's keeps
+ * open: tick Rowan and Rowan's share stops counting, while Hamid's keeps
  * showing until his box goes too.
  */
 export function isPaidBy(cost: Expense, person: string): boolean {

@@ -357,7 +357,7 @@ export function appendPeopleField(
 
 	const input = container.createEl("input", {
 		cls: "quick-idea-input",
-		attr: { type: "text", placeholder: "e.g. Callan, Steve" },
+		attr: { type: "text", placeholder: "e.g. Casey, Silas" },
 	});
 	input.value = initial ?? "";
 	return { value: () => input.value.trim(), input };

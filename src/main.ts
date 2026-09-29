@@ -13,7 +13,7 @@ import {
 	type WorkspaceLeaf,
 } from "obsidian";
 import {
-	FriendTrackerSettings,
+	CallanderSettings,
 	DEFAULT_SETTINGS,
 	SomedayInfo,
 	EventInfo,
@@ -43,14 +43,14 @@ import { SomedayOperations } from "@/services/SomedayOperations";
 import { EventOperations } from "@/services/EventOperations";
 import { EventMigration } from "@/services/EventMigration";
 import {
-	FriendTrackerView,
-	VIEW_TYPE_FRIEND_TRACKER,
-} from "@/views/FriendTrackerView";
+	AllFriendsView,
+	VIEW_TYPE_ALL_FRIENDS,
+} from "@/views/AllFriendsView";
 import {
 	ContactPageView,
 	VIEW_TYPE_CONTACT_PAGE,
 } from "@/views/ContactPageView";
-import { FriendTrackerSettingTab } from "@/views/FriendTrackerView/settings";
+import { CallanderSettingTab } from "@/plugin/settingTab";
 import { ContactOperations } from "@/services/ContactOperations";
 import { DiaryOperations } from "@/services/DiaryOperations";
 import { DiaryView, VIEW_TYPE_DIARY } from "@/views/DiaryView";
@@ -106,11 +106,11 @@ const EXPORT_NOTICE_MS = 15000;
 /** Every Callander view: its type, and how to build one in a leaf. */
 const VIEWS: readonly [
 	string,
-	(leaf: WorkspaceLeaf, plugin: FriendTracker) => View,
+	(leaf: WorkspaceLeaf, plugin: CallanderPlugin) => View,
 ][] = [
 	[
-		VIEW_TYPE_FRIEND_TRACKER,
-		(leaf, plugin) => new FriendTrackerView(leaf, plugin),
+		VIEW_TYPE_ALL_FRIENDS,
+		(leaf, plugin) => new AllFriendsView(leaf, plugin),
 	],
 	[VIEW_TYPE_CONTACT_PAGE, (leaf, plugin) => new ContactPageView(leaf, plugin)],
 	[VIEW_TYPE_DIARY, (leaf, plugin) => new DiaryView(leaf, plugin)],
@@ -121,15 +121,15 @@ const VIEWS: readonly [
 	[VIEW_TYPE_PLANS, (leaf, plugin) => new PlansView(leaf, plugin)],
 ];
 
-/** How to open a Callander page — see FriendTracker.openHere. */
+/** How to open a Callander page — see CallanderPlugin.openHere. */
 export interface NavOptions {
 	/** In the active tab, with back/forward history, as a link would. */
 	here?: boolean;
 }
 
-export default class FriendTracker extends Plugin {
+export default class CallanderPlugin extends Plugin {
 	// Assigned in onload, before anything can reach them.
-	settings!: FriendTrackerSettings;
+	settings!: CallanderSettings;
 	public contactOperations!: ContactOperations;
 	public diaryOperations!: DiaryOperations;
 	public planOperations!: PlanOperations;
@@ -245,7 +245,7 @@ export default class FriendTracker extends Plugin {
 			);
 
 			// Add settings tab
-			this.addSettingTab(new FriendTrackerSettingTab(this.app, this));
+			this.addSettingTab(new CallanderSettingTab(this.app, this));
 
 			this.statusBarEl = this.addStatusBarItem();
 		} catch (error) {
@@ -369,7 +369,7 @@ export default class FriendTracker extends Plugin {
 			{
 				id: "open-friends-table",
 				name: "Open all friends",
-				callback: () => this.activateFriendTracker(),
+				callback: () => this.activateAllFriends(),
 			},
 			{
 				id: "open-diary",
@@ -761,14 +761,23 @@ export default class FriendTracker extends Plugin {
 		await this.activateLeafOfType(VIEW_TYPE_DIARY);
 	}
 
-	public async activateFriendTracker(opts: NavOptions = {}) {
-		if (opts.here) return this.openHere(VIEW_TYPE_FRIEND_TRACKER);
+	public async activateAllFriends(opts: NavOptions = {}) {
+		if (opts.here) return this.openHere(VIEW_TYPE_ALL_FRIENDS);
 		const workspace = this.app.workspace;
 		// Not a leftover sidebar-docked copy from the old layout.
 		await this.activateLeafOfType(
-			VIEW_TYPE_FRIEND_TRACKER,
+			VIEW_TYPE_ALL_FRIENDS,
 			(leaf) => leaf.getRoot() === workspace.rootSplit
 		);
+	}
+
+	/**
+	 * @deprecated Renamed activateAllFriends. Kept because user scripts
+	 * reach the plugin as `app.plugins.plugins.callander`, and may still
+	 * call it by this name.
+	 */
+	public activateFriendTracker(opts: NavOptions = {}) {
+		return this.activateAllFriends(opts);
 	}
 
 	// ---- Quick actions ----

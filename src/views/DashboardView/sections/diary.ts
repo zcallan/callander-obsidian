@@ -44,9 +44,9 @@ export function renderDiary(ctx: DashboardContext, container: HTMLElement) {
 
 	const resolvedLinks = ctx.app.metadataCache.resolvedLinks;
 	// Shortened against every friend, not per entry: disambiguation has
-	// to be stable, or the same person would read "Riley" on an entry
-	// where she's alone and "Riley S" on one she shares with another
-	// Riley. Built once — the roster doesn't change between rows.
+	// to be stable, or the same person would read "Rowan" on an entry
+	// where she's alone and "Rowan S" on one she shares with another
+	// Rowan. Built once — the roster doesn't change between rows.
 	const shortByPath = new Map(
 		shortenMemberNames(
 			ctx.data.contacts.map((c) => c.displayName),

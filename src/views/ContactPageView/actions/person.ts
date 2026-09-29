@@ -365,7 +365,7 @@ export function openEditInterestModal(
 			const list = [...(asArray(model.data.interests) as Interest[])];
 			list[index] = {
 				category,
-				text,
+				...(text && { text }),
 				...(detail && { detail }),
 				...(detail2 && { detail2 }),
 				...(notes && { notes }),
@@ -391,7 +391,8 @@ export function openAddInterestModal(
 			ctx.ui.lastInterestCategory = category;
 			model.push("interests", {
 				category,
-				text,
+				// Left out when blank: an artist on their own needs no title.
+				...(text && { text }),
 				...(detail && { detail }),
 				...(detail2 && { detail2 }),
 				...(notes && { notes }),

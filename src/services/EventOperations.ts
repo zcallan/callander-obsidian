@@ -37,7 +37,7 @@ export interface EventFields {
 	 * for an end time. Same shape a plan item stores. */
 	duration?: string;
 	type?: EventType | "";
-	/** Wikilinks to people/groups, e.g. ["[[Austin Philleo]]"]. */
+	/** Wikilinks to people/groups, e.g. ["[[Anders Pennell]]"]. */
 	people?: string[];
 	location?: string;
 	link?: string;

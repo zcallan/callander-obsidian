@@ -34,6 +34,11 @@ Fixes from a review of the whole plugin, most of them ways an edit could be lost
 - Adding an idea to a friend can no longer replace all their ideas with the new one if their note can't be read at that moment.
 - Filing an inbox idea onto a friend adds it to them before taking it out of the inbox, so a failed save leaves it in both places rather than neither.
 
+### Interests
+
+- **Any one field is enough.** An interest can be just an artist, with no song in mind — or just an author, a platform, a restaurant or a place — and the form says so under the fields.
+- The first field says what goes in it: Music asks for a Song, Food for a Dish, and Other for an Interest.
+
 ### Expenses
 
 - Editing, ticking off or deleting a dashboard expense acts on that expense even if the list changed while it was open, from a sync or another window. If it has gone, nothing is saved and a notice says so.

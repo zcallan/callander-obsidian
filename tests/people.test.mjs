@@ -16,7 +16,7 @@ export async function run() {
 
 	const t = await createTestVault();
 	const source = `${t.plugin.settings.baseFolder}/Dashboard.md`;
-	await t.addPerson("Riley Sorensen", { displayName: "Riley Sorensen" });
+	await t.addPerson("Rowan Sandberg", { displayName: "Rowan Sandberg" });
 	await t.addPerson("Sam Okafor", {
 		displayName: "Sam Okafor",
 		shortName: "Sammy",
@@ -25,8 +25,8 @@ export async function run() {
 
 	eq(
 		"a wikilink resolves to the contact's displayName",
-		resolvePeopleNames(t.app, source, ["[[Riley Sorensen]]"]),
-		["Riley Sorensen"]
+		resolvePeopleNames(t.app, source, ["[[Rowan Sandberg]]"]),
+		["Rowan Sandberg"]
 	);
 
 	eq(
@@ -38,11 +38,11 @@ export async function run() {
 	eq(
 		"contacts and guests mix in one list, in order",
 		resolvePeopleNames(t.app, source, [
-			"[[Riley Sorensen]]",
+			"[[Rowan Sandberg]]",
 			"Jordan from work",
 			"[[Sam Okafor]]",
 		]),
-		["Riley Sorensen", "Jordan from work", "Sam Okafor"]
+		["Rowan Sandberg", "Jordan from work", "Sam Okafor"]
 	);
 
 	eq(
@@ -88,8 +88,8 @@ export async function run() {
 	);
 	eq(
 		"same first name falls back to the full name",
-		sorted(["Riley Sorensen", "Riley Adams", "Riley Turner"]),
-		["Riley Adams", "Riley Sorensen", "Riley Turner"]
+		sorted(["Rowan Sandberg", "Rowan Adams", "Rowan Turner"]),
+		["Rowan Adams", "Rowan Sandberg", "Rowan Turner"]
 	);
 	eq(
 		"case doesn't split the alphabet",

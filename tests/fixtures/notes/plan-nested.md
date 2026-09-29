@@ -7,7 +7,7 @@ location: North Woodstock, NH
 members:
   - "[[Ada Fenwick]]"
   - "[[Bo Nakamura]]"
-  - Brianna
+  - Bethany
 items:
   - text: 🍄 Foraging
     category: activity

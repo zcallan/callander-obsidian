@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import type { ReactNode } from "react";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import { PluginProvider } from "@/ui/PluginContext";
 
 // preact/compat/client exports createRoot but not a name for what it
@@ -30,7 +30,7 @@ export class IslandSet {
 
 	/** `plugin` is read on first render, so a view can build this in a
 	 * field initialiser, before its constructor has run. */
-	constructor(private readonly plugin: () => FriendTracker) {}
+	constructor(private readonly plugin: () => CallanderPlugin) {}
 
 	/** The host node for `key`, rendering `node` into it the first time. */
 	host(key: string, node: ReactNode): HTMLElement {

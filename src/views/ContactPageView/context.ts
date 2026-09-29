@@ -1,6 +1,6 @@
 import type { App, WorkspaceLeaf } from "obsidian";
 import type { ReactNode } from "react";
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { IdeaCategory, InterestCategory } from "@/constants";
 import type { EventTimeline } from "@/components/EventTimeline";
 import type { ViewStore } from "@/ui/viewStore";
@@ -62,7 +62,7 @@ export interface PageUiState {
  */
 export interface PageContext {
 	readonly app: App;
-	readonly plugin: FriendTracker;
+	readonly plugin: CallanderPlugin;
 	/** Bumped whenever the model changes, so the islands re-read it. */
 	readonly store: ViewStore;
 	readonly leaf: WorkspaceLeaf;

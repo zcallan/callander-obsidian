@@ -173,7 +173,7 @@ export async function run({ cdp }) {
 				["somedays", "callander-somedays", () => plugin.activateSomedays(), someday],
 				["calendar", "callander-calendar", () => plugin.activateCalendar(), file],
 				["diary", "callander-diary-view", () => plugin.activateDiaryView(), entry],
-				["all friends", "callander-view", () => plugin.activateFriendTracker(), person],
+				["all friends", "callander-view", () => plugin.activateAllFriends(), person],
 				// A person's page draws their timeline from Events/.
 				["contact page", "contact-page-view", () => plugin.openContactPage(person), file],
 			];

@@ -18,10 +18,10 @@ import { toText } from "@/utils/fm";
  * vault edited before this existed still holds, and what someone typing YAML
  * by hand will produce). A string is split on commas, which is how the read
  * view has always joined multi-value fields back together — so a legacy
- * `parents: Denise, Bob` reads as two entries rather than one odd one.
+ * `parents: Doreen, Bob` reads as two entries rather than one odd one.
  *
  * Splitting never happens inside brackets: a note legitimately called
- * "Smith, John" survives as one entry rather than becoming two broken ones.
+ * "Stone, John" survives as one entry rather than becoming two broken ones.
  */
 export function parseLinkField(value: unknown): string[] {
 	const raw = Array.isArray(value)
@@ -73,7 +73,7 @@ export function formatLinkField(value: unknown): string {
  * A trimmed entry's inner text if it's a wikilink, else null.
  *
  * A plain prefix/suffix check rather than a capturing regex that refuses to
- * cross a `]` — that stricter form treated "[[Riley [Jr]]]" as not a link at
+ * cross a `]` — that stricter form treated "[[Rowan [Jr]]]" as not a link at
  * all, which lost the link entirely and printed the raw brackets as the
  * name. Every other wikilink unwrapped in this codebase already uses this
  * simpler check.

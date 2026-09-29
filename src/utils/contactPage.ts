@@ -167,11 +167,39 @@ export function parseFunFacts(raw: unknown): string[] {
 	return [];
 }
 
-/** An idea seeded from an interest: "East of Eden (John Steinbeck)". */
+/**
+ * An interest's words in the order its chip shows them: the thing itself,
+ * then its details — "Stick Season", "Noah Kahan", "Indie folk". Any of
+ * them can be missing; an artist on their own is an interest too.
+ */
+export function interestParts(interest: Interest): string[] {
+	return [interest.text, interest.detail, interest.detail2]
+		.map((part) => (part ?? "").trim())
+		.filter(Boolean);
+}
+
+/**
+ * An idea seeded from an interest: "East of Eden (John Steinbeck)", or
+ * whatever it has when there's no title — the artist, say.
+ */
 export function interestIdeaText(interest: Interest): string {
-	return interest.detail
-		? `${interest.text} (${interest.detail})`
-		: interest.text;
+	const text = interest.text?.trim();
+	if (!text) return interestParts(interest)[0] ?? "";
+	return interest.detail ? `${text} (${interest.detail})` : text;
+}
+
+/**
+ * The line under an interest's fields saying any one of them will do, in
+ * the type's own words, or "" for a type with only the one field.
+ */
+export function interestFieldsTip(detailLabels: readonly string[]): string {
+	if (detailLabels.length === 0) return "";
+	const named = detailLabels.map((label) => `'${label}'`);
+	const which =
+		named.length === 1
+			? `${named[0]} on its own`
+			: `${named.slice(0, -1).join(", ")} or ${named[named.length - 1]} on their own`;
+	return `Tip: You don't need to fill out all fields — entering just ${which} is fine too.`;
 }
 
 /** A plan date as YYYY-MM-DD when it's exact to the day, else null. */

@@ -23,7 +23,7 @@ import {
 export function run() {
 	const { eq, ok, result } = createSuite("expenses & settling");
 
-	const participants = ["Callan", "Riley", "Laura"];
+	const participants = ["Casey", "Rowan", "Livia"];
 	/** What the breakdown modal totals — settled lines are shown but excluded. */
 	const modalTotal = (rows) =>
 		rows.reduce((s, r) => (r.settled ? s : s + r.amount), 0);
@@ -52,7 +52,7 @@ export function run() {
 			{ label: "Airbnb", amount: 90, settled: true, split: { mode: "even" } },
 			participants
 		),
-		{ Callan: 30, Riley: 30, Laura: 30 }
+		{ Casey: 30, Rowan: 30, Livia: 30 }
 	);
 
 	// ---------- split modes ----------
@@ -62,7 +62,7 @@ export function run() {
 			{ label: "X", amount: 90, split: { mode: "even" } },
 			participants
 		),
-		{ Callan: 30, Riley: 30, Laura: 30 }
+		{ Casey: 30, Rowan: 30, Livia: 30 }
 	);
 	eq(
 		"shares split by weight",
@@ -70,11 +70,11 @@ export function run() {
 			{
 				label: "X",
 				amount: 100,
-				split: { mode: "shares", shares: { Callan: 3, Riley: 1, Laura: 1 } },
+				split: { mode: "shares", shares: { Casey: 3, Rowan: 1, Livia: 1 } },
 			},
 			participants
 		),
-		{ Callan: 60, Riley: 20, Laura: 20 }
+		{ Casey: 60, Rowan: 20, Livia: 20 }
 	);
 	eq(
 		"percent split is literal",
@@ -82,11 +82,11 @@ export function run() {
 			{
 				label: "X",
 				amount: 200,
-				split: { mode: "percent", shares: { Callan: 25, Riley: 25 } },
+				split: { mode: "percent", shares: { Casey: 25, Rowan: 25 } },
 			},
 			participants
 		),
-		{ Callan: 50, Riley: 50, Laura: 0 }
+		{ Casey: 50, Rowan: 50, Livia: 0 }
 	);
 	eq(
 		"value split takes amounts at face value",
@@ -94,11 +94,11 @@ export function run() {
 			{
 				label: "X",
 				amount: 100,
-				split: { mode: "value", shares: { Callan: 30, Riley: 20 } },
+				split: { mode: "value", shares: { Casey: 30, Rowan: 20 } },
 			},
 			participants
 		),
-		{ Callan: 30, Riley: 20, Laura: 0 }
+		{ Casey: 30, Rowan: 20, Livia: 0 }
 	);
 	// Tax and tip are charged on the subtotal, never compounded — 6.25% and
 	// 20% on $100 is $126.25, not $127.50.
@@ -110,14 +110,14 @@ export function run() {
 				amount: 126.25,
 				split: {
 					mode: "receipt",
-					shares: { Callan: 100 },
+					shares: { Casey: 100 },
 					tax: 6.25,
 					tip: 20,
 				},
 			},
-			["Callan"]
+			["Casey"]
 		),
-		{ Callan: 126.25 }
+		{ Casey: 126.25 }
 	);
 
 	// ---------- breakdownFor keeps settled rows, flagged ----------
@@ -125,7 +125,7 @@ export function run() {
 		{ label: "Airbnb", amount: 90, settled: true, split: { mode: "even" } },
 		{ label: "Petrol", amount: 30, split: { mode: "even" } },
 	];
-	const rows = breakdownFor("Riley", costs, participants);
+	const rows = breakdownFor("Rowan", costs, participants);
 	eq(
 		"breakdownFor lists settled rows too",
 		rows.map((r) => r.label),
@@ -140,13 +140,13 @@ export function run() {
 	const allSettled = [
 		{ label: "Airbnb", amount: 90, settled: true, split: { mode: "even" } },
 	];
-	const allRows = breakdownFor("Riley", allSettled, participants);
+	const allRows = breakdownFor("Rowan", allSettled, participants);
 	eq("all-settled still returns rows", allRows.length, 1);
 	eq("all-settled total is zero", modalTotal(allRows), 0);
 
 	// ---------- credits ----------
-	const withCredit = breakdownFor("Riley", costs, participants, [
-		{ person: "Riley", amount: 5, note: "Venmo" },
+	const withCredit = breakdownFor("Rowan", costs, participants, [
+		{ person: "Rowan", amount: 5, note: "Venmo" },
 	]);
 	eq(
 		"credit row is not settled",
@@ -156,10 +156,10 @@ export function run() {
 	eq("credit still reduces the total", modalTotal(withCredit), 5);
 	eq(
 		"creditTotalFor sums one person's credits",
-		creditTotalFor("Riley", [
-			{ person: "Riley", amount: 5 },
-			{ person: "Riley", amount: 7 },
-			{ person: "Laura", amount: 100 },
+		creditTotalFor("Rowan", [
+			{ person: "Rowan", amount: 5 },
+			{ person: "Rowan", amount: 7 },
+			{ person: "Livia", amount: 100 },
 		]),
 		12
 	);
@@ -170,13 +170,13 @@ export function run() {
 		{
 			label: "Dinner",
 			amount: 40,
-			split: { mode: "receipt", shares: { Riley: 40 } },
+			split: { mode: "receipt", shares: { Rowan: 40 } },
 		},
-		{ label: "Ferry", amount: 20, split: { mode: "value", shares: { Riley: 20 } } },
-		{ label: "Rent", amount: 100, split: { mode: "percent", shares: { Riley: 25 } } },
-		{ label: "Gas", amount: 50, split: { mode: "shares", shares: { Riley: 2 } } },
+		{ label: "Ferry", amount: 20, split: { mode: "value", shares: { Rowan: 20 } } },
+		{ label: "Rent", amount: 100, split: { mode: "percent", shares: { Rowan: 25 } } },
+		{ label: "Gas", amount: 50, split: { mode: "shares", shares: { Rowan: 2 } } },
 	];
-	const wording = breakdownFor("Riley", wordingCosts, participants);
+	const wording = breakdownFor("Rowan", wordingCosts, participants);
 	const descriptorFor = (label) =>
 		wording.find((r) => r.label === label).descriptor;
 	eq("even -> 'split evenly'", descriptorFor("Petrol"), "split evenly");
@@ -192,7 +192,7 @@ export function run() {
 				{
 					label: "Dinner",
 					amount: 60,
-					people: ["[[Riley Sorensen]]", "Sam from work"],
+					people: ["[[Rowan Sandberg]]", "Sam from work"],
 					split: { mode: "even" },
 				},
 				{ label: "Taxi", amount: 20, split: { mode: "even" } },
@@ -203,7 +203,7 @@ export function run() {
 	eq(
 		"people survive the round trip, wikilinks and bare names alike",
 		withPeople[0].people,
-		["[[Riley Sorensen]]", "Sam from work"]
+		["[[Rowan Sandberg]]", "Sam from work"]
 	);
 	eq(
 		"an expense with no people has no people key",
@@ -215,12 +215,12 @@ export function run() {
 	const paidRoundTrip = expensesOf({
 		costs: [
 			{ label: "A", amount: 1, paid: [], split: {} },
-			{ label: "B", amount: 1, paid: ["Riley"], split: {} },
+			{ label: "B", amount: 1, paid: ["Rowan"], split: {} },
 			{ label: "C", amount: 1, split: {} },
 		],
 	});
 	eq("an empty paid list survives", paidRoundTrip[0].paid, []);
-	eq("a populated paid list survives", paidRoundTrip[1].paid, ["Riley"]);
+	eq("a populated paid list survives", paidRoundTrip[1].paid, ["Rowan"]);
 	eq("no paid key stays absent", "paid" in paidRoundTrip[2], false);
 	eq(
 		"the key is selectable — plans keep reading `costs`",
@@ -267,7 +267,7 @@ export function run() {
 		amount: 90,
 		split: { mode: "even" },
 	};
-	const three = ["Callan", "Riley", "Laura"];
+	const three = ["Casey", "Rowan", "Livia"];
 
 	eq(
 		"payers are everyone the split actually charges",
@@ -277,17 +277,17 @@ export function run() {
 	eq(
 		"someone charged nothing gets no box",
 		payersOf(
-			{ ...dinner, split: { mode: "value", shares: { Riley: 90 } } },
+			{ ...dinner, split: { mode: "value", shares: { Rowan: 90 } } },
 			three
 		),
-		["Riley"]
+		["Rowan"]
 	);
 
 	// You start ticked — you're the one who put the money down.
 	eq(
 		"with nothing recorded, only you are ticked",
-		paidStateOf(dinner, three, "Callan"),
-		["Callan"]
+		paidStateOf(dinner, three, "Casey"),
+		["Casey"]
 	);
 	eq(
 		"with no name of your own, nothing is ticked",
@@ -297,34 +297,34 @@ export function run() {
 	// Everything predating per-person ticks counts as fully paid.
 	eq(
 		"an already-settled expense shows everyone ticked",
-		paidStateOf({ ...dinner, settled: true }, three, "Callan"),
+		paidStateOf({ ...dinner, settled: true }, three, "Casey"),
 		three
 	);
 	// The distinction that makes `paid: []` worth storing.
 	eq(
 		"an explicit empty list stays empty, not defaulted back to you",
-		paidStateOf({ ...dinner, paid: [] }, three, "Callan"),
+		paidStateOf({ ...dinner, paid: [] }, three, "Casey"),
 		[]
 	);
 	eq(
 		"a recorded list wins over the settled flag",
 		paidStateOf(
-			{ ...dinner, paid: ["Riley"], settled: true },
+			{ ...dinner, paid: ["Rowan"], settled: true },
 			three,
-			"Callan"
+			"Casey"
 		),
-		["Riley"]
+		["Rowan"]
 	);
 	eq(
 		"someone no longer on the split drops out of the ticks",
-		paidStateOf({ ...dinner, paid: ["Riley", "Gone"] }, three, "Callan"),
-		["Riley"]
+		paidStateOf({ ...dinner, paid: ["Rowan", "Gone"] }, three, "Casey"),
+		["Rowan"]
 	);
 
 	eq("everyone ticked is fully paid", isFullyPaid(three, three), true);
 	eq(
 		"one outstanding is not",
-		isFullyPaid(["Callan", "Riley"], three),
+		isFullyPaid(["Casey", "Rowan"], three),
 		false
 	);
 	eq("nobody ticked is not", isFullyPaid([], three), false);
@@ -350,42 +350,42 @@ export function run() {
 	eq("nonsense is rejected", percentFromInput("abc"), null);
 
 	// ---------- a tick settles that person's share, and only theirs ----------
-	const trio = ["Callan", "Riley", "Harry"];
+	const trio = ["Casey", "Rowan", "Hamid"];
 	const rileyPaid = [
 		{
 			label: "Airbnb",
 			amount: 90,
-			paid: ["Callan", "Riley"],
+			paid: ["Casey", "Rowan"],
 			split: { mode: "even" },
 		},
 	];
 
 	eq(
 		"a ticked person is square on that expense",
-		isPaidBy(rileyPaid[0], "Riley"),
+		isPaidBy(rileyPaid[0], "Rowan"),
 		true
 	);
 	eq(
 		"an unticked person is not",
-		isPaidBy(rileyPaid[0], "Harry"),
+		isPaidBy(rileyPaid[0], "Hamid"),
 		false
 	);
 	eq(
 		"a settled expense is square for everyone, ticks or no ticks",
-		isPaidBy({ label: "X", amount: 1, settled: true, split: {} }, "Harry"),
+		isPaidBy({ label: "X", amount: 1, settled: true, split: {} }, "Hamid"),
 		true
 	);
 
-	// Riley's line still shows — it's the record of what was squared up —
+	// Rowan's line still shows — it's the record of what was squared up —
 	// but stops counting toward what's owed.
-	const rileyRows = breakdownFor("Riley", rileyPaid, trio);
-	eq("Riley's line is still listed", rileyRows.length, 1);
+	const rileyRows = breakdownFor("Rowan", rileyPaid, trio);
+	eq("Rowan's line is still listed", rileyRows.length, 1);
 	eq("...flagged as settled", rileyRows[0].settled, true);
 	eq("...and out of the total", modalTotal(rileyRows), 0);
 
-	// Harry hasn't paid, so nothing changes for him.
-	const harryRows = breakdownFor("Harry", rileyPaid, trio);
-	eq("Harry's line is not settled", harryRows[0].settled, undefined);
+	// Hamid hasn't paid, so nothing changes for him.
+	const harryRows = breakdownFor("Hamid", rileyPaid, trio);
+	eq("Hamid's line is not settled", harryRows[0].settled, undefined);
 	eq("...and still counts", modalTotal(harryRows), 30);
 
 	// The expense as a whole is still open — one tick doesn't settle it.
@@ -401,11 +401,11 @@ export function run() {
 		const costs = [
 			{ label: "Dinner", amount: 30, split: { mode: "even" }, paidBy: "Me" },
 		];
-		const people = ["Me", "Riley", "Harry"];
+		const people = ["Me", "Rowan", "Hamid"];
 		const { rows, outstanding } = planOwedSummary(costs, [], people, "Me", []);
 		const by = (n) => rows.find((r) => r.person === n);
 		eq("everyone appears once", rows.length, 3);
-		eq("a share is owed", Math.round(by("Riley").net * 100) / 100, 10);
+		eq("a share is owed", Math.round(by("Rowan").net * 100) / 100, 10);
 		eq("your own row is marked", by("Me").isYou, true);
 		// You can't owe yourself, so your share never joins the chase total.
 		eq("the total excludes you", Math.round(outstanding * 100) / 100, 20);
@@ -416,7 +416,7 @@ export function run() {
 		const costs = [
 			{ label: "Dinner", amount: 30, split: { mode: "even" }, paidBy: "Me", settled: true },
 		];
-		const { outstanding } = planOwedSummary(costs, [], ["Me", "Riley"], "Me", []);
+		const { outstanding } = planOwedSummary(costs, [], ["Me", "Rowan"], "Me", []);
 		eq("a settled expense owes nothing", outstanding, 0);
 	}
 
@@ -424,14 +424,14 @@ export function run() {
 	// the expense as a whole is still waiting on someone else.
 	{
 		const costs = [
-			{ label: "Dinner", amount: 30, split: { mode: "even" }, paidBy: "Me", paid: ["Riley"] },
+			{ label: "Dinner", amount: 30, split: { mode: "even" }, paidBy: "Me", paid: ["Rowan"] },
 		];
-		const people = ["Me", "Riley", "Harry"];
+		const people = ["Me", "Rowan", "Hamid"];
 		const { rows } = planOwedSummary(costs, [], people, "Me", []);
 		const by = (n) => rows.find((r) => r.person === n);
-		eq("a per-expense tick clears that share", by("Riley").net, 0);
-		eq("...and owing nothing counts as square", by("Riley").square, true);
-		eq("...while the others still owe", Math.round(by("Harry").net * 100) / 100, 10);
+		eq("a per-expense tick clears that share", by("Rowan").net, 0);
+		eq("...and owing nothing counts as square", by("Rowan").square, true);
+		eq("...while the others still owe", Math.round(by("Hamid").net * 100) / 100, 10);
 	}
 
 	// Credits net off what's owed.
@@ -439,11 +439,11 @@ export function run() {
 		const costs = [
 			{ label: "Dinner", amount: 20, split: { mode: "even" }, paidBy: "Me" },
 		];
-		const credits = [{ person: "Riley", amount: 10 }];
-		const { rows } = planOwedSummary(costs, credits, ["Me", "Riley"], "Me", []);
+		const credits = [{ person: "Rowan", amount: 10 }];
+		const { rows } = planOwedSummary(costs, credits, ["Me", "Rowan"], "Me", []);
 		eq(
 			"a credit cancels the share",
-			rows.find((r) => r.person === "Riley").net,
+			rows.find((r) => r.person === "Rowan").net,
 			0
 		);
 	}
@@ -453,8 +453,8 @@ export function run() {
 		const costs = [
 			{ label: "Dinner", amount: 30, split: { mode: "even" }, paidBy: "Me" },
 		];
-		const credits = [{ person: "Riley", amount: 10 }];
-		const people = ["Me", "Riley", "Harry"];
+		const credits = [{ person: "Rowan", amount: 10 }];
+		const people = ["Me", "Rowan", "Hamid"];
 		const { rows } = planOwedSummary(costs, credits, people, "Me", []);
 		// Me owes a share too — an even split across three includes you —
 		// so the only square person here is the one the credit cleared.
@@ -466,7 +466,7 @@ export function run() {
 		eq(
 			"...and the square one is the credited person",
 			rows[rows.length - 1].person,
-			"Riley"
+			"Rowan"
 		);
 	}
 
@@ -479,13 +479,13 @@ export function run() {
 		const { rows, outstanding } = planOwedSummary(
 			costs,
 			[],
-			["Me", "Riley"],
+			["Me", "Rowan"],
 			"Me",
-			["Riley"]
+			["Rowan"]
 		);
-		const riley = rows.find((r) => r.person === "Riley");
-		eq("a ticked person reads as done", riley.done, true);
-		eq("...but still shows what they owed", riley.net, 10);
+		const rowan = rows.find((r) => r.person === "Rowan");
+		eq("a ticked person reads as done", rowan.done, true);
+		eq("...but still shows what they owed", rowan.net, 10);
 		eq("...and drops out of the total", outstanding, 0);
 	}
 
@@ -501,14 +501,14 @@ export function run() {
 	// named "Credit" would land in the wrong group.
 	{
 		const rows = breakdownFor(
-			"Riley",
+			"Rowan",
 			[
 				{ label: "Dinner", amount: 20, split: { mode: "even" } },
 				// The collision the discriminator exists for.
 				{ label: "Credit", amount: 10, split: { mode: "even" } },
 			],
-			["Callan", "Riley"],
-			[{ person: "Riley", amount: 4, note: "petrol" }]
+			["Casey", "Rowan"],
+			[{ person: "Rowan", amount: 4, note: "petrol" }]
 		);
 		eq("every line says which it is", rows.map((r) => r.kind), [
 			"expense",
@@ -526,7 +526,7 @@ export function run() {
 		// say something rather than leaving the line blank.
 		eq(
 			"an unnoted credit still says something",
-			breakdownFor("Riley", [], ["Riley"], [{ person: "Riley", amount: 4 }])[0]
+			breakdownFor("Rowan", [], ["Rowan"], [{ person: "Rowan", amount: 4 }])[0]
 				?.descriptor,
 			"no reason given"
 		);
@@ -544,12 +544,12 @@ export function run() {
 		// An expense somebody isn't charged for has no line, so the indices
 		// have to be the position in the plan's list, not in the breakdown.
 		const rows = breakdownFor(
-			"Riley",
+			"Rowan",
 			[
-				{ label: "Just Callan", amount: 10, split: { mode: "value", shares: { Callan: 10 } } },
+				{ label: "Just Casey", amount: 10, split: { mode: "value", shares: { Casey: 10 } } },
 				{ label: "Both", amount: 20, split: { mode: "even" } },
 			],
-			["Callan", "Riley"]
+			["Casey", "Rowan"]
 		);
 		eq("a line skipped over doesn't shift the ones after it", rows.map((r) => r.index), [1]);
 	}
@@ -568,53 +568,53 @@ export function run() {
 	const even = (label, amount) => ({ label, amount, split: { mode: "even" } });
 	{
 		const cost = even("Dinner", 20);
-		const ticked = setPaidOn(cost, "Riley", true, ["Callan", "Riley"], "Callan");
-		eq("ticking records the person", ticked.paid, ["Callan", "Riley"]);
-		// You start ticked because you put the money down, so Riley's tick is
+		const ticked = setPaidOn(cost, "Rowan", true, ["Casey", "Rowan"], "Casey");
+		eq("ticking records the person", ticked.paid, ["Casey", "Rowan"]);
+		// You start ticked because you put the money down, so Rowan's tick is
 		// the last one and the expense settles itself.
 		eq("the last tick settles the expense", ticked.settled, true);
 
-		const back = setPaidOn(ticked, "Riley", false, ["Callan", "Riley"], "Callan");
-		eq("unticking takes them back off", back.paid, ["Callan"]);
+		const back = setPaidOn(ticked, "Rowan", false, ["Casey", "Rowan"], "Casey");
+		eq("unticking takes them back off", back.paid, ["Casey"]);
 		eq("and reopens the expense", back.settled, undefined);
 	}
 	{
 		// Three payers: one tick isn't enough to settle the whole thing.
 		const cost = even("Cabin", 30);
-		const one = setPaidOn(cost, "Riley", true, ["Callan", "Riley", "Laura"], "Callan");
+		const one = setPaidOn(cost, "Rowan", true, ["Casey", "Rowan", "Livia"], "Casey");
 		eq("a tick short of everyone leaves it open", one.settled, undefined);
-		eq("...but is recorded", one.paid, ["Callan", "Riley"]);
+		eq("...but is recorded", one.paid, ["Casey", "Rowan"]);
 	}
 	{
 		const cost = even("Dinner", 20);
 		eq(
 			"someone the split doesn't charge is left alone",
-			setPaidOn(cost, "Nobody", true, ["Callan", "Riley"], "Callan"),
+			setPaidOn(cost, "Nobody", true, ["Casey", "Rowan"], "Casey"),
 			cost
 		);
 		// Idempotent, so a double-tap can't push a name in twice.
-		const once = setPaidOn(cost, "Riley", true, ["Callan", "Riley"], "Callan");
-		eq("ticking twice changes nothing", setPaidOn(once, "Riley", true, ["Callan", "Riley"], "Callan"), once);
+		const once = setPaidOn(cost, "Rowan", true, ["Casey", "Rowan"], "Casey");
+		eq("ticking twice changes nothing", setPaidOn(once, "Rowan", true, ["Casey", "Rowan"], "Casey"), once);
 	}
 	{
 		const costs = [
 			even("Dinner", 20),
 			even("Cabin", 30),
-			// Riley is charged nothing here, so it must come back untouched.
-			{ label: "Callan only", amount: 10, split: { mode: "value", shares: { Callan: 10 } } },
+			// Rowan is charged nothing here, so it must come back untouched.
+			{ label: "Casey only", amount: 10, split: { mode: "value", shares: { Casey: 10 } } },
 		];
-		const after = settleAllFor("Riley", costs, ["Callan", "Riley"], "Callan");
+		const after = settleAllFor("Rowan", costs, ["Casey", "Rowan"], "Casey");
 		eq("settling everything ticks every line they're on", after.map((c) => c.paid ?? null), [
-			["Callan", "Riley"],
-			["Callan", "Riley"],
+			["Casey", "Rowan"],
+			["Casey", "Rowan"],
 			null,
 		]);
 		eq("one they aren't charged for is untouched", after[2], costs[2]);
 		// The whole point: their balance actually reaches zero.
 		eq(
 			"and it zeroes what they owe",
-			planOwedSummary(after, [], ["Callan", "Riley"], "Callan", []).rows.find(
-				(r) => r.person === "Riley"
+			planOwedSummary(after, [], ["Casey", "Rowan"], "Casey", []).rows.find(
+				(r) => r.person === "Rowan"
 			).square,
 			true
 		);
@@ -625,13 +625,13 @@ export function run() {
 		"credits read: amounts as numbers, a note only when there is one",
 		creditsOf({
 			credits: [
-				{ person: "Riley", amount: 20, note: "Venmo" },
+				{ person: "Rowan", amount: 20, note: "Venmo" },
 				{ person: "Sam", amount: "15", note: "" },
 				{ person: 7, amount: 5 },
 			],
 		}),
 		[
-			{ person: "Riley", amount: 20, note: "Venmo" },
+			{ person: "Rowan", amount: 20, note: "Venmo" },
 			{ person: "Sam", amount: 15 },
 			{ person: "7", amount: 5 },
 		]

@@ -1,4 +1,4 @@
-import type FriendTracker from "@/main";
+import type CallanderPlugin from "@/main";
 import type { ContactWithCountdown, Idea } from "@/types";
 import type { LedgerDraft } from "@/utils/draftsMarkdown";
 import {
@@ -35,7 +35,7 @@ export const EMPTY_SNAPSHOT: DashboardSnapshot = {
 };
 
 export async function gatherDashboard(
-	plugin: FriendTracker
+	plugin: CallanderPlugin
 ): Promise<DashboardSnapshot> {
 	const ops = plugin.contactOperations;
 	// Cheap when there's nothing to do, and what carries a friend's note
@@ -61,7 +61,7 @@ export async function gatherDashboard(
  * from inside a render.
  */
 function recordGettingStarted(
-	plugin: FriendTracker,
+	plugin: CallanderPlugin,
 	contacts: ContactWithCountdown[],
 	drafts: LedgerDraft[]
 ): GettingStartedStep[] {

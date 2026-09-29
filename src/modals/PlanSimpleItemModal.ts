@@ -165,7 +165,7 @@ export class PlanSimpleItemModal extends FormModal {
 		};
 
 		// Both kinds lead with what it's called — the one thing you always
-		// know first, whether that's a hotel name or "Harry's car up".
+		// know first, whether that's a hotel name or "Hamid's car up".
 		const textInput = renderTextField();
 
 		// Directly under the name, the way a quick idea's are: where you're
