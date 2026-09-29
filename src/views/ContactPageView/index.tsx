@@ -64,7 +64,7 @@ import { NoteSuggest } from "@/components/NoteSuggest";
 import { LifeGoalModal } from "@/modals/LifeGoalModal";
 import { LifeGoalViewModal } from "@/modals/LifeGoalViewModal";
 import { parseLifeGoals } from "@/utils/lifeGoals";
-import { fieldHelp, fieldLabel, type FieldHelp } from "@/utils/fieldLabel";
+import { fieldHelp, fieldLabel } from "@/utils/fieldLabel";
 import {
 	formatLinkField,
 	linkLabel,
@@ -194,6 +194,7 @@ import {
 	parseFunFacts,
 	planWhenLabel,
 } from "@/utils/contactPage";
+import { FieldHelpPopover } from "@/views/ContactPageView/sections/fieldHelp";
 
 export const VIEW_TYPE_CONTACT_PAGE = "contact-page-view";
 
@@ -284,6 +285,10 @@ const ACTION_NOTICE_MS = 8000;
 export class ContactPageView extends ItemView {
 	private _file: TFile | null = null;
 	private contactData: ContactFrontmatter = {};
+	/** The one open field-help popover; closed on close. */
+	private helpPopover = new FieldHelpPopover(
+		() => this.containerEl.ownerDocument
+	);
 	/**
 	 * The note `contactData` was read from. `_file` moves to the next note
 	 * as soon as navigation starts, before that note has been read — a save
@@ -760,7 +765,7 @@ export class ContactPageView extends ItemView {
 	async onClose() {
 		// Its dismiss handlers live on the document, so they would
 		// outlive this view if the popover were simply left open.
-		this.closeFieldHelp();
+		this.helpPopover.close();
 		await this.flushNotesDraft();
 		this.islands.unmountAll();
 	}
@@ -787,7 +792,7 @@ export class ContactPageView extends ItemView {
 		// Anchored into DOM this is about to discard, and its dismiss
 		// handlers are on the document — closing first keeps them from
 		// pointing at a detached node.
-		this.closeFieldHelp();
+		this.helpPopover.close();
 		container.empty();
 		// The imperative DOM above is gone; tell the islands to re-read the
 		// data they're about to be re-attached with.
@@ -1938,103 +1943,12 @@ export class ContactPageView extends ItemView {
 			// focus the field and raise a keyboard on mobile.
 			e.preventDefault();
 			e.stopPropagation();
-			if (this.openFieldHelp?.anchor === anchor) {
-				this.closeFieldHelp();
+			if (this.helpPopover.isOpenAt(anchor)) {
+				this.helpPopover.close();
 				return;
 			}
-			this.openFieldHelpFor(anchor, button, key, help);
+			this.helpPopover.open(anchor, button, key, help);
 		});
-	}
-
-	/**
-	 * The one open help popover, with the listeners that dismiss it.
-	 *
-	 * Held on the view rather than per-field so opening one can close the
-	 * last, and so onClose can tear down document listeners that would
-	 * otherwise outlive the page.
-	 */
-	private openFieldHelp: {
-		anchor: HTMLElement;
-		el: HTMLElement;
-		button: HTMLElement;
-		dispose: () => void;
-	} | null = null;
-
-	private closeFieldHelp() {
-		const open = this.openFieldHelp;
-		if (!open) return;
-		this.openFieldHelp = null;
-		open.dispose();
-		open.el.remove();
-		open.button.setAttribute("aria-expanded", "false");
-		open.button.removeClass("is-open");
-	}
-
-	private openFieldHelpFor(
-		anchor: HTMLElement,
-		button: HTMLElement,
-		key: string,
-		help: FieldHelp
-	) {
-		this.closeFieldHelp();
-
-		const el = anchor.createDiv({ cls: "contact-field-help" });
-		// Arrow first in the DOM so it paints behind the box's own border.
-		el.createDiv({ cls: "contact-field-help-arrow" });
-
-		const header = el.createDiv({ cls: "contact-field-help-header" });
-		header.createDiv({
-			cls: "contact-field-help-title",
-			text: fieldLabel(key),
-		});
-		const close = header.createEl("button", {
-			cls: "contact-field-help-close",
-			attr: { type: "button", "aria-label": "Close" },
-		});
-		setIcon(close, "x");
-		close.addEventListener("click", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			this.closeFieldHelp();
-		});
-
-		el.createDiv({ cls: "contact-field-help-text", text: help.text });
-		if (help.example) {
-			el.createDiv({
-				cls: "contact-field-help-example",
-				text: `e.g. ${help.example}`,
-			});
-		}
-
-		// A click that lands anywhere but inside this box closes it. Bound on
-		// the next frame so the click that opened it doesn't immediately
-		// dismiss it as it finishes bubbling.
-		const onDocClick = (evt: MouseEvent) => {
-			const target = evt.target as Node | null;
-			if (target && el.contains(target)) return;
-			this.closeFieldHelp();
-		};
-		const onKey = (evt: KeyboardEvent) => {
-			if (evt.key === "Escape") this.closeFieldHelp();
-		};
-		const doc = this.containerEl.ownerDocument;
-		const timer = window.setTimeout(() => {
-			doc.addEventListener("click", onDocClick);
-			doc.addEventListener("keydown", onKey);
-		}, 0);
-
-		button.setAttribute("aria-expanded", "true");
-		button.addClass("is-open");
-		this.openFieldHelp = {
-			anchor,
-			el,
-			button,
-			dispose: () => {
-				window.clearTimeout(timer);
-				doc.removeEventListener("click", onDocClick);
-				doc.removeEventListener("keydown", onKey);
-			},
-		};
 	}
 
 	/**
