@@ -70,11 +70,17 @@ export class FormModal extends Modal {
 		// input/change bubble, so this catches every field built in onOpen()
 		this.contentEl.addEventListener("input", markDirty);
 		this.contentEl.addEventListener("change", markDirty);
-		// Selection chips (category / priority / type / split mode) are
-		// <button>s, not inputs — count picking one as an edit too.
+		// Chips, pills, steppers and swatches are <button>s, not inputs, so
+		// picking one fires neither. Any button in the form counts, bar the
+		// Save / Cancel row: counting one that edits nothing (a link's Open)
+		// costs only a backdrop dismissal — the ✕ and Escape still close —
+		// where missing one that does edit throws the pick away.
 		this.contentEl.addEventListener("click", (evt) => {
 			const t = evt.target as HTMLElement | null;
-			if (t?.closest?.(".quick-idea-category-button")) markDirty();
+			const button = t?.closest?.("button");
+			if (button && !button.closest(".callander-modal-buttons")) {
+				markDirty();
+			}
 		});
 
 		this.ftDoc = this.containerEl.ownerDocument;
@@ -133,7 +139,10 @@ export class FormModal extends Modal {
 		const list = fields instanceof HTMLElement ? [fields] : fields;
 		for (const field of list) {
 			field.addEventListener("keydown", (event) => {
-				if (event.key !== "Enter") return;
+				// The Enter that confirms a Japanese or Chinese conversion
+				// belongs to the input method, not the form: acting on it
+				// submitted the half-typed text.
+				if (event.key !== "Enter" || event.isComposing) return;
 				const mod = event.metaKey || event.ctrlKey;
 				if (key === "mod-enter" && !mod) return;
 				if (key === "enter-unless-shift" && event.shiftKey) return;

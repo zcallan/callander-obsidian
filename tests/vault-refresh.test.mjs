@@ -1,5 +1,5 @@
 import { createSuite } from "./harness.mjs";
-import { registerVaultRefresh } from "./.build/callander.mjs";
+import { inFolders, isInFolder, registerVaultRefresh } from "./.build/callander.mjs";
 
 /**
  * Every view renders from the metadata cache but used to listen only to
@@ -14,7 +14,7 @@ import { registerVaultRefresh } from "./.build/callander.mjs";
 export function run() {
 	const { eq, result } = createSuite("vault refresh");
 
-	const harness = ({ scope } = {}) => {
+	const harness = ({ scope, baseFolder = "Friends" } = {}) => {
 		const bags = { vault: new Map(), cache: new Map() };
 		const emitter = (bag) => ({
 			on(name, cb) {
@@ -33,7 +33,7 @@ export function run() {
 			register: (cb) => cleanups.push(cb),
 		};
 		const plugin = {
-			settings: { baseFolder: "Friends" },
+			settings: { baseFolder },
 			app: {
 				vault: emitter(bags.vault),
 				metadataCache: emitter(bags.cache),
@@ -156,6 +156,26 @@ export function run() {
 			await h.settle();
 			eq("a rename out of scope still refreshes", h.count(), 1);
 		}
+
+		// --- the vault root as the base folder (UA-B2, CORE-B12) ---
+		{
+			const h = harness({ baseFolder: "/" });
+			h.cache("changed", file("People/Ana.md"));
+			await h.settle();
+			eq("a root base folder still hears its notes", h.count(), 1);
+		}
+		eq(
+			"inside a folder, and the root holds everything",
+			[
+				isInFolder("Friends/People/Ana.md", "Friends"),
+				isInFolder("Friends", "Friends"),
+				isInFolder("FriendsX/Ana.md", "Friends"),
+				isInFolder("People/Ana.md", "/"),
+				isInFolder("People/Ana.md", ""),
+				inFolders("/")("Ana.md"),
+			],
+			[true, true, false, true, true, true]
+		);
 
 		// --- teardown ---
 		{

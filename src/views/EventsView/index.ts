@@ -68,6 +68,7 @@ import {
 	planPageItem,
 } from "@/utils/eventList";
 import { weekStartsOn } from "@/utils/calendarGrid";
+import { SearchBox } from "@/components/searchBox";
 
 export const VIEW_TYPE_EVENTS = "callander-events";
 
@@ -93,6 +94,7 @@ export class EventsView extends ItemView {
 	/** Fetched alongside the events, to turn people wikilinks into names. */
 	private contacts: ContactWithCountdown[] = [];
 	private searchQuery = "";
+	private readonly search = new SearchBox();
 	private focusPath: string | null = null;
 	private listEl: HTMLElement | null = null;
 
@@ -165,12 +167,17 @@ export class EventsView extends ItemView {
 		// Once for the life of the view, not per render — it only has to
 		// know whether there's room beside the column.
 		this.register(observePageRoom(this));
-		const folder = this.plugin.eventOperations.getEventsFolderPath();
 		// The Plans folder too, since plans show here as well — without it a
 		// re-dated plan would sit stale until some event happened to change.
-		const plansFolder = this.plugin.planOperations.getPlansFolderPath();
+		// And People: rows name who's coming by their display names. Read
+		// when an event arrives, so a changed base folder is heard too.
 		registerPageRefresh(this, this.plugin, () => void this.refresh(), {
-			scope: inFolders(folder, plansFolder),
+			scope: (path) =>
+				inFolders(
+					this.plugin.eventOperations.getEventsFolderPath(),
+					this.plugin.planOperations.getPlansFolderPath(),
+					this.plugin.contactOperations.getPeopleFolderPath()
+				)(path),
 		});
 		await this.refresh();
 	}
@@ -220,6 +227,7 @@ export class EventsView extends ItemView {
 		this.items = [...events, ...plans];
 		this.contacts = await this.plugin.contactOperations.getContacts();
 		this.render();
+		this.openFocused();
 	}
 
 	// ---- People ----
@@ -360,6 +368,7 @@ export class EventsView extends ItemView {
 	private render() {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
+		this.search.hold();
 		container.empty();
 		container.addClass("dashboard-container", "somedays-container");
 
@@ -685,14 +694,16 @@ export class EventsView extends ItemView {
 	private renderToolbar(container: HTMLElement) {
 		const toolbar = container.createDiv({ cls: "someday-toolbar" });
 
-		const searchInput = toolbar.createEl("input", {
-			attr: { type: "text", placeholder: "Search events…" },
+		this.search.build(toolbar, {
+			placeholder: "Search events…",
 			cls: "contact-field-input someday-toolbar-search",
-		});
-		searchInput.value = this.searchQuery;
-		searchInput.addEventListener("input", () => {
-			this.searchQuery = searchInput.value;
-			this.renderList();
+			value: this.searchQuery,
+			onInput: (value) => {
+				this.searchQuery = value;
+				// Whichever tab is showing — renderList drew the List over the
+				// Timeline or the Calendar while their tab stayed highlighted.
+				this.renderContent();
+			},
 		});
 
 		// Sorting only means something on the List. The timeline is
@@ -981,13 +992,20 @@ export class EventsView extends ItemView {
 		}
 
 		for (const event of list) this.renderRow(listEl, event);
+	}
 
-		// A row opened directly (via its file) → open its view modal, once.
-		if (this.focusPath) {
-			const target = list.find((e) => e.file.path === this.focusPath);
-			this.focusPath = null;
-			if (target) this.openItem(target);
-		}
+	/**
+	 * An event opened directly, through its file: its view modal, once.
+	 * Looked for among everything the page holds, whatever the tab and
+	 * filters — found only among the List's filtered rows, it never opened
+	 * from the Timeline, or for a past event under Upcoming, and the path
+	 * stayed in the saved state to pop the modal up some later day.
+	 */
+	private openFocused() {
+		if (!this.focusPath) return;
+		const target = this.items.find((e) => e.file.path === this.focusPath);
+		this.focusPath = null;
+		if (target) this.openItem(target);
 	}
 
 	/**

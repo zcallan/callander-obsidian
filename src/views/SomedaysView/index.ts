@@ -32,6 +32,7 @@ import {
 import { somedayRowParts } from "@/utils/somedayRow";
 import { buildSomedayRow } from "@/components/SomedayRow";
 import { inFolders, registerPageRefresh } from "@/utils/vaultRefresh";
+import { SearchBox } from "@/components/searchBox";
 
 export const VIEW_TYPE_SOMEDAYS = "callander-somedays";
 
@@ -48,6 +49,7 @@ export class SomedaysView extends ItemView {
 	/** Widened for this view only, until it closes. */
 	private pageWide = false;
 	private searchQuery = "";
+	private readonly search = new SearchBox();
 	private focusPath: string | null = null;
 	private listEl: HTMLElement | null = null;
 
@@ -90,10 +92,12 @@ export class SomedaysView extends ItemView {
 		this.register(observePageRoom(this));
 		// A fresh shuffle each time the page is opened.
 		this.randomSeed = newRandomSeed();
+		// Read when an event arrives, so a changed base folder is heard too.
 		registerPageRefresh(this, this.plugin, () => void this.refresh(), {
-			scope: inFolders(
-				this.plugin.somedayOperations.getSomedaysFolderPath()
-			),
+			scope: (path) =>
+				inFolders(this.plugin.somedayOperations.getSomedaysFolderPath())(
+					path
+				),
 		});
 		await this.refresh();
 	}
@@ -116,6 +120,7 @@ export class SomedaysView extends ItemView {
 	async refresh() {
 		this.somedays = this.plugin.somedayOperations.getSomedays();
 		this.render();
+		this.openFocused();
 	}
 
 	// ---- Filtering ----
@@ -238,6 +243,7 @@ export class SomedaysView extends ItemView {
 	private render() {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
+		this.search.hold();
 		container.empty();
 		container.addClass("dashboard-container", "somedays-container");
 
@@ -325,14 +331,14 @@ export class SomedaysView extends ItemView {
 		const toolbar = container.createDiv({ cls: "someday-toolbar" });
 
 		// Search — live, list-only re-render (the bar keeps its focus).
-		const searchInput = toolbar.createEl("input", {
-			attr: { type: "text", placeholder: "Search somedays…" },
+		this.search.build(toolbar, {
+			placeholder: "Search somedays…",
 			cls: "contact-field-input someday-toolbar-search",
-		});
-		searchInput.value = this.searchQuery;
-		searchInput.addEventListener("input", () => {
-			this.searchQuery = searchInput.value;
-			this.renderList();
+			value: this.searchQuery,
+			onInput: (value) => {
+				this.searchQuery = value;
+				this.renderList();
+			},
 		});
 
 		// Sort — persisted, because the dashboard's Somedays list follows it.
@@ -560,13 +566,18 @@ export class SomedaysView extends ItemView {
 		}
 
 		for (const someday of list) this.renderRow(listEl, someday);
+	}
 
-		// A row opened directly (via its file) → open its view modal, once.
-		if (this.focusPath) {
-			const target = list.find((s) => s.file.path === this.focusPath);
-			this.focusPath = null;
-			if (target) this.openViewModal(target);
-		}
+	/**
+	 * A someday opened directly, through its file: its view modal, once —
+	 * looked for among all of them, so a search or filter that hides it
+	 * doesn't stop it opening.
+	 */
+	private openFocused() {
+		if (!this.focusPath) return;
+		const target = this.somedays.find((s) => s.file.path === this.focusPath);
+		this.focusPath = null;
+		if (target) this.openViewModal(target);
 	}
 
 	private renderRow(container: HTMLElement, someday: SomedayInfo) {

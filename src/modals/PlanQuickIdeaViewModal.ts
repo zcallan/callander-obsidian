@@ -4,7 +4,7 @@ import { CONFIRM_PREVIEW_CHARS, confirmThenClose } from "@/modals/ConfirmModal";
 import {
 	formatItemCost,
 	formatItemTime,
-	formatTimelineDay,
+	formatQuickIdeaDays,
 } from "@/utils/planFormat";
 import { shortenPeopleList } from "@/utils/nameFormat";
 import type { PlanQuickIdea } from "@/types";
@@ -54,7 +54,7 @@ export class PlanQuickIdeaViewModal extends Modal {
 		if (i.dates && i.dates.length > 0) {
 			contentEl.createDiv({
 				cls: "someday-view-meta",
-				text: `📅 ${i.dates.map(formatTimelineDay).join(" · ")}`,
+				text: `📅 ${formatQuickIdeaDays(i.dates)}`,
 			});
 		}
 		if (i.time) {

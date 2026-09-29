@@ -54,8 +54,8 @@ Note that `await`ing the write is not protection: `processFrontMatter` resolves 
 
 ### How to wire it
 
-- **Imperative views** — `registerVaultRefresh(this, this.plugin, () => void this.refresh())` from `@/utils/vaultRefresh`, in `onOpen`. Pass `{ scope }` to narrow beyond the base folder. It subscribes to modify/create/delete/rename *and* `changed`, and coalesces them onto a 50 ms timer so the modify-then-changed pair costs one rebuild rather than two.
-- **React** — `useVaultVersion()` from `@/ui/useVaultData` already covers both, plus `settings-changed`. Derive data from the returned version; don't return vault data as the `useSyncExternalStore` snapshot, or React loops on the unstable reference.
+- **Imperative views** — `registerPageRefresh(this, this.plugin, () => void this.refresh())` from `@/utils/vaultRefresh`, in `onOpen`. Pass `{ scope }` to narrow beyond the base folder. It subscribes to modify/create/delete/rename *and* `changed`, coalesced onto a 50 ms timer so the modify-then-changed pair costs one rebuild rather than two, plus `settings-changed` and `day-changed` (the plugin fires that when the local date turns over, so "today" rolls at midnight). `registerVaultRefresh` is the vault half alone, for a view that handles settings its own way.
+- **React** — `useVaultVersion()` from `@/ui/useVaultData` covers all of it. It reads one plugin-level counter (`plugin.vaultVersion`), wired at load with the same `registerPageRefresh`, so an island that mounts just after a write still sees it. Derive data from the returned version; don't return vault data as the `useSyncExternalStore` snapshot, or React loops on the unstable reference.
 
 ### Don't
 

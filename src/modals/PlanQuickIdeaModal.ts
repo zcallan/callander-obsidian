@@ -1,4 +1,4 @@
-import { App, setIcon } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import { guardedAction } from "@/components/guardedAction";
 import { renderCategoryChips } from "@/components/categoryChips";
@@ -13,6 +13,7 @@ import { formatShortWeekdayDate } from "@/utils/flexdate";
 import { CONFIRM_PREVIEW_CHARS, confirmThenClose } from "@/modals/ConfirmModal";
 import type { PlanQuickIdea } from "@/types";
 import { truncate } from "@/utils/text";
+import { appendModalAccordion } from "@/components/modalAccordion";
 
 /**
  * Capture or edit a quick idea: something you might do on this plan, with
@@ -112,25 +113,9 @@ export class PlanQuickIdeaModal extends FormModal {
 		this.renderDays(form);
 
 		// Cost and notes fold away, same as the item modal.
-		const detailsWrap = form.createDiv({
-			cls: "callander-modal-field plan-accordion callander-modal-accordion",
-		});
-		const detailsHeader = detailsWrap.createDiv({
-			cls: "plan-accordion-header callander-modal-accordion-header",
-		});
-		detailsHeader.createSpan({ text: "Additional details" });
-		setIcon(
-			detailsHeader.createSpan({ cls: "plan-accordion-chevron" }),
-			"chevron-down"
-		);
-		const detailsBody = detailsWrap.createDiv({
-			cls: "plan-accordion-body",
-		});
-		detailsHeader.addEventListener("click", () => {
-			detailsWrap.toggleClass("is-open", !detailsWrap.hasClass("is-open"));
-		});
-		detailsWrap.toggleClass(
-			"is-open",
+		const details = appendModalAccordion(form);
+		const detailsBody = details.body;
+		details.setOpen(
 			!!(
 				this.initial?.duration ||
 				this.initial?.people ||

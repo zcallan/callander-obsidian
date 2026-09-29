@@ -37,7 +37,7 @@ Each layer is meant to import only from the ones below it. `tools/code-review/la
 
 ## Reading data: the metadata cache
 
-Every read goes through `app.metadataCache.getFileCache()`, never through file contents. The cache updates *after* the vault's `modify` event, so a view that refreshed on `modify` alone would redraw the data it had just replaced. Every page therefore subscribes to both, through `registerPageRefresh` (`utils/vaultRefresh.ts`), which also hears settings changes and coalesces the pair onto one redraw. React islands use `useVaultVersion()` for the same reason. CLAUDE.md explains the timing, and why a test that writes and then checks the DOM can't catch a view that gets this wrong.
+Every read goes through `app.metadataCache.getFileCache()`, never through file contents. The cache updates *after* the vault's `modify` event, so a view that refreshed on `modify` alone would redraw the data it had just replaced. Every page therefore subscribes to both, through `registerPageRefresh` (`utils/vaultRefresh.ts`), which also hears settings changes and the day turning over, and coalesces the pair onto one redraw. React islands use `useVaultVersion()`, which reads a counter the plugin wires the same way at load. CLAUDE.md explains the timing, and why a test that writes and then checks the DOM can't catch a view that gets this wrong.
 
 So no page redraws itself after a write, or hands a modal a refresh callback: the subscription hears the write. The one exception is the contact page's writes to its own note, which it deliberately doesn't hear (see "The contact page" below), so it redraws after those itself. `tests/e2e/05-live-refresh.e2e.mjs` checks that every page answers a cache event with no write behind it, which is what all of this rests on.
 
@@ -62,7 +62,7 @@ A model is bound to the note it was read from, and every write goes through one,
 
 Handlers take the model they were started on and keep it across awaits. Render code and island props read `ctx.model` when they run, because an island outlives every render and every note.
 
-Modals stay Obsidian's `Modal`, because the stylesheet's mobile keyboard handling, Escape, focus trapping and backdrop behaviour all hang off it. `FormModal` adds protection against a stray backdrop click discarding edits, and the shared Enter-to-submit and initial-focus rules.
+Modals stay Obsidian's `Modal`, because the stylesheet's mobile keyboard handling, Escape, focus trapping and backdrop behaviour all hang off it. `FormModal` adds protection against a stray backdrop click discarding edits (any field, and any button outside the Save / Cancel row, counts as an edit), and the shared Enter-to-submit and initial-focus rules. A form's "Additional details" fold is `appendModalAccordion` (`components/modalAccordion.ts`), and a page's search box is a `SearchBox` (`components/searchBox.ts`), which keeps its focus when the page redraws around it.
 
 ## Shared primitives
 
@@ -70,7 +70,7 @@ Before writing a helper, check these; most small date and text operations alread
 
 | Module | What's in it |
 | --- | --- |
-| `utils/dates.ts` | `pad2`, `isoDay`, `isoDateOf`, `hhmm`, `startOfLocalDay`, `wholeDaysBetween` (the only DST-safe day count), `monthStep`, `isoDaysBetween`, `localDateOfIso` |
+| `utils/dates.ts` | `pad2`, `isoDay`, `isoDateOf`, `hhmm`, `startOfLocalDay`, `wholeDaysBetween` (the only DST-safe day count), `monthStep`, `isoDaysBetween` and `isoDaysFrom` (day walks that survive a midnight DST change), `localDateOfIso`, `newDayCheck` |
 | `utils/flexdate.ts` | The `FlexDate` model (year, month, day, any of them unknown), `parseFlexDate`, `isExactFlexDate`, `shortMonthName` |
 | `utils/text.ts` | `formatCount`, `pluralize`, `capitalize`, `truncate` |
 | `utils/fm.ts` | Reading untyped frontmatter: `fieldOf`, `toText`, `textIfSet`, `fieldText`, `asArray`, `isRecord` |

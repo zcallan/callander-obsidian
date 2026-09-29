@@ -1,9 +1,12 @@
 import { createSuite } from "./harness.mjs";
 import {
 	exactPlanDay,
+	fieldEditText,
+	fieldEditValue,
 	formatPlanDateRange,
 	ideaLogText,
 	interestIdeaText,
+	isFilledField,
 	isoDaysBetween,
 	lastUpdatedLabel,
 	normalizeIdeaCategory,
@@ -69,6 +72,33 @@ export function run() {
 		"days between, inclusive, and nothing backwards or unparseable",
 		[isoDaysBetween("2026-08-30", "2026-09-02"), isoDaysBetween("2026-08-05", "2026-08-05"), isoDaysBetween("2026-08-05", "2026-08-04"), isoDaysBetween("junk", "2026-08-04")],
 		[["2026-08-30", "2026-08-31", "2026-09-01", "2026-09-02"], ["2026-08-05"], [], []]
+	);
+	// ---------- About's field values ----------
+	eq(
+		"0 and false are answers; blanks, blank lists and nothing aren't",
+		[0, false, "x", ["Bob"], "", "  ", [], ["", null], null, undefined].map(isFilledField),
+		[true, true, true, true, false, false, false, false, false, false]
+	);
+	eq(
+		"a list edits as one line, a number or a yes/no as its word",
+		[fieldEditText(["Bob", "Bobby"]), fieldEditText(31), fieldEditText(false), fieldEditText("Ann"), fieldEditText(undefined)],
+		["Bob, Bobby", "31", "false", "Ann", ""]
+	);
+	eq(
+		"and saves back in the shape it had",
+		[
+			fieldEditValue("Bob, Bobby, ", ["Bob"]),
+			fieldEditValue("", ["Bob"]),
+			fieldEditValue(" 32 ", 31),
+			fieldEditValue("thirty", 31),
+			// Emptied, not zeroed: Number("") is 0.
+			fieldEditValue("", 31),
+			fieldEditValue(" TRUE", false),
+			fieldEditValue("maybe", false),
+			fieldEditValue(" Ann ", "Ann"),
+			fieldEditValue("12", undefined),
+		],
+		[["Bob", "Bobby"], [], 32, "thirty", "", true, "maybe", " Ann ", "12"]
 	);
 	return result();
 }

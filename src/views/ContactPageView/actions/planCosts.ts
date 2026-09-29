@@ -1,8 +1,10 @@
 import type { Expense, Credit, PlanTimelineEntry } from "@/types";
+import { Notice } from "obsidian";
 import {
 	breakdownFor,
 	creditsOf,
 	expensesOf,
+	locateEntry,
 	setPaidOn,
 	settleAllFor,
 } from "@/utils/expenseMath";
@@ -82,14 +84,61 @@ export async function writeCosts(
 	ctx.render();
 }
 
-export async function deleteCost(
+/**
+ * Writes to one of the plan's expenses or credits for as long as a modal has
+ * it open, finding it by what it held as well as where it sat (locateEntry).
+ * The plan can be read again under an open modal — a sync, an edit in
+ * another pane — and writing by position alone would change or delete
+ * whichever entry had moved into that place. If it has changed or gone,
+ * nothing is written and a Notice says so. The dashboard's expenses work
+ * the same way (ExpensesSection).
+ */
+function planEntryEditor<T>(
 	ctx: PageContext,
 	model: ContactPageModel,
-	index: number
+	key: "costs" | "credits",
+	index: number,
+	opened: T
 ) {
-	const list = expensesOf(model.data);
-	list.splice(index, 1);
-	await writeCosts(ctx, model, list);
+	let known = structuredClone(opened);
+	const read = () =>
+		(key === "costs" ? expensesOf(model.data) : creditsOf(model.data)) as T[];
+	const write = async (change: (list: T[], at: number) => T | null) => {
+		const list = read();
+		const at = locateEntry(list, index, known);
+		if (at === -1) {
+			new Notice(
+				`That ${key === "costs" ? "expense" : "credit"} changed or was removed since you opened it, so nothing was saved.`
+			);
+			return;
+		}
+		const next = change(list, at);
+		if (next) known = structuredClone(next);
+		if (list.length > 0) model.data[key] = list;
+		else delete model.data[key];
+		await saveModel(ctx, model);
+		ctx.render();
+	};
+	return {
+		/** The entry as last written here. */
+		current: () => structuredClone(known),
+		save: (updated: T) =>
+			write((list, at) => {
+				list[at] = updated;
+				return updated;
+			}),
+		remove: () =>
+			write((list, at) => {
+				list.splice(at, 1);
+				return null;
+			}),
+		update: (patch: (entry: T) => T) =>
+			write((list, at) => {
+				const updated = patch(list[at]);
+				list[at] = updated;
+				return updated;
+			}),
+	};
 }
 
 export function openCostModal(
@@ -98,16 +147,13 @@ export function openCostModal(
 	index: number,
 	cost: Expense
 ) {
+	const editor = planEntryEditor(ctx, model, "costs", index, cost);
 	new ExpenseModal(
 		ctx.app,
 		planParticipants(ctx, model),
 		cost,
-		async (updated) => {
-			const list = expensesOf(model.data);
-			list[index] = updated;
-			await writeCosts(ctx, model, list);
-		},
-		() => deleteCost(ctx, model, index),
+		(updated) => editor.save(updated),
+		() => editor.remove(),
 		ctx.plugin.settings.yourName,
 		(ctx.plugin.settings.receiptTaxEnabled ? ctx.plugin.settings.receiptTaxPercent : null),
 		(ctx.plugin.settings.receiptTipEnabled ? ctx.plugin.settings.receiptTipPercent : null)
@@ -121,26 +167,26 @@ export function openCostView(
 	index: number,
 	cost: Expense
 ) {
+	const editor = planEntryEditor(ctx, model, "costs", index, cost);
 	new ExpenseViewModal(
 		ctx.app,
 		cost,
 		planParticipants(ctx, model),
-		() => openCostModal(ctx, model, index, cost),
-		() => deleteCost(ctx, model, index),
+		// From what was last written here: the view may have ticked
+		// someone paid since it opened.
+		() => openCostModal(ctx, model, index, editor.current()),
+		() => editor.remove(),
 		ctx.plugin.settings.yourName,
-		({ paid, settled }) => {
-			// Persists the tick state and refreshes the page underneath —
-			// the view modal is a separate overlay, so this never disturbs
-			// it; it updates its own display once the save resolves.
-			const list = expensesOf(model.data);
-			const current = list[index];
-			if (!current) return Promise.resolve();
-			const updated: Expense = { ...current, paid };
-			if (settled) updated.settled = true;
-			else delete updated.settled;
-			list[index] = updated;
-			return writeCosts(ctx, model, list);
-		},
+		// Persists the tick state and refreshes the page underneath — the
+		// view modal is a separate overlay, so this never disturbs it; it
+		// updates its own display once the save resolves.
+		({ paid, settled }) =>
+			editor.update((current) => {
+				const updated: Expense = { ...current, paid };
+				if (settled) updated.settled = true;
+				else delete updated.settled;
+				return updated;
+			}),
 		planShortNameOverrides(ctx, model),
 		() => openCostShare(ctx, model, { kind: "expense", index })
 	).open();
@@ -156,28 +202,23 @@ export function openCreditModal(
 	const creditPeople = planParticipants(ctx, model).filter(
 		(p) => !yourName || p.toLowerCase() !== yourName.toLowerCase()
 	);
+	const editor =
+		index === null || !credit
+			? null
+			: planEntryEditor(ctx, model, "credits", index, credit);
 	new CreditModal(
 		ctx.app,
 		creditPeople,
 		credit,
 		async (updated) => {
+			if (editor) return editor.save(updated);
 			const list = creditsOf(model.data);
-			if (index === null) list.push(updated);
-			else list[index] = updated;
+			list.push(updated);
 			model.data.credits = list;
 			await saveModel(ctx, model);
 			ctx.render();
 		},
-		index === null
-			? undefined
-			: async () => {
-					const list = creditsOf(model.data);
-					list.splice(index, 1);
-					if (list.length > 0) model.data.credits = list;
-					else delete model.data.credits;
-					await saveModel(ctx, model);
-					ctx.render();
-			  }
+		editor ? () => editor.remove() : undefined
 	).open();
 }
 

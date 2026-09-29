@@ -1,4 +1,3 @@
-import { Notice } from "obsidian";
 import { PlanShareModal } from "@/modals/PlanShareModal";
 import { PlanOperations } from "@/services/PlanOperations";
 import { buildPlanShareText, type PlanShareDetail } from "@/utils/planShare";
@@ -12,14 +11,13 @@ import {
 	STAY_SHARE_FIELDS,
 	buildStayShareText,
 } from "@/utils/stayShare";
-import {
-	buildExpenseShareText,
-	shareDefaultsFor,
-	shareFieldsFor,
-	type ExpenseShareScope,
-} from "@/utils/expenseShare";
+import type { ExpenseShareScope } from "@/utils/expenseShare";
 import { creditsOf, expensesOf } from "@/utils/expenseMath";
-import { ShareTextModal } from "@/modals/ShareTextModal";
+import {
+	copyShareText,
+	openExpenseShare,
+	ShareTextModal,
+} from "@/modals/ShareTextModal";
 import {
 	planMemberDisplays,
 	planParticipants,
@@ -50,39 +48,20 @@ function planShareText(
 
 /**
  * A plan's costs as text, at whatever scope the caller opened it from —
- * one expense, one person, or the section.
- *
- * The build closure re-reads the vault each time a toggle flips, so the
- * preview follows an edit made in another pane rather than a snapshot
- * taken when the sheet opened.
+ * one expense, one person, or the section. Re-read from the note on each
+ * toggle; see openExpenseShare.
  */
 export function openCostShare(
 	ctx: PageContext,
 	model: ContactPageModel,
 	scope: ExpenseShareScope
 ) {
-	new ShareTextModal(
-		ctx.app,
-		shareFieldsFor(scope),
-		shareDefaultsFor(scope),
-		(detail) =>
-			buildExpenseShareText(
-				{
-					scope,
-					expenses: expensesOf(model.data),
-					credits: creditsOf(model.data),
-					participants: planParticipants(ctx, model),
-					yourName: ctx.plugin.settings.yourName,
-				},
-				detail
-			),
-		async (text) => {
-			await navigator.clipboard.writeText(text);
-			new Notice("📋 Copied — ready to paste as text");
-		},
-		// One expense is a handful of lines.
-		{ short: scope.kind === "expense" }
-	).open();
+	openExpenseShare(ctx.app, scope, () => ({
+		expenses: expensesOf(model.data),
+		credits: creditsOf(model.data),
+		participants: planParticipants(ctx, model),
+		yourName: ctx.plugin.settings.yourName,
+	}));
 }
 
 /** Every idea as text, from the Ideas section's own button. */
@@ -97,10 +76,7 @@ export function openIdeaShare(ctx: PageContext, model: ContactPageModel) {
 				detail,
 				(people) => shortenPlanPeople(ctx, model, people)
 			),
-		async (text) => {
-			await navigator.clipboard.writeText(text);
-			new Notice("📋 Copied — ready to paste as text");
-		}
+		copyShareText
 	).open();
 }
 
@@ -118,10 +94,7 @@ export function openStayShare(ctx: PageContext, model: ContactPageModel) {
 				),
 				detail
 			),
-		async (text) => {
-			await navigator.clipboard.writeText(text);
-			new Notice("📋 Copied — ready to paste as text");
-		}
+		copyShareText
 	).open();
 }
 
@@ -130,9 +103,6 @@ export function openPlanShare(ctx: PageContext, model: ContactPageModel) {
 	new PlanShareModal(
 		ctx.app,
 		(detail) => planShareText(ctx, model, detail),
-		async (text) => {
-			await navigator.clipboard.writeText(text);
-			new Notice("📋 Copied — ready to paste as text");
-		}
+		copyShareText
 	).open();
 }

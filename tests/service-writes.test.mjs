@@ -41,6 +41,11 @@ export async function run() {
 		const person = await t.addPerson("Sam");
 		await t.contacts.renamePerson(person, "Sam Rivera");
 		eq("the note follows the name", person.path, "Friends/People/Sam Rivera.md");
+		const rename = t.app.fileManager.renameFile.bind(t.app.fileManager);
+		let renames = 0;
+		t.app.fileManager.renameFile = (...args) => (renames++, rename(...args));
+		await t.contacts.renamePerson(person, " Sam Rivera ");
+		eq("no rename at all when it already matches", [person.path, renames], ["Friends/People/Sam Rivera.md", 0]);
 	}
 
 	// ---------- a plan's name and its file ----------

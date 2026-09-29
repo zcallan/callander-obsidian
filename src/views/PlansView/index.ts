@@ -22,6 +22,7 @@ import {
 import type { EventWhen } from "@/utils/eventRow";
 import { weekStartsOn } from "@/utils/calendarGrid";
 import { runAction } from "@/utils/async";
+import { SearchBox } from "@/components/searchBox";
 
 export const VIEW_TYPE_PLANS = "callander-plans";
 
@@ -44,6 +45,7 @@ export class PlansView extends ItemView {
 	/** Fetched alongside the plans, to turn member wikilinks into names. */
 	private contacts: ContactWithCountdown[] = [];
 	private searchQuery = "";
+	private readonly search = new SearchBox();
 	private listEl: HTMLElement | null = null;
 
 	// Filters — one status and one person at a time, like the Events page's
@@ -82,11 +84,13 @@ export class PlansView extends ItemView {
 		this.register(observePageRoom(this));
 		// People too: a member renamed on their own page changes what this
 		// list shows for them, and nothing else here would hear about it.
+		// Read when an event arrives, so a changed base folder is heard too.
 		registerPageRefresh(this, this.plugin, () => void this.refresh(), {
-			scope: inFolders(
-				this.plugin.planOperations.getPlansFolderPath(),
-				this.plugin.contactOperations.getPeopleFolderPath()
-			),
+			scope: (path) =>
+				inFolders(
+					this.plugin.planOperations.getPlansFolderPath(),
+					this.plugin.contactOperations.getPeopleFolderPath()
+				)(path),
 		});
 		await this.refresh();
 	}
@@ -190,6 +194,7 @@ export class PlansView extends ItemView {
 	private render() {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
+		this.search.hold();
 		container.empty();
 		container.addClass("dashboard-container", "somedays-container");
 
@@ -252,14 +257,15 @@ export class PlansView extends ItemView {
 	private renderToolbar(container: HTMLElement) {
 		const toolbar = container.createDiv({ cls: "someday-toolbar" });
 
-		const searchInput = toolbar.createEl("input", {
-			attr: { type: "text", placeholder: "Search plans…" },
+		this.search.build(toolbar, {
+			placeholder: "Search plans…",
 			cls: "contact-field-input someday-toolbar-search",
-		});
-		searchInput.value = this.searchQuery;
-		searchInput.addEventListener("input", () => {
-			this.searchQuery = searchInput.value;
-			this.renderList();
+			value: this.searchQuery,
+			onInput: (value) => {
+				this.searchQuery = value;
+				// Whichever tab is showing, not always the List.
+				this.renderContent();
+			},
 		});
 
 		if (this.tab !== "list") return;

@@ -123,7 +123,10 @@ export function importTemplate(): string {
  * otherwise opened a quoted cell that ran on into the rows after it,
  * silently folding them into this row's last cell.
  */
-export function parseCsv(text: string): { line: number; cells: string[] }[] {
+export function parseCsv(raw: string): { line: number; cells: string[] }[] {
+	// One kind of line break, before anything reads the text: a "\r\n"
+	// inside a quoted cell was kept as it was, and written into the event.
+	const text = raw.replace(/\r\n?/g, "\n");
 	const rows: { line: number; cells: string[] }[] = [];
 	let cells: string[] = [];
 	let cell = "";
@@ -161,8 +164,7 @@ export function parseCsv(text: string): { line: number; cells: string[] }[] {
 		} else if (ch === ",") {
 			cells.push(cell);
 			cell = "";
-		} else if (ch === "\n" || ch === "\r") {
-			if (ch === "\r" && text[i + 1] === "\n") i++;
+		} else if (ch === "\n") {
 			endRow();
 			line++;
 			rowLine = line;

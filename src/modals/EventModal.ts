@@ -1,4 +1,4 @@
-import { App, Notice, setIcon } from "obsidian";
+import { App, Notice } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { confirmThenClose } from "@/modals/ConfirmModal";
@@ -23,6 +23,7 @@ import type { EventInfo } from "@/types";
 import type { EventFields } from "@/services/EventOperations";
 import { EVENT_TYPES } from "@/constants";
 import type { EventType } from "@/constants";
+import { appendModalAccordion } from "@/components/modalAccordion";
 
 /**
  * Create or edit an event — anything on the calendar, past or future: a
@@ -258,23 +259,8 @@ export class EventModal extends FormModal {
 		// same accordion mechanics as the Someday modal (.plan-accordion),
 		// without their persisted collapsed state: a modal opens fresh
 		// every time, so there's nothing to remember between opens.
-		const detailsWrap = contentEl.createDiv({
-			cls: "callander-modal-field plan-accordion callander-modal-accordion",
-		});
-		const detailsHeader = detailsWrap.createDiv({
-			cls: "plan-accordion-header callander-modal-accordion-header",
-		});
-		detailsHeader.createSpan({ text: "Additional details" });
-		setIcon(
-			detailsHeader.createSpan({ cls: "plan-accordion-chevron" }),
-			"chevron-down"
-		);
-		const detailsBody = detailsWrap.createDiv({
-			cls: "plan-accordion-body",
-		});
-		detailsHeader.addEventListener("click", () => {
-			detailsWrap.toggleClass("is-open", !detailsWrap.hasClass("is-open"));
-		});
+		const details = appendModalAccordion(contentEl);
+		const detailsBody = details.body;
 		// An edit that already has any of these opens showing them —
 		// otherwise saved detail would be hidden behind a closed lid.
 		const categories = [
@@ -286,7 +272,7 @@ export class EventModal extends FormModal {
 			this.existing?.link ||
 			categories.length > 0
 		);
-		detailsWrap.toggleClass("is-open", hasDetails);
+		details.setOpen(hasDetails);
 
 		// ---- Location ----
 		const locField = detailsBody.createDiv({
@@ -495,14 +481,7 @@ export class EventModal extends FormModal {
 			{ buttons: [saveBtn] }
 		);
 		saveBtn.addEventListener("click", () => void submit());
-		const onEnter = (e: KeyboardEvent) => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				void submit();
-			}
-		};
-		nameInput.addEventListener("keydown", onEnter);
-		locInput.addEventListener("keydown", onEnter);
+		this.submitOnEnter([nameInput, locInput], submit);
 		this.submitOnEnter(descInput, submit, "mod-enter");
 
 		// A pre-filled form counts as an edit for focus purposes.

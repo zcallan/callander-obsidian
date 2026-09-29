@@ -8,7 +8,7 @@ import {
 import { splitLeadingEmoji } from "@/utils/emoji";
 import { relativeFromDays, upcomingWhen } from "@/utils/upcomingWhen";
 import type { EventRowFields } from "@/utils/eventRow";
-import { isoDay, wholeDaysBetween } from "@/utils/dates";
+import { isoDay, isoDaysFrom, wholeDaysBetween } from "@/utils/dates";
 
 /** A plan's icon when its name doesn't lead with an emoji of its own. */
 export const PLAN_ICON = "🗺️";
@@ -55,6 +55,15 @@ export function planRowFields(
 	if (endFlex && endFlex.month !== null && endFlex.day !== null) {
 		const endYear = endFlex.year ?? startFlex?.year ?? now.getFullYear();
 		endDay = new Date(endYear, endFlex.month - 1, endFlex.day);
+		// Across New Year, as planSpan reads it: 30 Dec to "01-02" ends in
+		// the January after, not the one before the trip.
+		if (
+			endFlex.year === null &&
+			isExactFlexDate(startFlex) &&
+			endDay < flexToLocalDate(startFlex)
+		) {
+			endDay = new Date(endYear + 1, endFlex.month - 1, endFlex.day);
+		}
 		if (when) {
 			when += ` - ${endFlex.day} ${shortMonthName(endFlex.month)}`;
 		}
@@ -100,31 +109,37 @@ export function planRowFields(
  * end that isn't day-precise, or runs backwards, leaves just the start.
  */
 export function planDays(plan: { date: string; endDate: string }): string[] {
+	const span = planSpan(plan);
+	return span ? isoDaysFrom(span.start, span.end, MAX_SPAN_DAYS) : [];
+}
+
+/**
+ * A plan's first and last day, when its start is known to the day. An end
+ * with no year of its own landing before the start has crossed New Year
+ * (30 Dec to 2 Jan); an end that isn't day-precise, or runs backwards,
+ * leaves just the start.
+ *
+ * Not capped, unlike planDays: that cap is how far a calendar will paint a
+ * bar, not how long a plan can run.
+ */
+export function planSpan(plan: {
+	date: string;
+	endDate: string;
+}): { start: Date; end: Date } | null {
 	const s = parseFlexDate(plan.date);
-	if (!s || s.year === null || s.month === null || s.day === null) return [];
+	if (!s || s.year === null || s.month === null || s.day === null) return null;
 	const start = new Date(s.year, s.month - 1, s.day);
 
 	let end = start;
 	const e = parseFlexDate(plan.endDate);
 	if (e && e.month !== null && e.day !== null) {
-		const candidate = new Date(e.year ?? s.year, e.month - 1, e.day);
-		// An end with no year of its own landing before the start has
-		// crossed New Year: 30 Dec to 2 Jan.
+		let candidate = new Date(e.year ?? s.year, e.month - 1, e.day);
 		if (e.year === null && candidate < start) {
-			candidate.setFullYear(candidate.getFullYear() + 1);
+			candidate = new Date(s.year + 1, e.month - 1, e.day);
 		}
 		if (candidate > start) end = candidate;
 	}
-
-	const days: string[] = [];
-	for (
-		const d = new Date(start);
-		d <= end && days.length < MAX_SPAN_DAYS;
-		d.setDate(d.getDate() + 1)
-	) {
-		days.push(isoDay(d));
-	}
-	return days;
+	return { start, end };
 }
 
 /** Weekday names for a bar, indexed by Date.getDay() — the same forms the
@@ -159,8 +174,10 @@ export function planSpanLabel(days: readonly string[]): string {
  * makes. Without a day-precise span the stored date is all there is.
  */
 export function planWhenDate(plan: { date: string; endDate: string }): string {
-	const days = planDays(plan);
-	return days.length > 0 ? days[days.length - 1] : plan.date;
+	// Its real last day: a plan running June to September, capped at the
+	// calendar's 62 days, was filed under Past in August while underway.
+	const span = planSpan(plan);
+	return span ? isoDay(span.end) : plan.date;
 }
 
 /** The plans the Events page lists: all of them, bar any hidden from it. */

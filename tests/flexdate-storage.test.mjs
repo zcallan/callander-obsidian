@@ -98,7 +98,9 @@ export function run() {
 		["this month", "1 month ago", "5 months ago", "11 months ago", "1 year ago", "2 years ago"]
 	);
 	eq("a future month is this month", since("2026-10"), "this month");
-	eq("the day doesn't count, only its month", since("2026-08-31"), "this month");
+	// The day does count (30 Sep to 1 Sep is 11 months), but a day later
+	// in this same month is still this month, not "-1 months ago".
+	eq("a later day this month is still this month", since("2026-08-31"), "this month");
 	eq("no year, no time since", since("08-04"), "");
 
 	// ---------- today ----------

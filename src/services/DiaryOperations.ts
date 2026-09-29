@@ -93,8 +93,10 @@ export class DiaryOperations {
 		frontmatter: Record<string, unknown>;
 		body: string;
 	} {
-		const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
-		if (!match) return { frontmatter: {}, body: content };
+		// CRLF too, as splitFrontmatter reads it.
+		const text = content.replace(/\r\n?/g, "\n");
+		const match = text.match(/^---\n([\s\S]*?)\n---\n?/);
+		if (!match) return { frontmatter: {}, body: text };
 		let frontmatter: Record<string, unknown> = {};
 		try {
 			const parsed: unknown = parseYaml(match[1]);
@@ -102,7 +104,7 @@ export class DiaryOperations {
 		} catch (error) {
 			console.error("Error parsing diary frontmatter:", error);
 		}
-		return { frontmatter, body: content.slice(match[0].length) };
+		return { frontmatter, body: text.slice(match[0].length) };
 	}
 
 	async createEntry(title: string, date: string): Promise<TFile> {

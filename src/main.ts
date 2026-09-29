@@ -69,7 +69,7 @@ import { ConvertSomedayModal } from "@/modals/ConvertSomedayModal";
 import { PlanModal } from "@/modals/PlanModal";
 import { EventModal } from "@/modals/EventModal";
 import { todayISO } from "@/utils/flexdate";
-import { MS_PER_HOUR } from "@/utils/dates";
+import { MS_PER_HOUR, MS_PER_MINUTE, newDayCheck } from "@/utils/dates";
 import { capitalize, formatCount } from "@/utils/text";
 import { BIRTHDAY_ICS_PATH, birthdayCalendar } from "@/utils/ics";
 import { buildYearRecap } from "@/utils/yearRecap";
@@ -88,6 +88,8 @@ import { installMarkdownIntercept } from "@/plugin/markdownIntercept";
 import { type MarkdownRouteRule } from "@/utils/markdownRoute";
 import { runStartupTasks } from "@/plugin/startup";
 import { runLogged } from "@/utils/async";
+import { registerPageRefresh } from "@/utils/vaultRefresh";
+import { ViewStore } from "@/ui/viewStore";
 
 /** How long "open as markdown" bypasses the view intercept: one navigation. */
 const MARKDOWN_BYPASS_TTL_MS = 1000;
@@ -168,6 +170,17 @@ export default class FriendTracker extends Plugin {
 				}
 			});
 		try {
+			// Before any view exists, so the islands' shared vault version
+			// has been counting since before the first of them mounts — see
+			// useVaultVersion.
+			registerPageRefresh(this, this, () => this.vaultVersion.bump());
+			// Pages read "today" when they render; at midnight they're told,
+			// the way they're told about a settings change.
+			const checkDay = newDayCheck(() => {
+				this.events.trigger("day-changed");
+			});
+			this.registerInterval(window.setInterval(checkDay, MS_PER_MINUTE));
+
 			// Register views
 			for (const [type, create] of VIEWS) {
 				this.registerView(type, (leaf) => create(leaf, this));
@@ -188,14 +201,35 @@ export default class FriendTracker extends Plugin {
 			installKeyboardInsetTracking(this);
 
 			// Diary entries that were logged to timelines stay in sync:
-			// later edits to the entry update the derived events
+			// later edits to the entry update the derived events. Noted on
+			// "changed" and run on the "resolve" that follows it: the sync
+			// reads who the entry links to from resolvedLinks, which is only
+			// up to date by then. "resolve" alone won't do, because it also
+			// fires for every file as the vault loads, and each launch would
+			// rewrite every logged entry's event.
+			const editedDiaryEntries = new Set<string>();
 			this.registerEvent(
 				this.app.metadataCache.on("changed", (file) => {
 					if (this.diaryOperations.isDiaryFile(file.path)) {
+						editedDiaryEntries.add(file.path);
+					}
+				})
+			);
+			this.registerEvent(
+				this.app.metadataCache.on("resolve", (file) => {
+					if (editedDiaryEntries.delete(file.path)) {
 						this.scheduleDiarySync(file);
 					}
 				})
 			);
+			// A sync still waiting on its debounce mustn't write after the
+			// plugin is turned off.
+			this.register(() => {
+				for (const timer of this.diarySyncTimers.values()) {
+					window.clearTimeout(timer);
+				}
+				this.diarySyncTimers.clear();
+			});
 			this.registerEvent(
 				this.app.vault.on("rename", (file, oldPath) => {
 					if (
@@ -269,9 +303,13 @@ export default class FriendTracker extends Plugin {
 					// syncing in from a device that hasn't updated yet.
 					this.registerEvent(
 						this.app.metadataCache.on("resolved", () => {
-							runLogged("events migration", () =>
-								this.runEventMigration()
-							);
+							runLogged("events migration", async () => {
+								// Whatever it just moved in is classified
+								// now, as at startup, rather than reading as
+								// a calendar entry until the next launch.
+								const moved = await this.runEventMigration();
+								if (moved > 0) await this.migrateEventVariants();
+							});
 						})
 					);
 					await this.runEventMigration();
@@ -593,17 +631,21 @@ export default class FriendTracker extends Plugin {
 
 	// ---- View activation ----
 
+	/**
+	 * Reveal the page's open tab, or open one. Found by its leaf, not its
+	 * view: a tab restored in the background holds a deferred view until
+	 * it's shown, which isn't an instance of the page's class, and checking
+	 * the view opened a second tab beside it. revealLeaf loads it.
+	 */
 	private async activateLeafOfType(
 		type: string,
-		existing: (view: unknown) => boolean
+		accept: (leaf: WorkspaceLeaf) => boolean = () => true
 	) {
 		const workspace = this.app.workspace;
-		for (const leaf of workspace.getLeavesOfType(type)) {
-			const view = leaf.view;
-			if (existing(view)) {
-				await workspace.revealLeaf(leaf);
-				return;
-			}
+		const open = workspace.getLeavesOfType(type).find(accept);
+		if (open) {
+			await workspace.revealLeaf(open);
+			return;
 		}
 		const leaf = workspace.getLeaf(true);
 		await leaf.setViewState({ type, active: true });
@@ -629,10 +671,7 @@ export default class FriendTracker extends Plugin {
 
 	public async activateDashboard(opts: NavOptions = {}) {
 		if (opts.here) return this.openHere(VIEW_TYPE_DASHBOARD);
-		await this.activateLeafOfType(
-			VIEW_TYPE_DASHBOARD,
-			(v) => v instanceof DashboardView
-		);
+		await this.activateLeafOfType(VIEW_TYPE_DASHBOARD);
 	}
 
 	public async activateSomedays(focusPath?: string, opts: NavOptions = {}) {
@@ -642,10 +681,7 @@ export default class FriendTracker extends Plugin {
 				focusPath ? { focusPath } : undefined
 			);
 		}
-		await this.activateLeafOfType(
-			VIEW_TYPE_SOMEDAYS,
-			(v) => v instanceof SomedaysView
-		);
+		await this.activateLeafOfType(VIEW_TYPE_SOMEDAYS);
 		if (focusPath) {
 			for (const leaf of this.app.workspace.getLeavesOfType(
 				VIEW_TYPE_SOMEDAYS
@@ -667,10 +703,7 @@ export default class FriendTracker extends Plugin {
 				focusPath ? { focusPath } : undefined
 			);
 		}
-		await this.activateLeafOfType(
-			VIEW_TYPE_EVENTS,
-			(v) => v instanceof EventsView
-		);
+		await this.activateLeafOfType(VIEW_TYPE_EVENTS);
 		// The Calendar tab opens on today, for the reason activateCalendar
 		// gives: a page that's already open is revealed, not rebuilt.
 		for (const leaf of this.app.workspace.getLeavesOfType(
@@ -706,19 +739,13 @@ export default class FriendTracker extends Plugin {
 	/** Every plan, past and future — see PlansView. */
 	public async activatePlans(opts: NavOptions = {}) {
 		if (opts.here) return this.openHere(VIEW_TYPE_PLANS);
-		await this.activateLeafOfType(
-			VIEW_TYPE_PLANS,
-			(v) => v instanceof PlansView
-		);
+		await this.activateLeafOfType(VIEW_TYPE_PLANS);
 	}
 
 	/** The full Calendar page — events, plans and birthdays together. */
 	public async activateCalendar(opts: NavOptions = {}) {
 		if (opts.here) return this.openHere(VIEW_TYPE_CALENDAR);
-		await this.activateLeafOfType(
-			VIEW_TYPE_CALENDAR,
-			(v) => v instanceof CalendarView
-		);
+		await this.activateLeafOfType(VIEW_TYPE_CALENDAR);
 		// An already-open page is revealed rather than rebuilt, and would
 		// come back on whatever day it was left on — days ago, on a phone
 		// that keeps its tabs alive. Opening the calendar means today.
@@ -731,32 +758,17 @@ export default class FriendTracker extends Plugin {
 
 	public async activateDiaryView(opts: NavOptions = {}) {
 		if (opts.here) return this.openHere(VIEW_TYPE_DIARY);
-		await this.activateLeafOfType(
-			VIEW_TYPE_DIARY,
-			(v) => v instanceof DiaryView
-		);
+		await this.activateLeafOfType(VIEW_TYPE_DIARY);
 	}
 
 	public async activateFriendTracker(opts: NavOptions = {}) {
 		if (opts.here) return this.openHere(VIEW_TYPE_FRIEND_TRACKER);
 		const workspace = this.app.workspace;
-		for (const leaf of workspace.getLeavesOfType(
-			VIEW_TYPE_FRIEND_TRACKER
-		)) {
-			// Ignore any leftover sidebar-docked copies from the old layout
-			if (leaf.getRoot() !== workspace.rootSplit) continue;
-			const view = leaf.view;
-			if (view instanceof FriendTrackerView) {
-				await workspace.revealLeaf(leaf);
-				return;
-			}
-		}
-		const leaf = workspace.getLeaf(true);
-		await leaf.setViewState({
-			type: VIEW_TYPE_FRIEND_TRACKER,
-			active: true,
-		});
-		await workspace.revealLeaf(leaf);
+		// Not a leftover sidebar-docked copy from the old layout.
+		await this.activateLeafOfType(
+			VIEW_TYPE_FRIEND_TRACKER,
+			(leaf) => leaf.getRoot() === workspace.rootSplit
+		);
 	}
 
 	// ---- Quick actions ----
@@ -1145,7 +1157,11 @@ export default class FriendTracker extends Plugin {
 	 */
 	public async seedStarterVault() {
 		const base = normalizePath(this.settings.baseFolder);
-		if (this.app.vault.getFolderByPath(base)) return;
+		// The vault root always exists, so for a root base folder it's the
+		// People folder that says the vault has been set up.
+		const marker =
+			base === "/" ? this.contactOperations.getPeopleFolderPath() : base;
+		if (this.app.vault.getFolderByPath(marker)) return;
 
 		const ensureFolder = async (path: string) => {
 			const normalized = normalizePath(path);
@@ -1201,7 +1217,10 @@ export default class FriendTracker extends Plugin {
 			diaryDates: diaryEntries.map((e) => e.date),
 		});
 
-		const path = `${this.settings.baseFolder}/Callander Recap ${year}.md`;
+		// Normalised: a root base folder would otherwise give "//Callander…".
+		const path = normalizePath(
+			`${this.settings.baseFolder}/Callander Recap ${year}.md`
+		);
 		const existing = this.app.vault.getAbstractFileByPath(path);
 		if (existing instanceof TFile) {
 			await this.app.vault.modify(existing, text);
@@ -1231,6 +1250,7 @@ export default class FriendTracker extends Plugin {
 				)} into ${this.eventOperations.getEventsFolderPath()}`
 			);
 		}
+		return moved;
 	});
 
 	private async migrateFile(
@@ -1451,6 +1471,10 @@ export default class FriendTracker extends Plugin {
 	 * can't leak a listener past its own lifetime.
 	 */
 	public readonly events = new Events();
+
+	/** What every React island's useVaultVersion reads: bumped when the
+	 * base folder changes on disk, a setting does, or the day turns over. */
+	public readonly vaultVersion = new ViewStore();
 
 	async saveSettings() {
 		await this.saveData(this.settings);

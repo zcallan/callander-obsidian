@@ -199,6 +199,10 @@ export function splitFrontmatter(content: string): {
 	frontmatter: string | null;
 	body: string;
 } {
+	// One kind of line break before anything looks: a note written on
+	// Windows, or by another editor, can use CRLF, and read as having no
+	// frontmatter at all. What's joined back after is LF throughout.
+	if (content.includes("\r")) content = content.replace(/\r\n?/g, "\n");
 	if (!content.startsWith("---\n") && content !== "---") {
 		return { frontmatter: null, body: content };
 	}

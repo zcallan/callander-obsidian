@@ -3,7 +3,7 @@ import {
 	toFlexString,
 	formatFlexDate,
 } from "@/utils/flexdate";
-import { isoDateOf, pad2 } from "@/utils/dates";
+import { daysInMonth, isoDateOf, pad2 } from "@/utils/dates";
 
 type BirthdayPrecision = "full" | "yearMonth" | "monthDay";
 
@@ -116,7 +116,10 @@ export function createBirthdayPrecisionInput(
 			const save = () => {
 				const month = Number(monthSelect.value);
 				const day = Number(dayInput.value);
-				if (month >= 1 && day >= 1 && day <= 31) {
+				// A real day of that month — measured in a leap year, since
+				// with no year 29 February can be one. "02-31" used to be
+				// stored, and then read back as no birthday at all.
+				if (month >= 1 && day >= 1 && day <= daysInMonth(2000, month)) {
 					setValue(toFlexString({ year: null, month, day }));
 				} else if (!monthSelect.value && !dayInput.value) {
 					setValue("");

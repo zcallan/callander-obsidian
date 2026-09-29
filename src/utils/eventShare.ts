@@ -119,10 +119,10 @@ export function buildGoogleCalendarUrl(
 		// Its own duration when it has one, else an hour — the same default
 		// Google Calendar itself fills in for an event created by hand.
 		const minutes = parseDurationMinutes(e.duration) ?? 60;
-		const end = new Date(
-			new Date(year, month - 1, day, hour, minute).getTime() +
-				minutes * 60000
-		);
+		// On the wall clock, as a floating time is read. Added as a span of
+		// milliseconds, an hour from 02:30 on the night the clocks go back
+		// came to 02:30 again, and the link had no length.
+		const end = new Date(year, month - 1, day, hour, minute + minutes);
 		const startStamp = `${stamp(
 			new Date(year, month - 1, day)
 		)}T${pad2(hour)}${pad2(minute)}00`;

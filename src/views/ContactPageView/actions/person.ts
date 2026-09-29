@@ -469,7 +469,7 @@ export async function updateContactData(
 	ctx: PageContext,
 	model: ContactPageModel,
 	field: string,
-	value: string | string[]
+	value: string | string[] | number | boolean
 ) {
 	// An emptied list drops its key instead of storing `[]` — a bare
 	// empty array shows as a property with no values in Obsidian's own

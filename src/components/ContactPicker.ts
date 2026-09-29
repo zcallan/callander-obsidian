@@ -218,7 +218,7 @@ export function appendContactPicker(
 			addGuest();
 		});
 		guestInput.addEventListener("keydown", (e) => {
-			if (e.key !== "Enter") return;
+			if (e.key !== "Enter" || e.isComposing) return;
 			// Enter in a name field would otherwise submit the whole form
 			// before the person has been added to the list.
 			e.preventDefault();

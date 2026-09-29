@@ -1,8 +1,19 @@
 import { createSuite } from "./harness.mjs";
 import { createTestVault } from "./vault.mjs";
 import {
+	Notice,
+	birthdayCalendar,
+	joinFrontmatter,
+	locateEntry,
+	splitFrontmatter,
 	buildYearRecap,
+	expensesOf,
+	formatItemCost,
 	formatMoney,
+	normalizeTimezone,
+	owedFor,
+	parseCsv,
+	truncate,
 	normalizeUrl,
 	resolvePeopleInfo,
 	startsWithEmoji,
@@ -63,5 +74,62 @@ export async function run() {
 	eq("recap links go to the file, not the name field (CORE-B6)", recap.filter((l) => l.startsWith("- [[")), ["- [[Ann Lee]]", "- [[Ann Lee]] — 1 event", "- [[Bo]] — 1 event"]);
 	eq("a shared event counts once, a cancelled one not at all (CORE-B7)", recap.find((l) => l.startsWith("**")), "**1 event across everyone** — 1 hangout, 0 of their life moments witnessed.");
 	eq("one diary entry is an entry (CORE-B8)", recap.find((l) => l.includes("about 2026")), "- 1 entry about 2026");
+
+	// ---------- the rest of §5.2's text, money and import bugs ----------
+	eq("a cut never lands between an emoji's halves (UA-B10)", [truncate("ab😀cd", 3), truncate("abcdef", 3), truncate("ab", 3)], ["ab…", "abc…", "ab"]);
+
+	eq("a zone is stored as Intl spells it (UA-B11)", [normalizeTimezone("europe/madrid"), normalizeTimezone("Europe/Madrid"), normalizeTimezone("not/a_zone")], ["Europe/Madrid", "Europe/Madrid", null]);
+
+	const [quoted] = expensesOf({ costs: [{ label: "Dinner", amount: 50, split: { mode: "value", shares: { Riley: "25", Harry: "25", Bad: "x" } } }] });
+	eq("quoted shares read as numbers, and junk is left out (UB-B4)", quoted.split.shares, { Riley: 25, Harry: 25 });
+	eq("…so each owes their $25, not \"2510\"", owedFor(quoted, ["Riley", "Harry"]).Riley, 25);
+
+	eq("a cost reads the same everywhere it's shared (UB-B14)", [formatItemCost(0), formatItemCost(12), formatItemCost(12.5), formatItemCost(12.345)], ["Free", "$12", "$12.50", "$12.35"]);
+
+	eq(
+		"a CR inside a quoted cell isn't kept (UB-B15)",
+		parseCsv('name,notes\r\nPizza,"line one\r\nline two"\r\n').map((r) => r.cells),
+		[["name", "notes"], ["Pizza", "line one\nline two"]]
+	);
+
+	const uidsOf = (names) => birthdayCalendar(names.map((n) => ({ basename: n, displayName: n, birthday: "1990-05-01" })), new Date(2026, 0, 1)).ics.split("\r\n").filter((l) => l.startsWith("UID:"));
+	const cjk = uidsOf(["李雷", "王芳"]);
+	const accents = uidsOf(["Zoë", "Zoé"]);
+	eq("non-Latin and near-identical names get distinct UIDs (CORE-B5)", [cjk[0] !== cjk[1], accents[0] !== accents[1]], [true, true]);
+	eq("…and a UID that already worked is unchanged", uidsOf(["Ana Lee"]), ["UID:callander-ana-lee-2026@callander"]);
+	eq("…and stable from one export to the next", uidsOf(["李雷", "王芳"]), cjk);
+
+	// CORE-B11: the missing People folder, said once, and never before setup.
+	{
+		const t = await createTestVault();
+		await t.app.fileManager.trashFile(t.vault.getFolderByPath("Friends/People"));
+		Notice.all.length = 0;
+		await t.contacts.getContacts();
+		await t.contacts.getContacts();
+		eq("a missing People folder is said once, not on every read (CORE-B11)", Notice.all.filter((m) => String(m).includes("People folder")).length, 1);
+		// No base folder at all: a fresh install, before the dashboard's
+		// first open has made the folders.
+		const fresh = await createTestVault();
+		await fresh.app.fileManager.trashFile(fresh.vault.getFolderByPath("Friends/People"));
+		await fresh.app.fileManager.trashFile(fresh.vault.getFolderByPath("Friends/Plans"));
+		await fresh.app.fileManager.trashFile(fresh.vault.getFolderByPath("Friends"));
+		Notice.all.length = 0;
+		await fresh.contacts.getContacts();
+		eq("…and not at all before the vault is set up", Notice.all.length, 0);
+	}
+
+	// CP-B15: a note with CRLF line endings.
+	const crlf = "---\r\nname: Ana\r\nrelationship: friend\r\n---\r\n## Notes\r\n\r\nHi.\r\n";
+	const split = splitFrontmatter(crlf);
+	eq("CRLF frontmatter is found (CP-B15)", split.frontmatter, "name: Ana\nrelationship: friend");
+	eq("…and joined back as LF", joinFrontmatter(split.frontmatter, split.body), "---\nname: Ana\nrelationship: friend\n---\n## Notes\n\nHi.\n");
+
+	// IMPL-2: a credit found by what it held, when the list moved under it.
+	const credits = [{ person: "Bo", amount: 5 }, { person: "Ana", amount: 20 }];
+	eq(
+		"a credit is found where it moved to, or not at all (IMPL-2)",
+		[locateEntry(credits, 1, { person: "Ana", amount: 20 }), locateEntry(credits, 0, { person: "Ana", amount: 20 }), locateEntry(credits, 0, { person: "Cy", amount: 1 })],
+		[1, 1, -1]
+	);
 	return result();
 }

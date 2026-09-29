@@ -1,4 +1,8 @@
 import { setIcon } from "obsidian";
+import {
+	rememberRelationshipType,
+	updateRelationshipDatalist,
+} from "@/components/ContactFields";
 import { NoteSuggest } from "@/components/NoteSuggest";
 import { fieldHelp, fieldLabel } from "@/utils/fieldLabel";
 import {
@@ -16,12 +20,16 @@ import {
 	formatTimeSince,
 	parseFlexDate,
 } from "@/utils/flexdate";
-import { toText } from "@/utils/fm";
 import {
 	openAddFieldModal,
 	updateContactData,
 } from "@/views/ContactPageView/actions/person";
 import { saveModel } from "@/views/ContactPageView/persistence";
+import {
+	fieldEditText,
+	fieldEditValue,
+	isFilledField,
+} from "@/utils/contactPage";
 import type { PageContext } from "@/views/ContactPageView/context";
 
 /** "About": the person's attribute fields, in an accordion that remembers
@@ -88,8 +96,7 @@ function renderInfoSection(ctx: PageContext, container: HTMLElement) {
 					!(SYSTEM_FIELDS as readonly string[]).includes(key)
 			)
 			.forEach(([key, value]) => {
-				if (!value) return; // Skip empty values
-				if (Array.isArray(value) && value.length === 0) return;
+				if (!isFilledField(value)) return;
 
 				const field = fieldsContainer.createDiv({
 					cls: "contact-field-view",
@@ -197,11 +204,9 @@ function renderInfoSection(ctx: PageContext, container: HTMLElement) {
 					return;
 				}
 
-				// Format flexible dates at their recorded precision
+				// Format flexible dates at their recorded precision; the
+				// rest reads as it edits, a list as one line.
 				const displayValue = (() => {
-					if (Array.isArray(value)) {
-						return value.map(String).join(", ");
-					}
 					if ((key === "birthday" || key === "met") && value) {
 						const parsed = parseFlexDate(
 							value as string | number
@@ -216,12 +221,12 @@ function renderInfoSection(ctx: PageContext, container: HTMLElement) {
 							return formatFlexDate(parsed);
 						}
 					}
-					return value;
+					return fieldEditText(value);
 				})();
 
 				field.createDiv({
 					cls: "contact-field-value",
-					text: displayValue as string,
+					text: displayValue,
 				});
 			});
 
@@ -260,7 +265,7 @@ function renderInfoSection(ctx: PageContext, container: HTMLElement) {
 						// them as one comma-separated line.
 						LINKABLE_FIELDS.includes(field)
 							? formatLinkField(ctx.model.data[field])
-							: toText(ctx.model.data[field])
+							: fieldEditText(ctx.model.data[field])
 					);
 				}
 			});
@@ -275,7 +280,7 @@ function renderInfoSection(ctx: PageContext, container: HTMLElement) {
 		Object.entries(ctx.model.data)
 			.filter(([key]) => !excludedFields.includes(key.toLowerCase()))
 			.forEach(([key, value]) => {
-				createInfoField(ctx, fieldsContainer, key, value as string);
+				createInfoField(ctx, fieldsContainer, key, fieldEditText(value));
 			});
 
 		// Add custom field button
@@ -510,7 +515,16 @@ export function createInfoField(
 		return;
 	}
 
+	if (field === "relationship") {
+		// Its suggestions, and a new one typed here offered next time, as
+		// Add friend does.
+		updateRelationshipDatalist(input, ctx.plugin);
+		input.addEventListener("change", () =>
+			rememberRelationshipType(ctx.plugin, input.value)
+		);
+	}
 	input.addEventListener("change", () => {
-		void updateContactData(ctx, ctx.model, field, input.value);
+		const value = fieldEditValue(input.value, ctx.model.data[field]);
+		void updateContactData(ctx, ctx.model, field, value);
 	});
 }

@@ -139,6 +139,11 @@ export class ContactPageView extends ItemView implements PageContext {
 				else this.whenIdle("render");
 			})
 		);
+		// Countdowns and "days ago" are counted when the page draws, so the
+		// day turning over redraws it too.
+		this.registerEvent(
+			this.plugin.events.on("day-changed", () => this.whenIdle("render"))
+		);
 
 		// This person's drafts are lines in the dashboard note, not in their
 		// own file — so a change there (an edit in the note itself, a sync,

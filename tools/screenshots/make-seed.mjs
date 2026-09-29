@@ -45,7 +45,11 @@ const {
 } = await import(pathToFileURL(await buildTestBundle()).href);
 
 const outArg = process.argv.indexOf("--out");
-const OUT = outArg > -1 ? path.resolve(process.argv[outArg + 1]) : path.join(repo, "examples", "example-vault");
+const outValue = outArg > -1 ? process.argv[outArg + 1] : undefined;
+if (outArg > -1 && (!outValue || outValue.startsWith("--"))) {
+	throw new Error("--out needs a folder, like --out /tmp/example-vault");
+}
+const OUT = outValue ? path.resolve(outValue) : path.join(repo, "examples", "example-vault");
 const BASE = "Friends";
 
 const todayArg = process.argv.indexOf("--today");

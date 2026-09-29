@@ -1,4 +1,10 @@
-import { ItemView, WorkspaceLeaf, MarkdownRenderer, setIcon } from "obsidian";
+import {
+	Component,
+	ItemView,
+	WorkspaceLeaf,
+	MarkdownRenderer,
+	setIcon,
+} from "obsidian";
 import type FriendTracker from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import type { DiaryEntry } from "@/types";
@@ -19,11 +25,18 @@ export class DiaryView extends ItemView {
 	/** Widened for this view only, until it closes. */
 	private pageWide = false;
 	private expandedPath: string | null = null;
+	/** What the current render's markdown hangs from (renderBody). */
+	private renderChild: Component | null = null;
 
 	constructor(leaf: WorkspaceLeaf, private plugin: FriendTracker) {
 		super(leaf);
 		// Participate in tab history so back/forward arrows work
 		this.navigation = true;
+	}
+
+	async onClose() {
+		this.renderChild?.unload();
+		this.renderChild = null;
 	}
 
 	getViewType(): string {
@@ -71,6 +84,13 @@ export class DiaryView extends ItemView {
 	}
 
 	private renderBody() {
+		// The entries' rendered markdown hangs from a component of this
+		// render's own, unloaded at the next and on close. Rendered against
+		// the view, every post-processor child a refresh or an expand ever
+		// made stayed alive until the view closed.
+		this.renderChild?.unload();
+		this.renderChild = new Component();
+		this.renderChild.load();
 		const container = this.contentEl;
 		container.empty();
 		container.addClass("diary-view-container");
@@ -187,6 +207,8 @@ export class DiaryView extends ItemView {
 			});
 			return;
 		}
+		const child = this.renderChild;
+		if (!child) return;
 		const rendered = container.createDiv({
 			cls: "diary-entry-rendered",
 		});
@@ -195,7 +217,7 @@ export class DiaryView extends ItemView {
 			entry.body,
 			rendered,
 			entry.file.path,
-			this
+			child
 		);
 	}
 

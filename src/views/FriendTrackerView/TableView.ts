@@ -13,14 +13,15 @@ import {
 } from "@/utils/flexdate";
 import {
 	birthdayMonths,
-	dayKeyOf,
-	indexBirthdays,
+	birthdaysOnDays,
+	monthOnlyBirthdays,
 	turnsLabel,
 } from "@/utils/friendTimeline";
 import { monthGrid, monthLabel, weekStartsOn } from "@/utils/calendarGrid";
 import { GlanceModal } from "@/modals/GlanceModal";
 import { sortFriends } from "@/utils/friendListSort";
 import { monthStep } from "@/utils/dates";
+import { SearchBox } from "@/components/searchBox";
 
 const SORT_OPTIONS: Array<{ id: FriendListSort; label: string }> = [
 	// "Next" rather than plain "Birthday": the two calendar orderings below
@@ -61,6 +62,8 @@ const MAX_CELL_BIRTHDAYS = 3;
  */
 export class TableView {
 	private searchQuery = "";
+	/** Held by the page, which does the emptying, before each refresh. */
+	readonly search = new SearchBox();
 	private contacts: ContactWithCountdown[] = [];
 	private groupColors = new Map<string, string | null>();
 	/** Group key → the spelling its page uses; see ContactOperations.labelOf. */
@@ -143,14 +146,14 @@ export class TableView {
 	private renderToolbar(wrap: HTMLElement) {
 		const toolbar = wrap.createDiv({ cls: "friend-list-toolbar" });
 
-		const searchInput = toolbar.createEl("input", {
-			attr: { type: "text", placeholder: "Search friends…" },
+		this.search.build(toolbar, {
+			placeholder: "Search friends…",
 			cls: "contact-field-input friend-list-search",
-		});
-		searchInput.value = this.searchQuery;
-		searchInput.addEventListener("input", () => {
-			this.searchQuery = searchInput.value;
-			this.renderContent();
+			value: this.searchQuery,
+			onInput: (value) => {
+				this.searchQuery = value;
+				this.renderContent();
+			},
 		});
 
 		// No "Sort" label: the options name themselves, and the row is
@@ -182,6 +185,15 @@ export class TableView {
 		const infos = ops.getGroupInfos(contacts);
 		this.groupColors = new Map(infos.map((i) => [i.name, i.color]));
 		this.groupLabels = new Map(infos.map((i) => [i.name, ops.labelOf(i)]));
+		// A group renamed or deleted since it was picked would go on hiding
+		// everyone, with no chip left lit to unclick, so the filter lapses
+		// with the group.
+		if (
+			this.view.groupFilter &&
+			!infos.some((i) => i.name === this.view.groupFilter)
+		) {
+			this.view.groupFilter = "";
+		}
 		if (infos.length === 0) return;
 
 		const pills = wrap.createDiv({
@@ -386,7 +398,6 @@ export class TableView {
 		}
 
 		const wrap = this.contentEl.createDiv({ cls: "cal" });
-		const { byDay, monthOnly } = indexBirthdays(people);
 		const cursorMonth = this.calCursor.getMonth() + 1;
 
 		const bar = wrap.createDiv({ cls: "cal-bar" });
@@ -424,7 +435,16 @@ export class TableView {
 
 		const grid = wrap.createDiv({ cls: "cal-grid" });
 		const startsOn = weekStartsOn(this.view.callander.settings);
-		for (const day of monthGrid(this.calCursor, new Date(), startsOn)) {
+		const days = monthGrid(this.calCursor, new Date(), startsOn);
+		// By real date rather than by "MM-DD": a common year has no 29
+		// February, and the birthday has to land on 1 March, where the
+		// countdowns and the Calendar page put it. The selected day rides
+		// along in case paging has taken it off the grid.
+		const byDay = birthdaysOnDays(people, [
+			...days.map((d) => d.date),
+			...(this.calSelected ? [this.calSelected] : []),
+		]);
+		for (const day of days) {
 			const cls = ["cal-cell"];
 			if (!day.inMonth) cls.push("is-outside");
 			if (day.isToday) cls.push("is-today");
@@ -436,9 +456,7 @@ export class TableView {
 
 			// Borrowed days belong to a neighbouring month; drawing their
 			// birthdays would show the same person twice as you page.
-			const birthdays = day.inMonth
-				? byDay.get(dayKeyOf(day.date)) ?? []
-				: [];
+			const birthdays = day.inMonth ? byDay.get(day.date) ?? [] : [];
 			for (const person of birthdays.slice(0, MAX_CELL_BIRTHDAYS)) {
 				this.appendCalBirthday(cell, person, day.date);
 			}
@@ -470,7 +488,7 @@ export class TableView {
 		// to no square in it, so they're named under the grid rather than
 		// dropped. The Timeline says "Unknown day" on the row; a grid has no
 		// row to say it on.
-		const vague = monthOnly.get(cursorMonth) ?? [];
+		const vague = monthOnlyBirthdays(people).get(cursorMonth) ?? [];
 		if (vague.length > 0) {
 			const note = wrap.createDiv({ cls: "cal-month-only" });
 			note.createDiv({
@@ -549,7 +567,7 @@ export class TableView {
 			cls: "cal-agenda-head",
 			text: formatShortWeekdayDate(day),
 		});
-		const birthdays = byDay.get(dayKeyOf(this.calSelected)) ?? [];
+		const birthdays = byDay.get(this.calSelected) ?? [];
 		if (birthdays.length === 0) {
 			agenda.createDiv({
 				cls: "section-helper-text",

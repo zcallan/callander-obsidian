@@ -1,4 +1,5 @@
 import { ANY_TIME, roughTime } from "@/constants";
+import { formatMoney } from "@/utils/expenseMath";
 import { formatDate, ordinalDay } from "@/utils/dateFormat";
 import { formatShortWeekdayDate } from "@/utils/flexdate";
 import { localDateOfIso, wholeDaysBetween } from "@/utils/dates";
@@ -146,6 +147,16 @@ export function formatTimelineDay(iso: string): string {
 	});
 }
 
+/**
+ * A quick idea's candidate days in full, "Sunday 2 August · Monday 3
+ * August", for the idea's own view, where there's room to name each one.
+ * In date order and once each, as formatQuickIdeaDates has them: stored,
+ * they're in the order they were toggled, and hand-edited ones can repeat.
+ */
+export function formatQuickIdeaDays(dates: readonly string[]): string {
+	return [...new Set(dates)].sort().map(formatTimelineDay).join(" · ");
+}
+
 /** A rough label ("Dinner time") when that's all we know, else a 12h clock. */
 export function formatItemTime(time: string): string {
 	const rough = roughTime(time);
@@ -159,9 +170,24 @@ export function formatItemTime(time: string): string {
 	return `${hour}:${minute}${ampm}`;
 }
 
+/**
+ * A cost as typed into a form: dollars, 0 for free, or null when it's blank
+ * or no amount at all. Never negative — `min="0"` doesn't stop one being
+ * typed, and a someday saved one to show "~$-5".
+ */
+export function costFromInput(raw: string): number | null {
+	const text = raw.trim();
+	if (text === "") return null;
+	const n = Number(text);
+	return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 /** An item's cost as a label: an explicit 0 reads as "Free". */
 export function formatItemCost(cost: number): string {
-	return cost === 0 ? "Free" : `$${cost}`;
+	if (cost === 0) return "Free";
+	// Whole dollars stay short; anything else to the cent, where "$12.5"
+	// used to read as a typo.
+	return Number.isInteger(cost) && cost > 0 ? `$${cost}` : formatMoney(cost);
 }
 
 /**

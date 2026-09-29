@@ -13,9 +13,16 @@ import { readdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import { launchObsidian } from "./launch.mjs";
+import { staleBundleReason } from "./bundle.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const only = process.argv[2];
+
+const stale = staleBundleReason(path.resolve(here, "..", ".."));
+if (stale) {
+	console.error(`${stale} — run \`npm run build\` first`);
+	process.exit(1);
+}
 
 const files = readdirSync(here)
 	.filter((f) => f.endsWith(".e2e.mjs"))

@@ -199,30 +199,47 @@ export function renderNameSection(ctx: PageContext, container: HTMLElement) {
 		}
 	});
 
+	// One save per edit. Typing and then clicking the tick fires the
+	// input's change (on blur) and then the click, and each used to run the
+	// save and the rename.
+	let saving = false;
 	const saveNameChange = async () => {
+		if (saving || !nameInput.classList.contains("editing")) return;
 		// The note being renamed, kept across the awaits below.
 		const model = ctx.model;
 		const file = model.file;
 		if (!file) return;
-		const newName = nameInput.value.trim();
-		if (newName) {
-			model.data.name = newName;
-			await saveModel(ctx, model);
+		saving = true;
+		try {
+			const newName = nameInput.value.trim();
+			if (newName && newName !== model.data.name) {
+				model.data.name = newName;
+				await saveModel(ctx, model);
 
-			// Rename the file. All friends hears the rename itself.
-			if (file.parent) {
-				try {
-					await ctx.plugin.contactOperations.renamePerson(
-						file,
-						newName
-					);
-					new Notice(`Updated contact name`);
-				} catch (error) {
-					new Notice(`Error updating file name: ${String(error)}`);
+				// Rename the file. All friends hears the rename itself.
+				if (file.parent) {
+					try {
+						await ctx.plugin.contactOperations.renamePerson(
+							file,
+							newName
+						);
+						new Notice(`Updated contact name`);
+					} catch (error) {
+						new Notice(
+							`Error updating file name: ${String(error)}`
+						);
+					}
 				}
 			}
+		} finally {
+			saving = false;
 		}
-		nameText.textContent = nameInput.value || "Unnamed Contact";
+		// What's stored, not what was typed: an emptied box saves nothing,
+		// so it mustn't leave "Unnamed Contact" over a name that's still
+		// there — and a display name, when there is one, still leads.
+		nameInput.value = model.data.name || "";
+		nameText.textContent =
+			model.data.displayName || model.data.name || "Unnamed Contact";
 		nameText.classList.remove("editing");
 		nameInput.classList.remove("editing");
 		setIcon(editButton, "pencil");

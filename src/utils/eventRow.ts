@@ -1,7 +1,12 @@
 import { EVENT_TYPES, specialEventTime } from "@/constants";
 import { shortTime } from "@/utils/calendarGrid";
 import { resolveToZone, zoneAbbreviation } from "@/utils/timezone";
-import { parseFlexDate, flexSortKey, isFlexUpcoming } from "@/utils/flexdate";
+import {
+	parseFlexDate,
+	flexSortKey,
+	isExactFlexDate,
+	isFlexUpcoming,
+} from "@/utils/flexdate";
 import { splitLeadingEmoji } from "@/utils/emoji";
 import {
 	daysUntilFlex,
@@ -141,7 +146,12 @@ export function eventRowFields(
 	// Where the date label already names the day, the right-hand column
 	// counts down rather than echoing it — and says whether something
 	// happening today has started yet.
-	const days = options.conversational ? daysUntilFlex(e.date, now) : null;
+	// Only for a date with a day: daysUntilFlex puts a month or a year on
+	// its 1st, so "October 2026" read "today" on 1 October.
+	const days =
+		options.conversational && isExactFlexDate(parseFlexDate(e.date))
+			? daysUntilFlex(e.date, now)
+			: null;
 	const immediacy =
 		days === null ? null : immediacyRelative(days, e.time, now);
 

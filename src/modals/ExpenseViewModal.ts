@@ -30,9 +30,10 @@ export class ExpenseViewModal extends Modal {
 			settled: boolean;
 		}) => Promise<void>,
 		/** Per-friend shortenPeopleList overrides — see shortNameOverrides. */
-		private shortNames: Map<string, string> = new Map(),
-		/** This expense as text. */
-		private onCopy: () => void = () => undefined
+		private shortNames: Map<string, string>,
+		/** This expense as text. Required: a no-op default once left the
+		 * dashboard's Copy text button doing nothing. */
+		private onCopy: () => void
 	) {
 		super(app);
 	}

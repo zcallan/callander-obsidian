@@ -1,7 +1,10 @@
 import type { PlanSimpleItem } from "@/types";
 import { formatDate } from "@/utils/dateFormat";
-import { formatMoney } from "@/utils/expenseMath";
-import { formatStayHours, nightsLabel } from "@/utils/planFormat";
+import {
+	formatItemCost,
+	formatStayHours,
+	nightsLabel,
+} from "@/utils/planFormat";
 import { localDateOfIso } from "@/utils/dates";
 
 /**
@@ -74,7 +77,8 @@ export function buildStayShareText(
 		if (detail.address && stay.address) detailLine(stay.address);
 		if (detail.people && stay.people) detailLine(stay.people);
 		if (detail.costs && typeof stay.cost === "number") {
-			detailLine(formatMoney(stay.cost));
+			// The same form every share text writes a cost in.
+			detailLine(formatItemCost(stay.cost));
 		}
 		// No toggle: an unbooked stay is the one line here that still needs
 		// doing, and a message about where you're staying that quietly omits

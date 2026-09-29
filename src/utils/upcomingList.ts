@@ -28,11 +28,12 @@ function hasEndedToday(event: EventInfo, date: FlexDate, now: Date): boolean {
 	target.setHours(0, 0, 0, 0);
 	if (target.getTime() !== today.getTime()) return false;
 
-	const [rawHour, rawMinute] = (event.time || "").split(":");
+	const [rawHour = "", rawMinute] = (event.time || "").split(":");
 	const hour = Number(rawHour);
 	// Empty, "anytime" and "tbd" all fail this the same way a real "HH:MM"
 	// wouldn't — none of them name a moment a duration could run out from.
-	if (!Number.isFinite(hour)) return false;
+	// Empty needs saying: Number("") is 0, which would read as midnight.
+	if (rawHour.trim() === "" || !Number.isFinite(hour)) return false;
 	const minutes = parseDurationMinutes(event.duration);
 	if (minutes === null) return false;
 

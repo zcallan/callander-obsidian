@@ -18,11 +18,13 @@ export class GroupModal extends FormModal {
 		app: App,
 		private plugin: FriendTracker,
 		private existing: GroupInfo | null,
-		/** The saved group's name, lowercased — so a caller creating one
-		 * inline (no group list of its own to refresh from) knows which
-		 * one to select. Not given a name on delete. Pages hear the write
-		 * on their own, so it's only for a caller with more to do. */
-		private onDone: (name?: string) => Promise<void> = () =>
+		/** The saved group's name, lowercased, and its colour — so a caller
+		 * creating one inline (no group list of its own to refresh from)
+		 * knows which one to select and how to draw it; the colour is in
+		 * the group's frontmatter, which the cache hasn't read back yet.
+		 * Given neither on delete. Pages hear the write on their own, so
+		 * it's only for a caller with more to do. */
+		private onDone: (name?: string, color?: string) => Promise<void> = () =>
 			Promise.resolve()
 	) {
 		super(app);
@@ -78,10 +80,9 @@ export class GroupModal extends FormModal {
 						return;
 					}
 					await ops.deleteGroup(this.existing!.name);
+					// The spelling the heading used, not a recapitalised key.
 					new Notice(
-						`Removed group "${ops.prettyGroupName(
-							this.existing!.name
-						)}" from everyone`
+						`Removed group "${ops.labelOf(this.existing!)}" from everyone`
 					);
 					await this.onDone();
 					this.close();
@@ -123,8 +124,9 @@ export class GroupModal extends FormModal {
 						return;
 					}
 				}
-				await ops.setGroupColor(name, swatches.getColor());
-				await this.onDone(name);
+				const color = swatches.getColor();
+				await ops.setGroupColor(name, color);
+				await this.onDone(name, color);
 				this.close();
 			},
 			{ buttons: [saveButton] }

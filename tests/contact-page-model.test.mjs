@@ -228,6 +228,19 @@ export function run() {
 			eq("and a save writes nothing", t.vault.writeLog.some((w) => w.path === ghost.path), false);
 		}
 
+		// --- a note with CRLF line endings (CP-B15) ---
+		{
+			const t = await createTestVault();
+			const ctx = page(t);
+			const bo = await t.vault.create(
+				"Friends/People/Bo.md",
+				"---\r\nname: Bo\r\nrelationship: friend\r\n---\r\n## Notes\r\n\r\nLikes jazz.\r\n"
+			);
+			const b = await load(ctx, bo);
+			eq("its frontmatter is read", [b.data.name, b.data.relationship], ["Bo", "friend"]);
+			eq("and its notes", b.bodyNotes, "Likes jazz.");
+		}
+
 		// --- body writes go through the view's own-write tracker ---
 		{
 			const t = await createTestVault();

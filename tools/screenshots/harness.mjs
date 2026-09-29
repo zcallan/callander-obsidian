@@ -186,14 +186,19 @@ export async function acceptTrustPrompt(cdp) {
 	);
 }
 
-let cachedWindowId = null;
+/** PID → window ID. Per PID: one cached value answered for every later
+ * PID too, so a second Obsidian was photographed through the first's. */
+const windowIds = new Map();
 /** Resolves a PID to the CGWindowID `screencapture -l` wants. */
 export function windowIdFor(pid) {
-	if (cachedWindowId) return cachedWindowId;
-	cachedWindowId = execFileSync("swift", [path.join(here, "windowid.swift"), String(pid)], {
-		encoding: "utf8",
-	}).trim();
-	return cachedWindowId;
+	let id = windowIds.get(pid);
+	if (!id) {
+		id = execFileSync("swift", [path.join(here, "windowid.swift"), String(pid)], {
+			encoding: "utf8",
+		}).trim();
+		windowIds.set(pid, id);
+	}
+	return id;
 }
 
 /**

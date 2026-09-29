@@ -79,6 +79,7 @@ export * from "@/utils/dashboardOrder";
 export * from "@/utils/emoji";
 export * from "@/utils/frontmatterPatch";
 export * from "@/components/guardedAction";
+export { SearchBox } from "@/components/searchBox";
 export * from "@/utils/clock";
 export * from "@/utils/fm";
 export * from "@/utils/metadataSettled";

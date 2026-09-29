@@ -1,4 +1,4 @@
-import { App, TFile, setIcon } from "obsidian";
+import { App, TFile } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { confirmThenClose } from "@/modals/ConfirmModal";
@@ -25,6 +25,8 @@ import {
 	todayISO,
 } from "@/utils/flexdate";
 import { isoDateOf, pad2 } from "@/utils/dates";
+import { costFromInput } from "@/utils/planFormat";
+import { appendModalAccordion } from "@/components/modalAccordion";
 
 type WhenMode = "anytime" | "within" | "year" | "month" | "day" | "season";
 
@@ -459,23 +461,8 @@ export class SomedayModal extends FormModal {
 		// Person page (.plan-accordion), just without their persisted
 		// collapsed state — a modal opens fresh every time, so there's
 		// nothing to remember between opens.
-		const detailsWrap = contentEl.createDiv({
-			cls: "callander-modal-field plan-accordion callander-modal-accordion",
-		});
-		const detailsHeader = detailsWrap.createDiv({
-			cls: "plan-accordion-header callander-modal-accordion-header",
-		});
-		detailsHeader.createSpan({ text: "Additional details" });
-		setIcon(
-			detailsHeader.createSpan({ cls: "plan-accordion-chevron" }),
-			"chevron-down"
-		);
-		const accordionBody = detailsWrap.createDiv({
-			cls: "plan-accordion-body",
-		});
-		detailsHeader.addEventListener("click", () => {
-			detailsWrap.toggleClass("is-open", !detailsWrap.hasClass("is-open"));
-		});
+		const details = appendModalAccordion(contentEl);
+		const accordionBody = details.body;
 
 		// ---- Solo or group ----
 		// Directly above Suggested people, which it shows and hides.
@@ -610,12 +597,7 @@ export class SomedayModal extends FormModal {
 					nameInput.focus();
 					return;
 				}
-				const rawCost = costInput.value.trim();
-				const parsedCost = rawCost === "" ? null : Number(rawCost);
-				const cost =
-					parsedCost !== null && Number.isFinite(parsedCost)
-						? parsedCost
-						: null;
+				const cost = costFromInput(costInput.value);
 				const fields: SomedayFields = {
 					name,
 					date:

@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePlugin } from "@/ui/PluginContext";
+import { useViewRevision } from "@/ui/viewStore";
 
 /**
- * A counter that bumps whenever anything the plugin owns changes on disk, or
- * a setting does.
+ * A counter that bumps whenever anything under the base folder changes on
+ * disk, a setting does, or the day turns over: the plugin's `vaultVersion`,
+ * wired with the same registerPageRefresh the imperative pages use.
  *
  * The snapshot is deliberately a **number**, not the data. `getSnapshot` has
  * to return a referentially stable value or React re-renders forever, and a
@@ -12,65 +14,16 @@ import { usePlugin } from "@/ui/PluginContext";
  * derive their data from the version instead, which makes the invalidation
  * explicit rather than something the store has to guess at.
  *
- * Scoped to the base folder for the same reason the imperative views scope
- * their listeners: an unscoped subscription fires on every keystroke in any
- * note in the vault.
+ * One counter for the plugin, counting since it loaded, rather than one per
+ * island. Preact subscribes an island after its first paint, and the
+ * cache's `changed` lands a few milliseconds after a write, so a counter
+ * that only started counting on subscribe missed a write made just before
+ * the island opened, and showed pre-write data until some unrelated change.
+ * This one has already counted it: useSyncExternalStore compares the
+ * snapshot when it subscribes, and catches up.
  */
 export function useVaultVersion(): number {
-	const plugin = usePlugin();
-
-	// Held outside React so `subscribe` and `getSnapshot` can both reach it
-	// without either being recreated per render.
-	const state = useRef({ version: 0 });
-
-	const subscribe = useCallback(
-		(onChange: () => void) => {
-			const bump = () => {
-				state.current.version += 1;
-				onChange();
-			};
-			const inScope = (path: string) =>
-				path.startsWith(plugin.settings.baseFolder + "/");
-
-			const vault = plugin.app.vault;
-			const vaultRefs = [
-				vault.on("modify", (f) => inScope(f.path) && bump()),
-				vault.on("create", (f) => inScope(f.path) && bump()),
-				vault.on("delete", (f) => inScope(f.path) && bump()),
-				vault.on(
-					"rename",
-					(f, old) => (inScope(f.path) || inScope(old)) && bump()
-				),
-			];
-			// The vault event fires when bytes hit disk; the metadata cache
-			// reindexes a moment later. Almost everything here reads through
-			// that cache, so a re-read triggered only by the vault event can
-			// land on the old frontmatter and show a stale row. Listening to
-			// both means the last word always comes from a reindexed cache.
-			const cache = plugin.app.metadataCache;
-			const cacheRef = cache.on(
-				"changed",
-				(file) => inScope(file.path) && bump()
-			);
-
-			// Settings feed rendering as much as the files do — a changed sort
-			// or folder has to invalidate too. Detached through its own
-			// emitter: each Events instance keeps its own handler map, so
-			// `vault.offref` would silently fail to remove this one.
-			const settingsRef = plugin.events.on("settings-changed", bump);
-
-			return () => {
-				vaultRefs.forEach((ref) => vault.offref(ref));
-				cache.offref(cacheRef);
-				plugin.events.offref(settingsRef);
-			};
-		},
-		[plugin]
-	);
-
-	// Two arguments, not three: preact/compat's useSyncExternalStore has no
-	// server-snapshot parameter, and nothing here server-renders anyway.
-	return useSyncExternalStore(subscribe, () => state.current.version);
+	return useViewRevision(usePlugin().vaultVersion);
 }
 
 /**

@@ -492,6 +492,8 @@ export function normalizeTimezone(raw: string): string | null {
 	const known = ZONES.find((z) => z.id.toLowerCase() === text.toLowerCase());
 	if (known) return known.id;
 	// Anything else is taken only if Intl actually knows it, which is what
-	// makes "Europe/Madrid" work without listing every zone here.
-	return partsIn(text) ? text : null;
+	// makes "Europe/Madrid" work without listing every zone here — in
+	// Intl's own spelling, since it's stored: typed as "europe/madrid" it
+	// used to be kept that way, and label as "madrid".
+	return partsIn(text)?.resolvedOptions().timeZone ?? null;
 }

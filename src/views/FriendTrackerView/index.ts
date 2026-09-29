@@ -68,18 +68,6 @@ export class FriendTrackerView extends ItemView {
 		registerPageRefresh(this, this.plugin, () => void this.refresh(), {
 			scope: (path) => this.plugin.contactOperations.isPersonFile(path),
 		});
-		// Coming back to the page also refreshes: that's what rolls the
-		// birthday countdowns over after midnight. Registered on the page's
-		// own window, which a popout changes.
-		this.registerDomEvent(this.containerEl.doc, "visibilitychange", () => {
-			if (this.containerEl.doc.visibilityState === "visible") {
-				void this.refresh();
-			}
-		});
-		this.registerDomEvent(this.containerEl.win, "focus", () => {
-			void this.refresh();
-		});
-
 		await this.refresh();
 	}
 
@@ -95,6 +83,7 @@ export class FriendTrackerView extends ItemView {
 		const contacts = await this.plugin.contactOperations.getContacts();
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
+		this.tableView.search.hold();
 		container.empty();
 		// The list view handles its own filtering and sorting
 		const tableContainer = container.createDiv();

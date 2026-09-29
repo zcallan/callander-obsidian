@@ -32,5 +32,10 @@ export function capitalize(text: string): string {
 
 /** The first `max` UTF-16 units plus "…" when `text` is longer, else `text`. */
 export function truncate(text: string, max: number): string {
-	return text.length > max ? text.slice(0, max) + "…" : text;
+	if (text.length <= max) return text;
+	// Not between the halves of a surrogate pair: half an emoji renders as
+	// "�".
+	const code = text.charCodeAt(max - 1);
+	const end = code >= 0xd800 && code <= 0xdbff ? max - 1 : max;
+	return text.slice(0, end) + "…";
 }

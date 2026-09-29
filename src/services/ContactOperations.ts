@@ -534,10 +534,11 @@ export class ContactOperations {
 		if (!file.parent) return;
 		const base = safeFileName(name.trim());
 		if (!base) return;
-		await this.app.fileManager.renameFile(
-			file,
-			`${file.parent.path}/${base}.md`
-		);
+		// Already there: renaming a note onto its own path is no rename.
+		const newPath = `${file.parent.path}/${base}.md`;
+		if (newPath !== file.path) {
+			await this.app.fileManager.renameFile(file, newPath);
+		}
 	}
 
 	async ensurePeopleFolder(): Promise<void> {
@@ -941,15 +942,35 @@ export class ContactOperations {
 		await this.writeFrontMatter(file, () => undefined);
 	}
 
+	/** The People folder last said to be missing, so it's said once. */
+	private missingFolderReported: string | null = null;
+
+	/**
+	 * A missing People folder, said once rather than on every read: this
+	 * runs behind the status bar, the reminders and every page refresh, and
+	 * retyping the base folder in settings re-read it on each keystroke.
+	 * Nothing at all before the base folder exists — a fresh install, which
+	 * the dashboard sets up when it first opens.
+	 */
+	private reportMissingPeopleFolder() {
+		const path = this.getPeopleFolderPath();
+		const base = normalizePath(this.plugin.settings.baseFolder);
+		if (!this.app.vault.getFolderByPath(base)) return;
+		if (this.missingFolderReported === path) return;
+		this.missingFolderReported = path;
+		new Notice("Callander People folder not found.");
+	}
+
 	async getContacts(): Promise<ContactWithCountdown[]> {
 		const folder = this.app.vault.getFolderByPath(
 			this.getPeopleFolderPath()
 		);
 
 		if (!folder) {
-			new Notice("Callander People folder not found.");
+			this.reportMissingPeopleFolder();
 			return [];
 		}
+		this.missingFolderReported = null;
 
 		const files = folder.children.filter(
 			(file) => file instanceof TFile

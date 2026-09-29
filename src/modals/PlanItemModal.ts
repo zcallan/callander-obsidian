@@ -1,4 +1,4 @@
-import { App, setIcon } from "obsidian";
+import { App } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import { guardedAction } from "@/components/guardedAction";
 import {
@@ -15,6 +15,7 @@ import {
 } from "@/modals/scheduleFields";
 import { CONFIRM_PREVIEW_CHARS, confirmThenClose } from "@/modals/ConfirmModal";
 import { truncate } from "@/utils/text";
+import { appendModalAccordion } from "@/components/modalAccordion";
 
 export interface PlanItemValue {
 	category: PlanIdeaCategory;
@@ -170,27 +171,11 @@ export class PlanItemModal extends FormModal {
 
 		// Additional details — the same accordion the event modal uses, so
 		// the form leads with what/category/when and folds the rest away.
-		const detailsWrap = form.createDiv({
-			cls: "callander-modal-field plan-accordion callander-modal-accordion",
-		});
-		const detailsHeader = detailsWrap.createDiv({
-			cls: "plan-accordion-header callander-modal-accordion-header",
-		});
-		detailsHeader.createSpan({ text: "Additional details" });
-		setIcon(
-			detailsHeader.createSpan({ cls: "plan-accordion-chevron" }),
-			"chevron-down"
-		);
-		const detailsBody = detailsWrap.createDiv({
-			cls: "plan-accordion-body",
-		});
-		detailsHeader.addEventListener("click", () => {
-			detailsWrap.toggleClass("is-open", !detailsWrap.hasClass("is-open"));
-		});
+		const details = appendModalAccordion(form);
+		const detailsBody = details.body;
 		// An edit that already has any of these opens showing them, rather
 		// than hiding saved detail behind a closed lid.
-		detailsWrap.toggleClass(
-			"is-open",
+		details.setOpen(
 			!!(this.source?.people || this.source?.cost || this.source?.notes)
 		);
 

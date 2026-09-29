@@ -11,6 +11,7 @@ import {
 	monthGrid,
 	monthLabel,
 	shortTime,
+	showsPlanRange,
 	type SpanRun,
 	visibleSlots,
 	weekGrid,
@@ -603,10 +604,13 @@ function appendNameBar(
 	const own = splitLeadingEmoji(item.name);
 	bar.createDiv({ cls: "cal-name-text", text: own ? own.rest : item.name });
 	if (!board.opts.hideDateTime) {
+		// The same rule as appendChip's: a trip's last day, alone in the
+		// next week's row, still says which days it covers.
+		const range = showsPlanRange(item.kind === "plan", days, span);
 		const meta = calendarChipMeta(
 			item.glyph,
-			span ? planSpanLabel(days) : item.when,
-			span || item.when ? "" : item.people
+			range ? planSpanLabel(days) : item.when,
+			range || item.when ? "" : item.people
 		);
 		if (meta) bar.createDiv({ cls: "cal-name-meta", text: meta });
 	}
@@ -836,7 +840,7 @@ function appendChip(
 	const weekDetail = board.opts.state.mode === "week" && !span;
 	// A plan's days, where it's a chip rather than a bar across them — a
 	// week of rows draws it on each day, and its range is the useful fact.
-	const range = span || (item.kind === "plan" && days.length > 1);
+	const range = showsPlanRange(item.kind === "plan", days, !!span);
 	// The month display setting drops the whole second line, plan bars
 	// included: their day range is what it shows there, and hiding it is
 	// the same "just the name and colour" ask as for anything else.

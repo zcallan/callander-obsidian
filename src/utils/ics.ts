@@ -43,13 +43,23 @@ export function birthdayCalendar(
 	];
 
 	let count = 0;
+	const uids = new Set<string>();
 	for (const c of people) {
 		const parsed = parseFlexDate(c.birthday);
 		// A calendar event needs a month and a day
 		if (!parsed || parsed.month === null || parsed.day === null) {
 			continue;
 		}
-		const uidBase = c.basename.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+		let uidBase = c.basename.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+		// A name with nothing ASCII in it ("李雷") slugs to "-", and two
+		// can slug alike ("Zoë", "Zoé"), after which a calendar keeps only
+		// one of them. Those get a tag from the full name on the end;
+		// everyone else's UID stays exactly as it was, so re-importing
+		// doesn't duplicate them.
+		if (/^-*$/.test(uidBase) || uids.has(uidBase)) {
+			uidBase = `${uidBase}${nameTag(c.basename)}`;
+		}
+		uids.add(uidBase);
 
 		// The next occurrence only — one year of coverage. Through the rule
 		// the dashboard counts down by, so 29 February is 1 March in a
@@ -80,4 +90,18 @@ export function birthdayCalendar(
 	}
 	lines.push("END:VCALENDAR");
 	return { ics: lines.join("\r\n"), count };
+}
+
+// FNV-1a's 32-bit offset basis and prime.
+const FNV_OFFSET_32 = 0x811c9dc5;
+const FNV_PRIME_32 = 0x01000193;
+
+/** A short tag for a name, the same every export, so the same person
+ * always gets the same UID. */
+function nameTag(name: string): string {
+	let h = FNV_OFFSET_32;
+	for (let i = 0; i < name.length; i++) {
+		h = Math.imul(h ^ name.charCodeAt(i), FNV_PRIME_32) >>> 0;
+	}
+	return h.toString(36);
 }

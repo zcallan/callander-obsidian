@@ -1,4 +1,4 @@
-import { App, setIcon } from "obsidian";
+import { App } from "obsidian";
 import { guardedAction } from "@/components/guardedAction";
 import { FormModal } from "@/modals/FormModal";
 import { renderCategoryChips } from "@/components/categoryChips";
@@ -15,9 +15,10 @@ import {
 	type DurationFieldHandle,
 	type HourRangeHandle,
 } from "@/modals/scheduleFields";
-import { stayRange } from "@/utils/planFormat";
+import { costFromInput, stayRange } from "@/utils/planFormat";
 import { wholeDaysBetween } from "@/utils/dates";
 import { truncate } from "@/utils/text";
+import { appendModalAccordion } from "@/components/modalAccordion";
 
 export interface PlanSimpleItemValue {
 	text: string;
@@ -83,7 +84,11 @@ export class PlanSimpleItemModal extends FormModal {
 		/** Category names known to this plan, offered for reuse. */
 		private knownCategories: string[] = [],
 		/** Removes a category from the plan and every stay carrying it. */
-		private onDeleteCategory?: (category: string) => Promise<void>
+		private onDeleteCategory?: (category: string) => Promise<void>,
+		/** A new item's day, from the empty-day row it was started on. Not
+		 * `initial`, which makes the form an edit: "Save" rather than
+		 * "Add", and no focus in the name. */
+		private prefill: { date?: string } | null = null
 	) {
 		super(app);
 		this.categories = [...(initial?.categories ?? [])];
@@ -250,7 +255,7 @@ export class PlanSimpleItemModal extends FormModal {
 			? appendScheduleFields(
 					contentEl,
 					{
-						date: this.initial?.date,
+						date: this.initial?.date ?? this.prefill?.date,
 						time: this.initial?.time,
 						people: this.initial?.people,
 					},
@@ -413,29 +418,10 @@ export class PlanSimpleItemModal extends FormModal {
 			// idea does — what/kind/when/booking (and an address, or a
 			// duration) is the form, and the rest is detail you fill in
 			// when you have it.
-			const detailsWrap = contentEl.createDiv({
-				cls: "callander-modal-field plan-accordion callander-modal-accordion",
-			});
-			const detailsHeader = detailsWrap.createDiv({
-				cls: "plan-accordion-header callander-modal-accordion-header",
-			});
-			detailsHeader.createSpan({ text: "Additional details" });
-			setIcon(
-				detailsHeader.createSpan({ cls: "plan-accordion-chevron" }),
-				"chevron-down"
-			);
-			const detailsBody = detailsWrap.createDiv({
-				cls: "plan-accordion-body",
-			});
-			detailsHeader.addEventListener("click", () => {
-				detailsWrap.toggleClass(
-					"is-open",
-					!detailsWrap.hasClass("is-open")
-				);
-			});
+			const details = appendModalAccordion(contentEl);
+			const detailsBody = details.body;
 			// Opens showing saved detail rather than hiding it behind a lid.
-			detailsWrap.toggleClass(
-				"is-open",
+			details.setOpen(
 				!!(
 					this.initial?.checkIn ||
 					this.initial?.checkOut ||
@@ -502,12 +488,7 @@ export class PlanSimpleItemModal extends FormModal {
 				const address = addressInput?.value.trim() ?? "";
 				const notes = notesInput?.value.trim() ?? "";
 				// Blank stays unknown; an explicit 0 is kept as "free".
-				const costStr = costInput.value.trim();
-				const costNum = Number(costStr);
-				const cost =
-					costStr !== "" && Number.isFinite(costNum) && costNum >= 0
-						? costNum
-						: undefined;
+				const cost = costFromInput(costInput.value) ?? undefined;
 				await this.onSubmit({
 					text,
 					...(this.type && !this.stay && { type: this.type }),

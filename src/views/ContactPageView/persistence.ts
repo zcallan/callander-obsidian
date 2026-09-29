@@ -248,8 +248,11 @@ async function readInto(
 ): Promise<void> {
 	const file = model.file;
 	if (!file) return;
-	const yamlMatch = content.match(/^---\n([\s\S]*?)\n---/);
-	const parsed: unknown = yamlMatch ? parseYaml(yamlMatch[1]) : {};
+	// Split as every body write splits it: CRLF too, which a regex of the
+	// page's own used to miss, leaving it on "No contact data available".
+	const split = splitFrontmatter(content);
+	const parsed: unknown =
+		split.frontmatter === null ? {} : parseYaml(split.frontmatter);
 	const fresh = toContactFrontmatter(parsed);
 	// What the page changed since it last read or wrote the note and
 	// hasn't saved: kept on top of the note as it is now. Nothing, on a
@@ -265,7 +268,7 @@ async function readInto(
 	const { kind } = model;
 	// Quotes live in the body; the same read serves both, so this costs
 	// no extra I/O.
-	let body = splitFrontmatter(content).body;
+	let body = split.body;
 	if (kind === "plan" && rescueDraftsFromNotes(body) !== body) {
 		body = await rescuePlanDrafts(ctx, model, file);
 		if (!stillWanted()) return;

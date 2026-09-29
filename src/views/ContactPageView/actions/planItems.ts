@@ -61,11 +61,9 @@ export function planScheduleOptions(
 /**
  * Add (index null) or edit a travel leg.
  *
- * `date` prefills the day for a new leg, from the empty-day rows. Unlike
- * PlanItemModal there's no separate prefill slot here, so it goes in
- * through `initial` — which is also what picks the travel type, so the
- * first type has to be named explicitly or a prefilled Add would open
- * untyped where a blank one opens on Car.
+ * `date` prefills the day for a new leg, from the empty-day rows. It rides
+ * in as a prefill rather than as `initial`, so the form still reads as an
+ * Add, and opens on the first travel type as a blank one does.
  */
 export function openPlanTravelModal(
 	ctx: PageContext,
@@ -89,8 +87,6 @@ export function openPlanTravelModal(
 					notes: item.notes,
 					cost: item.cost,
 			  }
-			: date
-			? { text: "", type: TRAVEL_TYPES[0]?.id, date }
 			: null,
 		async (value) => {
 			const current = PlanOperations.simpleListOf(
@@ -120,7 +116,12 @@ export function openPlanTravelModal(
 					await saveModel(ctx, model);
 					ctx.render();
 			  },
-		planScheduleOptions(ctx, model)
+		planScheduleOptions(ctx, model),
+		// Not a stay, so no stay categories.
+		false,
+		[],
+		undefined,
+		item ? null : { date }
 	).open();
 }
 

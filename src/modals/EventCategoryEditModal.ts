@@ -50,6 +50,26 @@ export class EventCategoryEditModal extends FormModal {
 			attr: { type: "text" },
 		});
 		nameInput.value = this.categoryName;
+		// Another category's name merges the two, which the rename already
+		// does — said beforehand rather than found out afterwards.
+		const note = nameField.createDiv({ cls: "section-helper-text" });
+		note.hide();
+		const mergeTarget = (name: string) =>
+			name.toLowerCase() === this.categoryName.toLowerCase()
+				? undefined
+				: this.allCategories.find(
+						(c) => c.toLowerCase() === name.toLowerCase()
+				  );
+		nameInput.addEventListener("input", () => {
+			const target = mergeTarget(nameInput.value.trim());
+			note.setText(
+				target
+					? `Saving merges this into "${target}", which keeps its own color`
+					: ""
+			);
+			if (target) note.show();
+			else note.hide();
+		});
 
 		const colorField = contentEl.createDiv({ cls: "callander-modal-field" });
 		colorField.createEl("label", { text: "Color" });
@@ -97,6 +117,7 @@ export class EventCategoryEditModal extends FormModal {
 				const name = nameInput.value.trim();
 				if (!name) return;
 				const renamed = name.toLowerCase() !== this.categoryName.toLowerCase();
+				const merging = mergeTarget(name) !== undefined;
 				if (renamed) {
 					await this.plugin.eventOperations.renameCategory(
 						this.categoryName,
@@ -104,10 +125,15 @@ export class EventCategoryEditModal extends FormModal {
 					);
 					delete colors.categories[this.categoryName.toLowerCase()];
 				}
-				const picked = swatches.getColor();
-				const newKey = name.toLowerCase();
-				if (picked) colors.categories[newKey] = picked;
-				else delete colors.categories[newKey];
+				// Merged into a category that already has its colour: the
+				// swatches show this one's, and writing them would repaint,
+				// or reset, the other's on every event and calendar.
+				if (!merging) {
+					const picked = swatches.getColor();
+					const newKey = name.toLowerCase();
+					if (picked) colors.categories[newKey] = picked;
+					else delete colors.categories[newKey];
+				}
 				await this.plugin.saveSettings();
 				this.onDone({ deleted: false, name });
 				this.close();

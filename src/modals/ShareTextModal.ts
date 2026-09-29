@@ -1,5 +1,12 @@
-import { App } from "obsidian";
+import { App, Notice } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
+import {
+	buildExpenseShareText,
+	shareDefaultsFor,
+	shareFieldsFor,
+	type ExpenseShareInput,
+	type ExpenseShareScope,
+} from "@/utils/expenseShare";
 
 /** One toggle in a share sheet. */
 export interface ShareField<D> {
@@ -120,4 +127,34 @@ export class ShareTextModal<
 	private refresh() {
 		this.preview.value = this.build(this.detail);
 	}
+}
+
+/** Put a share sheet's text on the clipboard, and say so. */
+export async function copyShareText(text: string): Promise<void> {
+	await navigator.clipboard.writeText(text);
+	new Notice("📋 Copied — ready to paste as text");
+}
+
+/**
+ * Costs as text, at whatever scope the caller opened it from — one
+ * expense, one person, or the lot; a plan's or the dashboard's own.
+ *
+ * `read` runs again each time a toggle flips, so the preview follows an
+ * edit made in another pane rather than a snapshot taken when the sheet
+ * opened.
+ */
+export function openExpenseShare(
+	app: App,
+	scope: ExpenseShareScope,
+	read: () => Omit<ExpenseShareInput, "scope">
+): void {
+	new ShareTextModal(
+		app,
+		shareFieldsFor(scope),
+		shareDefaultsFor(scope),
+		(detail) => buildExpenseShareText({ scope, ...read() }, detail),
+		copyShareText,
+		// One expense is a handful of lines.
+		{ short: scope.kind === "expense" }
+	).open();
 }

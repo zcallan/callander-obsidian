@@ -162,7 +162,7 @@ export class AddPlanMemberModal extends FormModal {
 
 		searchInput.addEventListener("input", renderResults);
 		searchInput.addEventListener("keydown", (e) => {
-			if (e.key !== "Enter") return;
+			if (e.key !== "Enter" || e.isComposing) return;
 			e.preventDefault();
 			const raw = searchInput.value.trim();
 			const matches = filtered(raw.toLowerCase());

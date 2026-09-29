@@ -159,7 +159,6 @@ export function eventsByDay<T>(
 	return byDay;
 }
 
-/** A span's run of days within one week row. */
 /**
  * How many of `count` things to show in `capacity` slots: all of them when
  * they fit, else one slot fewer, so the last can say "+N" instead.
@@ -174,6 +173,21 @@ export function isPastDays(days: readonly string[], today: string): boolean {
 	return days[days.length - 1] < today;
 }
 
+/**
+ * Whether a plan's chip gives its days rather than a time: always on a bar
+ * across the squares, and in a single square too when the plan runs longer
+ * than that one day — the Monday tail of a Sunday-to-Monday trip, or each
+ * day of a week view, where the range is still the useful fact.
+ */
+export function showsPlanRange(
+	isPlan: boolean,
+	days: readonly string[],
+	isBar: boolean
+): boolean {
+	return isBar || (isPlan && days.length > 1);
+}
+
+/** A span's run of days within one week row. */
 export interface SpanRun {
 	/** Days of the span this row holds — the columns the bar covers. */
 	length: number;

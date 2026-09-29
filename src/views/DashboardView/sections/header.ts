@@ -28,14 +28,14 @@ export function renderHeader(ctx: DashboardContext, container: HTMLElement) {
 	const searchWrap = container.createDiv({
 		cls: "dashboard-search",
 	});
-	const searchInput = searchWrap.createEl("input", {
-		attr: { type: "text", placeholder: "Find a friend…" },
+	ctx.searchBox.build(searchWrap, {
+		placeholder: "Find a friend…",
 		cls: "contact-field-input",
-	});
-	searchInput.value = ctx.ui.searchQuery;
-	searchInput.addEventListener("input", () => {
-		ctx.ui.searchQuery = searchInput.value;
-		renderFriendList(ctx, friendList);
+		value: ctx.ui.searchQuery,
+		onInput: (value) => {
+			ctx.ui.searchQuery = value;
+			renderFriendList(ctx, friendList);
+		},
 	});
 
 	const friendList = container.createDiv({

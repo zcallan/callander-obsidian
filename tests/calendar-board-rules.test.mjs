@@ -1,5 +1,5 @@
 import { createSuite } from "./harness.mjs";
-import { isPastDays, laneRuns, visibleSlots } from "./.build/callander.mjs";
+import { isPastDays, laneRuns, showsPlanRange, visibleSlots } from "./.build/callander.mjs";
 
 /** The month board's layout rules, moved out of its cell builder. */
 export function run() {
@@ -26,5 +26,14 @@ export function run() {
 	eq("lanes up to the highest used, a gap held empty", on("2026-08-04"), [["trip", false, 2], [null, null, null], ["gig", true, 1]]);
 	eq("the day a run opens", on("2026-08-03")[0], ["trip", true, 3]);
 	eq("no plans, no lanes", laneRuns([], () => 0, new Map(), "2026-08-03", 1), []);
+
+	// A Sunday-to-Monday trip on a Monday-start grid: Monday is a run of one
+	// that doesn't continue, so not a bar — but the plan is two days long.
+	const trip = ["2026-08-02", "2026-08-03"];
+	eq(
+		"a plan's days show on a bar, and on a lone square of a longer plan",
+		[showsPlanRange(true, trip, true), showsPlanRange(true, trip, false), showsPlanRange(true, ["2026-08-03"], false), showsPlanRange(false, trip, false)],
+		[true, true, false, false]
+	);
 	return result();
 }

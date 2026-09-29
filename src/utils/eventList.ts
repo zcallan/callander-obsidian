@@ -65,11 +65,10 @@ export function planPageItem(plan: PlanInfo): EventPageItem {
 		date: plan.date,
 		type: "plan",
 		status: plan.status,
-		// Read as unstamped, though plans do carry created and updated,
-		// so Oldest and Last updated sink them to the end — the same place
-		// an unstamped event goes.
-		created: "",
-		updated: "",
+		// Their own stamps, so Oldest and Last updated sort plans among the
+		// events rather than sinking every one of them to the end.
+		created: plan.created,
+		updated: plan.updated,
 		time: "",
 		location: plan.location,
 		people: plan.members,

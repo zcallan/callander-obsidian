@@ -2,7 +2,7 @@ import { ItemView, WorkspaceLeaf, type TFile } from "obsidian";
 import type { ReactNode } from "react";
 import { ExpensesSection } from "@/ui/sections/ExpensesSection";
 import { UpcomingSection } from "@/ui/sections/UpcomingSection";
-import { registerPageRefresh } from "@/utils/vaultRefresh";
+import { isInFolder, registerPageRefresh } from "@/utils/vaultRefresh";
 import type FriendTracker from "@/main";
 import { applyPageWidth, observePageRoom } from "@/components/pageWidth";
 import { resolveDashboardOrder } from "@/utils/dashboardOrder";
@@ -41,6 +41,7 @@ import {
 	renderCalendarLink,
 	renderSecretActions,
 } from "@/views/DashboardView/sections/tools";
+import { SearchBox } from "@/components/searchBox";
 
 export const VIEW_TYPE_DASHBOARD = "callander-dashboard";
 
@@ -92,6 +93,7 @@ export class DashboardView extends ItemView implements DashboardContext {
 	/** Widened for this view only, until it closes. */
 	private pageWide = false;
 	readonly ui = { searchQuery: "" };
+	readonly searchBox = new SearchBox();
 	// Only used when the Somedays sort is "Random" — fixed for the life of
 	// this dashboard so the list doesn't reshuffle on every refresh.
 	readonly somedaySeed = newRandomSeed();
@@ -150,7 +152,7 @@ export class DashboardView extends ItemView implements DashboardContext {
 		// changed setting is heard too.
 		registerPageRefresh(this, this.plugin, () => void this.refresh(), {
 			scope: (path) =>
-				path.startsWith(this.plugin.settings.baseFolder + "/") ||
+				isInFolder(path, this.plugin.settings.baseFolder) ||
 				this.plugin.diaryOperations.isDiaryFile(path),
 		});
 		await this.refresh();
@@ -185,6 +187,7 @@ export class DashboardView extends ItemView implements DashboardContext {
 	private render() {
 		const container = this.contentEl;
 		const scrollTop = container.scrollTop;
+		this.searchBox.hold();
 		container.empty();
 		container.addClass("dashboard-container", "dashboard-home-container");
 

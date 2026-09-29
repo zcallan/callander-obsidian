@@ -27,6 +27,25 @@ export function isoDay(d: Date): string {
 	return isoDateOf(d.getFullYear(), d.getMonth() + 1, d.getDate());
 }
 
+/**
+ * A check, for an interval, that calls `onNewDay` the first time it runs on
+ * a different local day from the last. Polled rather than timed for 00:00:
+ * a timeout set for midnight drifts across sleep and daylight saving, where
+ * comparing the date each minute can't.
+ */
+export function newDayCheck(
+	onNewDay: () => void,
+	today: () => string = () => isoDay(new Date())
+): () => void {
+	let last = today();
+	return () => {
+		const now = today();
+		if (now === last) return;
+		last = now;
+		onNewDay();
+	};
+}
+
 /** "07:05" from an hour and minute. */
 export function hhmm(hour: number, minute: number): string {
 	return `${pad2(hour)}:${pad2(minute)}`;
@@ -58,14 +77,31 @@ export function wholeDaysBetween(from: Date, to: Date): number {
  * MAX_DAY_WALK days.
  */
 export function isoDaysBetween(startISO: string, endISO: string): string[] {
-	const days: string[] = [];
 	const d = new Date(`${startISO}T00:00:00`);
 	const end = new Date(`${endISO}T00:00:00`);
-	if (isNaN(d.getTime()) || isNaN(end.getTime()) || end < d) return days;
-	let guard = 0;
-	while (d <= end && guard++ < MAX_DAY_WALK) {
-		days.push(isoDay(d));
-		d.setDate(d.getDate() + 1);
+	if (isNaN(d.getTime()) || isNaN(end.getTime()) || end < d) return [];
+	return isoDaysFrom(d, end);
+}
+
+/**
+ * Every local day from `start` to `end`, both included, as YYYY-MM-DD — at
+ * most `max` of them.
+ *
+ * Each day is made from the start's date plus i, and compared as a day
+ * rather than as a moment. Stepped with setDate from the day before, a walk
+ * in a zone whose daylight-saving change falls at midnight (Santiago, say)
+ * lands on 01:00 once it passes the change, and the last day then compared
+ * later than `end` and was dropped.
+ */
+export function isoDaysFrom(start: Date, end: Date, max = MAX_DAY_WALK): string[] {
+	const last = isoDay(end);
+	const days: string[] = [];
+	for (let i = 0; i < max; i++) {
+		const day = isoDay(
+			new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
+		);
+		if (day > last) break;
+		days.push(day);
 	}
 	return days;
 }

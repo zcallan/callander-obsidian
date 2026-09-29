@@ -4,7 +4,8 @@ import type { App, EventRef, Events } from "obsidian";
 export interface RefreshHost {
 	app: App;
 	settings: { baseFolder: string };
-	/** The plugin's broadcast; "settings-changed" fires after every save. */
+	/** The plugin's broadcast: "settings-changed" fires after every save,
+	 * "day-changed" when the local date turns over. */
 	events: Events;
 }
 
@@ -49,8 +50,7 @@ export function registerVaultRefresh(
 	}: { delay?: number; scope?: (path: string) => boolean } = {}
 ): void {
 	const inScope =
-		scope ??
-		((path: string) => path.startsWith(plugin.settings.baseFolder + "/"));
+		scope ?? ((path: string) => isInFolder(path, plugin.settings.baseFolder));
 
 	let timer: number | null = null;
 	const schedule = (path: string) => {
@@ -83,9 +83,11 @@ export function registerVaultRefresh(
 }
 
 /**
- * A page's whole refresh wiring: settings changes, which are read at render
- * time and so have to be heard, plus registerVaultRefresh. The pair CLAUDE.md
- * says always go together, in one call.
+ * A page's whole refresh wiring: settings changes and the day turning over,
+ * which are both read at render time and so have to be heard, plus
+ * registerVaultRefresh. The pair CLAUDE.md says always go together, in one
+ * call. Without the day, a page left open overnight kept yesterday's
+ * "Today" until something in the vault happened to change.
  */
 export function registerPageRefresh(
 	view: Registrar,
@@ -94,10 +96,22 @@ export function registerPageRefresh(
 	options: { scope?: (path: string) => boolean } = {}
 ): void {
 	view.registerEvent(plugin.events.on("settings-changed", refresh));
+	view.registerEvent(plugin.events.on("day-changed", refresh));
 	registerVaultRefresh(view, plugin, refresh, options);
 }
 
 /** A scope for registerVaultRefresh: any of these folders, or inside one. */
 export function inFolders(...folders: string[]): (path: string) => boolean {
-	return (path) => folders.some((f) => path === f || path.startsWith(f + "/"));
+	return (path) => folders.some((f) => isInFolder(path, f));
+}
+
+/**
+ * Whether `path` is `folder` or inside it. The vault root — offered by the
+ * folder picker, and what an emptied setting becomes — holds everything:
+ * checked as `startsWith("/" + "/")` it matched nothing, and every page
+ * stopped refreshing.
+ */
+export function isInFolder(path: string, folder: string): boolean {
+	const f = folder.replace(/\/+$/, "");
+	return f === "" || path === f || path.startsWith(f + "/");
 }

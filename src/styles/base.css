@@ -843,15 +843,19 @@ body.callander-kb-open .callander-modal-buttons {
 	position: static;
 }
 
-/* Destructive modal action — reads as danger even on mobile (no hover) */
+/* Destructive modal action — reads as danger even on mobile (no hover).
+   Through --text-color, the variable Obsidian's own button rule colours its
+   text from, as button.mod-destructive does: set as `color`, this (0,1,0)
+   lost to `button:not(.clickable-icon)` (0,1,1), and Delete looked like
+   any other button until hovered. */
 .callander-modal-button-danger {
-	color: var(--text-error);
+	--text-color: var(--text-error);
 	margin-right: auto;
 }
 
 .callander-modal-button-danger:hover {
 	background-color: var(--background-modifier-error);
-	color: var(--text-on-accent);
+	--text-color: var(--text-on-accent);
 }
 
 /* Update modal button styles */
@@ -3705,7 +3709,11 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 /* Wide enough for chips: the dots and the day list are the narrow answer
    and stay out of the way. */
-@container (min-width: 621px) {
+/* `width > 620px` rather than `min-width: 621px`, the exact complement of
+   the `max-width: 620px` queries: a fractional width between the two, easy
+   at a zoom level or with a dragged sidebar, matched neither, and chips,
+   dots and the day list all drew at once. */
+@container (width > 620px) {
 	.cal-dots,
 	.cal-agenda {
 		display: none;
@@ -4657,6 +4665,20 @@ body.is-mobile.callander-kb-open .modal-content > * {
 
 .modal.ft-modal-shake {
 	animation: callander-modal-shake 0.28s ease;
+}
+
+/* Without the movement, a flash of the focus ring's colour: the click was
+   still refused, and it should still say so. */
+@keyframes callander-modal-nudge {
+	50% {
+		box-shadow: 0 0 0 3px var(--background-modifier-border-focus);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.modal.ft-modal-shake {
+		animation: callander-modal-nudge 0.28s ease;
+	}
 }
 
 .plan-timeline-footer {
@@ -6182,8 +6204,11 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 }
 
 /* "Show N more" under a long category list — a quiet text link, so it
-   reads as part of the list rather than as another option. */
-.fullcal-drawer-more {
+   reads as part of the list rather than as another option. Under the
+   drawer to outrank `button:not(.clickable-icon)` (0,1,1): alone, at
+   (0,1,0), it took Obsidian's fill and shadow at rest and only went flat
+   when hovered, the reverse of a link. */
+.fullcal-drawer .fullcal-drawer-more {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
@@ -6198,9 +6223,8 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 	cursor: pointer;
 }
 
-.fullcal-drawer-more:hover {
+.fullcal-drawer .fullcal-drawer-more:hover {
 	color: var(--text-normal);
-	background: none;
 }
 
 .fullcal-drawer-more-icon {
@@ -7032,4 +7056,18 @@ rebuild's show() only clears an inline `display`, and there isn't one here.
 
 .calendar-colors-where {
 	margin-top: 6px;
+}
+
+/* Keyboard focus for the buttons that drop Obsidian's shadow. Each one's
+   `box-shadow: none` sits at (0,2,0), above Obsidian's own ring on
+   `button:focus-visible` (0,1,1), so Tab landed on them and showed nothing.
+   The ring is Obsidian's, repeated. */
+.friend-list-container .callander-button:focus-visible,
+.dashboard-friend-list .dashboard-friend-chip-all:focus-visible,
+.someday-results-head .someday-clear-button:focus-visible,
+.dashboard-getting-started .getting-started-hide:focus-visible,
+.event-import-modal .event-import-copy:focus-visible,
+.calendar-colors-modal .callander-color-swatch:focus-visible,
+.fullcal-drawer .fullcal-drawer-more:focus-visible {
+	box-shadow: 0 0 0 3px var(--background-modifier-border-focus);
 }

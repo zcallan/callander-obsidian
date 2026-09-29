@@ -1,7 +1,10 @@
 import { App, Notice } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
-import { createRelationshipInput } from "@/components/ContactFields";
+import {
+	createRelationshipInput,
+	rememberRelationshipType,
+} from "@/components/ContactFields";
 import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { todayISO } from "@/utils/flexdate";
@@ -155,12 +158,12 @@ export class AddContactModal extends FormModal {
 			attr: { type: "button" },
 		});
 		addGroupChip.addEventListener("click", () => {
-			new GroupModal(this.app, this.plugin, null, async (name) => {
+			new GroupModal(this.app, this.plugin, null, async (name, color) => {
 				if (!name) return;
-				const created = ops
-					.getGroupInfos()
-					.find((i) => i.name === name);
-				colorOf.set(name, created?.color ?? "");
+				// From the form, not getGroupInfos: that reads the colour
+				// back from frontmatter the cache hasn't indexed yet, and
+				// the new chip came out with no dot.
+				colorOf.set(name, color ?? null);
 				displayOf.set(
 					name,
 					ops.groupDisplayNames().get(name) ??
@@ -206,25 +209,11 @@ export class AddContactModal extends FormModal {
 						);
 				}
 				if (relationshipInput.value) {
-					const relationship = relationshipInput.value.toLowerCase();
 					data.relationship = relationshipInput.value.toLowerCase();
-					// Add new relationship type to settings if it doesn't exist
-					if (
-						!this.plugin.settings.relationshipTypes.includes(
-							relationship,
-						)
-					) {
-						// Remove any duplicates (case-insensitive) before adding
-						this.plugin.settings.relationshipTypes = [
-							...new Set(
-								this.plugin.settings.relationshipTypes.filter(
-									(type) => type.toLowerCase() !== relationship,
-								),
-							),
-							relationship,
-						];
-						void this.plugin.saveSettings();
-					}
+					rememberRelationshipType(
+						this.plugin,
+						relationshipInput.value
+					);
 				}
 
 				if (data.name) await this.onSubmit(data);

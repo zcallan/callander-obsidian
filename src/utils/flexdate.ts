@@ -330,7 +330,11 @@ export function formatTimeSince(date: FlexDate, now = new Date()): string {
 		return `${formatCount(years, "year")} ago`;
 	}
 
-	const months = (nowYear - date.year) * 12 + (nowMonth - date.month);
+	// A known day counts: 30 September to 1 September is 11 months, not
+	// the 12 the calendar months alone would say.
+	const shortOfDay = date.day !== null && now.getDate() < date.day ? 1 : 0;
+	const months =
+		(nowYear - date.year) * 12 + (nowMonth - date.month) - shortOfDay;
 	if (months < 1) return "this month";
 	if (months < 12) {
 		return `${formatCount(months, "month")} ago`;

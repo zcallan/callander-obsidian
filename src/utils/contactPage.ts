@@ -12,8 +12,60 @@ import {
 } from "@/constants";
 import type { Idea, Interest } from "@/types";
 import { isoDateOf, wholeDaysBetween } from "@/utils/dates";
+import { toText } from "@/utils/fm";
 import { isExactFlexDate, parseFlexDate } from "@/utils/flexdate";
 import { formatPlanDateRange } from "@/utils/planShare";
+
+/**
+ * Whether About gives a value a row: anything but a blank. 0 and false are
+ * answers — a custom `pets: 0` or `vegetarian: false` was hidden as if it
+ * had never been filled in.
+ */
+export function isFilledField(value: unknown): boolean {
+	if (value === null || value === undefined) return false;
+	if (typeof value === "string") return value.trim() !== "";
+	if (Array.isArray(value)) return value.some(isFilledField);
+	return true;
+}
+
+/** A field's value as About's text box edits it: a list as one
+ * comma-separated line, a number or a yes/no as its word. */
+export function fieldEditText(value: unknown): string {
+	if (Array.isArray(value)) {
+		return value.map(toText).filter(Boolean).join(", ");
+	}
+	return toText(value);
+}
+
+/**
+ * The box's text back as the value to store, in the shape the field had.
+ * A list stays a list and a number a number, while the text still reads as
+ * one — editing `nicknames: [Bob, Bobby]` used to flatten it to a string,
+ * after showing it as an empty box.
+ */
+export function fieldEditValue(
+	text: string,
+	previous: unknown
+): string | string[] | number | boolean {
+	if (Array.isArray(previous)) {
+		return text
+			.split(",")
+			.map((s) => s.trim())
+			.filter(Boolean);
+	}
+	const trimmed = text.trim();
+	if (
+		typeof previous === "number" &&
+		trimmed !== "" &&
+		Number.isFinite(Number(trimmed))
+	) {
+		return Number(trimmed);
+	}
+	if (typeof previous === "boolean" && /^(true|false)$/i.test(trimmed)) {
+		return trimmed.toLowerCase() === "true";
+	}
+	return text;
+}
 
 /** "today", "yesterday", "12 days ago", or past a month the date itself. */
 export function lastUpdatedLabel(mtime: Date, now: Date): string {

@@ -5,7 +5,6 @@ import type FriendTracker from "@/main";
 import type { ContactWithCountdown } from "@/types";
 import { createFlexDateInput } from "@/components/FlexDateInput";
 import { todayISO } from "@/utils/flexdate";
-import { capitalize } from "@/utils/text";
 
 /**
  * Log one event onto several friends' timelines at once —
@@ -39,10 +38,14 @@ export class GroupEventModal extends FormModal {
 			groupRow.createEl("label", { text: "Check a whole group" });
 			const select = groupRow.createEl("select", { cls: "dropdown" });
 			select.createEl("option", { value: "", text: "— pick a group —" });
+			// The group page's own spelling ("Run Club"), as everywhere
+			// else, rather than capitalising the key ("Run club").
+			const ops = this.plugin.contactOperations;
+			const labels = ops.groupDisplayNames();
 			groupNames.forEach((g) =>
 				select.createEl("option", {
 					value: g,
-					text: capitalize(g),
+					text: labels.get(g) ?? ops.prettyGroupName(g),
 				})
 			);
 			select.addEventListener("change", () => {

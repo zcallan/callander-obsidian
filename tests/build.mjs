@@ -8,7 +8,7 @@
  */
 
 import esbuild from "esbuild";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -37,7 +37,10 @@ export async function buildTestBundle() {
 	return BUNDLE;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Through pathToFileURL, not `file://` + the path: that spelling never
+// matched on Windows or under a path with a space in it, and a direct run
+// quietly did nothing.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await buildTestBundle();
 	console.log(`built ${path.relative(root, BUNDLE)}`);
 }

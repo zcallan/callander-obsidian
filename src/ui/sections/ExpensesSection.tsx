@@ -7,6 +7,7 @@ import { resolvePeopleNames } from "@/utils/people";
 import { shortNameOverrides } from "@/utils/nameFormat";
 import { ExpenseModal } from "@/modals/ExpenseModal";
 import { ExpenseViewModal } from "@/modals/ExpenseViewModal";
+import { openExpenseShare } from "@/modals/ShareTextModal";
 import { usePlugin } from "@/ui/PluginContext";
 import { useVaultQuery } from "@/ui/useVaultData";
 import { Icon } from "@/ui/components/Icon";
@@ -151,7 +152,16 @@ export function ExpensesSection() {
 			() => editor.remove(),
 			yourName,
 			(changes) => editor.setPaid(changes),
-			shortNames
+			shortNames,
+			// On its own, as a plan's single expense is: its lines against
+			// its own people, with the ticks as they stand now.
+			() =>
+				openExpenseShare(plugin.app, { kind: "expense", index: 0 }, () => ({
+					expenses: [editor.current()],
+					credits: [],
+					participants: participantsFor(expense),
+					yourName,
+				}))
 		).open();
 	};
 

@@ -18,7 +18,7 @@ import {
 } from "@/utils/planFormat";
 import { shortenMemberNames, shortenPeopleList } from "@/utils/nameFormat";
 import { nameWithoutLeadingEmoji, startsWithEmoji } from "@/utils/emoji";
-import { isoDay, localDateOfIso, MAX_DAY_WALK, pad2 } from "@/utils/dates";
+import { isoDaysFrom, localDateOfIso, MAX_DAY_WALK, pad2 } from "@/utils/dates";
 import { bringOf, itemsOf, simpleListOf } from "@/utils/planFields";
 import { timelineOf } from "@/utils/planTimeline";
 
@@ -194,16 +194,7 @@ function planDays(data: Record<string, unknown>): string[] {
 	const end = exact(data.endDate) ?? start;
 	if (end < start) return [];
 
-	const days: string[] = [];
-	const cursor = new Date(start);
-	let guard = 0;
-	while (cursor <= end && guard++ < MAX_DAY_WALK) {
-		days.push(
-			isoDay(cursor)
-		);
-		cursor.setDate(cursor.getDate() + 1);
-	}
-	return days;
+	return isoDaysFrom(start, end, MAX_DAY_WALK);
 }
 
 /**
@@ -466,7 +457,16 @@ export function buildTimelineCalendarUrl(
 			const from = new Date(start);
 			from.setHours(at.hour, at.minute, 0, 0);
 			const minutes = parseDurationMinutes(entry.duration) ?? 60;
-			const to = new Date(from.getTime() + minutes * 60000);
+			// On the wall clock, as eventCalendarUrl works it out: a plan's
+			// times are floating, and a span of milliseconds across the
+			// night the clocks change lands on the wrong hour.
+			const to = new Date(
+				from.getFullYear(),
+				from.getMonth(),
+				from.getDate(),
+				at.hour,
+				at.minute + minutes
+			);
 			dates = `${stamp(from)}/${stamp(to)}`;
 		} else {
 			// No clock time — a whole day, end exclusive.

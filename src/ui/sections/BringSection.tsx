@@ -78,7 +78,7 @@ export function BringSection({
 					type="text"
 					placeholder="Add something to bring..."
 					onKeyDown={(e) => {
-						if (e.key !== "Enter") return;
+						if (e.key !== "Enter" || e.isComposing) return;
 						// Otherwise Enter would submit any form this ends up
 						// inside, with the text still sitting in the box.
 						e.preventDefault();

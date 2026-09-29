@@ -10,6 +10,8 @@ import {
 	formatDurationLabel,
 	formatHourLabel,
 	formatStayHours,
+	costFromInput,
+	formatQuickIdeaDays,
 } from "./.build/callander.mjs";
 
 /**
@@ -287,6 +289,22 @@ export function run() {
 	// Junk can only come from hand-edited frontmatter; it reads as unset
 	// rather than printing itself into the row.
 	eq("an unparseable value is ignored", formatStayHours("garbage", "11:00"), "11am out");
+
+	// A cost typed into a form: blank and nonsense are unknown, 0 is free,
+	// and a minus sign isn't a cost at all.
+	eq(
+		"a typed cost: dollars, free, or nothing",
+		[" 12.5 ", "0", "", "  ", "abc", "-5", "Infinity"].map(costFromInput),
+		[12.5, 0, null, null, null, null, null]
+	);
+
+	// In the order they were toggled, one repeated by hand: listed by date,
+	// once each.
+	eq(
+		"an idea's days in full: in date order, once each",
+		formatQuickIdeaDays(["2026-08-04", "2026-08-02", "2026-08-04"]),
+		"Sunday 2 August · Tuesday 4 August"
+	);
 
 	return result();
 }

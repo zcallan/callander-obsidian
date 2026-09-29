@@ -162,7 +162,9 @@ export function run() {
 		const all = build({ people: true, costs: true });
 		ok("the address is there", all.includes("  14 Profile Road, Franconia, NH"));
 		ok("so are the people", all.includes("  Callan, Cormac"));
-		ok("and the cost", all.includes("  $340.00"));
+		// Written as every share text writes a cost (UB-B14): whole dollars
+		// short, "Free" for nothing.
+		ok("and the cost", all.includes("  $340\n") || all.endsWith("  $340"));
 		// Only the outstanding state earns a line — every stay listed is one
 		// you mean to use, so "Booked" on most of them buries the one that
 		// still needs doing.

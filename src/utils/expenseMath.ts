@@ -62,6 +62,26 @@ export function expenseEditClearsStatus(
 	);
 }
 
+/**
+ * A split's shares with every value a number. Hand-typed or generated YAML
+ * can quote them (`Riley: "25"`), and adding strings concatenates: a $25
+ * share read as owing "$2510.00". Anything that isn't a finite number is
+ * left out; saving the expense again writes the numbers back.
+ */
+function numberRecord(value: Record<string, unknown>): Record<string, number> {
+	const out: Record<string, number> = {};
+	for (const [key, raw] of Object.entries(value)) {
+		const n =
+			typeof raw === "number"
+				? raw
+				: typeof raw === "string" && raw.trim() !== ""
+				? Number(raw)
+				: NaN;
+		if (Number.isFinite(n)) out[key] = n;
+	}
+	return out;
+}
+
 /** How an expense is divided, for display: "By receipt", "Split evenly"… */
 export function splitModeLabel(
 	mode: "even" | "shares" | "percent" | "value" | "receipt"
@@ -111,9 +131,20 @@ export function locateExpense(
 	index: number,
 	expected: Expense
 ): number {
+	return locateEntry(list, index, expected);
+}
+
+/** locateExpense's rule, for any list entry: a credit, say. */
+export function locateEntry<T>(
+	list: readonly T[],
+	index: number,
+	expected: T
+): number {
+	const key = JSON.stringify(canonical(expected));
+	const same = (entry: T) => JSON.stringify(canonical(entry)) === key;
 	const at = list[index];
-	if (at && sameExpense(at, expected)) return index;
-	return list.findIndex((e) => sameExpense(e, expected));
+	if (at !== undefined && same(at)) return index;
+	return list.findIndex(same);
 }
 
 export function expensesOf(metadata: unknown, key = "costs"): Expense[] {
@@ -146,7 +177,7 @@ export function expensesOf(metadata: unknown, key = "costs"): Expense[] {
 							? mode
 							: "even",
 					...(isRecord(shares) && {
-						shares: shares as Record<string, number>,
+						shares: numberRecord(shares),
 					}),
 					...(isRecord(fieldOf(split, "exprs")) && {
 						exprs: fieldOf(split, "exprs") as Record<

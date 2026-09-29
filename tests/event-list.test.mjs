@@ -53,5 +53,17 @@ export function run() {
 		[["Old gig"], ["Brunch"], ["Gig"]]
 	);
 	eq("anyWhen ignores upcoming/past", names({ anyWhen: true }).length, 5);
+
+	// VW-B10: a plan sorts by its own stamps, not as though it had none.
+	const stamped = [
+		eventPageItem(event({ name: "Old event", date: "2026-09-01", updated: "2026-01-05" })),
+		planPageItem({ file: { path: "Plans/Cabin.md" }, name: "Cabin", date: "2026-09-10", endDate: "", status: "planning", location: "", members: [], created: "2026-02-01", updated: "2026-08-01" }),
+		eventPageItem(event({ name: "New event", date: "2026-09-05", updated: "2026-07-01" })),
+	];
+	eq(
+		"a recently edited plan leads Last updated (VW-B10)",
+		eventPipeline(stamped, filters({ when: "all" }), "updated", lookup, now).map((e) => e.name),
+		["Cabin", "New event", "Old event"]
+	);
 	return result();
 }

@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * A revision counter an imperative view owns and React islands inside it
- * subscribe to.
+ * A revision counter React islands subscribe to. The plugin owns one for
+ * the vault (`vaultVersion`, read by useVaultVersion); a view can own one
+ * for data it holds itself.
  *
  * `useVaultVersion` is the right signal for a view that reads the vault
  * directly — the dashboard's sections do, so they need nothing else. The
