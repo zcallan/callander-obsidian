@@ -1464,13 +1464,6 @@ export default class FriendTracker extends Plugin {
 	async loadSettings() {
 		const raw: unknown = await this.loadData();
 		const data: Record<string, unknown> = isRecord(raw) ? raw : {};
-		// Legacy tab ids: "gifts" became "ideas", "interactions" became "events"
-		if (data.defaultActiveTab === "gifts") {
-			data.defaultActiveTab = "ideas";
-		}
-		if (data.defaultActiveTab === "interactions") {
-			data.defaultActiveTab = "events";
-		}
 		// "age" sort split into youngest/eldest
 		if (data.friendListSort === "age") {
 			data.friendListSort = "youngest";

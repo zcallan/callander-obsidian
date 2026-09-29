@@ -1,5 +1,4 @@
 import type { Hemisphere, SomedaySort } from "@/constants";
-import type { ContactWithCountdown } from "@/types/contact";
 import type { GroupColors } from "@/utils/categoryColor";
 import type { EventSort } from "@/utils/eventRow";
 
@@ -11,10 +10,7 @@ export interface FriendTrackerSettings {
 	/** Basename of the note (in the base folder) that opens the Callander
 	 * dashboard and carries the idea inbox in its properties. */
 	dashboardFileName: string;
-	defaultSortColumn: keyof Omit<ContactWithCountdown, "file">;
-	defaultSortDirection: "asc" | "desc";
 	relationshipTypes: string[];
-	defaultActiveTab: "notes" | "events" | "ideas" | "markdown";
 	belatedBirthdayDays: number;
 	/** How many somedays the dashboard's shortlist shows before "+N more" */
 	dashboardSomedayCount: number;
@@ -32,8 +28,6 @@ export interface FriendTrackerSettings {
 	receiptTipEnabled: boolean;
 	showBirthdayReminders: boolean;
 	birthdayReminderDays: number;
-	showMetColumn: boolean;
-	showIdeasColumn: boolean;
 	openContactsInCallanderView: boolean;
 	showStarSign: boolean;
 	showBirthstone: boolean;
@@ -273,10 +267,7 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	baseFolder: "Friends",
 	diaryFolder: "Friends/Diary",
 	dashboardFileName: "Dashboard",
-	defaultSortColumn: "daysUntilBirthday",
-	defaultSortDirection: "asc",
 	relationshipTypes: ["family", "friend", "colleague", "pet"],
-	defaultActiveTab: "notes",
 	belatedBirthdayDays: 14,
 	dashboardSomedayCount: 10,
 	dashboardFriendSuggestionCount: 9,
@@ -286,8 +277,6 @@ export const DEFAULT_SETTINGS: FriendTrackerSettings = {
 	receiptTipEnabled: true,
 	showBirthdayReminders: true,
 	birthdayReminderDays: 7,
-	showMetColumn: false,
-	showIdeasColumn: true,
 	openContactsInCallanderView: true,
 	showStarSign: true,
 	showBirthstone: true,
