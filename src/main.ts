@@ -66,7 +66,7 @@ import { PlanModal } from "@/modals/PlanModal";
 import { EventModal } from "@/modals/EventModal";
 import { todayISO } from "@/utils/flexdate";
 import { MS_PER_HOUR } from "@/utils/dates";
-import { capitalize } from "@/utils/text";
+import { capitalize, formatCount } from "@/utils/text";
 import { BIRTHDAY_ICS_PATH, birthdayCalendar } from "@/utils/ics";
 import { buildYearRecap } from "@/utils/yearRecap";
 import {
@@ -78,6 +78,7 @@ import {
 	upcomingBirthdayDigest,
 } from "@/utils/birthdayReminders";
 import { type SomedayPlanSeed, somedayPlanSeed } from "@/utils/somedayToPlan";
+import { singleFlight } from "@/utils/singleFlight";
 
 /** Mobile keyboard handling, for when the OS won't say how tall it is. */
 const KEYBOARD_FALLBACK_HEIGHT_RATIO = 0.42;
@@ -441,10 +442,10 @@ export default class FriendTracker extends Plugin {
 			// hasn't updated yet.
 			this.registerEvent(
 				this.app.metadataCache.on("resolved", () => {
-					void this.eventMigration.run();
+					void this.runEventMigration();
 				})
 			);
-			await this.eventMigration.run();
+			await this.runEventMigration();
 
 			// Classify anything the reminders→events merge just landed (and
 			// anything older) as a calendar entry or a person's timeline
@@ -728,15 +729,11 @@ export default class FriendTracker extends Plugin {
 		// note. No metadata-cache lookup, so freshly created files route
 		// correctly before they're indexed.
 		return (
-			path.startsWith(
-				this.contactOperations.getPeopleFolderPath() + "/"
-			) ||
+			this.contactOperations.isPersonFile(path) ||
 			path.startsWith(
 				this.planOperations.getPlansFolderPath() + "/"
 			) ||
-			path.startsWith(
-				this.contactOperations.getGroupsFolderPath() + "/"
-			)
+			this.contactOperations.isGroupFile(path)
 		);
 	}
 
@@ -1441,6 +1438,21 @@ export default class FriendTracker extends Plugin {
 	 * turned off birthday reminders and the status bar on every launch.
 	 * The file is left as it is, to be tried again next start.
 	 */
+	/** The reminders→events merge, and a notice when it moved anything. One
+	 * run at a time, so a settle mid-run joins it rather than notifying twice. */
+	private readonly runEventMigration = singleFlight(async () => {
+		const moved = await this.eventMigration.run();
+		if (moved > 0) {
+			new Notice(
+				`📦 Callander moved ${formatCount(
+					moved,
+					"event"
+				)} into ${this.eventOperations.getEventsFolderPath()}`
+			);
+			this.refreshDashboards();
+		}
+	});
+
 	private async migrateFile(
 		file: TFile,
 		edit: (frontmatter: Record<string, unknown>) => void

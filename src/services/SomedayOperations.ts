@@ -1,5 +1,5 @@
 import { TFile, normalizePath } from "obsidian";
-import type FriendTracker from "@/main";
+import type { ServiceHost } from "@/services/host";
 import type {
 	SomedayCompany,
 	SomedayDay,
@@ -53,7 +53,7 @@ const VALID_TIMES = new Set<string>(SOMEDAY_TIMES.map((t) => t.id));
  * split costs. Mirrors PlanOperations in shape.
  */
 export class SomedayOperations {
-	constructor(private plugin: FriendTracker) {}
+	constructor(private plugin: ServiceHost) {}
 
 	private get app() {
 		return this.plugin.app;

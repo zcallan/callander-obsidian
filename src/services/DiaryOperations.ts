@@ -1,5 +1,5 @@
 import { TFile, TFolder, normalizePath, parseYaml } from "obsidian";
-import type FriendTracker from "@/main";
+import type { ServiceHost } from "@/services/host";
 import type { DiaryEntry } from "@/types";
 import { fieldText, isRecord } from "@/utils/fm";
 import { todayISO } from "@/utils/flexdate";
@@ -7,7 +7,7 @@ import { ILLEGAL_FILENAME_CHARS } from "@/utils/fileName";
 import { markdownFilesIn, uniqueNotePath } from "@/services/vaultFiles";
 
 export class DiaryOperations {
-	constructor(private plugin: FriendTracker) {}
+	constructor(private plugin: ServiceHost) {}
 
 	private get app() {
 		return this.plugin.app;

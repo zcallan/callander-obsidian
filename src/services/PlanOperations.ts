@@ -1,5 +1,5 @@
 import { TFile, normalizePath } from "obsidian";
-import type FriendTracker from "@/main";
+import type { ServiceHost } from "@/services/host";
 import type { PlanInfo, PlanItem, PlanList } from "@/types";
 import { asArray, fieldOf, fieldText, toText } from "@/utils/fm";
 import { todayISO } from "@/utils/flexdate";
@@ -40,7 +40,7 @@ export class PlanOperations {
 	static undatedIdeaEntries = undatedIdeaEntries;
 	static timelineOf = timelineOf;
 
-	constructor(private plugin: FriendTracker) {}
+	constructor(private plugin: ServiceHost) {}
 
 	private get app() {
 		return this.plugin.app;

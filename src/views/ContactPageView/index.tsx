@@ -1462,8 +1462,9 @@ export class ContactPageView extends ItemView {
 
 	/** People live in People/ — the dashboard note and recaps do not. */
 	private isPersonFile(): boolean {
-		return !!this._file?.path.startsWith(
-			this.plugin.contactOperations.getPeopleFolderPath() + "/"
+		return (
+			!!this._file &&
+			this.plugin.contactOperations.isPersonFile(this._file.path)
 		);
 	}
 
@@ -4065,8 +4066,9 @@ export class ContactPageView extends ItemView {
 	}
 
 	private isGroupFile(): boolean {
-		return !!this._file?.path.startsWith(
-			this.plugin.contactOperations.getGroupsFolderPath() + "/"
+		return (
+			!!this._file &&
+			this.plugin.contactOperations.isGroupFile(this._file.path)
 		);
 	}
 
@@ -4760,9 +4762,7 @@ export class ContactPageView extends ItemView {
 		// People and plans carry a last-updated stamp; group pages don't
 		const stampUpdated =
 			stamp &&
-			(file.path.startsWith(
-				this.plugin.contactOperations.getPeopleFolderPath() + "/"
-			) ||
+			(this.plugin.contactOperations.isPersonFile(file.path) ||
 				file.path.startsWith(
 					this.plugin.planOperations.getPlansFolderPath() + "/"
 				));

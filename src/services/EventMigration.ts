@@ -1,5 +1,5 @@
-import { Notice, TFile, normalizePath } from "obsidian";
-import type FriendTracker from "@/main";
+import { TFile, normalizePath } from "obsidian";
+import type { ServiceHost } from "@/services/host";
 import type { EventFields } from "@/services/EventOperations";
 import { eventTypeOf } from "@/services/EventOperations";
 import { REMINDERS_BASENAME } from "@/constants";
@@ -11,13 +11,13 @@ import {
 	textIfSet,
 	toText,
 } from "@/utils/fm";
-import { formatCount } from "@/utils/text";
 import {
 	ensureFolder,
 	markdownFilesIn,
 	uniqueNotePath,
 } from "@/services/vaultFiles";
 import { eventSlug } from "@/utils/fileName";
+import { singleFlight } from "@/utils/singleFlight";
 
 /**
  * An `events`/`interactions` value in the shape the old embedded store used:
@@ -49,9 +49,7 @@ function isEmptyLegacyRowList(value: unknown): boolean {
  * mid-way leaves a visible duplicate, never a hole.
  */
 export class EventMigration {
-	private running = false;
-
-	constructor(private plugin: FriendTracker) {}
+	constructor(private plugin: ServiceHost) {}
 
 	private get app() {
 		return this.plugin.app;
@@ -61,29 +59,19 @@ export class EventMigration {
 		return this.plugin.eventOperations;
 	}
 
-	async run(): Promise<void> {
-		if (this.running) return;
-		this.running = true;
-		try {
-			let moved = 0;
-			for (const file of this.filesWithEmbeddedEvents()) {
-				moved += await this.migrateFileEvents(file);
-			}
-			moved += await this.migrateReminderFiles();
-			moved += await this.migrateLegacyStore();
-			if (moved > 0) {
-				new Notice(
-					`📦 Callander moved ${formatCount(
-						moved,
-						"event"
-					)} into ${this.ops.getEventsFolderPath()}`
-				);
-				this.plugin.refreshDashboards();
-			}
-		} finally {
-			this.running = false;
+	/**
+	 * Migrate whatever old-shape data is there; resolves to how many
+	 * events moved. A call while a run is going joins it.
+	 */
+	readonly run: () => Promise<number> = singleFlight(async () => {
+		let moved = 0;
+		for (const file of this.filesWithEmbeddedEvents()) {
+			moved += await this.migrateFileEvents(file);
 		}
-	}
+		moved += await this.migrateReminderFiles();
+		moved += await this.migrateLegacyStore();
+		return moved;
+	});
 
 	// ---- 1. Events embedded in person/group frontmatter ----
 

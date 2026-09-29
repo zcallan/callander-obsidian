@@ -1,6 +1,6 @@
 import { TFile, normalizePath } from "obsidian";
 import { normalizeHex } from "@/utils/contrastColor";
-import type FriendTracker from "@/main";
+import type { ServiceHost } from "@/services/host";
 import type { EventInfo, EventStatus, EventVariant } from "@/types";
 import type { EventType } from "@/constants";
 import { EVENT_TYPES } from "@/constants";
@@ -92,7 +92,7 @@ export function eventTypeOf(value: string): EventType | "" {
  * "## Events" body section) derives from the events that link to them.
  */
 export class EventOperations {
-	constructor(private plugin: FriendTracker) {}
+	constructor(private plugin: ServiceHost) {}
 
 	private get app() {
 		return this.plugin.app;
@@ -109,7 +109,12 @@ export class EventOperations {
 		);
 	}
 
-	private toInfo(file: TFile): EventInfo {
+	/** `viewer` is the zone events are shown in; getEvents looks it up once
+	 * for the whole list rather than once per event. */
+	private toInfo(
+		file: TFile,
+		viewer = displayZone(this.plugin.settings.displayTimezone)
+	): EventInfo {
 		const fm: unknown =
 			this.app.metadataCache.getFileCache(file)?.frontmatter;
 		const str = (key: string) => fieldText(fm, key);
@@ -126,7 +131,7 @@ export class EventOperations {
 			sourceDate,
 			sourceTime,
 			timezone,
-			displayZone(this.plugin.settings.displayTimezone)
+			viewer
 		);
 		return {
 			file,
@@ -179,8 +184,10 @@ export class EventOperations {
 
 	/** All events, straight from the metadata cache — zero file I/O. */
 	getEvents(): EventInfo[] {
-		return markdownFilesIn(this.app, this.getEventsFolderPath())
-			.map((file) => this.toInfo(file));
+		const viewer = displayZone(this.plugin.settings.displayTimezone);
+		return markdownFilesIn(this.app, this.getEventsFolderPath()).map(
+			(file) => this.toInfo(file, viewer)
+		);
 	}
 
 	/** The display name a wikilink shows: its alias if present, else the

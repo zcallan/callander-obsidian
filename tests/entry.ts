@@ -43,6 +43,7 @@ export * from "@/utils/birthTrivia";
 export * from "@/utils/birthdayLists";
 export * from "@/utils/friendListSort";
 export * from "@/utils/eventList";
+export * from "@/utils/singleFlight";
 export * from "@/utils/friendTimeline";
 export * from "@/utils/gettingStarted";
 export * from "@/utils/eventImport";

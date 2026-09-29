@@ -1,5 +1,5 @@
 import { Notice, TFile, normalizePath } from "obsidian";
-import type FriendTracker from "@/main";
+import type { ServiceHost } from "@/services/host";
 import type {
 	ContactWithCountdown,
 	Draft,
@@ -32,13 +32,13 @@ import {
 import { wholeDaysBetween } from "@/utils/dates";
 import { capitalize, formatCount } from "@/utils/text";
 import { linkpathOf } from "@/utils/linkField";
-import { ensureFolder } from "@/services/vaultFiles";
+import { ensureFolder, markdownFilesIn } from "@/services/vaultFiles";
 
 /** Where the inbox lived before it became the dashboard file's properties. */
 const LEGACY_INBOX_BASENAME = "Idea Inbox";
 
 export class ContactOperations {
-	constructor(private plugin: FriendTracker) {}
+	constructor(private plugin: ServiceHost) {}
 
 	private get app() {
 		return this.plugin.app;
@@ -53,9 +53,7 @@ export class ContactOperations {
 		file: TFile,
 		fn: (fm: Record<string, unknown>) => void
 	): Promise<void> {
-		const isPerson = file.path.startsWith(
-			this.getPeopleFolderPath() + "/"
-		);
+		const isPerson = this.isPersonFile(file.path);
 		await this.app.fileManager.processFrontMatter(
 			file,
 			(fm: Record<string, unknown>) => {
@@ -207,9 +205,7 @@ export class ContactOperations {
 	/** Every draft, ticked ones included, in file order. Empty when the
 	 * dashboard note doesn't exist yet or has no `## Drafts`. */
 	async readDrafts(): Promise<LedgerDraft[]> {
-		const file = this.app.vault.getFileByPath(
-			this.getDashboardFilePath()
-		);
+		const file = this.dashboardFile();
 		if (!file) return [];
 		try {
 			const body = splitFrontmatter(
@@ -348,20 +344,14 @@ export class ContactOperations {
 			const has = isRecord(fm) && fm.drafts !== undefined;
 			if (drafts.length > 0 || has) sources.push({ file, drafts, about });
 		};
-		const dashboard = this.app.vault.getFileByPath(
-			this.getDashboardFilePath()
-		);
+		const dashboard = this.dashboardFile();
 		if (dashboard) collect(dashboard, undefined);
 		for (const path of [
 			this.getPeopleFolderPath(),
 			this.getGroupsFolderPath(),
 		]) {
-			const folder = this.app.vault.getFolderByPath(path);
-			if (!folder) continue;
-			for (const child of folder.children) {
-				if (child instanceof TFile && child.extension === "md") {
-					collect(child, child.basename);
-				}
+			for (const child of markdownFilesIn(this.app, path)) {
+				collect(child, child.basename);
 			}
 		}
 		if (sources.length === 0) return 0;
@@ -502,19 +492,23 @@ export class ContactOperations {
 		);
 	}
 
+	/** Anywhere under People/, by path alone: no cache lookup, so a file
+	 * not yet indexed still counts. */
+	isPersonFile(path: string): boolean {
+		return path.startsWith(this.getPeopleFolderPath() + "/");
+	}
+
+	/** Anywhere under Groups/, by path alone. */
+	isGroupFile(path: string): boolean {
+		return path.startsWith(this.getGroupsFolderPath() + "/");
+	}
+
 	/** Union of groups used on friends + existing group pages */
 	getGroupNames(contacts: ContactWithCountdown[]): string[] {
 		const names = new Set<string>();
 		contacts.forEach((c) => c.groups.forEach((g) => names.add(g)));
-		const folder = this.app.vault.getFolderByPath(
-			this.getGroupsFolderPath()
-		);
-		if (folder) {
-			folder.children.forEach((f) => {
-				if (f instanceof TFile && f.extension === "md") {
-					names.add(f.basename.toLowerCase());
-				}
-			});
+		for (const f of markdownFilesIn(this.app, this.getGroupsFolderPath())) {
+			names.add(f.basename.toLowerCase());
 		}
 		return [...names].sort();
 	}
@@ -525,21 +519,13 @@ export class ContactOperations {
 	 */
 	getGroupInfos(contacts?: ContactWithCountdown[]): GroupInfo[] {
 		const infos = new Map<string, GroupInfo>();
-		const folder = this.app.vault.getFolderByPath(
-			this.getGroupsFolderPath()
-		);
-		if (folder) {
-			for (const f of folder.children) {
-				if (f instanceof TFile && f.extension === "md") {
-					const fm =
-						this.app.metadataCache.getFileCache(f)?.frontmatter;
-					infos.set(f.basename.toLowerCase(), {
-						name: f.basename.toLowerCase(),
-						file: f,
-						color: fm?.color ? String(fm.color) : null,
-					});
-				}
-			}
+		for (const f of markdownFilesIn(this.app, this.getGroupsFolderPath())) {
+			const fm = this.app.metadataCache.getFileCache(f)?.frontmatter;
+			infos.set(f.basename.toLowerCase(), {
+				name: f.basename.toLowerCase(),
+				file: f,
+				color: fm?.color ? String(fm.color) : null,
+			});
 		}
 		contacts?.forEach((c) =>
 			c.groups.forEach((g) => {
@@ -604,18 +590,11 @@ export class ContactOperations {
 	 */
 	groupPageOf(name: string): TFile | null {
 		const key = ContactOperations.groupName(name);
-		const folder = this.app.vault.getFolderByPath(this.getGroupsFolderPath());
-		if (!folder) return null;
-		for (const f of folder.children) {
-			if (
-				f instanceof TFile &&
-				f.extension === "md" &&
-				f.basename.toLowerCase() === key
-			) {
-				return f;
-			}
-		}
-		return null;
+		return (
+			markdownFilesIn(this.app, this.getGroupsFolderPath()).find(
+				(f) => f.basename.toLowerCase() === key
+			) ?? null
+		);
 	}
 
 	/**
@@ -719,12 +698,8 @@ export class ContactOperations {
 		group: string,
 		edit: (frontmatter: Record<string, unknown>, groups: string[]) => void
 	): Promise<void> {
-		const folder = this.app.vault.getFolderByPath(
-			this.getPeopleFolderPath()
-		);
-		if (!folder) return;
-		for (const file of folder.children) {
-			if (!(file instanceof TFile) || file.extension !== "md") continue;
+		const people = markdownFilesIn(this.app, this.getPeopleFolderPath());
+		for (const file of people) {
 			const cache = this.app.metadataCache.getFileCache(file);
 			if (
 				cache &&
@@ -753,6 +728,11 @@ export class ContactOperations {
 	}
 
 	// ---- Dashboard file (carries the idea inbox in its properties) ----
+
+	/** The dashboard note, when it exists. */
+	private dashboardFile(): TFile | null {
+		return this.app.vault.getFileByPath(this.getDashboardFilePath());
+	}
 
 	getDashboardFilePath(): string {
 		const name =
@@ -785,9 +765,7 @@ export class ContactOperations {
 			legacy,
 			this.getDashboardFilePath()
 		);
-		const renamed = this.app.vault.getFileByPath(
-			this.getDashboardFilePath()
-		);
+		const renamed = this.dashboardFile();
 		if (renamed) {
 			await this.writeFrontMatter(renamed, (fm) => {
 				delete fm.name; // was "Idea Inbox" — no longer meaningful
@@ -797,7 +775,7 @@ export class ContactOperations {
 	}
 
 	async getInboxIdeas(): Promise<Idea[]> {
-		const file = this.app.vault.getFileByPath(this.getDashboardFilePath());
+		const file = this.dashboardFile();
 		if (!file) return [];
 		const metadata =
 			this.app.metadataCache.getFileCache(file)?.frontmatter;
@@ -812,9 +790,7 @@ export class ContactOperations {
 	 * if a dashboard note is ever reused for something else.
 	 */
 	async getExpenses(): Promise<Expense[]> {
-		const file = this.app.vault.getFileByPath(
-			this.getDashboardFilePath()
-		);
+		const file = this.dashboardFile();
 		if (!file) return [];
 		const metadata =
 			this.app.metadataCache.getFileCache(file)?.frontmatter;
@@ -849,7 +825,7 @@ export class ContactOperations {
 	 * in case the list moved while the friend's note was being written.
 	 */
 	async moveInboxIdea(index: number, target: TFile): Promise<Idea | null> {
-		const inbox = this.app.vault.getFileByPath(this.getDashboardFilePath());
+		const inbox = this.dashboardFile();
 		if (!inbox) return null;
 		const idea = ContactOperations.ideasOf(
 			this.app.metadataCache.getFileCache(inbox)?.frontmatter
