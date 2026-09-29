@@ -5,7 +5,7 @@ npm test                 # tiers 1 + 2 — fast, no Obsidian (~1s)
 npm test quotes          # only files whose name contains "quotes"
 npm run test:e2e         # tier 3 — drives a real Obsidian (~25s)
 npm run test:e2e seeding # one e2e file
-npm run preflight        # lint + build + test + e2e — the release gate
+npm run preflight        # lint + build + test + icons + e2e — the release gate
 ```
 
 No test framework, no watch mode, no config. `npm test` bundles `src/` with a fake `obsidian` module and runs plain Node.

@@ -25,6 +25,7 @@ To develop against a vault, put the absolute path of its plugin folder (for exam
 | `npm run lint` | ESLint over the plugin and the Node scripts, zero warnings allowed | Before committing |
 | `npm test` | Tiers 1 and 2: pure logic and services against an in-memory vault, about a second | Freely |
 | `npm run build` | Type-check, then the production bundle | Before committing a build or config change |
+| `npm run check:icons` | Every icon name in `src/` against the icon tables of the Obsidian installed on your machine | After adding or changing an icon |
 | `npm run test:e2e` | Tier 3: launches a real desktop Obsidian (macOS) against a throwaway vault | Before a release |
 | `npm run preflight` | All of the above | The release gate |
 
@@ -36,7 +37,7 @@ CI runs lint, build and `npm test` on every push to `main` and every pull reques
 - **Persisted formats are contracts.** Frontmatter keys and their order, file names, section headings, settings keys, command ids and view types all live in people's vaults. Changing one needs a migration and a line in the changelog.
 - **Rules go in `src/utils/`.** If a view is deciding something, lift the decision into a pure function with a test.
 - **Check the shared primitives first** (ARCHITECTURE.md lists them) before writing a date, text or frontmatter helper.
-- **Icons:** `setIcon` renders nothing for a name Obsidian doesn't ship, silently. Pick from the verified list in CLAUDE.md.
+- **Icons:** `setIcon` renders nothing for a name Obsidian doesn't ship, silently. Run `npm run check:icons`, or `npm run check:icons -- <name>` to try one first (CLAUDE.md, "Icons").
 
 ## Tests
 

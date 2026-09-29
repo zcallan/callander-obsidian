@@ -11,7 +11,8 @@ npm run dev        # esbuild watcher → writes into the vault (see "Builds" bel
 npm run typecheck  # tsc, strict; no emit
 npm test           # tiers 1+2, fake vault, ~1s — run these freely
 npm run test:e2e   # tier 3, launches a real Obsidian — see "Testing"
-npm run preflight  # lint + build + test + e2e — the release gate
+npm run check:icons # every icon name in src/ against the installed Obsidian — see "Icons"
+npm run preflight  # lint + build + test + icons + e2e — the release gate
 npm run preview    # renders component fixtures in a browser against the real CSS
 ```
 
@@ -97,24 +98,28 @@ Preact 10 through `preact/compat`, aliased as `react`/`react-dom` in tsconfig `p
 
 `setIcon(el, name)` with a name Obsidian doesn't ship renders **nothing** — no error, no warning, no console message. The button just comes out blank, and neither `tsc` nor lint will tell you. (The React `<Icon>` wrapper above calls into the same imperative `setIcon` and fails the same silent way.)
 
-Obsidian bundles a subset of Lucide, not all of it. There is no reliable way to check the set statically — grepping the app bundle produces false negatives for icons that demonstrably work. The only authoritative check is `getIconIds()` in the developer console of a running Obsidian.
+**Check with `npm run check:icons`.** It reads the tables Obsidian's `getIcon()` consults straight out of each installed app bundle (`obsidian-<version>.asar` beside Obsidian's settings), applies `getIcon()`'s lookup order, and checks every icon name in `src/`: direct `setIcon` calls, anything passed to a parameter named like `icon` or typed `IconName` (so the plugin's own helpers too), `icon` properties, `getIcon()` returns and `<Icon name>`. Anything that wouldn't render is listed with where it's written. To try a name before using it: `npm run check:icons -- receipt wallet`. `preflight` runs the check.
 
-**So don't go looking.** Pick from the list below — every one is already in shipped code here. If nothing fits, take the nearest match rather than spending time verifying a guess; a slightly generic icon costs nothing, a blank one is a bug.
+What doesn't work, and why this section used to call working icons unconfirmed:
 
-| Purpose | Names |
+- **`getIconIds()` in the developer console.** Obsidian hands the `obsidian` module only to plugin code, through a private `require`, so neither `getIconIds` nor `require("obsidian")` exists in the console. Its answer would mislead anyway: it lists Lucide icons as `lucide-<name>`, while `getIcon()` also takes bare names, Obsidian's own icons, and an alias table (`trash` is Lucide's `trash-2`, `pencil` is `edit-3`, `document` is `file`).
+- **Grepping the bundle for `"name"`.** The Lucide table quotes a key only where it has to, so `lightbulb:` has no quotes and a search for `"lightbulb"` finds nothing.
+
+The check covers the versions installed on this machine (1.12.7 and 1.13.7 at the time of writing), not every version back to `minAppVersion`. Obsidian's Lucide grows, so a very new icon can still come out blank on an older install; when a name already in use fits, prefer it. `npm run check:icons -- --list` prints them all, with where each is used. By purpose:
+
+| Purpose | Names in use |
 | --- | --- |
 | Add / edit | `plus` `pencil` `pencil-line` `copy` |
 | Remove / dismiss | `trash-2` `x` `circle-slash` |
-| Confirm / undo | `check` `checkmark` `rotate-ccw` |
-| View / filter | `eye` `filter` `chevron-down` |
-| People | `user` `user-plus` `heart` `heart-handshake` |
-| Content | `document` `table` `quote` `lightbulb` `sparkles` `laugh` |
-| Time / travel | `alarm-clock` `milestone` `plane` |
-| Misc | `link` `share` `home` `dices` `settings-2` |
+| Confirm / undo | `check` `checkmark` `check-circle` `rotate-ccw` |
+| View / filter | `eye` `eye-off` `filter` `chevron-down` |
+| People | `user` `users` `user-plus` `heart` `heart-handshake` |
+| Content | `document` `quote` `lightbulb` `sparkles` `laugh` `link` `book-open` |
+| Time / travel | `alarm-clock` `milestone` `plane` `map` `bed` `backpack` `calendar-clock` `calendar-days` `calendar-plus` |
+| Money | `dollar-sign` (`receipt`, `wallet`, `coins`, `credit-card` and `banknote` also render) |
+| Misc | `dices` `settings-2` |
 
-`trash` also appears in older code, but prefer `trash-2` — it's the one verified most recently.
-
-**Money icons are unconfirmed.** `receipt`, `dollar-sign`, `coins`, `credit-card`, `wallet` and `banknote` are not used anywhere here and could not be verified either way — the bundle grep that reported them missing also reported `lightbulb` and `user-plus` missing, and both of those work. Treat them as unknown and use `plus` for adding an expense, which is what the Cost breakdown's own button uses.
+`trash` in older code is the alias of `trash-2`; both render.
 
 ## Modals stay Obsidian's
 
