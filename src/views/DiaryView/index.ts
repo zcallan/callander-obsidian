@@ -6,6 +6,7 @@ import { DiaryEntryModal } from "@/modals/DiaryEntryModal";
 import { formatDate } from "@/utils/dateFormat";
 import { truncate } from "@/utils/text";
 import { ConfirmModal } from "@/modals/ConfirmModal";
+import { registerPageRefresh } from "@/utils/vaultRefresh";
 
 export const VIEW_TYPE_DIARY = "callander-diary-view";
 
@@ -40,37 +41,12 @@ export class DiaryView extends ItemView {
 		// Once for the life of the view, not per render — it only has to
 		// know whether there's room beside the column.
 		this.register(observePageRoom(this));
-		// Settings are read at render time, so a change to one has to be
-		// heard rather than waited on — otherwise it only lands on reopen.
-		this.registerEvent(
-			this.plugin.events.on("settings-changed", () => void this.refresh())
-		);
-		// Refresh when diary files change on disk (e.g. edited in the native editor)
-		this.registerEvent(
-			this.app.vault.on("modify", (file) => this.onVaultChange(file.path))
-		);
-		this.registerEvent(
-			this.app.vault.on("delete", (file) => this.onVaultChange(file.path))
-		);
-		this.registerEvent(
-			this.app.vault.on("rename", (file, oldPath) => {
-				this.onVaultChange(file.path);
-				this.onVaultChange(oldPath);
-			})
-		);
-		// Entries are read out of the metadata cache, which reindexes *after*
-		// the vault event fires. See registerVaultRefresh.
-		this.registerEvent(
-			this.app.metadataCache.on("changed", (file) =>
-				this.onVaultChange(file.path)
-			)
-		);
+		// Diary entries may live outside the base folder, so the scope is
+		// the diary's own.
+		registerPageRefresh(this, this.plugin, () => void this.refresh(), {
+			scope: (path) => this.plugin.diaryOperations.isDiaryFile(path),
+		});
 		await this.refresh();
-	}
-
-	private onVaultChange(path: string) {
-		if (!this.plugin.diaryOperations.isDiaryFile(path)) return;
-		void this.refresh();
 	}
 
 	async refresh() {
