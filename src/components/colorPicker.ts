@@ -1,6 +1,7 @@
 import { setIcon } from "obsidian";
 import { HexBase } from "vanilla-colorful/lib/entrypoints/hex";
 import { normalizeHex, parseColor, toHex } from "@/utils/contrastColor";
+import { currentKeyboardInset } from "@/plugin/keyboardInset";
 
 /**
  * A colour setting: a swatch, a hex field and a reset, with a proper picker
@@ -217,14 +218,12 @@ export function openColorPopover(
 	// than shrinking it, so the space it covers is taken off the bottom
 	// here: otherwise typing into the hex field puts the whole picker
 	// behind the keyboard. The height comes from the plugin's own keyboard
-	// tracking (main.ts), which sets it on the body as a CSS variable.
+	// tracking (plugin/keyboardInset.ts), which sets it on the body as a
+	// CSS variable.
 	const place = () => {
 		const r = anchor.getBoundingClientRect();
 		const vw = doc.documentElement.clientWidth;
-		const inset =
-			parseInt(
-				doc.body.style.getPropertyValue("--callander-keyboard-inset")
-			) || 0;
+		const inset = currentKeyboardInset(doc);
 		const vh = doc.documentElement.clientHeight - inset;
 		const w = pop.offsetWidth;
 		const h = pop.offsetHeight;

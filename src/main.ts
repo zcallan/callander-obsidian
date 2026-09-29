@@ -4,9 +4,10 @@ import {
 	Notice,
 	Platform,
 	TFile,
-	WorkspaceLeaf,
-	ViewState,
 	normalizePath,
+	type Command,
+	type View,
+	type WorkspaceLeaf,
 } from "obsidian";
 import {
 	FriendTrackerSettings,
@@ -79,17 +80,9 @@ import {
 } from "@/utils/birthdayReminders";
 import { type SomedayPlanSeed, somedayPlanSeed } from "@/utils/somedayToPlan";
 import { singleFlight } from "@/utils/singleFlight";
-
-/** Mobile keyboard handling, for when the OS won't say how tall it is. */
-const KEYBOARD_FALLBACK_HEIGHT_RATIO = 0.42;
-const fallbackKeyboardInset = () =>
-	Math.round(window.innerHeight * KEYBOARD_FALLBACK_HEIGHT_RATIO);
-/** An inset below this means the keyboard isn't really accounted for. */
-const MIN_KEYBOARD_INSET_PX = 30;
-/** Re-checks after focus, once the OS's own resizing has settled. */
-const KEYBOARD_ASSIST_DELAYS_MS = [350, 900] as const;
-/** How long focus gets to land somewhere new before the inset drops. */
-const FOCUS_SETTLE_MS = 150;
+import { installKeyboardInsetTracking } from "@/plugin/keyboardInset";
+import { installMarkdownIntercept } from "@/plugin/markdownIntercept";
+import { type MarkdownRouteRule } from "@/utils/markdownRoute";
 
 /** How long "open as markdown" bypasses the view intercept: one navigation. */
 const MARKDOWN_BYPASS_TTL_MS = 1000;
@@ -103,89 +96,23 @@ const REMINDER_NOTICE_MS = 8000;
 /** The export notice carries instructions, so it stays longest. */
 const EXPORT_NOTICE_MS = 15000;
 
-/**
- * The markdown-view intercept: contact/someday notes navigated to as
- * markdown (file explorer, quick switcher, links, graph) open in their
- * Callander views instead. Installed on WorkspaceLeaf.prototype so every
- * navigation path goes through it; the plugin uninstalls it on unload.
- */
-function createSetViewStateOverride(
-	plugin: FriendTracker,
-	original: WorkspaceLeaf["setViewState"]
-): WorkspaceLeaf["setViewState"] {
-	return function (
-		this: WorkspaceLeaf,
-		viewState: ViewState,
-		eventState?: unknown
-	) {
-		const path = fieldOf(viewState.state, "file");
-		if (
-			plugin.settings.openContactsInCallanderView &&
-			viewState.type === "markdown" &&
-			typeof path === "string" &&
-			plugin.shouldOpenAsDashboard(path)
-		) {
-			return original.call(
-				this,
-				{
-					...viewState,
-					type: VIEW_TYPE_DASHBOARD,
-					state: {},
-				},
-				eventState
-			);
-		}
-		if (
-			plugin.settings.openContactsInCallanderView &&
-			viewState.type === "markdown" &&
-			typeof path === "string" &&
-			plugin.shouldOpenAsSomeday(path)
-		) {
-			return original.call(
-				this,
-				{
-					...viewState,
-					type: VIEW_TYPE_SOMEDAYS,
-					state: { focusPath: path },
-				},
-				eventState
-			);
-		}
-		if (
-			plugin.settings.openContactsInCallanderView &&
-			viewState.type === "markdown" &&
-			typeof path === "string" &&
-			plugin.shouldOpenAsEvent(path)
-		) {
-			return original.call(
-				this,
-				{
-					...viewState,
-					type: VIEW_TYPE_EVENTS,
-					state: { focusPath: path },
-				},
-				eventState
-			);
-		}
-		if (
-			plugin.settings.openContactsInCallanderView &&
-			viewState.type === "markdown" &&
-			typeof path === "string" &&
-			plugin.shouldOpenAsContact(path)
-		) {
-			return original.call(
-				this,
-				{
-					...viewState,
-					type: VIEW_TYPE_CONTACT_PAGE,
-					state: { filePath: path },
-				},
-				eventState
-			);
-		}
-		return original.call(this, viewState, eventState);
-	};
-}
+/** Every Callander view: its type, and how to build one in a leaf. */
+const VIEWS: readonly [
+	string,
+	(leaf: WorkspaceLeaf, plugin: FriendTracker) => View,
+][] = [
+	[
+		VIEW_TYPE_FRIEND_TRACKER,
+		(leaf, plugin) => new FriendTrackerView(leaf, plugin),
+	],
+	[VIEW_TYPE_CONTACT_PAGE, (leaf, plugin) => new ContactPageView(leaf, plugin)],
+	[VIEW_TYPE_DIARY, (leaf, plugin) => new DiaryView(leaf, plugin)],
+	[VIEW_TYPE_DASHBOARD, (leaf, plugin) => new DashboardView(leaf, plugin)],
+	[VIEW_TYPE_SOMEDAYS, (leaf, plugin) => new SomedaysView(leaf, plugin)],
+	[VIEW_TYPE_EVENTS, (leaf, plugin) => new EventsView(leaf, plugin)],
+	[VIEW_TYPE_CALENDAR, (leaf, plugin) => new CalendarView(leaf, plugin)],
+	[VIEW_TYPE_PLANS, (leaf, plugin) => new PlansView(leaf, plugin)],
+];
 
 /** How to open a Callander page — see FriendTracker.openHere. */
 export interface NavOptions {
@@ -237,155 +164,23 @@ export default class FriendTracker extends Plugin {
 			});
 		try {
 			// Register views
-			this.registerView(
-				VIEW_TYPE_FRIEND_TRACKER,
-				(leaf) => new FriendTrackerView(leaf, this)
-			);
-			this.registerView(
-				VIEW_TYPE_CONTACT_PAGE,
-				(leaf) => new ContactPageView(leaf, this)
-			);
-			this.registerView(
-				VIEW_TYPE_DIARY,
-				(leaf) => new DiaryView(leaf, this)
-			);
-			this.registerView(
-				VIEW_TYPE_DASHBOARD,
-				(leaf) => new DashboardView(leaf, this)
-			);
-			this.registerView(
-				VIEW_TYPE_SOMEDAYS,
-				(leaf) => new SomedaysView(leaf, this)
-			);
-			this.registerView(
-				VIEW_TYPE_EVENTS,
-				(leaf) => new EventsView(leaf, this)
-			);
-			this.registerView(
-				VIEW_TYPE_CALENDAR,
-				(leaf) => new CalendarView(leaf, this)
-			);
-			this.registerView(
-				VIEW_TYPE_PLANS,
-				(leaf) => new PlansView(leaf, this)
-			);
+			for (const [type, create] of VIEWS) {
+				this.registerView(type, (leaf) => create(leaf, this));
+			}
 
 			// Ribbon: the dashboard is the front door. Each icon is
 			// individually toggleable from settings (Quick actions).
 			this.refreshRibbonIcons();
 
 			// Commands
-			this.addCommand({
-				id: "open-dashboard",
-				name: "Open dashboard",
-				callback: () => this.activateDashboard(),
-			});
-			this.addCommand({
-				id: "open-friends-table",
-				name: "Open all friends",
-				callback: () => this.activateFriendTracker(),
-			});
-			this.addCommand({
-				id: "open-diary",
-				name: "Open diary",
-				callback: () => this.activateDiaryView(),
-			});
-			this.addCommand({
-				id: "new-diary-entry",
-				name: "New diary entry",
-				callback: () => this.openNewDiaryEntry(),
-			});
-			this.addCommand({
-				id: "add-idea",
-				name: "Add idea for a friend",
-				callback: () => this.openQuickIdeaCapture(),
-			});
-			this.addCommand({
-				id: "open-somedays",
-				name: "Open somedays",
-				callback: () => this.activateSomedays(),
-			});
-			this.addCommand({
-				id: "add-someday",
-				name: "New someday",
-				callback: () => this.openSomedayModal(),
-			});
-			this.addCommand({
-				id: "open-events",
-				name: "Open events",
-				callback: () => this.activateEvents(),
-			});
-			this.addCommand({
-				id: "add-event",
-				name: "New event",
-				callback: () => this.openEventModal(),
-			});
-			this.addCommand({
-				id: "open-plans",
-				name: "Open plans",
-				callback: () => this.activatePlans(),
-			});
-			this.addCommand({
-				id: "open-calendar",
-				name: "Open calendar",
-				callback: () => this.activateCalendar(),
-			});
-			this.addCommand({
-				id: "quick-note",
-				name: "Quick note (draft)",
-				callback: () => this.openQuickNote(),
-			});
-			this.addCommand({
-				id: "add-friend",
-				name: "Add friend",
-				callback: () => this.openAddContactModal(),
-			});
-			this.addCommand({
-				id: "log-diary-to-timelines",
-				name: "Log diary entry to friends' timelines",
-				checkCallback: (checking) => {
-					const file = this.app.workspace.getActiveFile();
-					if (!file || !this.diaryOperations.isDiaryFile(file.path)) {
-						return false;
-					}
-					if (!checking) {
-						void this.logDiaryEntryToTimelines(file);
-					}
-					return true;
-				},
-			});
-			this.addCommand({
-				id: "glance",
-				name: "Before seeing a friend (glance)",
-				callback: () => this.openGlance(),
-			});
-			this.addCommand({
-				id: "group-event",
-				name: "Log a shared event (several friends)",
-				callback: () => this.openGroupEvent(),
-			});
-			this.addCommand({
-				id: "idea-search",
-				name: "Search all ideas",
-				callback: () => this.openIdeaSearch(),
-			});
-			this.addCommand({
-				id: "export-birthday-calendar",
-				name: "Export birthday calendar (.ics for Apple Calendar)",
-				callback: () => this.exportBirthdayCalendar(),
-			});
-			this.addCommand({
-				id: "year-recap",
-				name: "Generate year in friendships",
-				callback: () => this.generateYearRecap(),
-			});
+			for (const command of this.commands()) this.addCommand(command);
 
 			// Clicking a friend anywhere (file explorer, quick switcher,
 			// links, graph) opens their Callander page, not raw markdown
 			this.installContactViewIntercept();
 
 			// Mobile: keep modal inputs visible above the on-screen keyboard
-			this.installKeyboardInsetTracking();
+			installKeyboardInsetTracking(this);
 
 			// Diary entries that were logged to timelines stay in sync:
 			// later edits to the entry update the derived events
@@ -475,6 +270,117 @@ export default class FriendTracker extends Plugin {
 		}
 	}
 
+	/** Every command, in the order the palette lists them. The ids are
+	 * persisted in people's hotkey settings, so they never change. */
+	private commands(): Command[] {
+		return [
+			{
+				id: "open-dashboard",
+				name: "Open dashboard",
+				callback: () => this.activateDashboard(),
+			},
+			{
+				id: "open-friends-table",
+				name: "Open all friends",
+				callback: () => this.activateFriendTracker(),
+			},
+			{
+				id: "open-diary",
+				name: "Open diary",
+				callback: () => this.activateDiaryView(),
+			},
+			{
+				id: "new-diary-entry",
+				name: "New diary entry",
+				callback: () => this.openNewDiaryEntry(),
+			},
+			{
+				id: "add-idea",
+				name: "Add idea for a friend",
+				callback: () => this.openQuickIdeaCapture(),
+			},
+			{
+				id: "open-somedays",
+				name: "Open somedays",
+				callback: () => this.activateSomedays(),
+			},
+			{
+				id: "add-someday",
+				name: "New someday",
+				callback: () => this.openSomedayModal(),
+			},
+			{
+				id: "open-events",
+				name: "Open events",
+				callback: () => this.activateEvents(),
+			},
+			{
+				id: "add-event",
+				name: "New event",
+				callback: () => this.openEventModal(),
+			},
+			{
+				id: "open-plans",
+				name: "Open plans",
+				callback: () => this.activatePlans(),
+			},
+			{
+				id: "open-calendar",
+				name: "Open calendar",
+				callback: () => this.activateCalendar(),
+			},
+			{
+				id: "quick-note",
+				name: "Quick note (draft)",
+				callback: () => this.openQuickNote(),
+			},
+			{
+				id: "add-friend",
+				name: "Add friend",
+				callback: () => this.openAddContactModal(),
+			},
+			{
+				id: "log-diary-to-timelines",
+				name: "Log diary entry to friends' timelines",
+				checkCallback: (checking) => {
+					const file = this.app.workspace.getActiveFile();
+					if (!file || !this.diaryOperations.isDiaryFile(file.path)) {
+						return false;
+					}
+					if (!checking) {
+						void this.logDiaryEntryToTimelines(file);
+					}
+					return true;
+				},
+			},
+			{
+				id: "glance",
+				name: "Before seeing a friend (glance)",
+				callback: () => this.openGlance(),
+			},
+			{
+				id: "group-event",
+				name: "Log a shared event (several friends)",
+				callback: () => this.openGroupEvent(),
+			},
+			{
+				id: "idea-search",
+				name: "Search all ideas",
+				callback: () => this.openIdeaSearch(),
+			},
+			{
+				id: "export-birthday-calendar",
+				name: "Export birthday calendar (.ics for Apple Calendar)",
+				callback: () => this.exportBirthdayCalendar(),
+			},
+			{
+				id: "year-recap",
+				name: "Generate year in friendships",
+				callback: () => this.generateYearRecap(),
+			},
+		];
+	}
+
 	// ---- Ribbon icons ----
 
 	/** What each ribbon icon actually does — kept apart from RIBBON_ACTIONS'
@@ -554,171 +460,41 @@ export default class FriendTracker extends Plugin {
 	 * variable (used to pad2 modal content) and scroll the focused input
 	 * clear once the keyboard has animated in.
 	 */
-	private installKeyboardInsetTracking() {
-		if (!Platform.isMobile) return;
-
-		const setInset = (px: number) => {
-			const value = Math.max(0, Math.round(px));
-			document.body.style.setProperty(
-				"--callander-keyboard-inset",
-				`${value}px`
-			);
-			// Lets CSS confine modals to the space above the keyboard —
-			// padding alone can't help a modal whose content fits without
-			// scrolling (it just extends underneath, unreachable)
-			document.body.toggleClass("callander-kb-open", value > 0);
-		};
-		const currentInset = () =>
-			parseInt(
-				document.body.style.getPropertyValue(
-					"--callander-keyboard-inset"
-				)
-			) || 0;
-
-		// Selects and native date/month/time inputs open iOS wheel pickers,
-		// NOT the keyboard — no keyboard events ever fire for them, so the
-		// focus fallback must not fake an inset for them, and a hide event
-		// while one is focused is real.
-		const summonsKeyboard = (el: Element | null): boolean => {
-			if (!el || !el.closest(".modal")) return false;
-			if (el.tagName === "TEXTAREA") return true;
-			if (el.tagName !== "INPUT") return false;
-			return ![
-				"date",
-				"month",
-				"time",
-				"checkbox",
-				"radio",
-				"range",
-			].includes((el as HTMLInputElement).type);
-		};
-
-		// Primary: Capacitor's native keyboard events (Obsidian mobile is
-		// Capacitor; on iOS the webview often does NOT resize for the
-		// keyboard, so visualViewport alone sees nothing)
-		const onShow = (event: Event) => {
-			// Capacitor's keyboard event carries the height; not in DOM typings
-			const height = Number(
-				(event as Event & { keyboardHeight?: unknown }).keyboardHeight
-			);
-			setInset(
-				Number.isFinite(height) && height > 0
-					? height
-					: fallbackKeyboardInset()
-			);
-		};
-		const onHide = () => {
-			// iOS emits a stray keyboardWillHide during some modals' open
-			// sequence while a text field still holds focus — honoring it
-			// buries the field with no inset. A real dismissal blurs the
-			// field, and the focusout handler tears the inset down then.
-			if (summonsKeyboard(document.activeElement)) return;
-			setInset(0);
-		};
-		for (const type of ["keyboardWillShow", "keyboardDidShow"]) {
-			window.addEventListener(type, onShow);
-		}
-		for (const type of ["keyboardWillHide", "keyboardDidHide"]) {
-			window.addEventListener(type, onHide);
-		}
-		this.register(() => {
-			for (const type of ["keyboardWillShow", "keyboardDidShow"]) {
-				window.removeEventListener(type, onShow);
-			}
-			for (const type of ["keyboardWillHide", "keyboardDidHide"]) {
-				window.removeEventListener(type, onHide);
-			}
-			document.body.style.removeProperty(
-				"--callander-keyboard-inset"
-			);
-		});
-
-		// Secondary: visualViewport, when the webview does resize
-		const vv = window.visualViewport;
-		if (vv) {
-			const update = () => {
-				const inset =
-					window.innerHeight - vv.height - vv.offsetTop;
-				if (inset > 30) setInset(inset);
-			};
-			vv.addEventListener("resize", update);
-			this.register(() =>
-				vv.removeEventListener("resize", update)
-			);
-		}
-
-		// Focus assist + last-resort fallback: if nothing reported a
-		// keyboard by the time the animation is done, assume one
-		this.registerDomEvent(document, "focusin", (event) => {
-			const target = event.target as HTMLElement | null;
-			if (summonsKeyboard(target)) {
-				// Two-shot: iOS keyboard churn on some modals can zero the
-				// inset AFTER the first check has passed — re-verify once
-				// the churn has had time to settle
-				const assist = (delay: number, scroll: boolean) =>
-					window.setTimeout(() => {
-						if (document.activeElement !== target) return;
-						if (currentInset() < MIN_KEYBOARD_INSET_PX) {
-							setInset(fallbackKeyboardInset());
-						}
-						// Not the colour picker's hex field: the picker is
-						// position: fixed and moves itself clear of the
-						// keyboard (see openColorPopover) — scrolling for it
-						// would only shift the modal underneath.
-						if (
-							scroll &&
-							!target!.closest(".callander-color-popover")
-						) {
-							target!.scrollIntoView({
-								block: "center",
-								behavior: "smooth",
-							});
-						}
-					}, delay);
-				const [first, second] = KEYBOARD_ASSIST_DELAYS_MS;
-				assist(first, true);
-				assist(second, false);
-			}
-		});
-
-		// Keystrokes are proof the keyboard is open — heal the inset if
-		// event churn zeroed it while typing
-		this.registerDomEvent(document, "input", (event) => {
-			const target = event.target as HTMLElement | null;
-			if (
-				summonsKeyboard(target) &&
-				currentInset() < MIN_KEYBOARD_INSET_PX
-			) {
-				setInset(fallbackKeyboardInset());
-			}
-		});
-
-		// Drop the inset when focus moves off keyboard-summoning controls —
-		// including onto a select/date picker, where the keyboard closes
-		this.registerDomEvent(document, "focusout", () => {
-			window.setTimeout(() => {
-				const active = document.activeElement as HTMLElement | null;
-				if (!summonsKeyboard(active)) setInset(0);
-			}, FOCUS_SETTLE_MS);
-		});
-	}
-
 	// ---- Contact view intercept ----
 
 	/** Paths temporarily allowed to open as raw markdown (escape hatch) */
 	private markdownBypass = new Set<string>();
 
 	private installContactViewIntercept() {
-		// eslint-disable-next-line @typescript-eslint/unbound-method -- captured so the override can delegate via .call(this)
-		const original = WorkspaceLeaf.prototype.setViewState;
-		WorkspaceLeaf.prototype.setViewState = createSetViewStateOverride(
-			this,
-			original
-		);
-		this.register(() => {
-			WorkspaceLeaf.prototype.setViewState = original;
-		});
+		installMarkdownIntercept(this, () => ({
+			enabled: this.settings.openContactsInCallanderView,
+			rules: this.markdownRoutes,
+		}));
 	}
+
+	/** In order: the first rule whose path matches decides the view. */
+	private readonly markdownRoutes: readonly MarkdownRouteRule[] = [
+		{
+			matches: (path) => this.shouldOpenAsDashboard(path),
+			type: VIEW_TYPE_DASHBOARD,
+			state: () => ({}),
+		},
+		{
+			matches: (path) => this.shouldOpenAsSomeday(path),
+			type: VIEW_TYPE_SOMEDAYS,
+			state: (path) => ({ focusPath: path }),
+		},
+		{
+			matches: (path) => this.shouldOpenAsEvent(path),
+			type: VIEW_TYPE_EVENTS,
+			state: (path) => ({ focusPath: path }),
+		},
+		{
+			matches: (path) => this.shouldOpenAsContact(path),
+			type: VIEW_TYPE_CONTACT_PAGE,
+			state: (path) => ({ filePath: path }),
+		},
+	];
 
 	public shouldOpenAsContact(path: string): boolean {
 		if (this.markdownBypass.has(path)) return false;
