@@ -848,7 +848,6 @@ export default class FriendTracker extends Plugin {
 					? `✏️ Draft saved for ${contact.displayName}`
 					: "✏️ Draft saved — file it from the dashboard"
 			);
-			if (contact) await this.refreshOpenContactPages(contact.file);
 		}).open();
 	}
 
@@ -866,7 +865,6 @@ export default class FriendTracker extends Plugin {
 						const file = await target.getFile();
 						await this.planOperations.addItem(file, value);
 						new Notice(`🗺️ Added to ${target.label}`);
-						await this.refreshOpenContactPages(file);
 					}
 				).open();
 				return;
@@ -884,7 +882,6 @@ export default class FriendTracker extends Plugin {
 						text
 					);
 					new Notice(`💡 Saved`);
-					await this.refreshOpenContactPages(file);
 				}
 			).open();
 		}).open();
@@ -992,20 +989,9 @@ export default class FriendTracker extends Plugin {
 		await this.openContactPage(plan);
 	}
 
-	/** Create an event, then refresh any open dashboards. */
+	/** Create an event, from a command or the Getting started list. */
 	public openEventModal() {
-		new EventModal(this.app, this, null, () =>
-			this.refreshDashboards()
-		).open();
-	}
-
-	public refreshDashboards() {
-		for (const leaf of this.app.workspace.getLeavesOfType(
-			VIEW_TYPE_DASHBOARD
-		)) {
-			const view = leaf.view;
-			if (view instanceof DashboardView) void view.refresh();
-		}
+		new EventModal(this.app, this, null).open();
 	}
 
 	private diarySyncTimers = new Map<string, number>();
@@ -1049,22 +1035,14 @@ export default class FriendTracker extends Plugin {
 		);
 
 		// One shared event carries the whole entry — added and removed
-		// mentions are both just its people list changing.
-		const before = this.eventOperations.peoplePaths(existing);
+		// mentions are both just its people list changing. Each person's
+		// page hears the event file change.
 		await this.eventOperations.syncDiaryEvent({
 			source: file.path,
 			date,
 			name: title,
 			people: mentioned.map((m) => `[[${m.file.basename}]]`),
 		});
-		const touched = new Set([
-			...before,
-			...mentioned.map((m) => m.file.path),
-		]);
-		for (const path of touched) {
-			const f = this.app.vault.getFileByPath(path);
-			if (f) await this.refreshOpenContactPages(f);
-		}
 	}
 
 	/**
@@ -1099,9 +1077,6 @@ export default class FriendTracker extends Plugin {
 			name: title,
 			people: mentioned.map((m) => `[[${m.file.basename}]]`),
 		});
-		for (const m of mentioned) {
-			await this.refreshOpenContactPages(m.file);
-		}
 		new Notice(
 			`🪧 Logged to ${mentioned
 				.map((m) => m.displayName)
@@ -1237,25 +1212,6 @@ export default class FriendTracker extends Plugin {
 		}
 	}
 
-	// ---- Refresh helpers ----
-
-	// If this contact's page is open anywhere, reload it so the in-memory
-	// copy doesn't go stale (and later overwrite frontmatter changes)
-	public async refreshOpenContactPages(file: TFile) {
-		const leaves = this.app.workspace.getLeavesOfType(
-			VIEW_TYPE_CONTACT_PAGE
-		);
-		for (const leaf of leaves) {
-			const view = leaf.view;
-			if (
-				view instanceof ContactPageView &&
-				view.file?.path === file.path
-			) {
-				await view.setFile(file);
-			}
-		}
-	}
-
 	/**
 	 * One file's write in a startup migration, kept from stopping the rest.
 	 * A note whose YAML doesn't parse makes processFrontMatter throw, and
@@ -1274,7 +1230,6 @@ export default class FriendTracker extends Plugin {
 					"event"
 				)} into ${this.eventOperations.getEventsFolderPath()}`
 			);
-			this.refreshDashboards();
 		}
 	});
 

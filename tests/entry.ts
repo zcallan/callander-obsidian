@@ -50,6 +50,8 @@ export * from "@/utils/ownWrites";
 // The contact page's model and persistence, which run without the view.
 export * from "@/views/ContactPageView/model";
 export * from "@/views/ContactPageView/persistence";
+// What the dashboard reads before it draws.
+export * from "@/views/DashboardView/snapshot";
 export * from "@/utils/contactPage";
 export * from "@/utils/settingValues";
 export { summonsKeyboard } from "@/plugin/keyboardInset";

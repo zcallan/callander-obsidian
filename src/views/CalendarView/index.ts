@@ -494,9 +494,7 @@ export class CalendarView extends ItemView {
 	// ---- Opening things ----
 
 	private openEvent(event: EventInfo) {
-		new EventViewModal(this.app, this.plugin, event, () =>
-			this.refresh()
-		).open();
+		new EventViewModal(this.app, this.plugin, event).open();
 	}
 
 	private openPlan(plan: PlanInfo) {
@@ -512,13 +510,7 @@ export class CalendarView extends ItemView {
 	}
 
 	private openEditor(prefill?: { date: string }) {
-		new EventModal(
-			this.app,
-			this.plugin,
-			null,
-			() => this.refresh(),
-			prefill
-		).open();
+		new EventModal(this.app, this.plugin, null, undefined, prefill).open();
 	}
 
 	// ---- Layout ----

@@ -21,11 +21,7 @@ import { InsideJokeModal } from "@/modals/InsideJokeModal";
 import { todayISO } from "@/utils/flexdate";
 import { asArray } from "@/utils/fm";
 import { normalizeInterestCategory } from "@/utils/contactPage";
-import {
-	refreshAboutDrafts,
-	saveModel,
-	writeQuotes,
-} from "@/views/ContactPageView/persistence";
+import { saveModel, writeQuotes } from "@/views/ContactPageView/persistence";
 import { planScheduleOptions } from "@/views/ContactPageView/actions/planItems";
 import { openAddIdeaModal } from "@/views/ContactPageView/actions/ideas";
 import type { PageContext } from "@/views/ContactPageView/context";
@@ -68,7 +64,6 @@ export function editDraft(
 				about.draft.text,
 				{ text: updated }
 			);
-			await refreshAboutDrafts(ctx, model);
 		},
 		text
 	).open();
@@ -83,11 +78,11 @@ export async function completeAboutDraft(
 ): Promise<void> {
 	const about = model.aboutDrafts[index];
 	if (!about) return;
+	// The page hears the dashboard note change, and redraws the strip.
 	await ctx.plugin.contactOperations.completeDraft(
 		about.index,
 		about.draft.text
 	);
-	await refreshAboutDrafts(ctx, model);
 }
 
 export async function removeGroupMember(
@@ -97,11 +92,11 @@ export async function removeGroupMember(
 ) {
 	const groupName = model.file?.basename.toLowerCase();
 	if (!groupName) return;
+	// A write to their note, which the page hears.
 	await ctx.plugin.contactOperations.removeFriendFromGroup(
 		contact.file,
 		groupName
 	);
-	ctx.render();
 }
 
 export function openAddGroupMember(
@@ -115,10 +110,7 @@ export function openAddGroupMember(
 	new ContactSuggestModal(
 		ctx.app,
 		candidates,
-		(contact) =>
-			void ops
-				.addFriendToGroup(contact.file, groupName)
-				.then(() => ctx.render()),
+		(contact) => void ops.addFriendToGroup(contact.file, groupName),
 		`Add to ${ops.groupLabel(groupName)}…`
 	).open();
 }
@@ -139,7 +131,6 @@ export function openQuickNote(ctx: PageContext, model: ContactPageModel) {
 			// checklist, with a link back to them.
 			if (model.kind !== "plan" && model.file) {
 				await ctx.plugin.contactOperations.addDraft(text, model.file);
-				await refreshAboutDrafts(ctx, model);
 				return;
 			}
 			const created = todayISO();
@@ -430,11 +421,12 @@ export async function openAddFieldModal(
 export function openAddEventModal(ctx: PageContext, model: ContactPageModel) {
 	const file = model.file;
 	if (!file) return;
+	// The page hears the event file, so the modal needn't redraw it.
 	new EventModal(
 		ctx.app,
 		ctx.plugin,
 		null,
-		() => ctx.render(),
+		undefined,
 		{
 			// The event lands on this page's timeline; more people can be
 			// picked in the modal, and it reaches their timelines too.
@@ -459,7 +451,7 @@ export function openEditEventModal(
 		ctx.app,
 		ctx.plugin,
 		event,
-		() => ctx.render(),
+		undefined,
 		undefined,
 		// Locked, not just pre-filled: removing the person whose page
 		// this is would leave the event with nowhere to land, same as
@@ -471,7 +463,6 @@ export function openEditEventModal(
 
 export async function deleteEvent(ctx: PageContext, event: EventInfo) {
 	await ctx.plugin.eventOperations.deleteEvent(event.file);
-	ctx.render();
 }
 
 export async function updateContactData(

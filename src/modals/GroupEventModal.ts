@@ -119,9 +119,6 @@ export class GroupEventModal extends FormModal {
 					type: "hangout",
 					people: targets.map((c) => `[[${c.file.basename}]]`),
 				});
-				for (const c of targets) {
-					await this.plugin.refreshOpenContactPages(c.file);
-				}
 				new Notice(`Logged for ${targets.length} friend(s)`);
 				this.close();
 			},

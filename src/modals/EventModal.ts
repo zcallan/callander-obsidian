@@ -47,7 +47,10 @@ export class EventModal extends FormModal {
 		app: App,
 		private plugin: FriendTracker,
 		private existing: EventInfo | null,
-		private onChange: () => void | Promise<void>,
+		/** Anything to do once the event is saved or deleted, beyond the
+		 * write itself. Pages hear the write on their own (CLAUDE.md, "Views
+		 * must react to the metadata cache"), so most callers leave it out. */
+		private onChange: () => void | Promise<void> = () => undefined,
 		/** Starting values for a NEW event — e.g. seeded from a Someday or
 		 * a person's page. Nothing is written until Save. */
 		private prefill?: Partial<EventFields>,

@@ -1,8 +1,6 @@
 import { App, Notice } from "obsidian";
 import { FormModal } from "@/modals/FormModal";
 import type FriendTracker from "@/main";
-import { VIEW_TYPE_FRIEND_TRACKER } from "@/views/FriendTrackerView";
-import { FriendTrackerView } from "@/views/FriendTrackerView";
 import { createRelationshipInput } from "@/components/ContactFields";
 import { createBirthdayPrecisionInput } from "@/components/BirthdayInput";
 import { createFlexDateInput } from "@/components/FlexDateInput";
@@ -250,23 +248,10 @@ export class AddContactModal extends FormModal {
 		const file = await this.plugin.contactOperations.createContact(data);
 		this.close();
 
+		// All friends hears the new note on its own. Their page reads the
+		// note itself rather than the metadata cache, so it needn't wait
+		// for the note to be indexed either.
 		try {
-			// Wait a moment for the file to be indexed
-			await new Promise((resolve) => window.setTimeout(resolve, 300));
-
-			// Refresh the Friend Tracker view
-			const friendTrackerLeaves = this.app.workspace.getLeavesOfType(
-				VIEW_TYPE_FRIEND_TRACKER,
-			);
-
-			for (const leaf of friendTrackerLeaves) {
-				const view = leaf.view;
-				if (view instanceof FriendTrackerView) {
-					await view.refresh();
-					break;
-				}
-			}
-
 			new Notice(`Added ${String(data.name)}`);
 			// Straight to their page
 			await this.plugin.openContactPage(file);

@@ -240,5 +240,4 @@ export async function addEvent(
 		// entry, so it stays on their timeline.
 		variant: "timeline",
 	});
-	ctx.render();
 }

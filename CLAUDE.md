@@ -60,7 +60,7 @@ Note that `await`ing the write is not protection: `processFrontMatter` resolves 
 ### Don't
 
 - **Don't paper over it with a delay.** A `setTimeout(() => refresh(), 100)` after a write is guessing at the reindex, and the guess gets worse as the vault grows.
-- **Don't call `refresh()` from a modal's `onChange` and consider the job done.** That was the old pattern and it masked this bug for a long time — it fires at the stalest possible moment. The write is the signal; the subscription is what hears it.
+- **Don't call `refresh()` from a modal's `onChange` and consider the job done.** That was the old pattern and it masked this bug for a long time — it fires at the stalest possible moment. The write is the signal; the subscription is what hears it. No page redraws after its own writes any more, and the modals' callbacks default to nothing. The exception is the contact page's writes to its own note, which it deliberately doesn't hear (`OwnWrites`), so it redraws after those.
 
 ### Why it hides from the tests
 

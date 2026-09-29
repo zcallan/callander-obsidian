@@ -34,7 +34,9 @@ export class EventViewModal extends Modal {
 		app: App,
 		private plugin: FriendTracker,
 		private event: EventInfo,
-		private onChange: () => void | Promise<void>
+		/** Anything to do after a change, beyond the write itself; pages
+		 * hear the write on their own. */
+		private onChange: () => void | Promise<void> = () => undefined
 	) {
 		super(app);
 		this.description = event.description;

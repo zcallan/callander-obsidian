@@ -20,8 +20,10 @@ export class GroupModal extends FormModal {
 		private existing: GroupInfo | null,
 		/** The saved group's name, lowercased — so a caller creating one
 		 * inline (no group list of its own to refresh from) knows which
-		 * one to select. Not given a name on delete. */
-		private onDone: (name?: string) => Promise<void>
+		 * one to select. Not given a name on delete. Pages hear the write
+		 * on their own, so it's only for a caller with more to do. */
+		private onDone: (name?: string) => Promise<void> = () =>
+			Promise.resolve()
 	) {
 		super(app);
 	}

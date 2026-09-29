@@ -712,10 +712,10 @@ export class EventsView extends ItemView {
 		// names); all fall back to Natural rather than leaving the select
 		// blank.
 		sortSel.value = eventSortOf(this.plugin.settings.eventSort);
-		const handleSortChange = async () => {
+		// Saving broadcasts the change, which redraws the page.
+		const handleSortChange = () => {
 			this.plugin.settings.eventSort = sortSel.value as EventSort;
-			await this.plugin.saveSettings();
-			this.render();
+			return this.plugin.saveSettings();
 		};
 		sortSel.addEventListener("change", () => void handleSortChange());
 
@@ -1075,18 +1075,10 @@ export class EventsView extends ItemView {
 	}
 
 	private openViewModal(event: EventInfo) {
-		new EventViewModal(this.app, this.plugin, event, () =>
-			this.refresh()
-		).open();
+		new EventViewModal(this.app, this.plugin, event).open();
 	}
 
 	private openEditor(prefill?: { date: string }) {
-		new EventModal(
-			this.app,
-			this.plugin,
-			null,
-			() => this.refresh(),
-			prefill
-		).open();
+		new EventModal(this.app, this.plugin, null, undefined, prefill).open();
 	}
 }

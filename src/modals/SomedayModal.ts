@@ -40,7 +40,9 @@ export class SomedayModal extends FormModal {
 		app: App,
 		private plugin: FriendTracker,
 		private existing: SomedayInfo | null,
-		private onSaved: (file: TFile) => void | Promise<void>,
+		/** Anything to do once it's saved, beyond the write itself — say,
+		 * opening it. Pages hear the write on their own. */
+		private onSaved: (file: TFile) => void | Promise<void> = () => undefined,
 		private onDeleted?: () => void | Promise<void>
 	) {
 		super(app);

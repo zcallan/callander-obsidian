@@ -108,7 +108,7 @@ export function UpcomingSection() {
 
 	const openEvent = (event: EventInfo) => {
 		// No onChange callback that re-renders: the write is what tells us.
-		new EventViewModal(plugin.app, plugin, event, () => undefined).open();
+		new EventViewModal(plugin.app, plugin, event).open();
 	};
 
 	/**
@@ -213,12 +213,7 @@ export function UpcomingSection() {
 					<button
 						className="callander-button"
 						onClick={() =>
-							new EventModal(
-								plugin.app,
-								plugin,
-								null,
-								() => undefined
-							).open()
+							new EventModal(plugin.app, plugin, null).open()
 						}
 					>
 						Add event

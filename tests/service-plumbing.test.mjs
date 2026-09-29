@@ -1,8 +1,8 @@
 import { createSuite } from "./harness.mjs";
 import { createTestVault } from "./vault.mjs";
-import { Notice, singleFlight } from "./.build/callander.mjs";
+import { Notice, queuedFlight, singleFlight } from "./.build/callander.mjs";
 
-/** singleFlight, the migration's count, and the services' path checks. */
+/** singleFlight, queuedFlight, the migration's count, and the services' path checks. */
 export async function run() {
 	const { eq, ok, result } = createSuite("service plumbing");
 
@@ -32,6 +32,64 @@ export async function run() {
 		await failing().catch(() => caught++);
 		await failing().catch(() => caught++);
 		eq("a failed run doesn't stick", [caught, started], [2, 4]);
+	}
+
+	// ---------- queuedFlight ----------
+	{
+		// A page refresh: reads, then draws what it read. Each run reports
+		// the version of the data it saw.
+		let version = 1;
+		const drawn = [];
+		const releases = [];
+		const refresh = queuedFlight(async () => {
+			const seen = version;
+			await new Promise((resolve) => releases.push(resolve));
+			drawn.push(seen);
+		});
+		const first = refresh();
+		version = 2; // a change lands while the first run is reading
+		const second = refresh();
+		const third = refresh();
+		ok("calls mid-run share one promise", second === third);
+		releases.shift()();
+		await Promise.resolve();
+		await Promise.resolve();
+		eq("one more run follows, however many asked", releases.length, 1);
+		releases.shift()();
+		await Promise.all([first, second, third]);
+		eq("and it saw the change that landed mid-read", drawn, [1, 2]);
+		const fourth = refresh();
+		releases.shift()();
+		await fourth;
+		eq("once idle, a call starts a run of its own", drawn, [1, 2, 2]);
+
+		let failures = 0;
+		const failing = queuedFlight(async () => {
+			failures++;
+			throw new Error("no");
+		});
+		await failing().catch(() => undefined);
+		await failing().catch(() => undefined);
+		eq("a failed run doesn't block the next", failures, 2);
+
+		// A run that fails while another call is waiting on it.
+		let runs = 0;
+		let let_go;
+		const flaky = queuedFlight(async () => {
+			runs++;
+			await new Promise((resolve) => (let_go = resolve));
+			if (runs === 1) throw new Error("read failed");
+		});
+		const failed = flaky();
+		const waiting = flaky();
+		let_go();
+		await failed.catch(() => undefined);
+		await waiting.catch(() => undefined);
+		const after = flaky();
+		ok("a failure mid-queue doesn't wedge it", after !== failed);
+		let_go();
+		await after;
+		eq("the next call runs afresh", runs, 2);
 	}
 
 	// ---------- the migration says how much it moved ----------

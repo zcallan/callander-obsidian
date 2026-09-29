@@ -65,7 +65,7 @@ export function promotePlanDraftToEvent(
 		ctx.app,
 		ctx.plugin,
 		null,
-		() => ctx.render(),
+		undefined,
 		{
 			people: [`[[${file.basename}]]`],
 			variant: "timeline",

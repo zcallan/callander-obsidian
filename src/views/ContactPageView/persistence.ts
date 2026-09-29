@@ -545,12 +545,3 @@ export async function loadAboutDrafts(
 				!draft.done && ops.draftAbout(draft)?.path === file.path
 		);
 }
-
-/** Reload the drafts and redraw — after any change to the checklist. */
-export async function refreshAboutDrafts(
-	ctx: PageContext,
-	model: ContactPageModel
-): Promise<void> {
-	await loadAboutDrafts(ctx, model);
-	ctx.render();
-}

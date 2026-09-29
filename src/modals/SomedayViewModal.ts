@@ -37,7 +37,9 @@ export class SomedayViewModal extends Modal {
 		app: App,
 		private plugin: FriendTracker,
 		private someday: SomedayInfo,
-		private onChange: () => void | Promise<void>
+		/** Anything to do after a change, beyond the write itself; pages
+		 * hear the write on their own. */
+		private onChange: () => void | Promise<void> = () => undefined
 	) {
 		super(app);
 		this.status = someday.status;

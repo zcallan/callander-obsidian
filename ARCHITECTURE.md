@@ -39,9 +39,11 @@ Each layer is meant to import only from the ones below it. `tools/code-review/la
 
 Every read goes through `app.metadataCache.getFileCache()`, never through file contents. The cache updates *after* the vault's `modify` event, so a view that refreshed on `modify` alone would redraw the data it had just replaced. Every page therefore subscribes to both, through `registerPageRefresh` (`utils/vaultRefresh.ts`), which also hears settings changes and coalesces the pair onto one redraw. React islands use `useVaultVersion()` for the same reason. CLAUDE.md explains the timing, and why a test that writes and then checks the DOM can't catch a view that gets this wrong.
 
+So no page redraws itself after a write, or hands a modal a refresh callback: the subscription hears the write. The one exception is the contact page's writes to its own note, which it deliberately doesn't hear (see "The contact page" below), so it redraws after those itself. `tests/e2e/05-live-refresh.e2e.mjs` checks that every page answers a cache event with no write behind it, which is what all of this rests on.
+
 ## Views and React islands
 
-Most pages are imperative: `render()` empties the container and rebuilds it. Where a section is written in React (Preact through `preact/compat`), it lives in an island: an `IslandSet` (`ui/islands.tsx`) creates each root once for the life of the view and hands back the same host node on every render, so re-rendering the page never remounts React. There is no router (Obsidian's workspace is one) and no state library (the vault is the state; UI state is per-view).
+Most pages are imperative: `render()` empties the container and rebuilds it. The dashboard reads everything it has to wait for first (`views/DashboardView/snapshot.ts`) and then draws without awaiting, so two refreshes can't interleave. Where a section is written in React (Preact through `preact/compat`), it lives in an island: an `IslandSet` (`ui/islands.tsx`) creates each root once for the life of the view and hands back the same host node on every render, so re-rendering the page never remounts React. There is no router (Obsidian's workspace is one) and no state library (the vault is the state; UI state is per-view).
 
 ### The contact page
 

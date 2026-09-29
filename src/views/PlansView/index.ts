@@ -273,10 +273,8 @@ export class PlansView extends ItemView {
 		sortSel.value = planSortOf(this.plugin.settings.planSort);
 		sortSel.addEventListener("change", () => {
 			this.plugin.settings.planSort = sortSel.value as EventSort;
-			runAction("save the sort", async () => {
-				await this.plugin.saveSettings();
-				this.render();
-			});
+			// Saving broadcasts the change, which redraws the page.
+			runAction("save the sort", () => this.plugin.saveSettings());
 		});
 	}
 

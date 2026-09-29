@@ -248,7 +248,6 @@ export class DiaryView extends ItemView {
 						date
 					);
 					this.expandedPath = entry.file.path;
-					await this.refresh();
 				}
 			).open();
 		});
@@ -267,7 +266,6 @@ export class DiaryView extends ItemView {
 				onConfirm: async () => {
 					await this.plugin.diaryOperations.deleteEntry(entry.file);
 					this.expandedPath = null;
-					await this.refresh();
 				},
 			}).open();
 		});
@@ -280,7 +278,6 @@ export class DiaryView extends ItemView {
 				date
 			);
 			this.expandedPath = file.path;
-			await this.refresh();
 		}).open();
 	}
 }

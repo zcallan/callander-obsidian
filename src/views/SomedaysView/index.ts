@@ -351,10 +351,9 @@ export class SomedaysView extends ItemView {
 				this.randomSeed = newRandomSeed();
 			}
 			this.plugin.settings.somedaySort = next;
+			// Saving broadcasts the change, which redraws this page — and
+			// the dashboard, which follows the same sort.
 			await this.plugin.saveSettings();
-			this.render();
-			// The dashboard follows this sort, so bring it along.
-			this.plugin.refreshDashboards();
 		};
 		sortSel.addEventListener("change", () => void handleSortChange());
 
@@ -582,18 +581,10 @@ export class SomedaysView extends ItemView {
 	}
 
 	private openViewModal(someday: SomedayInfo) {
-		new SomedayViewModal(this.app, this.plugin, someday, () =>
-			this.refresh()
-		).open();
+		new SomedayViewModal(this.app, this.plugin, someday).open();
 	}
 
 	private openNewSomeday() {
-		new SomedayModal(
-			this.app,
-			this.plugin,
-			null,
-			() => this.refresh(),
-			() => this.refresh()
-		).open();
+		new SomedayModal(this.app, this.plugin, null).open();
 	}
 }

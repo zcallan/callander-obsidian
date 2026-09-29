@@ -5,14 +5,13 @@ import { TableView } from "@/views/FriendTrackerView/TableView";
 import type { FriendListSort, FriendListTab } from "@/types";
 import { AddContactModal } from "@/modals/AddContactModal";
 import { registerPageRefresh } from "@/utils/vaultRefresh";
+import { queuedFlight } from "@/utils/singleFlight";
 
 export const VIEW_TYPE_FRIEND_TRACKER = "callander-view";
 
 export class FriendTrackerView extends ItemView {
 	public groupFilter = "";
 	private tableView: TableView;
-	private inFlight: Promise<void> | null = null;
-	private again = false;
 	/** Widened for this view only, until it closes. */
 	private pageWide = false;
 
@@ -88,23 +87,7 @@ export class FriendTrackerView extends ItemView {
 	 * Rebuild the list. A request while one is running isn't dropped: it
 	 * queues one more pass, so a change landing mid-read still shows.
 	 */
-	async refresh(): Promise<void> {
-		if (this.inFlight) {
-			this.again = true;
-			return this.inFlight;
-		}
-		this.inFlight = (async () => {
-			try {
-				do {
-					this.again = false;
-					await this.renderOnce();
-				} while (this.again);
-			} finally {
-				this.inFlight = null;
-			}
-		})();
-		return this.inFlight;
-	}
+	refresh = queuedFlight(() => this.renderOnce());
 
 	private async renderOnce() {
 		// Read first, then swap: emptying before the read left the page

@@ -21,7 +21,9 @@ import { createSuite } from "../harness.mjs";
  * So the timing race itself is NOT reproducible here, and the modal walk
  * below would pass with or without the fix. The guard that actually bites is
  * `cacheOnlyRefresh`: it fires a cache event with no vault write at all, so a
- * view that never subscribed to the cache cannot possibly respond.
+ * view that never subscribed to the cache cannot possibly respond. It runs
+ * on every page, because every page relies on it: none redraws itself after
+ * its own writes any more, trusting the subscription to hear them.
  */
 export async function run({ cdp }) {
 	const { ok, eq, result } = createSuite("live refresh (real)");
@@ -42,6 +44,8 @@ export async function run({ cdp }) {
 
 		const out = {};
 		let file = null;
+		// Notes made for the pages below, trashed at the end.
+		const made = [];
 
 		try {
 			await plugin.eventOperations.createEvent({ name: NAME, date });
@@ -139,6 +143,74 @@ export async function run({ cdp }) {
 					? "not refreshed"
 					: "refreshed";
 			}
+
+			// --- every other page, on a note it shows ---
+			// Each page listens to its own folders, so each gets a note
+			// from one of them. Same sentinel as above.
+			const person = await plugin.contactOperations.createContact({
+				name: "Refresh Probe",
+				relationship: "friend",
+			});
+			made.push(person);
+			const plan = await plugin.planOperations.createPlan({
+				name: "Refresh probe plan",
+				date: "",
+			});
+			made.push(plan);
+			const someday = await plugin.somedayOperations.createSomeday({
+				name: "Refresh probe someday",
+			});
+			made.push(someday);
+			const entry = await plugin.diaryOperations.createEntry(
+				"Refresh probe",
+				date
+			);
+			made.push(entry);
+			await tick(700);
+
+			const pages = [
+				["plans", "callander-plans", () => plugin.activatePlans(), plan],
+				["somedays", "callander-somedays", () => plugin.activateSomedays(), someday],
+				["calendar", "callander-calendar", () => plugin.activateCalendar(), file],
+				["diary", "callander-diary-view", () => plugin.activateDiaryView(), entry],
+				["all friends", "callander-view", () => plugin.activateFriendTracker(), person],
+				// A person's page draws their timeline from Events/.
+				["contact page", "contact-page-view", () => plugin.openContactPage(person), file],
+			];
+			for (const [label, type, open, note] of pages) {
+				await open();
+				await tick(700);
+				const view = window.app.workspace
+					.getLeavesOfType(type)
+					.find((l) => l.view?.containerEl?.isShown?.() ?? true)?.view;
+				const container = view?.containerEl?.children[1];
+				if (!container) {
+					out.cacheOnlyRefresh[label] = "no container";
+					continue;
+				}
+				const sentinel = document.createElement("div");
+				sentinel.dataset.sentinel = label;
+				container.appendChild(sentinel);
+				window.app.metadataCache.trigger("changed", note, "", {});
+				await tick(500);
+				out.cacheOnlyRefresh[label] = container.contains(sentinel)
+					? "not refreshed"
+					: "refreshed";
+			}
+
+			// --- a person's page reloads when their note changes elsewhere ---
+			// Its own writes are ignored (OwnWrites); this one isn't its own.
+			await plugin.openContactPage(person);
+			await tick(700);
+			await window.app.vault.process(person, (text) =>
+				text.replace("relationship: friend", "relationship: family")
+			);
+			await tick(700);
+			const page = window.app.workspace
+				.getLeavesOfType("contact-page-view")
+				.at(0)?.view;
+			out.pageReloadedOnSync =
+				page?.containerEl?.textContent?.includes("family") ?? false;
 		} finally {
 			// Never leave a modal open — it blocks every later file.
 			document
@@ -146,6 +218,7 @@ export async function run({ cdp }) {
 				.forEach((b) => b.click());
 			await tick(150);
 			if (file) await window.app.vault.delete(file);
+			for (const note of made) await window.app.vault.delete(note);
 		}
 		return out;
 	});
@@ -180,6 +253,26 @@ export async function run({ cdp }) {
 		"the Events page refreshes on a cache event alone",
 		data.cacheOnlyRefresh?.events,
 		"refreshed"
+	);
+	// The rest of the pages: every view type now answers the cache, which
+	// is what let the pages drop their own refresh after each write.
+	for (const label of [
+		"plans",
+		"somedays",
+		"calendar",
+		"diary",
+		"all friends",
+		"contact page",
+	]) {
+		eq(
+			`the ${label} page refreshes on a cache event alone`,
+			data.cacheOnlyRefresh?.[label],
+			"refreshed"
+		);
+	}
+	ok(
+		"a person's page reloads when their note is changed elsewhere",
+		data.pageReloadedOnSync
 	);
 
 	return result();
