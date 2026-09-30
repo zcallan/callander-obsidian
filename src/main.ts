@@ -343,6 +343,17 @@ export default class CallanderPlugin extends Plugin {
 						runLogged("birthday check", () => this.checkBirthdays())
 					);
 					await this.checkBirthdays();
+					// Kept current, where it used to be worked out once at
+					// startup: the countdown moves at midnight and with every
+					// birthday added, changed or removed, and its window is a
+					// setting. Registered first, so a failed first update
+					// still leaves the later ones.
+					registerPageRefresh(
+						this,
+						this,
+						() => runLogged("status bar", () => this.updateStatusBar()),
+						{ scope: (path) => this.contactOperations.isPersonFile(path) }
+					);
 					await this.updateStatusBar();
 				},
 			},

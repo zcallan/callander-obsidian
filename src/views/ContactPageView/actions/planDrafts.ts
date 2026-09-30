@@ -47,6 +47,12 @@ export function promotePlanDraft(
 			await saveModel(ctx, model);
 			ctx.render();
 		},
+		// A new item, with the draft as its prefill. Passed as `initial`,
+		// it opened as the edit form ("Edit item", "Save") without the
+		// plan's day pills or member picker.
+		null,
+		undefined,
+		planScheduleOptions(ctx, model),
 		{ category: "activity", priority: "must", text }
 	).open();
 }
