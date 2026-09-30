@@ -27,17 +27,17 @@
 		"node": ">=20.11"
 	},
 	"devDependencies": {
-		"@eslint/js": "^9.39.5",
-		"@eslint/json": "0.14.0",
+		"@eslint/js": "^10.0.1",
+		"@eslint/json": "2.1.0",
 		"esbuild": "^0.28.2",
-		"eslint": "^9.39.5",
-		"eslint-plugin-obsidianmd": "^0.4.1",
-		"globals": "^14.0.0",
+		"eslint": "^10.11.0",
+		"eslint-plugin-obsidianmd": "^0.4.2",
+		"globals": "^17.12.0",
 		"obsidian": "1.13.1",
-		"typescript": "~5.9.3",
-		"typescript-eslint": "^8.65.0",
-		"ws": "^8.21.2",
-		"yaml": "^2.9.0"
+		"typescript": "~7.0.2",
+		"typescript-eslint": "^8.70.1",
+		"ws": "^8.22.0",
+		"yaml": "^2.9.1"
 	},
 	"dependencies": {
 		"preact": "^10.29.8",
