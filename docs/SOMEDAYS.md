@@ -107,6 +107,14 @@ Three buttons matter:
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
 
+**1.11.0** · 2026-09-30
+- Rows open from the keyboard, and search keeps what you're typing when the page refreshes.
+- Saving a someday keeps people linked with an alias (`[[Name|Alias]]`) or through a group page.
+- A double click on a sub-idea's remove button removes one sub-idea, not two.
+- Today and Tomorrow check a someday's window, season and date, as This weekend already did.
+- Opening a someday's note opens it even when a search or filter hides it.
+- A negative estimated cost isn't saved.
+
 **1.4.0** · 2026-08-10
 - Somedays list rows match the dashboard's row sizes.
 

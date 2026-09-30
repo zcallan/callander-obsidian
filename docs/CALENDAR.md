@@ -121,6 +121,14 @@ The same category also narrows the **Events** page: its Filters panel has a Cate
 
 Derived from the [changelog](../CHANGELOG.md), newest first. Entries about event categories and colours apply here and on the Events page's own Calendar tab, since they share the same code.
 
+**1.11.0** · 2026-09-30
+- Days, and everything on them, open from the keyboard: Tab to one, then Enter or Space.
+- Month paging no longer skips a month or stalls on the 29th–31st, here and on the Events page's Calendar tab.
+- On a phone's month view, a plan's last day in the next week's row shows its date range, as a wide screen does. A plan also keeps its last day in time zones whose clocks change at midnight.
+- At a width right around 620 pixels, the calendar no longer shows its wide and narrow layouts at once.
+- The drawer's "Show N more" is plain again rather than a filled button.
+- Renaming a category to one that already exists warns that the two will merge, and keeps the existing one's colour.
+
 **1.10.3** · 2026-09-26
 - The category Edit toggle becomes a round pencil, matching "+ Add"'s height.
 

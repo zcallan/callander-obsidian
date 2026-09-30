@@ -153,6 +153,20 @@ It checks every line as you type, pointing at anything it can't read. Before wri
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
 
+**1.11.0** · 2026-09-30
+- Rows open from the keyboard: Tab to one, then Enter or Space.
+- Dates read day first, "14 March 2019", and one that can't exist, like 30 February, reads as no date rather than the wrong one.
+- The move from reminders to events no longer deletes a note of your own called `Reminders.md`, or an empty `Reminders` folder. Reminder notes that sync in from a device on an older version are sorted into calendar entries and timeline records straight away, rather than at the next launch.
+- A note in Events whose properties can't be read is skipped, rather than turning off birthday reminders and the status bar on every start.
+- Search keeps the Timeline or Calendar tab you're on, and keeps what you're typing when the page refreshes.
+- Opening an event's note opens it whatever tab, filter or search is showing, and no longer pops it open again some later day.
+- Plans sort by their own dates under Oldest and Last updated, and a friend's new display name shows without waiting for an event to change.
+- An event saved with "Show on their timelines?" unticked stays off that friend's own page too.
+- `mailto:`, `tel:` and `sms:` links open and share as themselves, and a Google Calendar link lasts its full length across the night the clocks go back.
+- Month paging on the Calendar tab no longer skips a month or stalls on the 29th–31st.
+- Renaming a category to one that already exists warns that the two will merge, and keeps the existing one's colour.
+- Bulk import: a stray quote, as in `12" pizza`, no longer merges the rows after it, line breaks inside a quoted cell come through without stray characters, and time zones are stored in their proper form ("Europe/Madrid").
+
 **1.10.3** · 2026-09-26
 - The category Edit toggle becomes a round pencil, matching "+ Add"'s height.
 

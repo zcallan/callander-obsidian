@@ -61,6 +61,13 @@ A diary mention is a link, not an event. To put the day on everyone's timeline a
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
 
+**1.11.0** · 2026-09-30
+- The Diary page shows a new entry straight away, and redraws once per save rather than twice.
+- An entry's header opens and closes from the keyboard.
+- Editing a logged entry updates its event with the friends it mentions now, and keeps the event off people's timelines if you'd taken it off.
+- Logging an entry that fails to save says so.
+- The dashboard's Diary section notices entries in a diary folder kept outside the Callander folder.
+
 **1.9.0** · 2026-09-08
 - Every page (the Diary included) is kept to the same reading-column width, with a button to widen it for as long as you're on the page.
 

@@ -112,11 +112,14 @@ Ideas are stored as markdown in the note body, grouped under a `## Ideas` headin
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
 
-**1.10.7** · unreleased
+**1.11.0** · 2026-09-30
 - Any one field is enough for an interest (an artist with no song, say), and the form says so under the fields.
 - An interest's first field says what goes in it: Music asks for a Song, Food for a Dish, and Other for an Interest.
 - Adding an idea can no longer replace all of a friend's ideas when their note can't be read at that moment.
 - Filing an inbox idea adds it to the friend before taking it out of the inbox, so a failed save leaves it in both places rather than neither.
+- "Log on timeline", after ticking off an idea, logs it for the friend whose idea it was, even if you've moved to someone else's page.
+- Ticking, resurfacing or deleting an idea, or filing a draft as one, marks the note updated.
+- Removing a plan's last idea category now saves.
 
 **1.10.3** · 2026-09-26
 - The eye button becomes a pencil, labelled Edit; a note gets its own purple hover icon showing it instantly instead of after a delay.

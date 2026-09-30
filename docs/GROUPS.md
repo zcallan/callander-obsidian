@@ -60,6 +60,15 @@ Pick one of nine swatches, or a custom colour with the colour picker. A group's 
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
 
+**1.11.0** · 2026-09-30
+- A group whose page has capitals in its name, like `BJJ.md`, is found again: deleting the group removes its page, and changing its colour no longer fails.
+- Renaming or deleting a group only touches the people in it, rather than rewriting every friend's note.
+- Renaming a group to a name that's taken is refused before anything changes, as is a name with a character a file can't hold, and a new group under a taken name says so rather than recolouring the existing one.
+- Removing a person's last group now saves.
+- A group made from Add friend shows its colour on its chip straight away, and a group's name is spelt everywhere the way its page spells it.
+- On All friends, a group filter lets go once its group is renamed or deleted.
+- A group's notes stay in the editor if they can't be saved, and member rows open from the keyboard.
+
 **1.10.2** · 2026-09-26
 - A new group can be made from the Add friend form, and groups gain a custom colour option.
 

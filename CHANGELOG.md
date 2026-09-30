@@ -4,17 +4,80 @@ All notable changes to Callander, newest first.
 
 Collated from the [GitHub releases](https://github.com/zcallan/callander-obsidian/releases). Versions marked *(tag only)* shipped as a tag without published release notes; their entries are reconstructed from the commits they contain.
 
-## 1.10.7 — unreleased
+## 1.11.0 — 2026-09-30
 
-Fixes from a review of the whole plugin, most of them ways an edit could be lost.
+A review of the whole plugin. Most of what changed is fixes, the ways an edit could be lost first. Alongside them: keyboard access everywhere, dates written the Australian way, and interests that need only one field.
+
+### Everywhere
+
+- **Keyboard access.** Every clickable row, calendar day, chip and section header can be reached with Tab and opened with Enter or Space, with a focus ring to show where you are. A page that refreshes keeps your place rather than sending focus back to the top, and buttons that only showed on hover now show when you tab to them.
+- **Dates read the Australian way**: "14 March 2019", day first and no comma, on the Met line, birthdays and event dates, where a dozen screens still said "March 14, 2019".
+- A date that can't exist, like 30 February or a year like 0099, now reads as no date rather than as the wrong one.
+- A page left open overnight rolls over at midnight, so the dashboard no longer shows yesterday's "Today", and the status bar's birthday countdown keeps up through the day instead of staying as it was at startup.
+- A search box keeps what you're typing, and where, when its page refreshes from a sync or an edit in another pane.
+- A page keeps refreshing after you change the Callander folder in settings, where it used to go quiet until reopened, and a change you make redraws its page once rather than twice.
+- Delete buttons are red before you hover them. The calendar drawer's "Show N more" and the AI tag's × are plain again rather than filled buttons, and buttons that had lost Obsidian's keyboard focus ring have it back.
+- Callander's phone layout for its forms no longer reaches Obsidian's own Settings or other plugins' dialogs.
+- A form that shakes to say a click outside it was ignored flashes instead when Reduce motion is on.
+- An action on a page that fails to save (a birthday's Done, filing an inbox idea, logging a diary entry, a list's sort) says so, instead of nothing happening.
+- Commands and ribbon icons bring forward a page that was restored in the background, instead of opening a second copy of it.
+- If one of Callander's startup steps fails, the others still run, and a notice names the one that failed.
+- The vault's root works as the Callander folder: pages refresh, the year recap is written there, and the first run sets up the folders.
+- A fresh install no longer says "People folder not found" over and over. It says it once, and only when the Callander folder exists.
+- Callander and another plugin that changes how notes open no longer undo each other's changes when one of them is turned off.
+
+### Dashboard
+
+- The dashboard can no longer draw a section twice when two refreshes overlap, as it could on a slow device or in a large vault.
+- An event with a duration but no start time stays in Upcoming for its whole day.
+- An event dated only to a month or a year no longer reads "today" or "in 1 day" at the start of that month.
+- The Diary section notices entries in a diary folder kept outside the Callander folder.
+- A section that has just opened no longer misses a change made a moment before.
+
+### Friends
+
+- **A friend's name** is trimmed, and a blank one is refused. Their note's file takes the name with the characters a file can't hold (`\ / : * ? " < > | # ^ [ ]`) swapped for "-", while the name itself stays as you typed it. Renaming follows the same rule.
+- Renaming a friend on their page renames once rather than twice, leaves the note alone when the name hasn't changed, and emptying the box no longer shows "Unnamed Contact".
+- A change that syncs into a friend's note while you're typing on their page waits until you stop, instead of being lost. Their page also updates when their plans, groups, fellow members or diary mentions change elsewhere, without reopening it.
+- "Log on timeline", after ticking off an idea, logs it for the friend whose idea it was, even if you've moved to someone else's page.
+- An event saved with "Show on their timelines?" unticked stays off that friend's own page too.
+- Editing a life goal from its view keeps the notes you'd just typed there.
+- About shows fields set to 0 or false, and a list field, like nicknames, edits as a list, where it showed an empty box and saved back as text.
+- The relationship field offers its suggestions, and remembers new ones, without Add friend having been opened first.
+- A note with Windows line endings opens properly, rather than showing "No contact data available".
+- A tab restored for a friend whose note has gone says so, rather than staying blank.
+- In a popout window, a friend's page no longer redraws in the middle of your typing.
+- The Chinese zodiac goes by lunar year. A birthday before 21 January is the previous year's animal, and one up to 20 February, when Lunar New Year can fall either side of it, names both.
+- "Met … ago" counts the day when there is one: 30 September to 1 September is 11 months, not a year.
+- "Last updated" no longer says "-2 days ago" for a note last saved on a device whose clock runs ahead.
+- A link written with an alias, `[[Name|Alias]]`, finds its note and shows the alias.
+- A 29 February birthday counts down to the right day in the year before a leap year.
+- On 29 February, Glance's "Last 12 months" reaches back to 28 February of the year before, rather than stopping a day short.
+
+### All friends
+
+- The list notices deletes and renames straight away, and no longer flashes blank or jumps back to the top when it refreshes.
+- A group filter lets go once its group is renamed or deleted, instead of hiding everyone.
+- The B'day Calendar shows a 29 February birthday on 1 March in years without one.
 
 ### Plans
 
 - **A plan's drafts no longer slide into its Notes.** Reopening a plan could move its Drafts section inside Notes, where an ordinary edit to the notes would delete the drafts. Drafts now stay above Notes, and a plan already affected has its drafts moved back when it's opened.
 - Emptying a draft's text no longer makes later edits land on the next draft. An emptied draft keeps what it last said; Discard is how one goes.
 - Discarding, converting or deleting a dated draft acts on that draft, not a neighbour, when an earlier draft has no text.
+- "Make idea" on a plan's draft opens the Add form, with the plan's days and people to pick from, where it opened as an edit of an idea that didn't exist yet.
 - Saving a plan item keeps its exact time. A time like 9:30 no longer saves as 12:30am, and one between the five-minute steps, like 7:07pm, no longer becomes 7pm.
-- Editing a life goal from its view keeps the notes you'd just typed there.
+- A plan longer than 62 days stays in Upcoming until it's over, rather than moving to Past partway through.
+- A plan whose end date has no year and crosses New Year, 30 December to 2 January, reads as the right days.
+- A plan's days no longer lose their last day in time zones whose clocks change at midnight, on the calendar, in the running order or in shared text.
+- A plan item's calendar link lasts its full length across the night the clocks change.
+- A plan item dated only to a month no longer gets a day of its own in the running order.
+- A plan's date line says "yesterday" rather than "1 days ago".
+- A travel leg started from an empty day opens as Add, on the first travel type, with the cursor in its name.
+- Editing or deleting a plan's expense or credit acts on that one, even if the plan changed while its form was open. If it has gone, nothing is saved and a notice says so.
+- Deleting a friend takes them out of plans where they were written with an alias too.
+- Quick ideas list their days in date order, once each.
+- In shared plans, an unknown travel type no longer prints "undefined", a name that starts with a flag or keycap emoji doesn't get a second emoji, and a free stay says "Free" in every share. Amounts show their cents: "$12.50", not "$12.5".
 
 ### Friends and plans
 
@@ -22,12 +85,16 @@ Fixes from a review of the whole plugin, most of them ways an edit could be lost
 - Removing a person's last group or a plan's last idea category now saves. Before, the page looked right but the note kept them. Removing a plan's last stay category no longer leaves an empty list in the note.
 - Opening another note in the same tab while a save was still running could write one note's details into the other. It no longer can.
 - Notes on a person, group or plan stay in the editor if they can't be saved, rather than closing and taking what you typed with them.
+- Every content edit marks the note updated: ticking, resurfacing or deleting an idea, filing a draft as one, and editing a quote or a plan draft, as adding and editing already did.
 
 ### Groups
 
 - A group whose page has capitals in its name, like `BJJ.md`, is found again: deleting the group removes its page, and changing its colour no longer fails with "File already exists".
 - Renaming or deleting a group only touches the people in it. Before, it rewrote every friend's note and marked them all as updated today.
 - Renaming a group to a name another group already has is refused before anything changes, and a new group with an existing group's name says so instead of recolouring that group.
+- A group name with a character a file can't hold is refused in the form, rather than saved under a name its page can't be found by.
+- A group made from Add friend shows its colour on its chip straight away.
+- A group's name is spelt everywhere the way its page spells it ("Run Club", not "Run club").
 
 ### Ideas
 
@@ -42,32 +109,76 @@ Fixes from a review of the whole plugin, most of them ways an edit could be lost
 ### Expenses
 
 - Editing, ticking off or deleting a dashboard expense acts on that expense even if the list changed while it was open, from a sync or another window. If it has gone, nothing is saved and a notice says so.
-- Deleting an expense from its edit form asks first, like everywhere else.
+- Editing an expense keeps who has paid and whether it's settled when only its label changes. Changing the amount, the split or the people clears them, and the form says so.
+- Deleting an expense from its edit form asks first, like everywhere else, and so does deleting a credit.
 - Two quick ticks in an expense no longer lose the first.
+- Someone square to the cent shows as $0.00, not "−$0.00".
+- Shares written into a note as text, like `"25"`, add up as numbers instead of reading "$2510.00".
+- Copy text works in the dashboard's expense view.
 
 ### Events
 
 - The move from reminders to events no longer deletes a note of your own called `Reminders.md`, or an empty `Reminders` folder, in your Callander folder.
 - Editing a logged diary entry keeps its event off people's timelines if you'd taken it off.
+- Reminder notes that sync in from a device still on an older version are sorted into calendar entries and timeline records straight away, rather than at the next launch.
 - A stray quote in a CSV import, as in `12" pizza`, no longer merges the rows after it into one event.
 - A note in Events whose properties can't be read no longer turns off birthday reminders and the status bar on every start. It's skipped and left as it is.
+- Typing in search on the Events or Plans page keeps the Timeline or Calendar tab you're on, rather than swapping in the List.
+- Opening an event's note opens it on the Events page whatever tab, filter or search is showing, and no longer pops it open again some later day.
+- Plans on the Events page sort by their own dates under Oldest and Last updated, instead of all sinking to the end.
+- The Events page shows a friend's new display name without waiting for an event to change.
+- `mailto:`, `tel:` and `sms:` links open and share as themselves, not as `https://mailto:…`.
+- An event's Google Calendar link lasts its full length across the night the clocks go back.
+- Renaming an event category to one that already exists warns that the two will merge, and keeps the existing one's colour.
+- Bulk import keeps line breaks inside a quoted cell without stray characters, and stores time zones in their proper form ("Europe/Madrid").
+- The birthday calendar export puts 29 February on 1 March in common years rather than writing a date that doesn't exist, and friends whose names use no Latin letters, or look alike, each keep their own entry.
+- The year recap links each friend's own note, counts a hangout with three friends once, leaves out cancelled events, and says "1 entry" rather than "1 entries". The calendar export and bulk import count in the singular too ("1 event").
+
+### Calendars
+
+- Month paging no longer skips a month or stalls on the 29th–31st, on the Calendar page, the Events page's Calendar tab and the B'day Calendar.
+- On a phone's month view, a plan's last day in the next week's row shows its date range, as a wide screen does.
+- At a width right around 620 pixels, the calendar no longer shows its wide and narrow layouts at once.
 
 ### Somedays
 
 - Saving a someday keeps people linked with an alias (`[[Name|Alias]]`) or through a group page.
 - A double click on a sub-idea's remove button removes one sub-idea, not two.
+- Today and Tomorrow check a someday's window, season and date, as This weekend already did. On the last day of autumn, Today offers the autumn somedays and Tomorrow the winter ones.
+- Opening a someday's note opens it even when a search or filter hides it.
+- A negative estimated cost isn't saved.
+
+### Diary
+
+- The Diary page shows a new entry straight away, and redraws once per save rather than twice.
+- Editing a logged diary entry updates its event with the friends it mentions now, read once Obsidian has resolved the entry's links.
 
 ### Forms
 
 - Save, Add and Delete can't run twice from a double click or a second Enter, so there are no more duplicate notes, and no second entry deleted along with the first.
 - A save that fails says so, and the form stays open with what you entered. Before, most failed silently. Adding a friend under a name that's taken is one case.
 - Notes typed into a view (an event, someday, plan item, life goal or draft) that can't be saved as it closes now say so too.
+- A stray click outside a form no longer throws away edits made only with chips, pills, steppers or colour swatches.
+- Enter pressed to confirm Japanese or Chinese input no longer submits the form half-typed.
+- "Additional details" opens from the keyboard.
+- A birthday entered as month and day refuses a day its month doesn't have, like 31 February.
+- A confirmation that shortens a long name no longer cuts an emoji in half at the end.
+
+### Settings
+
+- On Obsidian 1.13, clearing a number setting keeps its default instead of saving 0, which fell below several settings' minimums.
+- On earlier versions of Obsidian, the settings tab has "Friend suggestions shown" too.
+- "Your name" is trimmed of stray spaces.
 
 ### Internal
 
 - About 500 lines of code nothing used any more are gone, among them a plan calendar export with no button, two fields worked out for every friend on every read and then never shown, and a second copy of the emoji splitter. So are 720 lines of stylesheet rules that no element could match.
 - Comments that had drifted from the code, or sat on the wrong function, are corrected or moved to the one they describe.
 - Tests, lint and a build run on every push and pull request, and a release now waits for them to pass.
+- The contact page, the dashboard and the plugin's startup are split into modules, every page refreshes the same way, and the tests grew from about 2,070 to 2,670.
+- The released `styles.css` is minified, so it has no comments. The commented source is `src/styles/base.css` in the repository, for anyone writing a CSS snippet against it.
+- Icon names are checked against the installed Obsidian before a release.
+- Pages let go of what they rendered each time they redraw, where some held on to it until they were closed.
 
 ## 1.10.6 — 2026-09-27
 

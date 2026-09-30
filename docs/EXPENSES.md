@@ -139,6 +139,15 @@ The outstanding figure updates as you go, so someone who's square reads **$0.00*
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
 
+**1.11.0** · 2026-09-30
+- Editing, ticking off or deleting an expense or credit acts on that one even if the list or plan changed while its form was open. If it has gone, nothing is saved and a notice says so.
+- Editing an expense keeps who has paid and whether it's settled when only its label changes. Changing the amount, the split or the people clears them, and the form says so.
+- Deleting an expense or a credit from its edit form asks first.
+- Two quick ticks no longer lose the first.
+- Someone square to the cent shows as $0.00, not "−$0.00", and shares written into a note as text, like `"25"`, add up as numbers.
+- Copy text works in the dashboard's expense view, and amounts in shared text show their cents: "$12.50", not "$12.5".
+- Expense rows open from the keyboard.
+
 **1.9.2** · 2026-09-15
 - Copy text for the whole Cost breakdown, a single expense, and a person's ledger, each offering only the toggles that change something.
 - Costs copy as a chase-up by default; credits read as `+$20.00` alongside expenses.

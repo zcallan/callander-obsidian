@@ -212,6 +212,20 @@ Every plan, past and future. Open it from the dashboard's Plans section or the *
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
 
+**1.11.0** · 2026-09-30
+- **A plan's drafts no longer slide into its Notes**, where an ordinary edit to the notes would delete them. A plan already affected has its drafts moved back when it's opened.
+- Emptying a draft's text no longer makes later edits land on the next draft, discarding, converting or deleting a dated draft acts on that draft, and Make idea opens the Add form with the plan's days and people to pick from.
+- Saving an item keeps its exact time: 9:30 no longer saves as 12:30am, nor 7:07pm as 7pm.
+- A plan longer than 62 days stays in Upcoming until it's over, and the date line says "yesterday" rather than "1 days ago".
+- A plan crossing New Year with a year-less end date reads as the right days, and a plan's days keep their last one in time zones whose clocks change at midnight.
+- An item's calendar link lasts its full length across the night the clocks change, and an item dated only to a month no longer gets a day of its own in the running order.
+- A travel leg started from an empty day opens as Add, on the first travel type, and quick ideas list their days in date order, once each.
+- Editing or deleting an expense or credit acts on that one even if the plan changed while its form was open.
+- The page saves only the fields you changed, so a change synced in while it was open survives. Removing its last idea category now saves, removing its last stay category no longer leaves an empty list in the note, and notes stay in the editor if they can't be saved.
+- Deleting a friend takes them out of plans where they were written with an alias too.
+- In shared text, an unknown travel type no longer prints "undefined", a name starting with a flag emoji doesn't get a second one, a free stay says "Free", and amounts show their cents.
+- Rows open from the keyboard. On the Plans and Events pages, search keeps the Timeline or Calendar tab you're on, and plans sort by their own dates under Oldest and Last updated.
+
 **1.10.2** · 2026-09-26
 - A Plans page, with search, Upcoming / Past / All, Timeline or List, and status and people filters.
 - Drafts on a plan gain Make idea, Make event, Edit and Done. Undated ones are kept in a `## Drafts` checklist in the plan's note, and a dated one leads its day on the Timeline.

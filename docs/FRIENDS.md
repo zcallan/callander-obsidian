@@ -153,6 +153,21 @@ Star sign, birthstone, birth flower and Chinese zodiac are each their own on/off
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
 
+**1.11.0** · 2026-09-30
+- Rows, birthday calendar days and page sections open from the keyboard: Tab to one, then Enter or Space.
+- Dates read day first: "14 March 2019" on the Met line and birthdays.
+- A friend's name is trimmed and a blank one refused. Their note's file swaps characters a file can't hold for "-", while the name stays as typed, and renaming on their page renames once, only when the name has changed.
+- Their page saves only the fields you changed, and a change that syncs in while you're typing waits until you stop. It updates when their plans, groups or diary mentions change elsewhere, and no longer redraws mid-typing in a popout window.
+- "Log on timeline", after ticking off an idea, logs it for the friend whose idea it was, and editing a life goal from its view keeps the notes just typed there.
+- About shows fields set to 0 or false, a list field like nicknames edits as a list, and the relationship field offers its suggestions without Add friend having been opened first.
+- A note with Windows line endings opens properly, and a tab restored for a friend whose note has gone says so.
+- The Chinese zodiac goes by lunar year, "Met … ago" counts the day when there is one, and "Last updated" no longer says "-2 days ago".
+- A 29 February birthday counts down to the right day, and shows on 1 March on the B'day Calendar and in the export in years without one.
+- Any one field is enough for an interest, and the first field says what goes in it: a Song for Music, a Dish for Food, an Interest for Other.
+- All friends notices deletes and renames straight away, keeps its place and what you're typing in search when it refreshes, and a group filter lets go once its group is renamed or deleted.
+- The year recap links each friend's own note, counts a hangout with three friends once and leaves out cancelled events. The birthday export keeps friends with look-alike or non-Latin names apart.
+- Deleting a friend takes them out of plans where they were written with an alias too.
+
 **1.10.3** · 2026-09-26
 - The eye button on an interest chip becomes a pencil, labelled Edit; a note gets its own purple hover icon.
 - Interest chips are more compact, with lighter, hover/focus-aware buttons; subheadings become plural.

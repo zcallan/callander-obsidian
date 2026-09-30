@@ -134,6 +134,15 @@ All of these live in [Settings](SETTINGS.md).
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
 
+**1.11.0** · 2026-09-30
+- Section headers and rows open from the keyboard: Tab to one, then Enter or Space.
+- Left open overnight, the dashboard rolls over at midnight rather than showing yesterday's "Today".
+- A section can no longer be drawn twice when two refreshes overlap, and one that has just opened no longer misses a change made a moment before.
+- In Upcoming, an event with a duration but no start time stays for its whole day, and one dated only to a month or a year no longer reads "today" or "in 1 day" at the start of that month.
+- The Diary section notices entries in a diary folder kept outside the Callander folder.
+- A birthday's Done that fails to save says so, and so does filing an inbox idea, which now adds the idea to the friend before taking it out of the inbox.
+- Editing, ticking off or deleting an expense acts on that expense even if the list changed while it was open, and Copy text works in the expense view.
+
 **1.10.4** · 2026-09-26
 - A birthday due today shows a bold "Today!" and a filled Done button in place of the countdown.
 

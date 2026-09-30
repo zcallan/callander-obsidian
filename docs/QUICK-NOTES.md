@@ -77,6 +77,13 @@ The `➕`/`✅` markers are the **Tasks** community plugin's own convention for 
 
 Derived from the [changelog](../CHANGELOG.md), newest first.
 
+**1.11.0** · 2026-09-30
+- A plan's drafts stay above its Notes. Reopening a plan could move them inside Notes, where an ordinary edit to the notes would delete them; a plan already affected has them moved back when it's opened.
+- Emptying a plan draft's text no longer makes later edits land on the next draft. An emptied draft keeps what it last said; Discard is how one goes.
+- Discarding, converting or deleting a plan's dated draft acts on that draft, not a neighbour, when an earlier draft has no text.
+- Make idea on a plan's draft opens the Add form, with the plan's days and people to pick from, rather than an edit of an idea that didn't exist yet.
+- Filing a draft as an idea, or editing a plan's draft, marks the note updated, and notes typed into a draft that can't be saved as it closes say so.
+
 **1.10.3** · 2026-09-26
 - A draft's View person, Make idea and Add event gain icons; on a phone the labels drop to fit the row.
 
