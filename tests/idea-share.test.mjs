@@ -2,7 +2,7 @@ import { createSuite } from "./harness.mjs";
 import { IDEA_SHARE_DEFAULTS, buildIdeaShareText } from "./.build/callander.mjs";
 
 const IDEAS = [
-	{ text: "Churros in North End", categories: ["Boston"], time: "late-night" },
+	{ text: "Cannolis in North End", categories: ["Boston"], time: "late-night" },
 	{
 		text: "Brattle Bookstore",
 		categories: ["Boston"],
@@ -47,7 +47,7 @@ export function run() {
 			text.split("\n\n")[0].split("\n"),
 			[
 				"Boston",
-				"- Churros in North End • Late night",
+				"- Cannolis in North End • Late night",
 				"- Brattle Bookstore • Sat 22 Aug - Sun 23 Aug • All day",
 			]
 		);

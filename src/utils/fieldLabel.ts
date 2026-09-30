@@ -59,7 +59,7 @@ const HELP: Record<string, FieldHelp> = {
 	},
 	shortName: {
 		text: "A shorter form for quick recognition in lists, where full names crowd each other out. Like a nickname, but chosen for practicality rather than affection.",
-		example: "“Theo” instead of “Theodore”",
+		example: "“Cal” instead of “Callan”",
 	},
 	legalName: {
 		text: "Their full name as it appears on documents. Useful for bookings and paperwork.",

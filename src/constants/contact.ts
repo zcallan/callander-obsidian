@@ -207,7 +207,7 @@ export const INTEREST_CATEGORIES = [
 		namePlaceholder: "e.g. Boston Celtics",
 		detailLabel: "Sport/league",
 		detailPlaceholder: "e.g. NBA",
-		notesPlaceholder: "e.g. Season ticket holder, loves Paul Pierce",
+		notesPlaceholder: "e.g. Season ticket holder, loves Larry Bird",
 	},
 	{
 		id: "foods",

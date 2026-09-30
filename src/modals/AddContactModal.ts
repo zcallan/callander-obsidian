@@ -68,7 +68,7 @@ export class AddContactModal extends FormModal {
 			attr: {
 				type: "text",
 				name: "shortName",
-				placeholder: "Used in lists to save space, e.g. 'Theodore' -> 'Theo'",
+				placeholder: "Used in lists to save space, e.g. 'Callan' -> 'Cal'",
 			},
 			cls: "callander-modal-input",
 		});
